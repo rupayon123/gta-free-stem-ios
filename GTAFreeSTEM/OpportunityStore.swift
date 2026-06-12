@@ -1,0 +1,41 @@
+import Foundation
+
+@MainActor
+final class OpportunityStore: ObservableObject {
+    @Published var query = ""
+    @Published var mode: SearchMode = .all
+    @Published var opportunities: [Opportunity] = []
+    @Published var activeCount = 0
+    @Published var lastUpdated: String?
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+
+    private let api: APIClient
+
+    init(api: APIClient) {
+        self.api = api
+    }
+
+    func refresh() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            let response = try await api.opportunities(query: query, mode: mode)
+            opportunities = response.data
+            activeCount = response.meta?.activeCount ?? response.data.count
+            lastUpdated = response.meta?.lastUpdated
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func save(_ opportunity: Opportunity, token: String?) async {
+        do {
+            try await api.save(opportunityID: opportunity.id, token: token)
+            errorMessage = "Saved."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}

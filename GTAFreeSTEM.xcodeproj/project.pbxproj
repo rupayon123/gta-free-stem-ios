@@ -1,0 +1,455 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		168AF57FFB6496AE3B843362 /* APIClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6401728357C617A014393A8C /* APIClientTests.swift */; };
+		2D1B6259028406BFAB418C02 /* SubmitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5CE6827A07E25AA535BDD3D /* SubmitView.swift */; };
+		5D7B9E10C49C7B705FD10F5D /* OpportunityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA618962B57C2322242054A8 /* OpportunityStore.swift */; };
+		68A00260FA5F2E54B7D829AE /* BrowseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EDF5309E3C2CD4DCD01634E /* BrowseView.swift */; };
+		699F3CE961C47FE8776DD7D1 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD58966D0640D561D88FFD4C /* DesignSystem.swift */; };
+		7210461E6FC5A14FEDE2FCA0 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8090B462DA48C2000491E38 /* APIClient.swift */; };
+		8A075A7A8FECA9A2C55DEC90 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 391D855DB9BFE69A9A84C74E /* ContentView.swift */; };
+		97E9377D86E669318E0590A1 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3174729DAC307CFE04C37F5 /* Models.swift */; };
+		BAB832A177C638741DFD309F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C905F5C3CADDDAD068E2AE5A /* Assets.xcassets */; };
+		BC981A8F7A137EDFCAAB1CA5 /* GTAFreeSTEMApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE3D267D0D56895524E2A15E /* GTAFreeSTEMApp.swift */; };
+		D0D2EA8F4B319DCFCB55414C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E129DF28063F41A5842B167 /* SettingsView.swift */; };
+		E718E3102E49EA06E71F1C42 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3FA87A17DB14C2FA9B97306 /* SessionStore.swift */; };
+		EE6239C4E96CED0F0707F16D /* OpportunityDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07B77BBC9D9E87DAB34556E /* OpportunityDetailView.swift */; };
+		F2DBCAC93578B065A14CF04B /* SavedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2C45C1750835FF267CB51D1 /* SavedView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		4DE1BC7834C2F141D7C3D1E2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FA340A41CB4F72B4347F261E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3E42DDF6414C70F70054B63D;
+			remoteInfo = GTAFreeSTEM;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		391D855DB9BFE69A9A84C74E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		3BE5FA924475A7BC651B6413 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		443304F071235DDFB0AE9F60 /* GTAFreeSTEMTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = GTAFreeSTEMTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		4E129DF28063F41A5842B167 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		4EDF5309E3C2CD4DCD01634E /* BrowseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseView.swift; sourceTree = "<group>"; };
+		6401728357C617A014393A8C /* APIClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClientTests.swift; sourceTree = "<group>"; };
+		8B21BABCB9154E23096C0B6F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		A2C45C1750835FF267CB51D1 /* SavedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedView.swift; sourceTree = "<group>"; };
+		A3FA87A17DB14C2FA9B97306 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
+		A8090B462DA48C2000491E38 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		AA618962B57C2322242054A8 /* OpportunityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpportunityStore.swift; sourceTree = "<group>"; };
+		B5CE6827A07E25AA535BDD3D /* SubmitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmitView.swift; sourceTree = "<group>"; };
+		BE3D267D0D56895524E2A15E /* GTAFreeSTEMApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GTAFreeSTEMApp.swift; sourceTree = "<group>"; };
+		C3174729DAC307CFE04C37F5 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		C905F5C3CADDDAD068E2AE5A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		CF02688AB14B0594AA699477 /* GTAFreeSTEM.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = GTAFreeSTEM.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DD58966D0640D561D88FFD4C /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
+		E07B77BBC9D9E87DAB34556E /* OpportunityDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpportunityDetailView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		45CC2B233F6A3F7FA0BCBF31 /* GTAFreeSTEMTests */ = {
+			isa = PBXGroup;
+			children = (
+				6401728357C617A014393A8C /* APIClientTests.swift */,
+				8B21BABCB9154E23096C0B6F /* Info.plist */,
+			);
+			path = GTAFreeSTEMTests;
+			sourceTree = "<group>";
+		};
+		602B303E4E395B99EB0D1315 = {
+			isa = PBXGroup;
+			children = (
+				B3581554EF7A318422A94FFF /* GTAFreeSTEM */,
+				45CC2B233F6A3F7FA0BCBF31 /* GTAFreeSTEMTests */,
+				8238FD5CC5F0BBA01ABC1BD4 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		8238FD5CC5F0BBA01ABC1BD4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CF02688AB14B0594AA699477 /* GTAFreeSTEM.app */,
+				443304F071235DDFB0AE9F60 /* GTAFreeSTEMTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B3581554EF7A318422A94FFF /* GTAFreeSTEM */ = {
+			isa = PBXGroup;
+			children = (
+				A8090B462DA48C2000491E38 /* APIClient.swift */,
+				C905F5C3CADDDAD068E2AE5A /* Assets.xcassets */,
+				4EDF5309E3C2CD4DCD01634E /* BrowseView.swift */,
+				391D855DB9BFE69A9A84C74E /* ContentView.swift */,
+				DD58966D0640D561D88FFD4C /* DesignSystem.swift */,
+				BE3D267D0D56895524E2A15E /* GTAFreeSTEMApp.swift */,
+				3BE5FA924475A7BC651B6413 /* Info.plist */,
+				C3174729DAC307CFE04C37F5 /* Models.swift */,
+				E07B77BBC9D9E87DAB34556E /* OpportunityDetailView.swift */,
+				AA618962B57C2322242054A8 /* OpportunityStore.swift */,
+				A2C45C1750835FF267CB51D1 /* SavedView.swift */,
+				A3FA87A17DB14C2FA9B97306 /* SessionStore.swift */,
+				4E129DF28063F41A5842B167 /* SettingsView.swift */,
+				B5CE6827A07E25AA535BDD3D /* SubmitView.swift */,
+			);
+			path = GTAFreeSTEM;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3E42DDF6414C70F70054B63D /* GTAFreeSTEM */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B692641CBEDD30303D85B1EF /* Build configuration list for PBXNativeTarget "GTAFreeSTEM" */;
+			buildPhases = (
+				255C0902FB86ABEC934502DA /* Sources */,
+				766E7E4A8E8ECCFE3E607590 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GTAFreeSTEM;
+			packageProductDependencies = (
+			);
+			productName = GTAFreeSTEM;
+			productReference = CF02688AB14B0594AA699477 /* GTAFreeSTEM.app */;
+			productType = "com.apple.product-type.application";
+		};
+		6DB3CA7F9E850F0D38F42DF4 /* GTAFreeSTEMTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B74C8205010C286F49A4B49A /* Build configuration list for PBXNativeTarget "GTAFreeSTEMTests" */;
+			buildPhases = (
+				3D85A0C36C79964037F267A8 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B84FC38A9B28F3B09EA64A1F /* PBXTargetDependency */,
+			);
+			name = GTAFreeSTEMTests;
+			packageProductDependencies = (
+			);
+			productName = GTAFreeSTEMTests;
+			productReference = 443304F071235DDFB0AE9F60 /* GTAFreeSTEMTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		FA340A41CB4F72B4347F261E /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					3E42DDF6414C70F70054B63D = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 080FC1EF7ACBA9D1B76A09EE /* Build configuration list for PBXProject "GTAFreeSTEM" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 602B303E4E395B99EB0D1315;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 8238FD5CC5F0BBA01ABC1BD4 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				3E42DDF6414C70F70054B63D /* GTAFreeSTEM */,
+				6DB3CA7F9E850F0D38F42DF4 /* GTAFreeSTEMTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		766E7E4A8E8ECCFE3E607590 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BAB832A177C638741DFD309F /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		255C0902FB86ABEC934502DA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7210461E6FC5A14FEDE2FCA0 /* APIClient.swift in Sources */,
+				68A00260FA5F2E54B7D829AE /* BrowseView.swift in Sources */,
+				8A075A7A8FECA9A2C55DEC90 /* ContentView.swift in Sources */,
+				699F3CE961C47FE8776DD7D1 /* DesignSystem.swift in Sources */,
+				BC981A8F7A137EDFCAAB1CA5 /* GTAFreeSTEMApp.swift in Sources */,
+				97E9377D86E669318E0590A1 /* Models.swift in Sources */,
+				EE6239C4E96CED0F0707F16D /* OpportunityDetailView.swift in Sources */,
+				5D7B9E10C49C7B705FD10F5D /* OpportunityStore.swift in Sources */,
+				F2DBCAC93578B065A14CF04B /* SavedView.swift in Sources */,
+				E718E3102E49EA06E71F1C42 /* SessionStore.swift in Sources */,
+				D0D2EA8F4B319DCFCB55414C /* SettingsView.swift in Sources */,
+				2D1B6259028406BFAB418C02 /* SubmitView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3D85A0C36C79964037F267A8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				168AF57FFB6496AE3B843362 /* APIClientTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B84FC38A9B28F3B09EA64A1F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3E42DDF6414C70F70054B63D /* GTAFreeSTEM */;
+			targetProxy = 4DE1BC7834C2F141D7C3D1E2 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		327EB599ABB73D0498FD8C4E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = GTAFreeSTEM/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.rupayonhaldar.gtafreestem;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		3BF44962363E6C0B0CB7E1A8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		8447C7CAC8CC0FFCB7BCA012 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		B7C2C154143EAABDE37026F9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				INFOPLIST_FILE = GTAFreeSTEMTests/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.rupayonhaldar.GTAFreeSTEMTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GTAFreeSTEM.app/GTAFreeSTEM";
+			};
+			name = Debug;
+		};
+		C1B2777516AC543409BE7CCB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				INFOPLIST_FILE = GTAFreeSTEMTests/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.rupayonhaldar.GTAFreeSTEMTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GTAFreeSTEM.app/GTAFreeSTEM";
+			};
+			name = Release;
+		};
+		EDD04753374275E711BB5F46 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = GTAFreeSTEM/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.rupayonhaldar.gtafreestem;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		080FC1EF7ACBA9D1B76A09EE /* Build configuration list for PBXProject "GTAFreeSTEM" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8447C7CAC8CC0FFCB7BCA012 /* Debug */,
+				3BF44962363E6C0B0CB7E1A8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B692641CBEDD30303D85B1EF /* Build configuration list for PBXNativeTarget "GTAFreeSTEM" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				327EB599ABB73D0498FD8C4E /* Debug */,
+				EDD04753374275E711BB5F46 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B74C8205010C286F49A4B49A /* Build configuration list for PBXNativeTarget "GTAFreeSTEMTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B7C2C154143EAABDE37026F9 /* Debug */,
+				C1B2777516AC543409BE7CCB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = FA340A41CB4F72B4347F261E /* Project object */;
+}
