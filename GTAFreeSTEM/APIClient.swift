@@ -51,6 +51,14 @@ final class APIClient: @unchecked Sendable {
         if filters.language != "all" {
             items.append(URLQueryItem(name: "language", value: filters.language))
         }
+        if let latitude = filters.latitude, let longitude = filters.longitude {
+            items.append(URLQueryItem(name: "latitude", value: String(latitude)))
+            items.append(URLQueryItem(name: "longitude", value: String(longitude)))
+            items.append(URLQueryItem(name: "distanceKm", value: String(filters.distanceKm)))
+        }
+        items.append(URLQueryItem(name: "sort", value: filters.sort.rawValue))
+        items.append(URLQueryItem(name: "includeNewFinds", value: filters.includeNewFinds ? "true" : "false"))
+        items.append(URLQueryItem(name: "limit", value: "200"))
         if filters.blackFocused {
             items.append(URLQueryItem(name: "blackFocused", value: "true"))
         }
@@ -80,6 +88,26 @@ final class APIClient: @unchecked Sendable {
         components?.queryItems = items
         guard let url = components?.url else { throw APIError.badURL }
         return try await get(url)
+    }
+
+    func requestPrioritizedHunt(query: String, mode: SearchMode, filters: OpportunityFilters) async throws {
+        let url = baseURL.appending(path: "hunt_refresh")
+        var payload: [String: String] = [
+            "query": query,
+            "mode": mode.rawValue,
+            "region": filters.region,
+            "city": filters.city,
+            "category": filters.category,
+            "age": filters.age,
+            "language": filters.language,
+            "distance_km": String(filters.distanceKm),
+            "sort": filters.sort.rawValue
+        ]
+        if let latitude = filters.latitude, let longitude = filters.longitude {
+            payload["latitude"] = String(latitude)
+            payload["longitude"] = String(longitude)
+        }
+        _ = try await send(url: url, method: "POST", token: nil, body: ["hunt": payload]) as APIStatusResponse
     }
 
     func save(opportunityID: String, token: String?) async throws {

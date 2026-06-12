@@ -6,12 +6,46 @@ enum AppTab: Hashable {
     case highSchool
     case support
     case account
+
+    init?(url: URL) {
+        let target = [url.host, url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))]
+            .compactMap { $0 }
+            .first { !$0.isEmpty }?
+            .lowercased()
+
+        switch target {
+        case "home":
+            self = .home
+        case "opportunities", "hunt", "search":
+            self = .opportunities
+        case "high-school", "highschool", "school":
+            self = .highSchool
+        case "support", "feedback", "submit":
+            self = .support
+        case "account", "settings":
+            self = .account
+        default:
+            return nil
+        }
+    }
+
+    static var launchDefault: AppTab {
+        let arguments = ProcessInfo.processInfo.arguments.map { $0.lowercased() }
+        if arguments.contains("-start-opportunities") {
+            return .opportunities
+        }
+        if arguments.contains("-start-high-school") {
+            return .highSchool
+        }
+        return .home
+    }
 }
 
 struct ContentView: View {
+    @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
-    @State private var selectedTab: AppTab = .home
+    @State private var selectedTab: AppTab = AppTab.launchDefault
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -39,16 +73,21 @@ struct ContentView: View {
         .onChange(of: selectedTab) { _, newTab in
             configureStore(for: newTab)
         }
+        .onOpenURL { url in
+            guard let tab = AppTab(url: url) else { return }
+            selectedTab = tab
+            configureStore(for: tab)
+        }
     }
 
     private func configureStore(for tab: AppTab) {
         switch tab {
         case .opportunities:
             store.mode = .all
-            Task { await store.refresh() }
+            Task { await store.refresh(cache: modelContext) }
         case .highSchool:
             store.mode = .highSchool
-            Task { await store.refresh() }
+            Task { await store.refresh(cache: modelContext) }
         case .home, .support, .account:
             break
         }
@@ -57,6 +96,7 @@ struct ContentView: View {
 
 struct HomeView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
     @Binding var selectedTab: AppTab
@@ -81,7 +121,7 @@ struct HomeView: View {
             .toolbar(.hidden, for: .navigationBar)
             .task {
                 if store.opportunities.isEmpty {
-                    await store.refresh()
+                    await store.refresh(cache: modelContext)
                 }
             }
         }
@@ -123,7 +163,7 @@ struct HomeView: View {
                     .onSubmit {
                         store.mode = .all
                         selectedTab = .opportunities
-                        Task { await store.refresh() }
+                        Task { await store.refresh(cache: modelContext) }
                     }
             }
             .storyField()
@@ -132,7 +172,7 @@ struct HomeView: View {
                 Button {
                     store.mode = .all
                     selectedTab = .opportunities
-                    Task { await store.refresh() }
+                    Task { await store.refresh(cache: modelContext, prioritized: true) }
                 } label: {
                     Label(session.text("search"), systemImage: "magnifyingglass")
                         .lineLimit(1)
@@ -144,7 +184,7 @@ struct HomeView: View {
                 Button {
                     store.mode = .highSchool
                     selectedTab = .highSchool
-                    Task { await store.refresh() }
+                    Task { await store.refresh(cache: modelContext, prioritized: true) }
                 } label: {
                     Label(session.text("highSchool"), systemImage: "graduationcap.fill")
                         .lineLimit(1)
@@ -176,7 +216,7 @@ struct HomeView: View {
             Spacer()
 
             Button {
-                Task { await store.refresh() }
+                Task { await store.refresh(cache: modelContext, prioritized: true) }
             } label: {
                 Image(systemName: "arrow.clockwise")
                     .font(.headline.weight(.black))
@@ -192,17 +232,17 @@ struct HomeView: View {
             HomeActionTile(title: session.text("volunteerHours"), icon: "checkmark.seal.fill", color: Brand.moss) {
                 store.mode = .volunteer
                 selectedTab = .highSchool
-                Task { await store.refresh() }
+                Task { await store.refresh(cache: modelContext, prioritized: true) }
             }
             HomeActionTile(title: session.text("coop"), icon: "briefcase.fill", color: Brand.lavender) {
                 store.mode = .coop
                 selectedTab = .highSchool
-                Task { await store.refresh() }
+                Task { await store.refresh(cache: modelContext, prioritized: true) }
             }
             HomeActionTile(title: session.text("mentorship"), icon: "person.2.wave.2.fill", color: Brand.sky) {
                 store.mode = .mentorship
                 selectedTab = .highSchool
-                Task { await store.refresh() }
+                Task { await store.refresh(cache: modelContext, prioritized: true) }
             }
             HomeActionTile(title: session.text("feedback"), icon: "bubble.left.and.bubble.right.fill", color: Brand.coral) {
                 selectedTab = .support

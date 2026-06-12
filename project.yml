@@ -23,8 +23,16 @@ targets:
         CFBundleDisplayName: GTA FREE STEM
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        CFBundleURLTypes:
+          - CFBundleURLName: com.rupayonhaldar.gtafreestem
+            CFBundleURLSchemes:
+              - gtafreestem
         ITSAppUsesNonExemptEncryption: false
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.rupayonhaldar.gtafreestem.hunt.refresh
         NSLocationWhenInUseUsageDescription: GTA FREE STEM can use your location only while browsing to find nearby free opportunities.
+        UIBackgroundModes:
+          - fetch
         UILaunchScreen:
           UIColorName: LaunchBackground
         UISupportedInterfaceOrientations:

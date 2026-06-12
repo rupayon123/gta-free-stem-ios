@@ -126,6 +126,7 @@ struct StickerBadge: View {
         }
         .font(.caption.weight(.black))
         .lineLimit(1)
+        .minimumScaleFactor(0.78)
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
         .background(color.opacity(colorScheme == .dark ? 0.82 : 0.72), in: Capsule())

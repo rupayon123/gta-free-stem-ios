@@ -1,4 +1,5 @@
 import MapKit
+import SwiftData
 import SwiftUI
 
 enum BrowseSurface {
@@ -31,9 +32,11 @@ enum BrowseSurface {
 
 struct BrowseView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
     let surface: BrowseSurface
+    @StateObject private var locationManager = HuntLocationManager()
     @State private var filtersPresented = false
     @State private var displayMode: BrowseDisplayMode = .list
 
@@ -50,6 +53,7 @@ struct BrowseView: View {
                     VStack(spacing: 18) {
                         hero
                         searchControls
+                        huntPanel
 
                         if displayMode == .map {
                             opportunityMap
@@ -66,7 +70,7 @@ struct BrowseView: View {
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $store.query, prompt: session.text("searchPlaceholder"))
             .onSubmit(of: .search) {
-                Task { await store.refresh() }
+                Task { await store.refresh(cache: modelContext) }
             }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
@@ -77,7 +81,7 @@ struct BrowseView: View {
                     }
 
                     Button {
-                        Task { await store.refresh() }
+                        Task { await store.refresh(cache: modelContext, prioritized: true) }
                     } label: {
                         Label(session.text("refreshResearch"), systemImage: "arrow.clockwise")
                     }
@@ -91,11 +95,11 @@ struct BrowseView: View {
                     filters: $store.filters,
                     apply: {
                         filtersPresented = false
-                        Task { await store.refresh() }
+                        Task { await store.refresh(cache: modelContext) }
                     },
                     reset: {
                         store.resetFilters()
-                        Task { await store.refresh() }
+                        Task { await store.refresh(cache: modelContext) }
                     }
                 )
                 .environmentObject(session)
@@ -103,41 +107,54 @@ struct BrowseView: View {
             .task {
                 let didChangeMode = prepareSurface()
                 if didChangeMode || store.opportunities.isEmpty {
-                    await store.refresh()
+                    await store.refresh(cache: modelContext)
                 }
+            }
+            .onReceive(locationManager.$coordinate.compactMap { $0 }) { coordinate in
+                store.useCurrentLocation(coordinate)
+                Task { await store.refresh(cache: modelContext, prioritized: true) }
             }
         }
     }
 
     private var hero: some View {
-        VStack(spacing: 16) {
-            BrandLogoImage(size: surface == .highSchool ? 132 : 148)
+        HStack(alignment: .top, spacing: 14) {
+            BrandLogoImage(size: surface == .highSchool ? 74 : 82)
+                .accessibilityHidden(true)
 
-            Text(surface == .highSchool ? session.text("highSchool") : session.text("brand"))
-                .font(.title2.weight(.black))
-                .multilineTextAlignment(.center)
-                .foregroundStyle(Brand.outline(for: colorScheme))
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .top, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(surface == .highSchool ? session.text("highSchool") : session.text("brand"))
+                            .font(.title3.weight(.black))
+                            .foregroundStyle(Brand.outline(for: colorScheme))
+                            .fixedSize(horizontal: false, vertical: true)
 
-            Text(surface == .highSchool ? highSchoolSummary : session.text("mission"))
-                .font(.headline.weight(.bold))
-                .multilineTextAlignment(.center)
-                .foregroundStyle(Brand.mutedText(for: colorScheme))
+                        Text(surface == .highSchool ? highSchoolSummary : session.text("mission"))
+                            .font(.footnote.weight(.bold))
+                            .foregroundStyle(Brand.mutedText(for: colorScheme))
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
 
-            HStack(spacing: 10) {
-                StickerBadge(text: "\(store.activeCount) \(session.text("visible"))", color: Brand.sky, systemImage: "sparkle.magnifyingglass")
-                StickerBadge(text: session.text("freeOnly"), color: Brand.sun, systemImage: "heart.fill")
-                Spacer()
-                if store.isLoading {
-                    ProgressView()
-                        .tint(Brand.coral)
+                    if store.isLoading {
+                        ProgressView()
+                            .tint(Brand.coral)
+                    }
                 }
-            }
 
-            Text("\(session.text("loadedFrom")) \(localizedDataSource)")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Brand.mutedText(for: colorScheme))
+                FlowLabels {
+                    StickerBadge(text: "\(store.activeCount) \(session.text("visible"))", color: Brand.sky, systemImage: "sparkle.magnifyingglass")
+                    StickerBadge(text: session.text("freeShort"), color: Brand.sun, systemImage: "heart.fill")
+                }
+
+                Text("\(session.text("loadedFrom")) \(localizedDataSource)")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Brand.mutedText(for: colorScheme))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .cardSurface(padding: 18, cornerRadius: 34)
+        .cardSurface(padding: 14, cornerRadius: 28)
     }
 
     private var searchControls: some View {
@@ -148,7 +165,7 @@ struct BrowseView: View {
                         ForEach(surface.modes) { mode in
                             Button {
                                 store.mode = mode
-                                Task { await store.refresh() }
+                                Task { await store.refresh(cache: modelContext) }
                             } label: {
                                 Text(session.text(mode.textKey))
                                     .font(.subheadline.weight(.bold))
@@ -179,12 +196,12 @@ struct BrowseView: View {
                 .buttonStyle(StoryButtonStyle(kind: .quiet))
 
                 Button {
-                    Task { await store.refresh() }
+                    Task { await store.refresh(cache: modelContext, prioritized: true) }
                 } label: {
-                    Label(session.text("refreshResearch"), systemImage: "arrow.clockwise")
+                    Label("Hunt", systemImage: "arrow.clockwise")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(StoryButtonStyle(kind: .secondary))
+                .buttonStyle(StoryButtonStyle(kind: .primary))
             }
 
             Picker(session.text("view"), selection: $displayMode) {
@@ -200,6 +217,68 @@ struct BrowseView: View {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(Brand.outline(for: colorScheme).opacity(0.45), lineWidth: 2)
         }
+    }
+
+    private var huntPanel: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                Image(systemName: store.huntPhase.icon)
+                    .font(.system(size: 34, weight: .black))
+                    .foregroundStyle(Brand.coral)
+                    .symbolEffect(.pulse, value: store.isLoading)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(surface == .highSchool ? "High school hunt engine" : "Search hunting engine")
+                        .font(.headline.weight(.black))
+                        .foregroundStyle(Brand.outline(for: colorScheme))
+                    Text(huntSubtitle)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(Brand.mutedText(for: colorScheme))
+                }
+
+                Spacer()
+
+                HuntRefreshButton(isLoading: store.isLoading) {
+                    Task { await store.refresh(cache: modelContext, prioritized: true) }
+                }
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    locationManager.requestOneShotLocation()
+                } label: {
+                    Label(locationButtonTitle, systemImage: "location.circle.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(StoryButtonStyle(kind: .secondary))
+
+                Button {
+                    Task { await store.requestNotificationPermission() }
+                } label: {
+                    Label("Alerts", systemImage: "bell.badge.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(StoryButtonStyle(kind: .quiet))
+            }
+
+            FlowLabels {
+                StickerBadge(text: radiusLabel, color: Brand.sky, systemImage: "scope")
+                StickerBadge(text: store.filters.sort.label, color: Brand.lavender, systemImage: "arrow.up.arrow.down")
+                if store.filters.includeNewFinds {
+                    StickerBadge(text: "New finds included", color: Brand.sun, systemImage: "sparkles")
+                }
+                if store.newMatchesCount > 0 {
+                    StickerBadge(text: "\(store.newMatchesCount) new", color: Brand.coral, systemImage: "burst.fill")
+                }
+            }
+
+            if let message = locationManager.message ?? store.notificationStatusMessage {
+                Text(message)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Brand.mutedText(for: colorScheme))
+            }
+        }
+        .cardSurface(padding: 16, cornerRadius: 30)
     }
 
     private var opportunityList: some View {
@@ -256,6 +335,20 @@ struct BrowseView: View {
         "\(session.text("volunteerHours")) · \(session.text("coop")) · \(session.text("mentorship")) · \(session.text("leadership"))"
     }
 
+    private var huntSubtitle: String {
+        let area = store.filters.hasLocation ? "near your location" : (store.filters.city.isEmpty ? "across the GTA" : "in \(store.filters.city)")
+        let status = store.isLoading ? "checking live sources" : store.huntPhase.title.lowercased()
+        return "\(status) · \(area)"
+    }
+
+    private var locationButtonTitle: String {
+        store.filters.hasLocation ? "Update nearby" : "Use nearby"
+    }
+
+    private var radiusLabel: String {
+        store.filters.hasLocation ? "\(Int(store.filters.distanceKm)) km radius" : "Choose city or nearby"
+    }
+
     @discardableResult
     private func prepareSurface() -> Bool {
         if !surface.modes.contains(store.mode) {
@@ -290,6 +383,12 @@ struct OpportunityRow: View {
 
             FlowLabels {
                 StickerBadge(text: "\(session.text("ages")) \(opportunity.ageMin)\(opportunity.ageMax.map { "–\($0)" } ?? "+")", color: Brand.sky, systemImage: "person.2")
+                if opportunity.status == "needs_review" || opportunity.isNewFind == true {
+                    StickerBadge(text: "New find", color: Brand.sun, systemImage: "sparkles")
+                }
+                if let distanceKm = opportunity.distanceKm {
+                    StickerBadge(text: String(format: "%.1f km", distanceKm), color: Brand.lavender, systemImage: "mappin.and.ellipse")
+                }
                 if opportunity.volunteerHoursEligible {
                     StickerBadge(text: session.text("volunteerHours"), color: Brand.moss, systemImage: "checkmark.seal")
                 }
@@ -386,6 +485,29 @@ struct OpportunityFilterSheet: View {
                     }
                 }
 
+                Section("Hunting") {
+                    Picker("Sort results", selection: $filters.sort) {
+                        ForEach(SearchSort.allCases) { sort in
+                            Text(sort.label).tag(sort)
+                        }
+                    }
+                    Toggle("Include new finds", isOn: $filters.includeNewFinds)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Distance radius: \(Int(filters.distanceKm)) km")
+                            .font(.headline.weight(.bold))
+                        Slider(value: $filters.distanceKm, in: 5...100, step: 5)
+                    }
+                    if filters.hasLocation {
+                        Button("Clear nearby location") {
+                            filters.latitude = nil
+                            filters.longitude = nil
+                            if filters.sort == .distance {
+                                filters.sort = .date
+                            }
+                        }
+                    }
+                }
+
                 Section(session.text("equity")) {
                     Toggle(session.text("black"), isOn: $filters.blackFocused)
                     Toggle(session.text("girls"), isOn: $filters.girlsFocused)
@@ -408,5 +530,33 @@ struct OpportunityFilterSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+    }
+}
+
+private struct HuntRefreshButton: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let isLoading: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(isLoading ? Brand.coral : Brand.sun)
+                    .frame(width: 58, height: 58)
+                    .overlay {
+                        Circle().stroke(Brand.outline(for: colorScheme), lineWidth: 3)
+                    }
+                    .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.28 : 0.16), radius: 0, x: 4, y: 5)
+
+                Image(systemName: isLoading ? "antenna.radiowaves.left.and.right" : "arrow.clockwise")
+                    .font(.title2.weight(.black))
+                    .foregroundStyle(isLoading ? .white : Brand.ink)
+                    .rotationEffect(.degrees(isLoading ? 360 : 0))
+                    .animation(isLoading ? .linear(duration: 1.1).repeatForever(autoreverses: false) : .spring(response: 0.3, dampingFraction: 0.55), value: isLoading)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Refresh hunt")
     }
 }

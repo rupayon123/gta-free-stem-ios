@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 struct Opportunity: Identifiable, Codable, Hashable {
     let id: String
@@ -25,6 +26,9 @@ struct Opportunity: Identifiable, Codable, Hashable {
     let volunteerHoursEligible: Bool
     let coopEligible: Bool
     let tags: [String]
+    let distanceKm: Double?
+    let isNewFind: Bool?
+    let sourceConfidence: String?
 }
 
 struct OpportunityListResponse: Codable {
@@ -49,6 +53,65 @@ struct APIStatusResponse: Codable {
     }
 
     let data: Payload
+}
+
+@Model
+final class OpportunityCacheRecord {
+    @Attribute(.unique) var cacheKey: String
+    var payload: Data
+    var updatedAt: Date
+
+    init(cacheKey: String, payload: Data, updatedAt: Date = .now) {
+        self.cacheKey = cacheKey
+        self.payload = payload
+        self.updatedAt = updatedAt
+    }
+}
+
+@Model
+final class SavedHuntRecord {
+    @Attribute(.unique) var cacheKey: String
+    var query: String
+    var modeRawValue: String
+    var region: String
+    var city: String
+    var category: String
+    var age: String
+    var language: String
+    var latitude: Double?
+    var longitude: Double?
+    var distanceKm: Double
+    var sortRawValue: String
+    var updatedAt: Date
+
+    init(cacheKey: String, query: String, mode: SearchMode, filters: OpportunityFilters, updatedAt: Date = .now) {
+        self.cacheKey = cacheKey
+        self.query = query
+        self.modeRawValue = mode.rawValue
+        self.region = filters.region
+        self.city = filters.city
+        self.category = filters.category
+        self.age = filters.age
+        self.language = filters.language
+        self.latitude = filters.latitude
+        self.longitude = filters.longitude
+        self.distanceKm = filters.distanceKm
+        self.sortRawValue = filters.sort.rawValue
+        self.updatedAt = updatedAt
+    }
+}
+
+@Model
+final class SeenOpportunityRecord {
+    @Attribute(.unique) var opportunityID: String
+    var firstSeenAt: Date
+    var lastSeenAt: Date
+
+    init(opportunityID: String, firstSeenAt: Date = .now, lastSeenAt: Date = .now) {
+        self.opportunityID = opportunityID
+        self.firstSeenAt = firstSeenAt
+        self.lastSeenAt = lastSeenAt
+    }
 }
 
 struct FeedbackDraft {
@@ -85,16 +148,41 @@ enum SearchMode: String, CaseIterable, Identifiable {
     }
 }
 
+enum SearchSort: String, CaseIterable, Identifiable {
+    case date
+    case distance
+    case relevance
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .date: "Soonest"
+        case .distance: "Nearest"
+        case .relevance: "Best match"
+        }
+    }
+}
+
 struct OpportunityFilters: Equatable {
     var region = "All"
     var city = ""
     var category = "All"
     var age = ""
     var language = "all"
+    var latitude: Double?
+    var longitude: Double?
+    var distanceKm = 25.0
+    var sort = SearchSort.date
+    var includeNewFinds = true
     var blackFocused = false
     var girlsFocused = false
     var indigenousFocused = false
     var leadership = false
+
+    var hasLocation: Bool {
+        latitude != nil && longitude != nil
+    }
 
     var hasActiveFilters: Bool {
         region != "All" ||
@@ -102,6 +190,9 @@ struct OpportunityFilters: Equatable {
             category != "All" ||
             !age.isEmpty ||
             language != "all" ||
+            hasLocation ||
+            sort != .date ||
+            !includeNewFinds ||
             blackFocused ||
             girlsFocused ||
             indigenousFocused ||

@@ -207,7 +207,8 @@
     "summaryTemplate": "{summary}",
     "refreshResearch": "Refresh",
     "home": "Home",
-    "account": "Account"
+    "account": "Account",
+    "freeShort": "Free for everyone"
   },
   "fr": {
     "browse": "Parcourir",
@@ -325,7 +326,8 @@
     "summaryTemplate": "Occasion gratuite de {category} offerte par {provider} a {city}. Ages {ages}. Consultez la source pour les details.",
     "refreshResearch": "Rafraichir",
     "home": "Accueil",
-    "account": "Compte"
+    "account": "Compte",
+    "freeShort": "Gratuit pour tous"
   },
   "zh": {
     "browse": "浏览",
@@ -443,7 +445,8 @@
     "summaryTemplate": "{provider}在{city}提供免费的{category}机会。适合{ages}岁。请查看来源了解详情。",
     "refreshResearch": "刷新",
     "home": "首页",
-    "account": "账户"
+    "account": "账户",
+    "freeShort": "人人免费"
   },
   "yue": {
     "browse": "瀏覽",
@@ -561,7 +564,8 @@
     "summaryTemplate": "{provider}喺{city}提供免費{category}機會。適合{ages}歲。請查看來源了解詳情。",
     "refreshResearch": "刷新",
     "home": "主頁",
-    "account": "帳戶"
+    "account": "帳戶",
+    "freeShort": "人人免費"
   },
   "pa": {
     "browse": "ਬ੍ਰਾਊਜ਼",
@@ -679,7 +683,8 @@
     "summaryTemplate": "{provider} ਵੱਲੋਂ {city} ਵਿੱਚ ਮੁਫ਼ਤ {category} ਮੌਕਾ। ਉਮਰ {ages}. ਵੇਰਵਿਆਂ ਲਈ ਸਰੋਤ ਵੇਖੋ।",
     "refreshResearch": "ਰਿਫ੍ਰੈਸ਼",
     "home": "ਘਰ",
-    "account": "ਖਾਤਾ"
+    "account": "ਖਾਤਾ",
+    "freeShort": "ਸਭ ਲਈ ਮੁਫ਼ਤ"
   },
   "ur": {
     "browse": "دیکھیں",
@@ -797,7 +802,8 @@
     "summaryTemplate": "{city} میں {provider} کی طرف سے مفت {category} موقع۔ عمر {ages}. تفصیلات کے لیے ذریعہ دیکھیں۔",
     "refreshResearch": "تازہ کریں",
     "home": "ہوم",
-    "account": "اکاؤنٹ"
+    "account": "اکاؤنٹ",
+    "freeShort": "سب کے لیے مفت"
   },
   "ta": {
     "browse": "உலாவு",
@@ -915,7 +921,8 @@
     "summaryTemplate": "{city} நகரில் {provider} வழங்கும் இலவச {category} வாய்ப்பு. வயது {ages}. விவரங்களுக்கு மூலத்தை பார்க்கவும்.",
     "refreshResearch": "புதுப்பி",
     "home": "முகப்பு",
-    "account": "கணக்கு"
+    "account": "கணக்கு",
+    "freeShort": "அனைவருக்கும் இலவசம்"
   },
   "tl": {
     "browse": "Browse",
@@ -1033,7 +1040,8 @@
     "summaryTemplate": "Libreng {category} opportunity mula sa {provider} sa {city}. Edad {ages}. Tingnan ang source para sa detalye.",
     "refreshResearch": "Refresh",
     "home": "Home",
-    "account": "Account"
+    "account": "Account",
+    "freeShort": "Libre para sa lahat"
   },
   "es": {
     "browse": "Explorar",
@@ -1151,7 +1159,8 @@
     "summaryTemplate": "Oportunidad gratis de {category} de {provider} en {city}. Edades {ages}. Revise la fuente para detalles.",
     "refreshResearch": "Actualizar",
     "home": "Inicio",
-    "account": "Cuenta"
+    "account": "Cuenta",
+    "freeShort": "Gratis para todos"
   },
   "ar": {
     "browse": "تصفح",
@@ -1269,7 +1278,8 @@
     "summaryTemplate": "فرصة {category} مجانية من {provider} في {city}. الأعمار {ages}. راجع المصدر للتفاصيل.",
     "refreshResearch": "تحديث",
     "home": "الرئيسية",
-    "account": "الحساب"
+    "account": "الحساب",
+    "freeShort": "مجاني للجميع"
   },
   "fa": {
     "browse": "مرور",
@@ -1387,7 +1397,8 @@
     "summaryTemplate": "فرصت رایگان {category} از {provider} در {city}. سنین {ages}. برای جزئیات منبع را بررسی کنید.",
     "refreshResearch": "تازه سازی",
     "home": "خانه",
-    "account": "حساب"
+    "account": "حساب",
+    "freeShort": "رایگان برای همه"
   },
   "hi": {
     "browse": "ब्राउज़",
@@ -1505,7 +1516,8 @@
     "summaryTemplate": "{city} में {provider} की मुफ्त {category} opportunity. उम्र {ages}. Details के लिए source देखें.",
     "refreshResearch": "Refresh",
     "home": "होम",
-    "account": "खाता"
+    "account": "खाता",
+    "freeShort": "सभी के लिए मुफ्त"
   },
   "pt": {
     "browse": "Explorar",
@@ -1623,7 +1635,8 @@
     "summaryTemplate": "Oportunidade gratuita de {category} da {provider} em {city}. Idades {ages}. Veja a fonte para detalhes.",
     "refreshResearch": "Atualizar",
     "home": "Início",
-    "account": "Conta"
+    "account": "Conta",
+    "freeShort": "Gratuito para todos"
   },
   "gu": {
     "browse": "બ્રાઉઝ",
@@ -1741,7 +1754,8 @@
     "summaryTemplate": "{city} માં {provider} તરફથી મફત {category} તક. ઉંમર {ages}. વિગત માટે સ્રોત જુઓ.",
     "refreshResearch": "રીફ્રેશ",
     "home": "હોમ",
-    "account": "ખાતું"
+    "account": "ખાતું",
+    "freeShort": "દરેક માટે મફત"
   },
   "bn": {
     "browse": "ব্রাউজ",
@@ -1859,7 +1873,8 @@
     "summaryTemplate": "{city}-এ {provider} এর ফ্রি {category} opportunity. বয়স {ages}. বিস্তারিত জানতে উৎস দেখুন.",
     "refreshResearch": "রিফ্রেশ",
     "home": "হোম",
-    "account": "অ্যাকাউন্ট"
+    "account": "অ্যাকাউন্ট",
+    "freeShort": "সবার জন্য ফ্রি"
   },
   "ja": {
     "browse": "探す",
@@ -1977,7 +1992,8 @@
     "summaryTemplate": "{city}の{provider}による無料の{category}機会です。対象年齢は{ages}。詳細は情報源をご確認ください。",
     "refreshResearch": "更新",
     "home": "ホーム",
-    "account": "アカウント"
+    "account": "アカウント",
+    "freeShort": "みんな無料"
   },
   "ko": {
     "browse": "둘러보기",
@@ -2095,7 +2111,8 @@
     "summaryTemplate": "{city}에서 {provider}이 제공하는 무료 {category} 기회입니다. 대상 나이는 {ages}입니다. 자세한 내용은 출처를 확인하세요.",
     "refreshResearch": "새로고침",
     "home": "홈",
-    "account": "계정"
+    "account": "계정",
+    "freeShort": "모두 무료"
   },
   "hu": {
     "browse": "Bongeszés",
@@ -2213,6 +2230,7 @@
     "summaryTemplate": "Ingyenes {category} lehetőség a(z) {provider} szervezőtől itt: {city}. Korosztály: {ages}. Részletekért nézd meg a forrást.",
     "refreshResearch": "Frissítés",
     "home": "Kezdőlap",
-    "account": "Fiók"
+    "account": "Fiók",
+    "freeShort": "Mindenkinek ingyenes"
   }
 }
