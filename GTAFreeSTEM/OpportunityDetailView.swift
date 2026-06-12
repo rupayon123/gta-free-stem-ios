@@ -22,8 +22,20 @@ struct OpportunityDetailView: View {
             }
             .padding()
         }
+        .alert("Save needs an account", isPresented: saveAlertBinding) {
+            Button("OK", role: .cancel) { store.errorMessage = nil }
+        } message: {
+            Text(store.errorMessage ?? "Please sign in before saving.")
+        }
         .navigationTitle("Details")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var saveAlertBinding: Binding<Bool> {
+        Binding(
+            get: { store.errorMessage == APIError.accountRequired.localizedDescription || store.errorMessage == "Please sign in to use this feature." },
+            set: { if !$0 { store.errorMessage = nil } }
+        )
     }
 
     private var mapPreview: some View {

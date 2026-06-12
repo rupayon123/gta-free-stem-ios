@@ -7,6 +7,7 @@ final class OpportunityStore: ObservableObject {
     @Published var opportunities: [Opportunity] = []
     @Published var activeCount = 0
     @Published var lastUpdated: String?
+    @Published var dataSourceLabel = "Rails API"
     @Published var isLoading = false
     @Published var errorMessage: String?
 
@@ -21,12 +22,16 @@ final class OpportunityStore: ObservableObject {
         defer { isLoading = false }
         do {
             let response = try await api.opportunities(query: query, mode: mode)
-            opportunities = response.data
-            activeCount = response.meta?.activeCount ?? response.data.count
-            lastUpdated = response.meta?.lastUpdated
+            apply(response, source: "Rails API")
             errorMessage = nil
         } catch {
-            errorMessage = error.localizedDescription
+            do {
+                let response = try LocalOpportunitySnapshot.load(query: query, mode: mode)
+                apply(response, source: "Preview database")
+                errorMessage = nil
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 
@@ -37,5 +42,12 @@ final class OpportunityStore: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func apply(_ response: OpportunityListResponse, source: String) {
+        opportunities = response.data
+        activeCount = response.meta?.activeCount ?? response.data.count
+        lastUpdated = response.meta?.lastUpdated
+        dataSourceLabel = source
     }
 }

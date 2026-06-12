@@ -5,32 +5,38 @@ struct BrowseView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 18) {
-                    hero
-                    Picker("Pathway", selection: $store.mode) {
-                        ForEach(SearchMode.allCases) { mode in
-                            Text(mode.rawValue).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .onChange(of: store.mode) { _, _ in
-                        Task { await store.refresh() }
-                    }
+            ZStack {
+                background
 
-                    LazyVStack(spacing: 12) {
-                        ForEach(store.opportunities) { opportunity in
-                            NavigationLink(value: opportunity) {
-                                OpportunityRow(opportunity: opportunity)
+                ScrollView {
+                    VStack(spacing: 18) {
+                        hero
+                        Picker("Pathway", selection: $store.mode) {
+                            ForEach(SearchMode.allCases) { mode in
+                                Text(mode.rawValue).tag(mode)
                             }
-                            .buttonStyle(.plain)
+                        }
+                        .pickerStyle(.segmented)
+                        .onChange(of: store.mode) { _, _ in
+                            Task { await store.refresh() }
+                        }
+
+                        LazyVStack(spacing: 12) {
+                            ForEach(store.opportunities) { opportunity in
+                                NavigationLink(value: opportunity) {
+                                    OpportunityRow(opportunity: opportunity)
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 112)
                 }
-                .padding()
             }
-            .background(background)
-            .navigationTitle("GTA FREE STEM")
+            .navigationTitle("Browse")
+            .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $store.query, prompt: "Search free programs")
             .onSubmit(of: .search) {
                 Task { await store.refresh() }
@@ -60,8 +66,11 @@ struct BrowseView: View {
             Image("Logo")
                 .resizable()
                 .scaledToFit()
-                .frame(maxHeight: 140)
+                .frame(maxHeight: 118)
                 .accessibilityHidden(true)
+            Text("GTA FREE STEM")
+                .font(.largeTitle.weight(.black))
+                .multilineTextAlignment(.center)
             Text("Find free and accessible STEM opportunities across the GTA.")
                 .font(.title3.weight(.semibold))
                 .multilineTextAlignment(.center)
@@ -73,6 +82,9 @@ struct BrowseView: View {
                 }
             }
             .font(.subheadline.weight(.semibold))
+            Text("Loaded from \(store.dataSourceLabel)")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
         }
         .cardSurface()
     }

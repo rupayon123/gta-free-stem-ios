@@ -16,6 +16,7 @@ targets:
       - GTAFreeSTEM
     resources:
       - GTAFreeSTEM/Assets.xcassets
+      - GTAFreeSTEM/Resources
     info:
       path: GTAFreeSTEM/Info.plist
       properties:
@@ -24,6 +25,17 @@ targets:
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         ITSAppUsesNonExemptEncryption: false
         NSLocationWhenInUseUsageDescription: GTA FREE STEM can use your location only while browsing to find nearby free opportunities.
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.rupayonhaldar.gtafreestem

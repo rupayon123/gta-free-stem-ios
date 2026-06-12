@@ -18,10 +18,17 @@ final class APIClient: @unchecked Sendable {
     let baseURL: URL
     private let session: URLSession
 
-    init(baseURL: URL = URL(string: "https://gta-free-stem.onrender.com/api/v1")!, session: URLSession = .shared) {
+    init(baseURL: URL = URL(string: "https://gta-free-stem.onrender.com/api/v1")!, session: URLSession? = nil) {
         self.baseURL = baseURL
-        self.session = session
+        self.session = session ?? Self.defaultSession
     }
+
+    private static let defaultSession: URLSession = {
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 3
+        configuration.timeoutIntervalForResource = 5
+        return URLSession(configuration: configuration)
+    }()
 
     func opportunities(query: String, mode: SearchMode) async throws -> OpportunityListResponse {
         var components = URLComponents(url: baseURL.appending(path: "opportunities"), resolvingAgainstBaseURL: false)
