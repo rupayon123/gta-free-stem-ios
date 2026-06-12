@@ -163,6 +163,89 @@ struct BrandLogoImage: View {
     }
 }
 
+struct HuntActivityIcon: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let phase: HuntPhase
+    let isActive: Bool
+    var size: CGFloat = 62
+    @State private var isBreathing = false
+    @State private var isOrbiting = false
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Brand.raisedFill(for: colorScheme))
+                .overlay {
+                    Circle().stroke(Brand.outline(for: colorScheme), lineWidth: max(size * 0.045, 2.5))
+                }
+                .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.30 : 0.16), radius: 0, x: size * 0.06, y: size * 0.08)
+
+            Circle()
+                .trim(from: 0.08, to: 0.36)
+                .stroke(Brand.sky, style: StrokeStyle(lineWidth: max(size * 0.075, 4), lineCap: .round))
+                .frame(width: size * 0.74, height: size * 0.74)
+                .rotationEffect(.degrees(reduceMotion ? 18 : (isOrbiting ? 378 : 18)))
+
+            Circle()
+                .trim(from: 0.58, to: 0.84)
+                .stroke(Brand.sun, style: StrokeStyle(lineWidth: max(size * 0.07, 4), lineCap: .round))
+                .frame(width: size * 0.56, height: size * 0.56)
+                .rotationEffect(.degrees(reduceMotion ? -22 : (isOrbiting ? -382 : -22)))
+
+            orbitDot(color: Brand.coral, radius: size * 0.31, dotSize: size * 0.12, offsetDegrees: 0)
+            orbitDot(color: Brand.lake, radius: size * 0.22, dotSize: size * 0.09, offsetDegrees: 136)
+
+            Image(systemName: phase.icon)
+                .font(.system(size: size * 0.36, weight: .black))
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(iconPrimaryColor, iconSecondaryColor)
+                .scaleEffect(reduceMotion ? 1 : (isActive ? 1.04 : 1.0))
+        }
+        .frame(width: size, height: size)
+        .scaleEffect(reduceMotion ? 1 : (isBreathing ? 1.025 : 0.985))
+        .rotationEffect(.degrees(reduceMotion ? 0 : (isBreathing ? 0.7 : -0.45)))
+        .animation(.easeInOut(duration: 1.7).repeatForever(autoreverses: true), value: isBreathing)
+        .animation(isActive && !reduceMotion ? .linear(duration: 1.05).repeatForever(autoreverses: false) : .spring(response: 0.42, dampingFraction: 0.72), value: isOrbiting)
+        .onAppear {
+            guard !reduceMotion else { return }
+            isBreathing = true
+            isOrbiting = isActive
+        }
+        .onChange(of: isActive) { _, active in
+            guard !reduceMotion else { return }
+            isOrbiting = active
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var iconPrimaryColor: Color {
+        switch phase {
+        case .fresh:
+            Brand.moss
+        case .cached, .offline:
+            Brand.lake
+        default:
+            Brand.coral
+        }
+    }
+
+    private var iconSecondaryColor: Color {
+        colorScheme == .dark ? Brand.chalk : Brand.ink
+    }
+
+    private func orbitDot(color: Color, radius: CGFloat, dotSize: CGFloat, offsetDegrees: Double) -> some View {
+        Circle()
+            .fill(color)
+            .frame(width: dotSize, height: dotSize)
+            .overlay {
+                Circle().stroke(Brand.outline(for: colorScheme), lineWidth: max(dotSize * 0.18, 1.25))
+            }
+            .offset(x: radius)
+            .rotationEffect(.degrees(reduceMotion ? offsetDegrees : (isOrbiting ? 360 + offsetDegrees : offsetDegrees)))
+    }
+}
+
 struct StoryButtonStyle: ButtonStyle {
     @Environment(\.colorScheme) private var colorScheme
     enum Kind {

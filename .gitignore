@@ -1,0 +1,19 @@
+.DS_Store
+DerivedData/
+build/
+*.xcuserstate
+*.xcscmblueprint
+xcuserdata/
+
+# Local signing/export files
+*.mobileprovision
+*.p12
+*.cer
+*.ipa
+ExportOptions.plist
+
+# Local secrets and scratch files
+.env
+.env.*
+*.log
+tmp/

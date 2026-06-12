@@ -198,7 +198,7 @@ struct BrowseView: View {
                 Button {
                     Task { await store.refresh(cache: modelContext, prioritized: true) }
                 } label: {
-                    Label(session.text("hunt"), systemImage: "arrow.clockwise")
+                    Label(session.text("hunt"), systemImage: "sparkle.magnifyingglass")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(StoryButtonStyle(kind: .primary))
@@ -222,10 +222,7 @@ struct BrowseView: View {
     private var huntPanel: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
-                Image(systemName: store.huntPhase.icon)
-                    .font(.system(size: 34, weight: .black))
-                    .foregroundStyle(Brand.coral)
-                    .symbolEffect(.pulse, value: store.isLoading)
+                HuntActivityIcon(phase: store.huntPhase, isActive: store.isLoading, size: 64)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(surface == .highSchool ? session.text("highSchoolHuntEngine") : session.text("searchHuntEngine"))
@@ -553,27 +550,12 @@ struct OpportunityFilterSheet: View {
 }
 
 private struct HuntRefreshButton: View {
-    @Environment(\.colorScheme) private var colorScheme
     let isLoading: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            ZStack {
-                Circle()
-                    .fill(isLoading ? Brand.coral : Brand.sun)
-                    .frame(width: 58, height: 58)
-                    .overlay {
-                        Circle().stroke(Brand.outline(for: colorScheme), lineWidth: 3)
-                    }
-                    .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.28 : 0.16), radius: 0, x: 4, y: 5)
-
-                Image(systemName: isLoading ? "antenna.radiowaves.left.and.right" : "arrow.clockwise")
-                    .font(.title2.weight(.black))
-                    .foregroundStyle(isLoading ? .white : Brand.ink)
-                    .rotationEffect(.degrees(isLoading ? 360 : 0))
-                    .animation(isLoading ? .linear(duration: 1.1).repeatForever(autoreverses: false) : .spring(response: 0.3, dampingFraction: 0.55), value: isLoading)
-            }
+            HuntActivityIcon(phase: isLoading ? .hunting : .idle, isActive: isLoading, size: 58)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(AppText.shared.string("refreshHunt", language: AppLanguage.normalized(UserDefaults.standard.string(forKey: "preferredLanguageCode") ?? AppLanguage.en.rawValue)))

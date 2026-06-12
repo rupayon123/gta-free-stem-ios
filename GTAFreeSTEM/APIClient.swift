@@ -3,12 +3,14 @@ import Foundation
 enum APIError: Error, LocalizedError {
     case badURL
     case invalidResponse
+    case insecureConnection
     case accountRequired
 
     var errorDescription: String? {
         switch self {
         case .badURL: Self.localized("serverAddressInvalid")
         case .invalidResponse: Self.localized("serverResponseInvalid")
+        case .insecureConnection: Self.localized("serverAddressInvalid")
         case .accountRequired: Self.localized("signInToUseFeature")
         }
     }
@@ -23,6 +25,7 @@ enum APIError: Error, LocalizedError {
 final class APIClient: @unchecked Sendable {
     let baseURL: URL
     private let session: URLSession
+    private static let maxResponseBytes = 5_000_000
 
     init(baseURL: URL = URL(string: "https://gta-free-stem.onrender.com/api/v1")!, session: URLSession? = nil) {
         self.baseURL = baseURL
@@ -30,9 +33,14 @@ final class APIClient: @unchecked Sendable {
     }
 
     private static let defaultSession: URLSession = {
-        let configuration = URLSessionConfiguration.default
+        let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = 3
         configuration.timeoutIntervalForResource = 5
+        configuration.waitsForConnectivity = true
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieAcceptPolicy = .never
+        configuration.urlCache = nil
         return URLSession(configuration: configuration)
     }()
 
@@ -150,15 +158,19 @@ final class APIClient: @unchecked Sendable {
     }
 
     private func get<T: Decodable>(_ url: URL) async throws -> T {
+        guard Self.isTrustedTransport(url) else { throw APIError.insecureConnection }
         let (data, response) = try await session.data(from: url)
-        guard (response as? HTTPURLResponse)?.statusCode ?? 500 < 400 else { throw APIError.invalidResponse }
+        guard data.count <= Self.maxResponseBytes else { throw APIError.invalidResponse }
+        guard let http = response as? HTTPURLResponse, 200..<300 ~= http.statusCode else { throw APIError.invalidResponse }
         return try JSONDecoder().decode(T.self, from: data)
     }
 
     private func send<T: Decodable, Body: Encodable>(url: URL, method: String, token: String?, body: Body) async throws -> T {
+        guard Self.isTrustedTransport(url) else { throw APIError.insecureConnection }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let token, !token.isEmpty {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
@@ -166,7 +178,13 @@ final class APIClient: @unchecked Sendable {
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
         if http.statusCode == 401 { throw APIError.accountRequired }
-        guard http.statusCode < 400 else { throw APIError.invalidResponse }
+        guard data.count <= Self.maxResponseBytes else { throw APIError.invalidResponse }
+        guard 200..<300 ~= http.statusCode else { throw APIError.invalidResponse }
         return try JSONDecoder().decode(T.self, from: data)
+    }
+
+    private static func isTrustedTransport(_ url: URL) -> Bool {
+        guard url.scheme?.lowercased() == "https" else { return false }
+        return url.host?.isEmpty == false
     }
 }

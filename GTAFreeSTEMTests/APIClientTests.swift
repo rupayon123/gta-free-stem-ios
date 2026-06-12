@@ -61,6 +61,33 @@ final class APIClientTests: XCTestCase {
         }
     }
 
+    func testPermissionCopyIsLocalizedForLaunchLanguages() {
+        for language in AppLanguage.allCases {
+            XCTAssertNotNil(
+                Bundle.main.path(
+                    forResource: "InfoPlist",
+                    ofType: "strings",
+                    inDirectory: nil,
+                    forLocalization: language.localeIdentifier
+                ),
+                "\(language.rawValue) is missing localized permission copy"
+            )
+        }
+    }
+
+    func testAPIClientRejectsPlainHTTP() async throws {
+        let client = APIClient(baseURL: URL(string: "http://example.com/api/v1")!)
+
+        do {
+            let _: OpportunityListResponse = try await client.opportunities(query: "", mode: .all, filters: OpportunityFilters())
+            XCTFail("Plain HTTP should not be accepted by the app API client.")
+        } catch APIError.insecureConnection {
+            return
+        } catch {
+            XCTFail("Expected insecureConnection, got \(error)")
+        }
+    }
+
     func testLocalOpportunitySnapshotFiltersByLanguage() throws {
         var filters = OpportunityFilters()
         filters.language = "en"

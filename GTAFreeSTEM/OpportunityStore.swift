@@ -13,10 +13,10 @@ enum HuntPhase: Equatable {
     var icon: String {
         switch self {
         case .idle: "sparkle.magnifyingglass"
-        case .hunting: "antenna.radiowaves.left.and.right.circle.fill"
+        case .hunting: "sparkle.magnifyingglass"
         case .fresh: "checkmark.seal.fill"
         case .cached: "externaldrive.fill.badge.checkmark"
-        case .offline: "wifi.exclamationmark"
+        case .offline: "archivebox.fill"
         }
     }
 
