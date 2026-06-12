@@ -62,6 +62,10 @@ enum Brand {
     static func mutedText(for scheme: ColorScheme) -> Color {
         scheme == .dark ? Color(red: 0.68, green: 0.90, blue: 1.00).opacity(0.86) : ink.opacity(0.66)
     }
+
+    static func surfaceStroke(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? electricBlue.opacity(0.78) : ink.opacity(0.88)
+    }
 }
 
 struct StorybookBackground: View {
@@ -113,14 +117,9 @@ struct CardSurface: ViewModifier {
             .background(Brand.cardFill(for: colorScheme), in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(colorScheme == .dark ? Brand.electricBlue.opacity(0.78) : Brand.outline(for: colorScheme), lineWidth: 2.75)
+                    .stroke(Brand.surfaceStroke(for: colorScheme), lineWidth: 2)
             }
-            .overlay(alignment: .bottomTrailing) {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke((colorScheme == .dark ? Brand.sky : Brand.sun).opacity(colorScheme == .dark ? 0.58 : 0.62), lineWidth: 3)
-                    .offset(x: 4, y: 5)
-                    .mask(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            }
+            .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.22 : 0.10), radius: 8, x: 0, y: 3)
     }
 }
 
@@ -256,7 +255,7 @@ struct HuntActivityIcon: View {
     }
 }
 
-struct FloatingThemeToggle: View {
+struct ThemeToolbarButton: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var session: SessionStore
@@ -265,14 +264,14 @@ struct FloatingThemeToggle: View {
     var body: some View {
         Button(action: toggleTheme) {
             Image(systemName: isDark ? "sun.max.fill" : "moon.stars.fill")
-                .font(.system(size: 13, weight: .black))
+                .font(.system(size: 12, weight: .black))
                 .foregroundStyle(isDark ? Brand.deepOcean : Brand.ice)
-                .frame(width: 34, height: 34)
+                .frame(width: 30, height: 30)
                 .background(fill, in: Circle())
                 .overlay {
-                    Circle().stroke(stroke, lineWidth: 2)
+                    Circle().stroke(stroke, lineWidth: 1.6)
                 }
-                .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.44 : 0.20), radius: 0, x: 3, y: 4)
+                .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.34 : 0.16), radius: 0, x: 2, y: 3)
                 .scaleEffect(reduceMotion ? 1 : (isBreathing ? 1.035 : 0.98))
                 .rotationEffect(.degrees(reduceMotion ? 0 : (isBreathing ? 1.2 : -0.8)))
                 .animation(.easeInOut(duration: 1.9).repeatForever(autoreverses: true), value: isBreathing)
@@ -304,19 +303,6 @@ struct FloatingThemeToggle: View {
     }
 }
 
-private struct FloatingThemeToggleModifier: ViewModifier {
-    let topPadding: CGFloat
-    let trailingPadding: CGFloat
-
-    func body(content: Content) -> some View {
-        content.overlay(alignment: .topTrailing) {
-            FloatingThemeToggle()
-                .padding(.top, topPadding)
-                .padding(.trailing, trailingPadding)
-        }
-    }
-}
-
 struct StoryButtonStyle: ButtonStyle {
     @Environment(\.colorScheme) private var colorScheme
     enum Kind {
@@ -335,7 +321,7 @@ struct StoryButtonStyle: ButtonStyle {
             .foregroundStyle(foreground)
             .background(background.opacity(configuration.isPressed ? 0.78 : 1), in: Capsule())
             .overlay {
-                Capsule().stroke(Brand.outline(for: colorScheme), lineWidth: 2.25)
+                Capsule().stroke(Brand.surfaceStroke(for: colorScheme), lineWidth: 2)
             }
             .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
             .rotationEffect(.degrees(configuration.isPressed ? -1.4 : 0))
@@ -369,7 +355,7 @@ struct StoryFieldModifier: ViewModifier {
             .background(Brand.raisedFill(for: colorScheme), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Brand.outline(for: colorScheme), lineWidth: 2)
+                    .stroke(Brand.surfaceStroke(for: colorScheme), lineWidth: 2)
             }
             .foregroundStyle(Brand.outline(for: colorScheme))
     }
@@ -386,7 +372,7 @@ struct StoryPickerRowModifier: ViewModifier {
             .background(Brand.raisedFill(for: colorScheme), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Brand.outline(for: colorScheme), lineWidth: 2)
+                    .stroke(Brand.surfaceStroke(for: colorScheme), lineWidth: 2)
             }
             .foregroundStyle(Brand.outline(for: colorScheme))
     }
@@ -432,10 +418,6 @@ struct FlowLabels<Content: View>: View {
 extension View {
     func cardSurface(padding: CGFloat = 16, cornerRadius: CGFloat = 28) -> some View {
         modifier(CardSurface(padding: padding, cornerRadius: cornerRadius))
-    }
-
-    func floatingThemeToggle(topPadding: CGFloat = 14, trailingPadding: CGFloat = 14) -> some View {
-        modifier(FloatingThemeToggleModifier(topPadding: topPadding, trailingPadding: trailingPadding))
     }
 
     func storyField() -> some View {

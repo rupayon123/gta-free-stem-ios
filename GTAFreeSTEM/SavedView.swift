@@ -36,7 +36,11 @@ struct SavedView: View {
                 .padding()
             }
             .navigationTitle(session.text("saved"))
-            .floatingThemeToggle(topPadding: 56)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ThemeToolbarButton()
+                }
+            }
         }
     }
 }

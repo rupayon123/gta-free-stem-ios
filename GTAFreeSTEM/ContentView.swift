@@ -119,8 +119,13 @@ struct HomeView: View {
                     .padding(.bottom, 96)
                 }
             }
-            .toolbar(.hidden, for: .navigationBar)
-            .floatingThemeToggle(topPadding: 20)
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ThemeToolbarButton()
+                }
+            }
             .task {
                 if store.opportunities.isEmpty {
                     await store.refresh(cache: modelContext)

@@ -29,7 +29,11 @@ struct OpportunityDetailView: View {
         }
         .navigationTitle(session.text("details"))
         .navigationBarTitleDisplayMode(.inline)
-        .floatingThemeToggle(topPadding: 56)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                ThemeToolbarButton()
+            }
+        }
     }
 
     private var saveAlertBinding: Binding<Bool> {

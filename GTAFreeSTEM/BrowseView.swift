@@ -73,6 +73,10 @@ struct BrowseView: View {
                 Task { await store.refresh(cache: modelContext) }
             }
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    ThemeToolbarButton()
+                }
+
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
                         filtersPresented = true
@@ -114,7 +118,6 @@ struct BrowseView: View {
                 store.useCurrentLocation(coordinate)
                 Task { await store.refresh(cache: modelContext, prioritized: true) }
             }
-            .floatingThemeToggle(topPadding: 56)
         }
     }
 

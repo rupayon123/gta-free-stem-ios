@@ -30,7 +30,11 @@ struct SubmitView: View {
                 }
             }
             .navigationTitle(session.text("support"))
-            .floatingThemeToggle(topPadding: 56)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ThemeToolbarButton()
+                }
+            }
         }
     }
 
