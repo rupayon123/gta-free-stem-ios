@@ -136,26 +136,38 @@ struct StickerBadge: View {
     }
 }
 
+struct BrandLogoImage: View {
+    @Environment(\.colorScheme) private var colorScheme
+    var size: CGFloat = 156
+
+    var body: some View {
+        Image("Logo")
+            .resizable()
+            .scaledToFit()
+            .frame(width: size, height: size)
+            .padding(size * 0.04)
+            .background(
+                Circle()
+                    .fill(Brand.raisedFill(for: colorScheme).opacity(colorScheme == .dark ? 0.42 : 0.58))
+            )
+            .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.34 : 0.16), radius: 0, x: 5, y: 7)
+            .accessibilityLabel("GTA FREE STEM Opportunities")
+    }
+}
+
 struct StorybookWordmark: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 8) {
-            HStack(spacing: 12) {
-                DoodleSpark(color: Brand.coral, rotation: -12)
-                Text("GTA")
-                    .font(.system(size: 38, weight: .black, design: .rounded))
-                    .kerning(1)
-                DoodleSpark(color: Brand.moss, rotation: 16)
-            }
+            BrandLogoImage(size: 156)
 
-            Text("FREE STEM")
-                .font(.system(size: 34, weight: .black, design: .rounded))
-                .kerning(1)
+            Text("GTA FREE STEM")
+                .font(.system(size: 28, weight: .black, design: .rounded))
+                .kerning(0.5)
 
-            Text("OPPORTUNITIES")
-                .font(.system(size: 19, weight: .heavy, design: .rounded))
-                .kerning(2)
+            Text("Opportunities")
+                .font(.system(size: 18, weight: .heavy, design: .rounded))
                 .padding(.horizontal, 14)
                 .padding(.vertical, 6)
                 .background(Brand.sun, in: Capsule())
@@ -165,8 +177,8 @@ struct StorybookWordmark: View {
         }
         .multilineTextAlignment(.center)
         .foregroundStyle(Brand.outline(for: colorScheme))
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
         .background(Brand.raisedFill(for: colorScheme), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 30, style: .continuous)

@@ -154,7 +154,7 @@
     "black": "Black-focused",
     "girls": "Girls/women-focused",
     "indigenous": "Indigenous-focused",
-    "highSchool": "High school",
+    "highSchool": "High School",
     "volunteerHours": "Volunteer hours",
     "coop": "Co-op",
     "mentorship": "Mentorship",
@@ -205,7 +205,9 @@
     "submitted": "Sent to the local review queue.",
     "guest": "Guest",
     "summaryTemplate": "{summary}",
-    "refreshResearch": "Refresh"
+    "refreshResearch": "Refresh",
+    "home": "Home",
+    "account": "Account"
   },
   "fr": {
     "browse": "Parcourir",
@@ -281,7 +283,7 @@
     "save": "Sauver",
     "source": "Source",
     "results": "resultats",
-    "freeOnly": "Everything here is free for everyone.",
+    "freeOnly": "Tout ici est gratuit pour tout le monde.",
     "translationNote": "Resume traduit pour parcourir; les sources restent disponibles pour verification.",
     "allGta": "Toute la GTA",
     "allCities": "Toutes les villes",
@@ -321,7 +323,9 @@
     "submitted": "Sent to the local review queue.",
     "guest": "Invite",
     "summaryTemplate": "Occasion gratuite de {category} offerte par {provider} a {city}. Ages {ages}. Consultez la source pour les details.",
-    "refreshResearch": "Rafraichir"
+    "refreshResearch": "Rafraichir",
+    "home": "Accueil",
+    "account": "Compte"
   },
   "zh": {
     "browse": "浏览",
@@ -397,7 +401,7 @@
     "save": "保存",
     "source": "来源",
     "results": "个结果",
-    "freeOnly": "Everything here is free for everyone.",
+    "freeOnly": "这里的所有内容都对所有人免费。",
     "translationNote": "摘要已翻译便于浏览；来源信息保留用于核实。",
     "allGta": "整个 GTA",
     "allCities": "所有城市",
@@ -437,7 +441,9 @@
     "submitted": "Sent to the local review queue.",
     "guest": "访客",
     "summaryTemplate": "{provider}在{city}提供免费的{category}机会。适合{ages}岁。请查看来源了解详情。",
-    "refreshResearch": "刷新"
+    "refreshResearch": "刷新",
+    "home": "首页",
+    "account": "账户"
   },
   "yue": {
     "browse": "瀏覽",
@@ -513,7 +519,7 @@
     "save": "儲存",
     "source": "來源",
     "results": "個結果",
-    "freeOnly": "Everything here is free for everyone.",
+    "freeOnly": "呢度所有嘢都係畀所有人免費。",
     "translationNote": "摘要已翻譯方便瀏覽；來源資料保留作核實。",
     "allGta": "全 GTA",
     "allCities": "所有城市",
@@ -553,7 +559,9 @@
     "submitted": "Sent to the local review queue.",
     "guest": "訪客",
     "summaryTemplate": "{provider}喺{city}提供免費{category}機會。適合{ages}歲。請查看來源了解詳情。",
-    "refreshResearch": "刷新"
+    "refreshResearch": "刷新",
+    "home": "主頁",
+    "account": "帳戶"
   },
   "pa": {
     "browse": "ਬ੍ਰਾਊਜ਼",
@@ -629,7 +637,7 @@
     "save": "ਸੇਵ",
     "source": "ਸਰੋਤ",
     "results": "ਨਤੀਜੇ",
-    "freeOnly": "Everything here is free for everyone.",
+    "freeOnly": "ਇੱਥੇ ਹਰ ਚੀਜ਼ ਹਰ ਕਿਸੇ ਲਈ ਮੁਫ਼ਤ ਹੈ।",
     "translationNote": "ਸੰਖੇਪ ਪੜ੍ਹਨ ਲਈ ਅਨੁਵਾਦ ਕੀਤਾ ਗਿਆ ਹੈ; ਸਰੋਤ ਵੇਰਵੇ ਜਾਂਚ ਲਈ ਰਹਿੰਦੇ ਹਨ।",
     "allGta": "ਸਾਰਾ GTA",
     "allCities": "ਸਾਰੇ ਸ਼ਹਿਰ",
@@ -669,7 +677,9 @@
     "submitted": "Sent to the local review queue.",
     "guest": "ਮਹਿਮਾਨ",
     "summaryTemplate": "{provider} ਵੱਲੋਂ {city} ਵਿੱਚ ਮੁਫ਼ਤ {category} ਮੌਕਾ। ਉਮਰ {ages}. ਵੇਰਵਿਆਂ ਲਈ ਸਰੋਤ ਵੇਖੋ।",
-    "refreshResearch": "ਰਿਫ੍ਰੈਸ਼"
+    "refreshResearch": "ਰਿਫ੍ਰੈਸ਼",
+    "home": "ਘਰ",
+    "account": "ਖਾਤਾ"
   },
   "ur": {
     "browse": "دیکھیں",
@@ -745,7 +755,7 @@
     "save": "محفوظ",
     "source": "ذریعہ",
     "results": "نتائج",
-    "freeOnly": "Everything here is free for everyone.",
+    "freeOnly": "یہاں سب کچھ ہر ایک کے لیے مفت ہے۔",
     "translationNote": "خلاصہ پڑھنے کے لیے ترجمہ کیا گیا ہے؛ اصل ذرائع تصدیق کے لیے موجود ہیں۔",
     "allGta": "تمام GTA",
     "allCities": "تمام شہر",
@@ -785,7 +795,9 @@
     "submitted": "Sent to the local review queue.",
     "guest": "مہمان",
     "summaryTemplate": "{city} میں {provider} کی طرف سے مفت {category} موقع۔ عمر {ages}. تفصیلات کے لیے ذریعہ دیکھیں۔",
-    "refreshResearch": "تازہ کریں"
+    "refreshResearch": "تازہ کریں",
+    "home": "ہوم",
+    "account": "اکاؤنٹ"
   },
   "ta": {
     "browse": "உலாவு",
@@ -793,7 +805,7 @@
     "support": "உதவி",
     "visible": "காணலாம்",
     "loadedFrom": "ஏற்றப்பட்டது",
-    "previewDatabase": "Preview database",
+    "previewDatabase": "முன்னோட்ட தரவுத்தளம்",
     "railsAPI": "Rails API",
     "saveNeedsAccountTitle": "சேமிக்க account வேண்டும்",
     "saveNeedsAccountMessage": "சேமிப்பதற்கு முன் sign in செய்யவும்.",
@@ -807,7 +819,7 @@
     "privacyBody": "Browsing public. Accounts saves, feedback, submissions, account deletion க்கு மட்டும்.",
     "termsBody": "Listings public provider pages க்கு link ஆகும். Ads, paid ranking, direct messaging, tutoring marketplace இல்லை.",
     "accountDeleted": "Account நீக்கப்பட்டது.",
-    "feedback": "Feedback",
+    "feedback": "கருத்து",
     "sendFeedback": "Feedback அனுப்பு",
     "feedbackSent": "Feedback அனுப்பப்பட்டது.",
     "missingOpportunity": "இல்லாத வாய்ப்பு",
@@ -861,7 +873,7 @@
     "save": "சேமி",
     "source": "மூலம்",
     "results": "முடிவுகள்",
-    "freeOnly": "Everything here is free for everyone.",
+    "freeOnly": "இங்கே உள்ள அனைத்தும் அனைவருக்கும் இலவசம்.",
     "translationNote": "உலாவ உதவ சுருக்கம் மொழிபெயர்க்கப்பட்டது; சரிபார்க்க source தகவல் உள்ளது.",
     "allGta": "முழு GTA",
     "allCities": "அனைத்து நகரங்கள்",
@@ -901,12 +913,14 @@
     "submitted": "Sent to the local review queue.",
     "guest": "விருந்தினர்",
     "summaryTemplate": "{city} நகரில் {provider} வழங்கும் இலவச {category} வாய்ப்பு. வயது {ages}. விவரங்களுக்கு மூலத்தை பார்க்கவும்.",
-    "refreshResearch": "புதுப்பி"
+    "refreshResearch": "புதுப்பி",
+    "home": "முகப்பு",
+    "account": "கணக்கு"
   },
   "tl": {
     "browse": "Browse",
     "settings": "Settings",
-    "support": "Support",
+    "support": "Suporta",
     "visible": "nakikita",
     "loadedFrom": "Galing sa",
     "previewDatabase": "preview database",
@@ -966,8 +980,8 @@
     "black": "Black-focused",
     "girls": "Girls/women-focused",
     "indigenous": "Indigenous-focused",
-    "highSchool": "High school",
-    "volunteerHours": "Volunteer hours",
+    "highSchool": "High School",
+    "volunteerHours": "Oras ng volunteer",
     "coop": "Co-op",
     "mentorship": "Mentorship",
     "leadership": "Leadership",
@@ -977,7 +991,7 @@
     "save": "I-save",
     "source": "Source",
     "results": "resulta",
-    "freeOnly": "Everything here is free for everyone.",
+    "freeOnly": "Lahat dito ay libre para sa lahat.",
     "translationNote": "Isinalin ang buod para sa browsing; nandoon pa rin ang source details para ma-check.",
     "allGta": "Buong GTA",
     "allCities": "Lahat ng lungsod",
@@ -1017,7 +1031,9 @@
     "submitted": "Sent to the local review queue.",
     "guest": "Guest",
     "summaryTemplate": "Libreng {category} opportunity mula sa {provider} sa {city}. Edad {ages}. Tingnan ang source para sa detalye.",
-    "refreshResearch": "Refresh"
+    "refreshResearch": "Refresh",
+    "home": "Home",
+    "account": "Account"
   },
   "es": {
     "browse": "Explorar",
@@ -1093,7 +1109,7 @@
     "save": "Guardar",
     "source": "Fuente",
     "results": "resultados",
-    "freeOnly": "Everything here is free for everyone.",
+    "freeOnly": "Todo aquí es gratis para todos.",
     "translationNote": "Resumen traducido para navegar; las fuentes quedan disponibles para verificar.",
     "allGta": "Todo GTA",
     "allCities": "Todas las ciudades",
@@ -1133,7 +1149,9 @@
     "submitted": "Sent to the local review queue.",
     "guest": "Invitado",
     "summaryTemplate": "Oportunidad gratis de {category} de {provider} en {city}. Edades {ages}. Revise la fuente para detalles.",
-    "refreshResearch": "Actualizar"
+    "refreshResearch": "Actualizar",
+    "home": "Inicio",
+    "account": "Cuenta"
   },
   "ar": {
     "browse": "تصفح",
@@ -1209,7 +1227,7 @@
     "save": "حفظ",
     "source": "المصدر",
     "results": "نتائج",
-    "freeOnly": "Everything here is free for everyone.",
+    "freeOnly": "كل شيء هنا مجاني للجميع.",
     "translationNote": "تمت ترجمة الملخص للتصفح؛ تبقى المصادر متاحة للتحقق.",
     "allGta": "كل GTA",
     "allCities": "كل المدن",
@@ -1249,7 +1267,9 @@
     "submitted": "Sent to the local review queue.",
     "guest": "ضيف",
     "summaryTemplate": "فرصة {category} مجانية من {provider} في {city}. الأعمار {ages}. راجع المصدر للتفاصيل.",
-    "refreshResearch": "تحديث"
+    "refreshResearch": "تحديث",
+    "home": "الرئيسية",
+    "account": "الحساب"
   },
   "fa": {
     "browse": "مرور",
@@ -1325,7 +1345,7 @@
     "save": "ذخیره",
     "source": "منبع",
     "results": "نتیجه",
-    "freeOnly": "Everything here is free for everyone.",
+    "freeOnly": "همه چیز اینجا برای همه رایگان است.",
     "translationNote": "خلاصه برای مرور ترجمه شده است؛ جزئیات منبع برای تایید باقی می ماند.",
     "allGta": "همه GTA",
     "allCities": "همه شهرها",
@@ -1365,7 +1385,9 @@
     "submitted": "Sent to the local review queue.",
     "guest": "مهمان",
     "summaryTemplate": "فرصت رایگان {category} از {provider} در {city}. سنین {ages}. برای جزئیات منبع را بررسی کنید.",
-    "refreshResearch": "تازه سازی"
+    "refreshResearch": "تازه سازی",
+    "home": "خانه",
+    "account": "حساب"
   },
   "hi": {
     "browse": "ब्राउज़",
@@ -1387,7 +1409,7 @@
     "privacyBody": "Browsing public है। Accounts सिर्फ saves, feedback, submissions और account deletion के लिए हैं।",
     "termsBody": "Listings public provider pages से link होते हैं। Ads, paid ranking, direct messaging या tutoring marketplace नहीं है।",
     "accountDeleted": "Account deleted.",
-    "feedback": "Feedback",
+    "feedback": "प्रतिक्रिया",
     "sendFeedback": "Feedback भेजें",
     "feedbackSent": "Feedback sent.",
     "missingOpportunity": "Missing opportunity",
@@ -1431,9 +1453,9 @@
     "girls": "Girls/women-focused",
     "indigenous": "Indigenous-focused",
     "highSchool": "हाई स्कूल",
-    "volunteerHours": "Volunteer hours",
+    "volunteerHours": "स्वयंसेवा घंटे",
     "coop": "Co-op",
-    "mentorship": "Mentorship",
+    "mentorship": "मार्गदर्शन",
     "leadership": "Leadership",
     "verifiedFree": "Free listing",
     "lastVerified": "Last checked",
@@ -1441,7 +1463,7 @@
     "save": "सेव",
     "source": "Source",
     "results": "नतीजे",
-    "freeOnly": "Everything here is free for everyone.",
+    "freeOnly": "यहां सब कुछ सभी के लिए मुफ्त है।",
     "translationNote": "Browsing के लिए summary translate की गई है; source details verification के लिए रहते हैं।",
     "allGta": "सारा GTA",
     "allCities": "सभी शहर",
@@ -1481,7 +1503,9 @@
     "submitted": "Sent to the local review queue.",
     "guest": "Guest",
     "summaryTemplate": "{city} में {provider} की मुफ्त {category} opportunity. उम्र {ages}. Details के लिए source देखें.",
-    "refreshResearch": "Refresh"
+    "refreshResearch": "Refresh",
+    "home": "होम",
+    "account": "खाता"
   },
   "pt": {
     "browse": "Explorar",
@@ -1557,7 +1581,7 @@
     "save": "Salvar",
     "source": "Fonte",
     "results": "resultados",
-    "freeOnly": "Everything here is free for everyone.",
+    "freeOnly": "Tudo aqui é gratuito para todos.",
     "translationNote": "Resumo traduzido para navegacao; as fontes ficam disponiveis para verificacao.",
     "allGta": "Toda a GTA",
     "allCities": "Todas as cidades",
@@ -1597,7 +1621,9 @@
     "submitted": "Sent to the local review queue.",
     "guest": "Convidado",
     "summaryTemplate": "Oportunidade gratuita de {category} da {provider} em {city}. Idades {ages}. Veja a fonte para detalhes.",
-    "refreshResearch": "Atualizar"
+    "refreshResearch": "Atualizar",
+    "home": "Início",
+    "account": "Conta"
   },
   "gu": {
     "browse": "બ્રાઉઝ",
@@ -1619,7 +1645,7 @@
     "privacyBody": "Browsing public છે. Accounts માત્ર saves, feedback, submissions અને account deletion માટે છે.",
     "termsBody": "Listings public provider pages સાથે link થાય છે. Ads, paid ranking, direct messaging કે tutoring marketplace નથી.",
     "accountDeleted": "Account deleted.",
-    "feedback": "Feedback",
+    "feedback": "પ્રતિસાદ",
     "sendFeedback": "Feedback મોકલો",
     "feedbackSent": "Feedback sent.",
     "missingOpportunity": "Missing opportunity",
@@ -1673,7 +1699,7 @@
     "save": "સેવ",
     "source": "સોર્સ",
     "results": "પરિણામો",
-    "freeOnly": "Everything here is free for everyone.",
+    "freeOnly": "અહીં બધું દરેક માટે મફત છે.",
     "translationNote": "બ્રાઉઝ કરવા માટે સારાંશ અનુવાદિત છે; ચકાસણી માટે source વિગતો રહે છે.",
     "allGta": "બધું GTA",
     "allCities": "બધા શહેરો",
@@ -1713,7 +1739,9 @@
     "submitted": "Sent to the local review queue.",
     "guest": "મહેમાન",
     "summaryTemplate": "{city} માં {provider} તરફથી મફત {category} તક. ઉંમર {ages}. વિગત માટે સ્રોત જુઓ.",
-    "refreshResearch": "રીફ્રેશ"
+    "refreshResearch": "રીફ્રેશ",
+    "home": "હોમ",
+    "account": "ખાતું"
   },
   "bn": {
     "browse": "ব্রাউজ",
@@ -1779,9 +1807,9 @@
     "girls": "Girls/women-focused",
     "indigenous": "Indigenous-focused",
     "highSchool": "হাই স্কুল",
-    "volunteerHours": "Volunteer hours",
+    "volunteerHours": "স্বেচ্ছাসেবার ঘণ্টা",
     "coop": "Co-op",
-    "mentorship": "Mentorship",
+    "mentorship": "মেন্টরশিপ",
     "leadership": "Leadership",
     "verifiedFree": "ফ্রি তালিকা",
     "lastVerified": "শেষ দেখা",
@@ -1829,7 +1857,9 @@
     "submitted": "Local review queue-তে পাঠানো হয়েছে।",
     "guest": "গেস্ট",
     "summaryTemplate": "{city}-এ {provider} এর ফ্রি {category} opportunity. বয়স {ages}. বিস্তারিত জানতে উৎস দেখুন.",
-    "refreshResearch": "রিফ্রেশ"
+    "refreshResearch": "রিফ্রেশ",
+    "home": "হোম",
+    "account": "অ্যাকাউন্ট"
   },
   "ja": {
     "browse": "探す",
@@ -1945,7 +1975,9 @@
     "submitted": "ローカル確認キューに送信しました。",
     "guest": "ゲスト",
     "summaryTemplate": "{city}の{provider}による無料の{category}機会です。対象年齢は{ages}。詳細は情報源をご確認ください。",
-    "refreshResearch": "更新"
+    "refreshResearch": "更新",
+    "home": "ホーム",
+    "account": "アカウント"
   },
   "ko": {
     "browse": "둘러보기",
@@ -2061,7 +2093,9 @@
     "submitted": "로컬 검토 대기열로 보냈습니다.",
     "guest": "게스트",
     "summaryTemplate": "{city}에서 {provider}이 제공하는 무료 {category} 기회입니다. 대상 나이는 {ages}입니다. 자세한 내용은 출처를 확인하세요.",
-    "refreshResearch": "새로고침"
+    "refreshResearch": "새로고침",
+    "home": "홈",
+    "account": "계정"
   },
   "hu": {
     "browse": "Bongeszés",
@@ -2177,6 +2211,8 @@
     "submitted": "Elküldve a helyi ellenőrzési sorba.",
     "guest": "Vendég",
     "summaryTemplate": "Ingyenes {category} lehetőség a(z) {provider} szervezőtől itt: {city}. Korosztály: {ages}. Részletekért nézd meg a forrást.",
-    "refreshResearch": "Frissítés"
+    "refreshResearch": "Frissítés",
+    "home": "Kezdőlap",
+    "account": "Fiók"
   }
 }

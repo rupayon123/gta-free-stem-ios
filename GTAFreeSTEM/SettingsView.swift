@@ -15,6 +15,7 @@ struct SettingsView: View {
                 ScrollView {
                     VStack(spacing: 18) {
                         accountCard
+                        savedCard
                         preferencesCard
                         legalCard
                         if let authMessage = session.authMessage {
@@ -62,6 +63,26 @@ struct SettingsView: View {
                 }
                 .buttonStyle(StoryButtonStyle(kind: .primary))
             }
+        }
+        .cardSurface(padding: 18, cornerRadius: 30)
+    }
+
+    private var savedCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            StorySectionTitle(text: session.text("saved"), systemImage: "bookmark.fill")
+            Text(session.isSignedIn ? session.text("savedEmpty") : session.text("signInToSave"))
+                .font(.headline.weight(.black))
+                .foregroundStyle(Brand.outline(for: colorScheme))
+            Text(session.text("savedArchiveNote"))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Brand.mutedText(for: colorScheme))
+            NavigationLink {
+                SavedView()
+            } label: {
+                Label(session.text("saved"), systemImage: "bookmark.fill")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(StoryButtonStyle(kind: .secondary))
         }
         .cardSurface(padding: 18, cornerRadius: 30)
     }

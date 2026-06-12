@@ -1,12 +1,45 @@
 import MapKit
 import SwiftUI
 
+enum BrowseSurface {
+    case opportunities
+    case highSchool
+
+    var titleKey: String {
+        switch self {
+        case .opportunities: "navOpportunities"
+        case .highSchool: "highSchool"
+        }
+    }
+
+    var defaultMode: SearchMode {
+        switch self {
+        case .opportunities: .all
+        case .highSchool: .highSchool
+        }
+    }
+
+    var modes: [SearchMode] {
+        switch self {
+        case .opportunities:
+            [.all]
+        case .highSchool:
+            [.highSchool, .volunteer, .coop, .mentorship]
+        }
+    }
+}
+
 struct BrowseView: View {
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
+    let surface: BrowseSurface
     @State private var filtersPresented = false
     @State private var displayMode: BrowseDisplayMode = .list
+
+    init(surface: BrowseSurface = .opportunities) {
+        self.surface = surface
+    }
 
     var body: some View {
         NavigationStack {
@@ -29,7 +62,7 @@ struct BrowseView: View {
                     .padding(.bottom, 112)
                 }
             }
-            .navigationTitle(session.text("browse"))
+            .navigationTitle(session.text(surface.titleKey))
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $store.query, prompt: session.text("searchPlaceholder"))
             .onSubmit(of: .search) {
@@ -68,7 +101,8 @@ struct BrowseView: View {
                 .environmentObject(session)
             }
             .task {
-                if store.opportunities.isEmpty {
+                let didChangeMode = prepareSurface()
+                if didChangeMode || store.opportunities.isEmpty {
                     await store.refresh()
                 }
             }
@@ -77,15 +111,21 @@ struct BrowseView: View {
 
     private var hero: some View {
         VStack(spacing: 16) {
-            StorybookWordmark()
+            BrandLogoImage(size: surface == .highSchool ? 132 : 148)
 
-            Text(session.text("mission"))
-                .font(.title3.weight(.black))
+            Text(surface == .highSchool ? session.text("highSchool") : session.text("brand"))
+                .font(.title2.weight(.black))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Brand.outline(for: colorScheme))
 
+            Text(surface == .highSchool ? highSchoolSummary : session.text("mission"))
+                .font(.headline.weight(.bold))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(Brand.mutedText(for: colorScheme))
+
             HStack(spacing: 10) {
                 StickerBadge(text: "\(store.activeCount) \(session.text("visible"))", color: Brand.sky, systemImage: "sparkle.magnifyingglass")
+                StickerBadge(text: session.text("freeOnly"), color: Brand.sun, systemImage: "heart.fill")
                 Spacer()
                 if store.isLoading {
                     ProgressView()
@@ -102,30 +142,50 @@ struct BrowseView: View {
 
     private var searchControls: some View {
         VStack(spacing: 12) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(SearchMode.allCases) { mode in
-                        Button {
-                            store.mode = mode
-                            Task { await store.refresh() }
-                        } label: {
-                            Text(session.text(mode.textKey))
-                                .font(.subheadline.weight(.bold))
-                                .lineLimit(1)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 10)
-                                .background(store.mode == mode ? Brand.sun : Brand.raisedFill(for: colorScheme), in: Capsule())
-                                .overlay {
-                                    Capsule().stroke(Brand.outline(for: colorScheme), lineWidth: 2)
-                                }
-                                .foregroundStyle(Brand.outline(for: colorScheme))
+            if surface.modes.count > 1 {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(surface.modes) { mode in
+                            Button {
+                                store.mode = mode
+                                Task { await store.refresh() }
+                            } label: {
+                                Text(session.text(mode.textKey))
+                                    .font(.subheadline.weight(.bold))
+                                    .lineLimit(1)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 10)
+                                    .background(store.mode == mode ? Brand.sun : Brand.raisedFill(for: colorScheme), in: Capsule())
+                                    .overlay {
+                                        Capsule().stroke(Brand.outline(for: colorScheme), lineWidth: 2)
+                                    }
+                                    .foregroundStyle(Brand.outline(for: colorScheme))
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
+                    .padding(.horizontal, 2)
                 }
-                .padding(.horizontal, 2)
+                .accessibilityLabel(session.text("highSchool"))
             }
-            .accessibilityLabel(session.text("highSchool"))
+
+            HStack(spacing: 10) {
+                Button {
+                    filtersPresented = true
+                } label: {
+                    Label(session.text("filters"), systemImage: store.filters.hasActiveFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(StoryButtonStyle(kind: .quiet))
+
+                Button {
+                    Task { await store.refresh() }
+                } label: {
+                    Label(session.text("refreshResearch"), systemImage: "arrow.clockwise")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(StoryButtonStyle(kind: .secondary))
+            }
 
             Picker(session.text("view"), selection: $displayMode) {
                 ForEach(BrowseDisplayMode.allCases) { mode in
@@ -190,6 +250,19 @@ struct BrowseView: View {
 
     private var background: some View {
         StorybookBackground()
+    }
+
+    private var highSchoolSummary: String {
+        "\(session.text("volunteerHours")) · \(session.text("coop")) · \(session.text("mentorship")) · \(session.text("leadership"))"
+    }
+
+    @discardableResult
+    private func prepareSurface() -> Bool {
+        if !surface.modes.contains(store.mode) {
+            store.mode = surface.defaultMode
+            return true
+        }
+        return false
     }
 }
 

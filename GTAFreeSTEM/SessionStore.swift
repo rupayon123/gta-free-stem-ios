@@ -36,7 +36,7 @@ final class SessionStore: ObservableObject {
         let storedCode = UserDefaults.standard.string(forKey: Self.languageKey)
         let legacyLanguage = UserDefaults.standard.string(forKey: Self.legacyLanguageKey)
         preferredLanguageCode = AppLanguage.normalized(storedCode ?? legacyLanguage ?? AppLanguage.en.rawValue).rawValue
-        preferredTheme = UserDefaults.standard.string(forKey: Self.themeKey) ?? "System"
+        preferredTheme = UserDefaults.standard.string(forKey: Self.themeKey) ?? "Light"
         displayName = text("guest")
     }
 
