@@ -39,7 +39,7 @@ final class OpportunityStore: ObservableObject {
     @Published var opportunities: [Opportunity] = []
     @Published var activeCount = 0
     @Published var lastUpdated: String?
-    @Published var dataSourceLabel = "Rails API"
+    @Published var dataSourceLabel = DataSource.publicLiveFeed
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var huntPhase: HuntPhase = .idle
@@ -68,7 +68,7 @@ final class OpportunityStore: ObservableObject {
             }
             let response = try await api.opportunities(query: query, mode: mode, filters: filters)
             let newCount = updateKnownIDs(with: response.data)
-            apply(response, source: "Rails API")
+            apply(response, source: DataSource.publicLiveFeed)
             persist(response, in: context)
             persistCurrentHunt(in: context)
             markSeen(response.data, in: context)
@@ -81,15 +81,15 @@ final class OpportunityStore: ObservableObject {
             }
         } catch {
             if let cached = cachedResponse(from: context) {
-                apply(cached, source: "Saved app cache")
+                apply(cached, source: DataSource.savedAppCache)
                 huntPhase = .cached
                 errorMessage = nil
             } else {
                 do {
-                let response = try LocalOpportunitySnapshot.load(query: query, mode: mode, filters: filters)
-                apply(response, source: "Preview database")
-                huntPhase = .offline
-                errorMessage = nil
+                    let response = try LocalOpportunitySnapshot.load(query: query, mode: mode, filters: filters)
+                    apply(response, source: DataSource.previewDatabase)
+                    huntPhase = .offline
+                    errorMessage = nil
                 } catch {
                     huntPhase = .offline
                     errorMessage = error.localizedDescription
@@ -257,6 +257,12 @@ final class OpportunityStore: ObservableObject {
         let language = AppLanguage.normalized(stored ?? AppLanguage.en.rawValue)
         return AppText.shared.string(key, language: language)
     }
+}
+
+enum DataSource {
+    static let publicLiveFeed = "Public live feed"
+    static let previewDatabase = "Preview database"
+    static let savedAppCache = "Saved app cache"
 }
 
 final class HuntLocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {

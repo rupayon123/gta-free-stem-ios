@@ -267,7 +267,8 @@
     "categoryYouthLeadership": "Youth Leadership",
     "serverAddressInvalid": "The server address is not valid.",
     "serverResponseInvalid": "The server response could not be read.",
-    "signInToUseFeature": "Please sign in to use this feature."
+    "signInToUseFeature": "Please sign in to use this feature.",
+    "publicLiveFeed": "Public live feed"
   },
   "fr": {
     "browse": "Parcourir",
@@ -445,7 +446,8 @@
     "categoryYouthLeadership": "Leadership jeunesse",
     "serverAddressInvalid": "L'adresse du serveur n'est pas valide.",
     "serverResponseInvalid": "La reponse du serveur ne peut pas etre lue.",
-    "signInToUseFeature": "Veuillez vous connecter pour utiliser cette fonction."
+    "signInToUseFeature": "Veuillez vous connecter pour utiliser cette fonction.",
+    "publicLiveFeed": "flux public en direct"
   },
   "zh": {
     "browse": "浏览",
@@ -623,7 +625,8 @@
     "categoryYouthLeadership": "青年领导力",
     "serverAddressInvalid": "服务器地址无效。",
     "serverResponseInvalid": "无法读取服务器回复。",
-    "signInToUseFeature": "请先登录再使用此功能。"
+    "signInToUseFeature": "请先登录再使用此功能。",
+    "publicLiveFeed": "公共实时数据源"
   },
   "yue": {
     "browse": "瀏覽",
@@ -801,7 +804,8 @@
     "categoryYouthLeadership": "青年領袖",
     "serverAddressInvalid": "伺服器地址無效。",
     "serverResponseInvalid": "讀唔到伺服器回覆。",
-    "signInToUseFeature": "請先登入再用呢個功能。"
+    "signInToUseFeature": "請先登入再用呢個功能。",
+    "publicLiveFeed": "公開即時資料"
   },
   "pa": {
     "browse": "ਬ੍ਰਾਊਜ਼",
@@ -979,7 +983,8 @@
     "categoryYouthLeadership": "ਯੂਥ ਲੀਡਰਸ਼ਿਪ",
     "serverAddressInvalid": "ਸਰਵਰ ਪਤਾ ਠੀਕ ਨਹੀਂ।",
     "serverResponseInvalid": "ਸਰਵਰ ਜਵਾਬ ਪੜ੍ਹਿਆ ਨਹੀਂ ਗਿਆ।",
-    "signInToUseFeature": "ਇਹ ਵਰਤਣ ਲਈ ਕਿਰਪਾ ਕਰਕੇ ਸਾਈਨ ਇਨ ਕਰੋ।"
+    "signInToUseFeature": "ਇਹ ਵਰਤਣ ਲਈ ਕਿਰਪਾ ਕਰਕੇ ਸਾਈਨ ਇਨ ਕਰੋ।",
+    "publicLiveFeed": "ਜਨਤਕ ਲਾਈਵ ਫੀਡ"
   },
   "ur": {
     "browse": "دیکھیں",
@@ -1157,7 +1162,8 @@
     "categoryYouthLeadership": "نوجوان قیادت",
     "serverAddressInvalid": "سرور کا پتہ درست نہیں۔",
     "serverResponseInvalid": "سرور کا جواب پڑھا نہیں جا سکا۔",
-    "signInToUseFeature": "یہ فیچر استعمال کرنے کے لیے سائن ان کریں۔"
+    "signInToUseFeature": "یہ فیچر استعمال کرنے کے لیے سائن ان کریں۔",
+    "publicLiveFeed": "عوامی لائیو فیڈ"
   },
   "ta": {
     "browse": "உலாவு",
@@ -1335,7 +1341,8 @@
     "categoryYouthLeadership": "இளைஞர் தலைமை",
     "serverAddressInvalid": "சர்வர் முகவரி சரியில்லை.",
     "serverResponseInvalid": "சர்வர் பதிலை படிக்க முடியவில்லை.",
-    "signInToUseFeature": "இந்த அம்சத்தை பயன்படுத்த உள்நுழையவும்."
+    "signInToUseFeature": "இந்த அம்சத்தை பயன்படுத்த உள்நுழையவும்.",
+    "publicLiveFeed": "பொது நேரடி பட்டியல்"
   },
   "tl": {
     "browse": "Browse",
@@ -1513,7 +1520,8 @@
     "categoryYouthLeadership": "Youth Leadership",
     "serverAddressInvalid": "Hindi valid ang server address.",
     "serverResponseInvalid": "Hindi mabasa ang sagot ng server.",
-    "signInToUseFeature": "Mag-sign in para gamitin ito."
+    "signInToUseFeature": "Mag-sign in para gamitin ito.",
+    "publicLiveFeed": "Live na pampublikong feed"
   },
   "es": {
     "browse": "Explorar",
@@ -1691,7 +1699,8 @@
     "categoryYouthLeadership": "Liderazgo juvenil",
     "serverAddressInvalid": "La direccion del servidor no es valida.",
     "serverResponseInvalid": "No se pudo leer la respuesta del servidor.",
-    "signInToUseFeature": "Inicia sesion para usar esta funcion."
+    "signInToUseFeature": "Inicia sesion para usar esta funcion.",
+    "publicLiveFeed": "fuente pública en vivo"
   },
   "ar": {
     "browse": "تصفح",
@@ -1869,7 +1878,8 @@
     "categoryYouthLeadership": "قيادة الشباب",
     "serverAddressInvalid": "عنوان الخادم غير صحيح.",
     "serverResponseInvalid": "لا يمكن قراءة رد الخادم.",
-    "signInToUseFeature": "يرجى تسجيل الدخول لاستخدام هذه الميزة."
+    "signInToUseFeature": "يرجى تسجيل الدخول لاستخدام هذه الميزة.",
+    "publicLiveFeed": "موجز عام مباشر"
   },
   "fa": {
     "browse": "مرور",
@@ -2047,7 +2057,8 @@
     "categoryYouthLeadership": "رهبری جوانان",
     "serverAddressInvalid": "آدرس سرور درست نیست.",
     "serverResponseInvalid": "پاسخ سرور خوانده نشد.",
-    "signInToUseFeature": "برای استفاده از این بخش وارد شوید."
+    "signInToUseFeature": "برای استفاده از این بخش وارد شوید.",
+    "publicLiveFeed": "فید عمومی زنده"
   },
   "hi": {
     "browse": "ब्राउज़",
@@ -2225,7 +2236,8 @@
     "categoryYouthLeadership": "युवा नेतृत्व",
     "serverAddressInvalid": "सर्वर पता सही नहीं है।",
     "serverResponseInvalid": "सर्वर जवाब पढ़ा नहीं गया।",
-    "signInToUseFeature": "इस सुविधा के लिए साइन इन करें।"
+    "signInToUseFeature": "इस सुविधा के लिए साइन इन करें।",
+    "publicLiveFeed": "सार्वजनिक लाइव फीड"
   },
   "pt": {
     "browse": "Explorar",
@@ -2403,7 +2415,8 @@
     "categoryYouthLeadership": "Lideranca jovem",
     "serverAddressInvalid": "O endereco do servidor nao e valido.",
     "serverResponseInvalid": "Nao foi possivel ler a resposta do servidor.",
-    "signInToUseFeature": "Entre para usar este recurso."
+    "signInToUseFeature": "Entre para usar este recurso.",
+    "publicLiveFeed": "feed público ao vivo"
   },
   "gu": {
     "browse": "બ્રાઉઝ",
@@ -2581,7 +2594,8 @@
     "categoryYouthLeadership": "યુવા નેતૃત્વ",
     "serverAddressInvalid": "સર્વર સરનામું સાચું નથી.",
     "serverResponseInvalid": "સર્વર જવાબ વાંચી શકાયો નથી.",
-    "signInToUseFeature": "આ સુવિધા માટે સાઇન ઇન કરો."
+    "signInToUseFeature": "આ સુવિધા માટે સાઇન ઇન કરો.",
+    "publicLiveFeed": "જાહેર લાઇવ ફીડ"
   },
   "bn": {
     "browse": "ব্রাউজ",
@@ -2759,7 +2773,8 @@
     "categoryYouthLeadership": "যুব নেতৃত্ব",
     "serverAddressInvalid": "সার্ভারের ঠিকানা ঠিক নয়।",
     "serverResponseInvalid": "সার্ভারের উত্তর পড়া যায়নি।",
-    "signInToUseFeature": "এই সুবিধা ব্যবহার করতে সাইন ইন করুন।"
+    "signInToUseFeature": "এই সুবিধা ব্যবহার করতে সাইন ইন করুন।",
+    "publicLiveFeed": "পাবলিক লাইভ ফিড"
   },
   "ja": {
     "browse": "探す",
@@ -2937,7 +2952,8 @@
     "categoryYouthLeadership": "若者リーダーシップ",
     "serverAddressInvalid": "サーバーのアドレスが正しくありません。",
     "serverResponseInvalid": "サーバーの応答を読めませんでした。",
-    "signInToUseFeature": "この機能を使うにはサインインしてください。"
+    "signInToUseFeature": "この機能を使うにはサインインしてください。",
+    "publicLiveFeed": "公開ライブフィード"
   },
   "ko": {
     "browse": "둘러보기",
@@ -3115,7 +3131,8 @@
     "categoryYouthLeadership": "청소년 리더십",
     "serverAddressInvalid": "서버 주소가 올바르지 않습니다.",
     "serverResponseInvalid": "서버 응답을 읽을 수 없습니다.",
-    "signInToUseFeature": "이 기능을 사용하려면 로그인하세요."
+    "signInToUseFeature": "이 기능을 사용하려면 로그인하세요.",
+    "publicLiveFeed": "공개 라이브 피드"
   },
   "hu": {
     "browse": "Bongeszés",
@@ -3293,6 +3310,7 @@
     "categoryYouthLeadership": "Ifjúsági vezetés",
     "serverAddressInvalid": "A szerver címe nem érvényes.",
     "serverResponseInvalid": "A szerver válasza nem olvasható.",
-    "signInToUseFeature": "A funkció használatához jelentkezz be."
+    "signInToUseFeature": "A funkció használatához jelentkezz be.",
+    "publicLiveFeed": "nyilvános élő adatfolyam"
   }
 }

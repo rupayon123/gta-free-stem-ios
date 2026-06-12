@@ -14,7 +14,7 @@ Native iOS app for discovering free STEM opportunities across the Greater Toront
 - Switch between list and map discovery with MapKit.
 - Use one-time nearby search through Core Location.
 - Save recent hunts and public listing cache with SwiftData.
-- Refresh the hunt manually and support BackgroundTasks for light background refresh.
+- Refresh the hunt manually from the shared public opportunity feed and support BackgroundTasks for light background refresh.
 - Show optional new-match notifications with UserNotifications.
 - Support Sign in with Apple UI for the account path.
 - Provide light/dark themes, Dynamic Type-friendly layouts, VoiceOver labels, and right-to-left layout for Arabic, Farsi/Persian, and Urdu.
@@ -29,6 +29,22 @@ Native iOS app for discovering free STEM opportunities across the Greater Toront
 - UserNotifications for optional new-match alerts.
 - AuthenticationServices for Sign in with Apple.
 - Xcode localization resources for system permission copy.
+
+## Search Hunting Engine
+
+The app reads the same generated feed as the public website:
+
+```text
+https://gta-free-stem.vercel.app/opportunities.json
+```
+
+The current free engine path is:
+
+1. GitHub Actions refreshes public GTA source-backed listings on a schedule.
+2. The website exports `public/opportunities.json`.
+3. The iOS app downloads that feed, filters it locally, caches it with SwiftData, and falls back to the bundled snapshot when offline.
+
+Apple resources strengthen the app side through MapKit, Core Location, SwiftData, BackgroundTasks, UserNotifications, TestFlight, and Xcode Cloud. The actual web crawling still runs outside iOS because iOS apps cannot scrape public websites continuously in the background.
 
 ## Project Layout
 

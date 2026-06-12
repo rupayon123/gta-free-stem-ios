@@ -327,9 +327,11 @@ struct BrowseView: View {
 
     private var localizedDataSource: String {
         switch store.dataSourceLabel {
-        case "Preview database":
+        case DataSource.publicLiveFeed:
+            session.text("publicLiveFeed")
+        case DataSource.previewDatabase:
             session.text("previewDatabase")
-        case "Saved app cache":
+        case DataSource.savedAppCache:
             session.text("savedAppCache")
         default:
             session.text("railsAPI")

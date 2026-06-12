@@ -24,11 +24,17 @@ enum APIError: Error, LocalizedError {
 
 final class APIClient: @unchecked Sendable {
     let baseURL: URL
+    let feedURL: URL
     private let session: URLSession
     private static let maxResponseBytes = 5_000_000
 
-    init(baseURL: URL = URL(string: "https://gta-free-stem.onrender.com/api/v1")!, session: URLSession? = nil) {
+    init(
+        baseURL: URL = URL(string: "https://gta-free-stem.onrender.com/api/v1")!,
+        feedURL: URL = URL(string: "https://gta-free-stem.vercel.app/opportunities.json")!,
+        session: URLSession? = nil
+    ) {
         self.baseURL = baseURL
+        self.feedURL = feedURL
         self.session = session ?? Self.defaultSession
     }
 
@@ -45,6 +51,18 @@ final class APIClient: @unchecked Sendable {
     }()
 
     func opportunities(query: String, mode: SearchMode, filters: OpportunityFilters) async throws -> OpportunityListResponse {
+        let response: OpportunityListResponse = try await get(feedURL)
+        let filtered = LocalOpportunitySnapshot.filter(response.data, query: query, mode: mode, filters: filters)
+        return OpportunityListResponse(
+            data: filtered,
+            meta: OpportunityListResponse.Metadata(
+                activeCount: filtered.count,
+                lastUpdated: response.meta?.lastUpdated
+            )
+        )
+    }
+
+    func opportunitiesFromRailsAPI(query: String, mode: SearchMode, filters: OpportunityFilters) async throws -> OpportunityListResponse {
         var components = URLComponents(url: baseURL.appending(path: "opportunities"), resolvingAgainstBaseURL: false)
         var items = [URLQueryItem]()
         if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -105,6 +123,9 @@ final class APIClient: @unchecked Sendable {
     }
 
     func requestPrioritizedHunt(query: String, mode: SearchMode, filters: OpportunityFilters) async throws {
+        guard ProcessInfo.processInfo.environment["GTA_FREE_STEM_ENABLE_PRIORITY_HUNT"] == "1" else {
+            return
+        }
         let url = baseURL.appending(path: "hunt_refresh")
         var payload: [String: String] = [
             "query": query,

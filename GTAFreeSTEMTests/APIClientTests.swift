@@ -40,6 +40,40 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(payload.meta?.activeCount, 1)
     }
 
+    func testOpportunityDecodesFromSharedPublicFeed() throws {
+        let json = """
+        {
+          "name": "GTA FREE STEM Opportunities public feed",
+          "schemaVersion": 1,
+          "count": 1,
+          "lastDataChange": "2026-06-12",
+          "opportunities": [{
+            "id": "feed-1",
+            "title": "Library Coding Lab",
+            "organization": "Public Library",
+            "description": "Free coding workshop.",
+            "category": "Coding & Robotics",
+            "city": "Markham",
+            "region": "York",
+            "ageMin": 8,
+            "ageMax": 12,
+            "language": ["en"],
+            "cost": "Free",
+            "sourceUrl": "https://example.com",
+            "status": "active",
+            "tags": ["coding"],
+            "volunteerHoursEligible": false,
+            "coopEligible": false
+          }]
+        }
+        """.data(using: .utf8)!
+
+        let payload = try JSONDecoder().decode(OpportunityListResponse.self, from: json)
+        XCTAssertEqual(payload.data.first?.title, "Library Coding Lab")
+        XCTAssertEqual(payload.meta?.activeCount, 1)
+        XCTAssertEqual(payload.meta?.lastUpdated, "2026-06-12")
+    }
+
     func testAppTextLoadsLaunchLanguages() {
         XCTAssertEqual(AppLanguage.allCases.count, 18)
         XCTAssertEqual(AppText.shared.string("browse", language: .ko), "둘러보기")
@@ -76,7 +110,7 @@ final class APIClientTests: XCTestCase {
     }
 
     func testAPIClientRejectsPlainHTTP() async throws {
-        let client = APIClient(baseURL: URL(string: "http://example.com/api/v1")!)
+        let client = APIClient(feedURL: URL(string: "http://example.com/opportunities.json")!)
 
         do {
             let _: OpportunityListResponse = try await client.opportunities(query: "", mode: .all, filters: OpportunityFilters())
