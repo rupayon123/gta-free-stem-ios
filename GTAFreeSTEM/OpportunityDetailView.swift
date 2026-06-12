@@ -33,7 +33,7 @@ struct OpportunityDetailView: View {
 
     private var saveAlertBinding: Binding<Bool> {
         Binding(
-            get: { store.errorMessage == APIError.accountRequired.localizedDescription || store.errorMessage == "Please sign in to use this feature." },
+            get: { store.errorMessage == APIError.accountRequired.localizedDescription },
             set: { if !$0 { store.errorMessage = nil } }
         )
     }

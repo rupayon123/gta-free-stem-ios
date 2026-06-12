@@ -155,11 +155,11 @@ enum SearchSort: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var label: String {
+    var textKey: String {
         switch self {
-        case .date: "Soonest"
-        case .distance: "Nearest"
-        case .relevance: "Best match"
+        case .date: "sortSoonest"
+        case .distance: "sortNearest"
+        case .relevance: "sortBestMatch"
         }
     }
 }

@@ -198,7 +198,7 @@ struct BrowseView: View {
                 Button {
                     Task { await store.refresh(cache: modelContext, prioritized: true) }
                 } label: {
-                    Label("Hunt", systemImage: "arrow.clockwise")
+                    Label(session.text("hunt"), systemImage: "arrow.clockwise")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(StoryButtonStyle(kind: .primary))
@@ -228,7 +228,7 @@ struct BrowseView: View {
                     .symbolEffect(.pulse, value: store.isLoading)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(surface == .highSchool ? "High school hunt engine" : "Search hunting engine")
+                    Text(surface == .highSchool ? session.text("highSchoolHuntEngine") : session.text("searchHuntEngine"))
                         .font(.headline.weight(.black))
                         .foregroundStyle(Brand.outline(for: colorScheme))
                     Text(huntSubtitle)
@@ -255,7 +255,7 @@ struct BrowseView: View {
                 Button {
                     Task { await store.requestNotificationPermission() }
                 } label: {
-                    Label("Alerts", systemImage: "bell.badge.fill")
+                    Label(session.text("alerts"), systemImage: "bell.badge.fill")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(StoryButtonStyle(kind: .quiet))
@@ -263,12 +263,12 @@ struct BrowseView: View {
 
             FlowLabels {
                 StickerBadge(text: radiusLabel, color: Brand.sky, systemImage: "scope")
-                StickerBadge(text: store.filters.sort.label, color: Brand.lavender, systemImage: "arrow.up.arrow.down")
+                StickerBadge(text: session.text(store.filters.sort.textKey), color: Brand.lavender, systemImage: "arrow.up.arrow.down")
                 if store.filters.includeNewFinds {
-                    StickerBadge(text: "New finds included", color: Brand.sun, systemImage: "sparkles")
+                    StickerBadge(text: session.text("newFindsIncluded"), color: Brand.sun, systemImage: "sparkles")
                 }
                 if store.newMatchesCount > 0 {
-                    StickerBadge(text: "\(store.newMatchesCount) new", color: Brand.coral, systemImage: "burst.fill")
+                    StickerBadge(text: session.text("newCountShort").replacingOccurrences(of: "{count}", with: "\(store.newMatchesCount)"), color: Brand.coral, systemImage: "burst.fill")
                 }
             }
 
@@ -324,7 +324,14 @@ struct BrowseView: View {
     }
 
     private var localizedDataSource: String {
-        store.dataSourceLabel == "Preview database" ? session.text("previewDatabase") : session.text("railsAPI")
+        switch store.dataSourceLabel {
+        case "Preview database":
+            session.text("previewDatabase")
+        case "Saved app cache":
+            session.text("savedAppCache")
+        default:
+            session.text("railsAPI")
+        }
     }
 
     private var background: some View {
@@ -336,17 +343,17 @@ struct BrowseView: View {
     }
 
     private var huntSubtitle: String {
-        let area = store.filters.hasLocation ? "near your location" : (store.filters.city.isEmpty ? "across the GTA" : "in \(store.filters.city)")
-        let status = store.isLoading ? "checking live sources" : store.huntPhase.title.lowercased()
+        let area = store.filters.hasLocation ? session.text("nearYourLocation") : (store.filters.city.isEmpty ? session.text("acrossGTA") : session.text("inCity").replacingOccurrences(of: "{city}", with: store.filters.city))
+        let status = store.isLoading ? session.text("checkingLiveSources") : session.text(store.huntPhase.titleKey)
         return "\(status) · \(area)"
     }
 
     private var locationButtonTitle: String {
-        store.filters.hasLocation ? "Update nearby" : "Use nearby"
+        store.filters.hasLocation ? session.text("updateNearby") : session.text("useNearby")
     }
 
     private var radiusLabel: String {
-        store.filters.hasLocation ? "\(Int(store.filters.distanceKm)) km radius" : "Choose city or nearby"
+        store.filters.hasLocation ? session.text("kmRadius").replacingOccurrences(of: "{km}", with: "\(Int(store.filters.distanceKm))") : session.text("chooseCityOrNearby")
     }
 
     @discardableResult
@@ -384,7 +391,7 @@ struct OpportunityRow: View {
             FlowLabels {
                 StickerBadge(text: "\(session.text("ages")) \(opportunity.ageMin)\(opportunity.ageMax.map { "–\($0)" } ?? "+")", color: Brand.sky, systemImage: "person.2")
                 if opportunity.status == "needs_review" || opportunity.isNewFind == true {
-                    StickerBadge(text: "New find", color: Brand.sun, systemImage: "sparkles")
+                    StickerBadge(text: session.text("newFind"), color: Brand.sun, systemImage: "sparkles")
                 }
                 if let distanceKm = opportunity.distanceKm {
                     StickerBadge(text: String(format: "%.1f km", distanceKm), color: Brand.lavender, systemImage: "mappin.and.ellipse")
@@ -462,7 +469,7 @@ struct OpportunityFilterSheet: View {
                     Picker(session.text("category"), selection: $filters.category) {
                         Text(session.text("allCategories")).tag("All")
                         ForEach(categories, id: \.self) { category in
-                            Text(category).tag(category)
+                            Text(categoryLabel(category)).tag(category)
                         }
                     }
                 }
@@ -485,20 +492,20 @@ struct OpportunityFilterSheet: View {
                     }
                 }
 
-                Section("Hunting") {
-                    Picker("Sort results", selection: $filters.sort) {
+                Section(session.text("hunting")) {
+                    Picker(session.text("sortResults"), selection: $filters.sort) {
                         ForEach(SearchSort.allCases) { sort in
-                            Text(sort.label).tag(sort)
+                            Text(session.text(sort.textKey)).tag(sort)
                         }
                     }
-                    Toggle("Include new finds", isOn: $filters.includeNewFinds)
+                    Toggle(session.text("includeNewFinds"), isOn: $filters.includeNewFinds)
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Distance radius: \(Int(filters.distanceKm)) km")
+                        Text(session.text("distanceRadius").replacingOccurrences(of: "{km}", with: "\(Int(filters.distanceKm))"))
                             .font(.headline.weight(.bold))
                         Slider(value: $filters.distanceKm, in: 5...100, step: 5)
                     }
                     if filters.hasLocation {
-                        Button("Clear nearby location") {
+                        Button(session.text("clearNearbyLocation")) {
                             filters.latitude = nil
                             filters.longitude = nil
                             if filters.sort == .distance {
@@ -531,6 +538,18 @@ struct OpportunityFilterSheet: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     }
+
+    private func categoryLabel(_ category: String) -> String {
+        let key = "category" + category
+            .replacingOccurrences(of: "&", with: "And")
+            .replacingOccurrences(of: "/", with: " ")
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+            .joined()
+        let localized = session.text(key)
+        return localized == key ? category : localized
+    }
 }
 
 private struct HuntRefreshButton: View {
@@ -557,6 +576,6 @@ private struct HuntRefreshButton: View {
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Refresh hunt")
+        .accessibilityLabel(AppText.shared.string("refreshHunt", language: AppLanguage.normalized(UserDefaults.standard.string(forKey: "preferredLanguageCode") ?? AppLanguage.en.rawValue)))
     }
 }

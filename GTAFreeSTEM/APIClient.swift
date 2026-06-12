@@ -7,10 +7,16 @@ enum APIError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .badURL: "The server address is not valid."
-        case .invalidResponse: "The server response could not be read."
-        case .accountRequired: "Please sign in to use this feature."
+        case .badURL: Self.localized("serverAddressInvalid")
+        case .invalidResponse: Self.localized("serverResponseInvalid")
+        case .accountRequired: Self.localized("signInToUseFeature")
         }
+    }
+
+    private static func localized(_ key: String) -> String {
+        let stored = UserDefaults.standard.string(forKey: "preferredLanguageCode")
+        let language = AppLanguage.normalized(stored ?? AppLanguage.en.rawValue)
+        return AppText.shared.string(key, language: language)
     }
 }
 

@@ -3,7 +3,7 @@ import SwiftUI
 
 @MainActor
 final class SessionStore: ObservableObject {
-    @Published var displayName = "Guest"
+    @Published var displayName = AppText.shared.string("guest", language: .en)
     @Published var apiToken: String?
     @Published var authMessage: String?
     @Published var preferredLanguageCode: String {
@@ -82,7 +82,7 @@ final class SessionStore: ObservableObject {
         switch result {
         case .success(let authorization):
             if let credential = authorization.credential as? ASAuthorizationAppleIDCredential {
-                displayName = credential.fullName?.givenName ?? "Apple user"
+                displayName = credential.fullName?.givenName ?? text("appleUser")
                 authMessage = text("appleReady")
             }
         case .failure(let error):

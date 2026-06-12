@@ -47,6 +47,20 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(AppText.shared.string("filters", language: .hu), "Szűrők")
     }
 
+    func testEveryLaunchLanguageHasEveryEnglishKey() throws {
+        let url = try XCTUnwrap(Bundle.main.url(forResource: "app_strings", withExtension: "json"))
+        let data = try Data(contentsOf: url)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let english = try XCTUnwrap(json["en"] as? [String: String])
+
+        for language in AppLanguage.allCases {
+            let strings = try XCTUnwrap(json[language.rawValue] as? [String: String])
+            for key in english.keys {
+                XCTAssertNotNil(strings[key], "\(language.rawValue) is missing \(key)")
+            }
+        }
+    }
+
     func testLocalOpportunitySnapshotFiltersByLanguage() throws {
         var filters = OpportunityFilters()
         filters.language = "en"

@@ -129,7 +129,7 @@ struct HomeView: View {
 
     private var heroCard: some View {
         VStack(spacing: 10) {
-            BrandLogoImage(size: 156)
+            BrandLogoImage(size: 232)
                 .accessibilityHidden(true)
 
             Text(session.text("brand"))
@@ -251,7 +251,14 @@ struct HomeView: View {
     }
 
     private var localizedDataSource: String {
-        store.dataSourceLabel == "Preview database" ? session.text("previewDatabase") : session.text("railsAPI")
+        switch store.dataSourceLabel {
+        case "Preview database":
+            session.text("previewDatabase")
+        case "Saved app cache":
+            session.text("savedAppCache")
+        default:
+            session.text("railsAPI")
+        }
     }
 }
 

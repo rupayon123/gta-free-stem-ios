@@ -1,18 +1,21 @@
 import SwiftUI
 
 enum Brand {
-    static let ink = Color(red: 0.07, green: 0.08, blue: 0.10)
-    static let cream = Color(red: 1.00, green: 0.96, blue: 0.86)
+    static let ink = Color(red: 0.05, green: 0.07, blue: 0.08)
+    static let cream = Color(red: 1.00, green: 0.97, blue: 0.87)
     static let paper = Color(red: 1.00, green: 0.99, blue: 0.93)
-    static let sky = Color(red: 0.47, green: 0.75, blue: 0.86)
-    static let lake = Color(red: 0.11, green: 0.43, blue: 0.55)
-    static let moss = Color(red: 0.61, green: 0.72, blue: 0.41)
-    static let sun = Color(red: 1.00, green: 0.74, blue: 0.38)
-    static let coral = Color(red: 0.92, green: 0.39, blue: 0.31)
-    static let lavender = Color(red: 0.60, green: 0.56, blue: 0.78)
-    static let night = Color(red: 0.06, green: 0.13, blue: 0.13)
-    static let nightCard = Color(red: 0.14, green: 0.17, blue: 0.15)
-    static let chalk = Color(red: 0.95, green: 0.93, blue: 0.84)
+    static let sky = Color(red: 0.50, green: 0.78, blue: 0.86)
+    static let lake = Color(red: 0.06, green: 0.44, blue: 0.52)
+    static let navy = Color(red: 0.04, green: 0.18, blue: 0.33)
+    static let mintFoam = Color(red: 0.72, green: 0.94, blue: 0.88)
+    static let moss = Color(red: 0.55, green: 0.76, blue: 0.48)
+    static let sun = Color(red: 1.00, green: 0.73, blue: 0.12)
+    static let coral = Color(red: 0.95, green: 0.34, blue: 0.22)
+    static let orange = Color(red: 1.00, green: 0.49, blue: 0.19)
+    static let lavender = Color(red: 0.60, green: 0.54, blue: 0.86)
+    static let night = Color(red: 0.03, green: 0.10, blue: 0.15)
+    static let nightCard = Color(red: 0.06, green: 0.19, blue: 0.23)
+    static let chalk = Color(red: 1.00, green: 0.97, blue: 0.84)
 
     static var blue: Color { lake }
     static var aqua: Color { sky }
@@ -21,25 +24,25 @@ enum Brand {
     static func pageGradient(for scheme: ColorScheme) -> LinearGradient {
         if scheme == .dark {
             return LinearGradient(
-                colors: [night, Color(red: 0.12, green: 0.18, blue: 0.12), Color(red: 0.10, green: 0.12, blue: 0.19)],
+                colors: [night, Color(red: 0.02, green: 0.25, blue: 0.28), Color(red: 0.15, green: 0.08, blue: 0.25), Color(red: 0.39, green: 0.18, blue: 0.05)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         }
 
         return LinearGradient(
-            colors: [Color(red: 0.84, green: 0.95, blue: 0.96), Color(red: 1.00, green: 0.94, blue: 0.74), Color(red: 0.96, green: 0.78, blue: 0.72)],
+            colors: [mintFoam, Color(red: 0.98, green: 0.94, blue: 0.70), Color(red: 0.94, green: 0.73, blue: 0.62), Color(red: 0.79, green: 0.93, blue: 0.96)],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
     }
 
     static func cardFill(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? nightCard : paper
+        scheme == .dark ? nightCard.opacity(0.96) : paper
     }
 
     static func raisedFill(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(red: 0.19, green: 0.21, blue: 0.18) : cream
+        scheme == .dark ? Color(red: 0.08, green: 0.28, blue: 0.31) : cream
     }
 
     static func outline(for scheme: ColorScheme) -> Color {
@@ -47,7 +50,7 @@ enum Brand {
     }
 
     static func mutedText(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? chalk.opacity(0.72) : ink.opacity(0.64)
+        scheme == .dark ? chalk.opacity(0.78) : ink.opacity(0.66)
     }
 }
 
@@ -139,6 +142,8 @@ struct StickerBadge: View {
 
 struct BrandLogoImage: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isBobbing = false
     var size: CGFloat = 156
 
     var body: some View {
@@ -146,60 +151,15 @@ struct BrandLogoImage: View {
             .resizable()
             .scaledToFit()
             .frame(width: size, height: size)
-            .padding(size * 0.04)
-            .background(
-                Circle()
-                    .fill(Brand.raisedFill(for: colorScheme).opacity(colorScheme == .dark ? 0.42 : 0.58))
-            )
-            .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.34 : 0.16), radius: 0, x: 5, y: 7)
-            .accessibilityLabel("GTA FREE STEM Opportunities")
-    }
-}
-
-struct StorybookWordmark: View {
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        VStack(spacing: 8) {
-            BrandLogoImage(size: 156)
-
-            Text("GTA FREE STEM")
-                .font(.system(size: 28, weight: .black, design: .rounded))
-                .kerning(0.5)
-
-            Text("Opportunities")
-                .font(.system(size: 18, weight: .heavy, design: .rounded))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 6)
-                .background(Brand.sun, in: Capsule())
-                .overlay {
-                    Capsule().stroke(Brand.outline(for: colorScheme), lineWidth: 2)
-                }
-        }
-        .multilineTextAlignment(.center)
-        .foregroundStyle(Brand.outline(for: colorScheme))
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
-        .background(Brand.raisedFill(for: colorScheme), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .stroke(Brand.outline(for: colorScheme), lineWidth: 3)
-        }
-        .rotationEffect(.degrees(-1))
-        .accessibilityLabel("GTA FREE STEM Opportunities")
-    }
-}
-
-struct DoodleSpark: View {
-    let color: Color
-    let rotation: Double
-
-    var body: some View {
-        Image(systemName: "sparkle")
-            .font(.system(size: 28, weight: .black))
-            .foregroundStyle(color)
-            .rotationEffect(.degrees(rotation))
-            .accessibilityHidden(true)
+            .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.42 : 0.20), radius: 0, x: 4, y: 6)
+            .scaleEffect(reduceMotion ? 1 : (isBobbing ? 1.018 : 0.992))
+            .rotationEffect(.degrees(reduceMotion ? 0 : (isBobbing ? 0.5 : -0.35)))
+            .animation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true), value: isBobbing)
+            .onAppear {
+                guard !reduceMotion else { return }
+                isBobbing = true
+            }
+            .accessibilityLabel("GTA FREE STEM")
     }
 }
 
@@ -232,7 +192,7 @@ struct StoryButtonStyle: ButtonStyle {
         switch kind {
         case .primary: Brand.coral
         case .secondary: Brand.sun
-        case .quiet: Brand.raisedFill(for: colorScheme)
+        case .quiet: colorScheme == .dark ? Brand.navy.opacity(0.92) : Brand.raisedFill(for: colorScheme)
         }
     }
 

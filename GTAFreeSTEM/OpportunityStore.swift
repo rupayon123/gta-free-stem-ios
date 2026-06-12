@@ -20,13 +20,13 @@ enum HuntPhase: Equatable {
         }
     }
 
-    var title: String {
+    var titleKey: String {
         switch self {
-        case .idle: "Ready to hunt"
-        case .hunting: "Hunting now"
-        case .fresh: "Fresh results loaded"
-        case .cached: "Showing saved results"
-        case .offline: "Offline preview"
+        case .idle: "readyToHunt"
+        case .hunting: "huntingNow"
+        case .fresh: "freshResultsLoaded"
+        case .cached: "showingSavedResults"
+        case .offline: "offlinePreview"
         }
     }
 }
@@ -125,7 +125,7 @@ final class OpportunityStore: ObservableObject {
     func requestNotificationPermission() async {
         do {
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
-            notificationStatusMessage = granted ? "New-match alerts are on." : "Notifications were not allowed."
+            notificationStatusMessage = granted ? Self.localized("alertsOn") : Self.localized("alertsOff")
         } catch {
             notificationStatusMessage = error.localizedDescription
         }
@@ -134,7 +134,7 @@ final class OpportunityStore: ObservableObject {
     func save(_ opportunity: Opportunity, token: String?) async {
         do {
             try await api.save(opportunityID: opportunity.id, token: token)
-            errorMessage = "Saved."
+            errorMessage = Self.localized("saved")
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -244,11 +244,18 @@ final class OpportunityStore: ObservableObject {
         guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "GTA FREE STEM found new opportunities"
-        content.body = "\(count) new matching free opportunities are ready to check."
+        content.title = Self.localized("newOpportunitiesNotificationTitle")
+        content.body = Self.localized("newOpportunitiesNotificationBody")
+            .replacingOccurrences(of: "{count}", with: "\(count)")
         content.sound = .default
         let request = UNNotificationRequest(identifier: "new-opportunities-\(Date().timeIntervalSince1970)", content: content, trigger: nil)
         try? await UNUserNotificationCenter.current().add(request)
+    }
+
+    private static func localized(_ key: String) -> String {
+        let stored = UserDefaults.standard.string(forKey: "preferredLanguageCode")
+        let language = AppLanguage.normalized(stored ?? AppLanguage.en.rawValue)
+        return AppText.shared.string(key, language: language)
     }
 }
 
@@ -271,12 +278,12 @@ final class HuntLocationManager: NSObject, ObservableObject, CLLocationManagerDe
         case .notDetermined:
             manager.requestWhenInUseAuthorization()
         case .authorizedAlways, .authorizedWhenInUse:
-            message = "Looking nearby..."
+            message = Self.localized("lookingNearby")
             manager.requestLocation()
         case .denied, .restricted:
-            message = "Location is off. Choose a city or region instead."
+            message = Self.localized("locationOffChooseCity")
         @unknown default:
-            message = "Location is not available right now."
+            message = Self.localized("locationUnavailable")
         }
     }
 
@@ -289,10 +296,16 @@ final class HuntLocationManager: NSObject, ObservableObject, CLLocationManagerDe
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         coordinate = locations.last?.coordinate
-        message = coordinate == nil ? "Could not find your location." : "Nearby hunting is on."
+        message = coordinate == nil ? Self.localized("locationNotFound") : Self.localized("nearbyHuntingOn")
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         message = error.localizedDescription
+    }
+
+    private static func localized(_ key: String) -> String {
+        let stored = UserDefaults.standard.string(forKey: "preferredLanguageCode")
+        let language = AppLanguage.normalized(stored ?? AppLanguage.en.rawValue)
+        return AppText.shared.string(key, language: language)
     }
 }
