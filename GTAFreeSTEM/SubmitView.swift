@@ -15,6 +15,7 @@ struct SubmitView: View {
 
                 ScrollView {
                     VStack(spacing: 18) {
+                        supportHeader
                         feedbackCard
                         missingCard
                         if let message {
@@ -30,12 +31,26 @@ struct SubmitView: View {
                 }
             }
             .navigationTitle(session.text("support"))
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    ThemeToolbarButton()
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
         }
+    }
+
+    private var supportHeader: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(session.text("support"))
+                    .font(.largeTitle.weight(.black))
+                    .foregroundStyle(Brand.outline(for: colorScheme))
+                Text(session.text("feedback"))
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(Brand.mutedText(for: colorScheme))
+            }
+
+            Spacer()
+
+            ThemeToolbarButton()
+        }
+        .cardSurface(padding: 18, cornerRadius: 30)
     }
 
     private var feedbackCard: some View {

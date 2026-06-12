@@ -10,6 +10,11 @@ struct SavedView: View {
                 StorybookBackground()
 
                 VStack(spacing: 20) {
+                    HStack {
+                        Spacer()
+                        ThemeToolbarButton()
+                    }
+
                     Image(systemName: session.isSignedIn ? "bookmark.fill" : "lock.fill")
                         .font(.system(size: 50, weight: .black))
                         .foregroundStyle(Brand.coral)
@@ -36,11 +41,6 @@ struct SavedView: View {
                 .padding()
             }
             .navigationTitle(session.text("saved"))
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    ThemeToolbarButton()
-                }
-            }
         }
     }
 }

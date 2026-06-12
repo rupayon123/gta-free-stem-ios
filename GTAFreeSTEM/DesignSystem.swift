@@ -278,18 +278,27 @@ struct ThemeToolbarButton: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var session: SessionStore
     @State private var isBreathing = false
+    var showLabel = true
 
     var body: some View {
         Button(action: toggleTheme) {
-            Image(systemName: isDark ? "sun.max.fill" : "moon.stars.fill")
-                .font(.system(size: 12, weight: .black))
-                .foregroundStyle(isDark ? Brand.deepOcean : Brand.ice)
-                .frame(width: 30, height: 30)
-                .background(fill, in: Circle())
-                .overlay {
-                    Circle().stroke(stroke, lineWidth: 1.6)
+            HStack(spacing: 7) {
+                Image(systemName: isDark ? "sun.max.fill" : "moon.stars.fill")
+                    .font(.system(size: 13, weight: .black))
+                if showLabel {
+                    Text(session.text("theme"))
+                        .font(.caption.weight(.black))
+                        .lineLimit(1)
                 }
-                .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.34 : 0.16), radius: 0, x: 2, y: 3)
+            }
+            .foregroundStyle(foreground)
+            .padding(.horizontal, showLabel ? 12 : 9)
+            .frame(height: 34)
+            .background(fill, in: Capsule())
+            .overlay {
+                Capsule().stroke(stroke, lineWidth: 1.8)
+            }
+            .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.26 : 0.12), radius: 0, x: 2, y: 3)
                 .scaleEffect(reduceMotion ? 1 : (isBreathing ? 1.035 : 0.98))
                 .rotationEffect(.degrees(reduceMotion ? 0 : (isBreathing ? 1.2 : -0.8)))
                 .animation(.easeInOut(duration: 1.9).repeatForever(autoreverses: true), value: isBreathing)
@@ -310,6 +319,10 @@ struct ThemeToolbarButton: View {
 
     private var fill: Color {
         isDark ? Brand.sun : Brand.deepOcean.opacity(colorScheme == .dark ? 0.96 : 0.92)
+    }
+
+    private var foreground: Color {
+        isDark ? Brand.deepOcean : Brand.ice
     }
 
     private var stroke: Color {

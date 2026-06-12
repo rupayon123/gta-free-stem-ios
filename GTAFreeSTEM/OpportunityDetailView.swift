@@ -29,11 +29,6 @@ struct OpportunityDetailView: View {
         }
         .navigationTitle(session.text("details"))
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                ThemeToolbarButton()
-            }
-        }
     }
 
     private var saveAlertBinding: Binding<Bool> {
@@ -45,7 +40,11 @@ struct OpportunityDetailView: View {
 
     private var titleCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            StickerBadge(text: opportunity.category, color: Brand.sun, systemImage: "star.fill")
+            HStack(alignment: .center) {
+                StickerBadge(text: opportunity.category, color: Brand.sun, systemImage: "star.fill")
+                Spacer()
+                ThemeToolbarButton()
+            }
             Text(opportunity.title)
                 .font(.largeTitle.weight(.black))
                 .foregroundStyle(Brand.outline(for: colorScheme))

@@ -73,10 +73,6 @@ struct BrowseView: View {
                 Task { await store.refresh(cache: modelContext) }
             }
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    ThemeToolbarButton()
-                }
-
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
                         filtersPresented = true
@@ -150,6 +146,7 @@ struct BrowseView: View {
                 FlowLabels {
                     StickerBadge(text: "\(store.activeCount) \(session.text("visible"))", color: Brand.sky, systemImage: "sparkle.magnifyingglass")
                     StickerBadge(text: session.text("freeShort"), color: Brand.sun, systemImage: "heart.fill")
+                    ThemeToolbarButton()
                 }
 
                 Text("\(session.text("loadedFrom")) \(localizedDataSource)")

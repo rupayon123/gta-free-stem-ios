@@ -37,6 +37,12 @@ enum AppTab: Hashable {
         if arguments.contains("-start-high-school") {
             return .highSchool
         }
+        if arguments.contains("-start-support") {
+            return .support
+        }
+        if arguments.contains("-start-account") {
+            return .account
+        }
         return .home
     }
 }
@@ -121,11 +127,7 @@ struct HomeView: View {
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    ThemeToolbarButton()
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .task {
                 if store.opportunities.isEmpty {
                     await store.refresh(cache: modelContext)
@@ -135,24 +137,28 @@ struct HomeView: View {
     }
 
     private var heroCard: some View {
-        VStack(spacing: 10) {
-            BrandLogoImage(size: 232)
-                .accessibilityHidden(true)
+        ZStack(alignment: .topTrailing) {
+            VStack(spacing: 10) {
+                BrandLogoImage(size: 232)
+                    .accessibilityHidden(true)
 
-            Text(session.text("brand"))
-                .font(.system(size: 30, weight: .black, design: .rounded))
-                .foregroundStyle(Brand.outline(for: colorScheme))
-                .multilineTextAlignment(.center)
-                .minimumScaleFactor(0.72)
+                Text(session.text("brand"))
+                    .font(.system(size: 30, weight: .black, design: .rounded))
+                    .foregroundStyle(Brand.outline(for: colorScheme))
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.72)
 
-            Text(session.text("mission"))
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(Brand.mutedText(for: colorScheme))
-                .multilineTextAlignment(.center)
+                Text(session.text("mission"))
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(Brand.mutedText(for: colorScheme))
+                    .multilineTextAlignment(.center)
 
-            StickerBadge(text: session.text("freeOnly"), color: Brand.sun, systemImage: "heart.fill")
+                StickerBadge(text: session.text("freeOnly"), color: Brand.sun, systemImage: "heart.fill")
+            }
+            .frame(maxWidth: .infinity)
+
+            ThemeToolbarButton()
         }
-        .frame(maxWidth: .infinity)
         .cardSurface(padding: 16, cornerRadius: 34)
     }
 
