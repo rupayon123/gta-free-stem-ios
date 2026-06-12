@@ -39,26 +39,28 @@ struct OpportunityDetailView: View {
     }
 
     private var titleCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center) {
+        ZStack(alignment: .topTrailing) {
+            VStack(alignment: .leading, spacing: 12) {
                 StickerBadge(text: opportunity.category, color: Brand.sun, systemImage: "star.fill")
-                Spacer()
-                ThemeToolbarButton()
+                Text(opportunity.title)
+                    .font(.largeTitle.weight(.black))
+                    .foregroundStyle(Brand.outline(for: colorScheme))
+                Text(opportunity.organization)
+                    .font(.title3.weight(.black))
+                    .foregroundStyle(Brand.coral)
+                Text(session.summary(for: opportunity))
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Brand.outline(for: colorScheme))
+                if session.language != .en {
+                    Text(session.text("translationNote"))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Brand.mutedText(for: colorScheme))
+                }
             }
-            Text(opportunity.title)
-                .font(.largeTitle.weight(.black))
-                .foregroundStyle(Brand.outline(for: colorScheme))
-            Text(opportunity.organization)
-                .font(.title3.weight(.black))
-                .foregroundStyle(Brand.coral)
-            Text(session.summary(for: opportunity))
-                .font(.body.weight(.semibold))
-                .foregroundStyle(Brand.outline(for: colorScheme))
-            if session.language != .en {
-                Text(session.text("translationNote"))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Brand.mutedText(for: colorScheme))
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.trailing, 44)
+
+            ThemeToolbarButton(showLabel: false)
         }
         .cardSurface(padding: 18, cornerRadius: 28)
     }

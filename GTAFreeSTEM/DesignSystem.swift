@@ -292,8 +292,8 @@ struct ThemeToolbarButton: View {
                 }
             }
             .foregroundStyle(foreground)
-            .padding(.horizontal, showLabel ? 12 : 9)
-            .frame(height: 34)
+            .padding(.horizontal, showLabel ? 12 : 0)
+            .frame(width: showLabel ? nil : 38, height: showLabel ? 34 : 38)
             .background(fill, in: Capsule())
             .overlay {
                 Capsule().stroke(stroke, lineWidth: 1.8)

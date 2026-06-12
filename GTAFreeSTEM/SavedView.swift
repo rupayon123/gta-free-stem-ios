@@ -9,34 +9,34 @@ struct SavedView: View {
             ZStack {
                 StorybookBackground()
 
-                VStack(spacing: 20) {
-                    HStack {
-                        Spacer()
-                        ThemeToolbarButton()
+                ZStack(alignment: .topTrailing) {
+                    VStack(spacing: 20) {
+                        Image(systemName: session.isSignedIn ? "bookmark.fill" : "lock.fill")
+                            .font(.system(size: 50, weight: .black))
+                            .foregroundStyle(Brand.coral)
+                            .frame(width: 92, height: 92)
+                            .background(Brand.sun, in: Circle())
+                            .overlay {
+                                Circle().stroke(Brand.outline(for: colorScheme), lineWidth: 3)
+                            }
+
+                        Text(session.isSignedIn ? session.text("savedEmpty") : session.text("signInToSave"))
+                            .font(.title2.weight(.black))
+                            .foregroundStyle(Brand.outline(for: colorScheme))
+                            .multilineTextAlignment(.center)
+
+                        Text(session.text("savedArchiveNote"))
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(Brand.mutedText(for: colorScheme))
+                            .multilineTextAlignment(.center)
+
+                        StickerBadge(text: session.text("saved"), color: Brand.sky, systemImage: "bookmark")
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 18)
 
-                    Image(systemName: session.isSignedIn ? "bookmark.fill" : "lock.fill")
-                        .font(.system(size: 50, weight: .black))
-                        .foregroundStyle(Brand.coral)
-                        .frame(width: 92, height: 92)
-                        .background(Brand.sun, in: Circle())
-                        .overlay {
-                            Circle().stroke(Brand.outline(for: colorScheme), lineWidth: 3)
-                        }
-
-                    Text(session.isSignedIn ? session.text("savedEmpty") : session.text("signInToSave"))
-                        .font(.title2.weight(.black))
-                        .foregroundStyle(Brand.outline(for: colorScheme))
-                        .multilineTextAlignment(.center)
-
-                    Text(session.text("savedArchiveNote"))
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(Brand.mutedText(for: colorScheme))
-                        .multilineTextAlignment(.center)
-
-                    StickerBadge(text: session.text("saved"), color: Brand.sky, systemImage: "bookmark")
+                    ThemeToolbarButton(showLabel: false)
                 }
-                .frame(maxWidth: .infinity)
                 .cardSurface(padding: 24, cornerRadius: 34)
                 .padding()
             }

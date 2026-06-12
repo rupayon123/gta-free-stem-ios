@@ -157,7 +157,7 @@ struct HomeView: View {
             }
             .frame(maxWidth: .infinity)
 
-            ThemeToolbarButton()
+            ThemeToolbarButton(showLabel: false)
         }
         .cardSurface(padding: 16, cornerRadius: 34)
     }

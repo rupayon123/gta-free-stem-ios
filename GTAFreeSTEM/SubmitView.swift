@@ -36,7 +36,7 @@ struct SubmitView: View {
     }
 
     private var supportHeader: some View {
-        HStack(alignment: .center, spacing: 12) {
+        ZStack(alignment: .topTrailing) {
             VStack(alignment: .leading, spacing: 5) {
                 Text(session.text("support"))
                     .font(.largeTitle.weight(.black))
@@ -45,10 +45,10 @@ struct SubmitView: View {
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.trailing, 44)
 
-            Spacer()
-
-            ThemeToolbarButton()
+            ThemeToolbarButton(showLabel: false)
         }
         .cardSurface(padding: 18, cornerRadius: 30)
     }

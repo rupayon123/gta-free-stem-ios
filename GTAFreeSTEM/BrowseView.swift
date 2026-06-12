@@ -118,42 +118,46 @@ struct BrowseView: View {
     }
 
     private var hero: some View {
-        HStack(alignment: .top, spacing: 14) {
-            BrandLogoImage(size: surface == .highSchool ? 74 : 82)
-                .accessibilityHidden(true)
+        ZStack(alignment: .topTrailing) {
+            HStack(alignment: .top, spacing: 14) {
+                BrandLogoImage(size: surface == .highSchool ? 74 : 82)
+                    .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .top, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(surface == .highSchool ? session.text("highSchool") : session.text("brand"))
-                            .font(.title3.weight(.black))
-                            .foregroundStyle(Brand.outline(for: colorScheme))
-                            .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .top, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(surface == .highSchool ? session.text("highSchool") : session.text("brand"))
+                                .font(.title3.weight(.black))
+                                .foregroundStyle(Brand.outline(for: colorScheme))
+                                .fixedSize(horizontal: false, vertical: true)
 
-                        Text(surface == .highSchool ? highSchoolSummary : session.text("mission"))
-                            .font(.footnote.weight(.bold))
-                            .foregroundStyle(Brand.mutedText(for: colorScheme))
-                            .lineLimit(3)
-                            .fixedSize(horizontal: false, vertical: true)
+                            Text(surface == .highSchool ? highSchoolSummary : session.text("mission"))
+                                .font(.footnote.weight(.bold))
+                                .foregroundStyle(Brand.mutedText(for: colorScheme))
+                                .lineLimit(3)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        if store.isLoading {
+                            ProgressView()
+                                .tint(Brand.coral)
+                        }
                     }
 
-                    if store.isLoading {
-                        ProgressView()
-                            .tint(Brand.coral)
+                    FlowLabels {
+                        StickerBadge(text: "\(store.activeCount) \(session.text("visible"))", color: Brand.sky, systemImage: "sparkle.magnifyingglass")
+                        StickerBadge(text: session.text("freeShort"), color: Brand.sun, systemImage: "heart.fill")
                     }
-                }
 
-                FlowLabels {
-                    StickerBadge(text: "\(store.activeCount) \(session.text("visible"))", color: Brand.sky, systemImage: "sparkle.magnifyingglass")
-                    StickerBadge(text: session.text("freeShort"), color: Brand.sun, systemImage: "heart.fill")
-                    ThemeToolbarButton()
+                    Text("\(session.text("loadedFrom")) \(localizedDataSource)")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Brand.mutedText(for: colorScheme))
                 }
-
-                Text("\(session.text("loadedFrom")) \(localizedDataSource)")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Brand.mutedText(for: colorScheme))
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.trailing, 44)
+
+            ThemeToolbarButton(showLabel: false)
         }
         .cardSurface(padding: 14, cornerRadius: 28)
     }
