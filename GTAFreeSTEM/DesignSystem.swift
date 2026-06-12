@@ -7,15 +7,19 @@ enum Brand {
     static let sky = Color(red: 0.50, green: 0.78, blue: 0.86)
     static let lake = Color(red: 0.06, green: 0.44, blue: 0.52)
     static let navy = Color(red: 0.04, green: 0.18, blue: 0.33)
+    static let deepOcean = Color(red: 0.02, green: 0.09, blue: 0.24)
+    static let nightBlue = Color(red: 0.03, green: 0.18, blue: 0.36)
+    static let electricBlue = Color(red: 0.10, green: 0.62, blue: 0.88)
+    static let ice = Color(red: 0.90, green: 0.98, blue: 1.00)
     static let mintFoam = Color(red: 0.72, green: 0.94, blue: 0.88)
     static let moss = Color(red: 0.55, green: 0.76, blue: 0.48)
     static let sun = Color(red: 1.00, green: 0.73, blue: 0.12)
     static let coral = Color(red: 0.95, green: 0.34, blue: 0.22)
     static let orange = Color(red: 1.00, green: 0.49, blue: 0.19)
     static let lavender = Color(red: 0.60, green: 0.54, blue: 0.86)
-    static let night = Color(red: 0.03, green: 0.10, blue: 0.15)
-    static let nightCard = Color(red: 0.06, green: 0.19, blue: 0.23)
-    static let chalk = Color(red: 1.00, green: 0.97, blue: 0.84)
+    static let night = Color(red: 0.01, green: 0.04, blue: 0.16)
+    static let nightCard = Color(red: 0.03, green: 0.14, blue: 0.29)
+    static let chalk = ice
 
     static var blue: Color { lake }
     static var aqua: Color { sky }
@@ -24,7 +28,13 @@ enum Brand {
     static func pageGradient(for scheme: ColorScheme) -> LinearGradient {
         if scheme == .dark {
             return LinearGradient(
-                colors: [night, Color(red: 0.02, green: 0.25, blue: 0.28), Color(red: 0.15, green: 0.08, blue: 0.25), Color(red: 0.39, green: 0.18, blue: 0.05)],
+                colors: [
+                    night,
+                    deepOcean,
+                    Color(red: 0.00, green: 0.28, blue: 0.48),
+                    Color(red: 0.02, green: 0.42, blue: 0.56),
+                    Color(red: 0.15, green: 0.18, blue: 0.48)
+                ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -38,19 +48,19 @@ enum Brand {
     }
 
     static func cardFill(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? nightCard.opacity(0.96) : paper
+        scheme == .dark ? nightCard.opacity(0.97) : paper
     }
 
     static func raisedFill(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(red: 0.08, green: 0.28, blue: 0.31) : cream
+        scheme == .dark ? nightBlue.opacity(0.96) : cream
     }
 
     static func outline(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? chalk.opacity(0.92) : ink
+        scheme == .dark ? ice.opacity(0.96) : ink
     }
 
     static func mutedText(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? chalk.opacity(0.78) : ink.opacity(0.66)
+        scheme == .dark ? Color(red: 0.68, green: 0.90, blue: 1.00).opacity(0.86) : ink.opacity(0.66)
     }
 }
 
@@ -62,7 +72,7 @@ struct StorybookBackground: View {
             Brand.pageGradient(for: colorScheme)
                 .ignoresSafeArea()
             DoodlePattern()
-                .stroke(Brand.outline(for: colorScheme).opacity(colorScheme == .dark ? 0.08 : 0.10), lineWidth: 2)
+                .stroke((colorScheme == .dark ? Brand.electricBlue : Brand.outline(for: colorScheme)).opacity(colorScheme == .dark ? 0.16 : 0.10), lineWidth: 2)
                 .ignoresSafeArea()
         }
     }
@@ -103,11 +113,11 @@ struct CardSurface: ViewModifier {
             .background(Brand.cardFill(for: colorScheme), in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Brand.outline(for: colorScheme), lineWidth: 2.75)
+                    .stroke(colorScheme == .dark ? Brand.electricBlue.opacity(0.78) : Brand.outline(for: colorScheme), lineWidth: 2.75)
             }
             .overlay(alignment: .bottomTrailing) {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Brand.sun.opacity(colorScheme == .dark ? 0.36 : 0.62), lineWidth: 3)
+                    .stroke((colorScheme == .dark ? Brand.sky : Brand.sun).opacity(colorScheme == .dark ? 0.58 : 0.62), lineWidth: 3)
                     .offset(x: 4, y: 5)
                     .mask(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             }
@@ -134,7 +144,7 @@ struct StickerBadge: View {
         .padding(.vertical, 7)
         .background(color.opacity(colorScheme == .dark ? 0.82 : 0.72), in: Capsule())
         .overlay {
-            Capsule().stroke(Brand.outline(for: colorScheme), lineWidth: 2)
+            Capsule().stroke(colorScheme == .dark ? Brand.deepOcean.opacity(0.92) : Brand.outline(for: colorScheme), lineWidth: 2)
         }
         .foregroundStyle(colorScheme == .dark ? Brand.ink : Brand.ink)
     }
@@ -243,6 +253,67 @@ struct HuntActivityIcon: View {
             }
             .offset(x: radius)
             .rotationEffect(.degrees(reduceMotion ? offsetDegrees : (isOrbiting ? 360 + offsetDegrees : offsetDegrees)))
+    }
+}
+
+struct FloatingThemeToggle: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @EnvironmentObject private var session: SessionStore
+    @State private var isBreathing = false
+
+    var body: some View {
+        Button(action: toggleTheme) {
+            Image(systemName: isDark ? "sun.max.fill" : "moon.stars.fill")
+                .font(.system(size: 13, weight: .black))
+                .foregroundStyle(isDark ? Brand.deepOcean : Brand.ice)
+                .frame(width: 34, height: 34)
+                .background(fill, in: Circle())
+                .overlay {
+                    Circle().stroke(stroke, lineWidth: 2)
+                }
+                .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.44 : 0.20), radius: 0, x: 3, y: 4)
+                .scaleEffect(reduceMotion ? 1 : (isBreathing ? 1.035 : 0.98))
+                .rotationEffect(.degrees(reduceMotion ? 0 : (isBreathing ? 1.2 : -0.8)))
+                .animation(.easeInOut(duration: 1.9).repeatForever(autoreverses: true), value: isBreathing)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(session.text("theme"))
+        .onAppear {
+            guard !reduceMotion else { return }
+            isBreathing = true
+        }
+    }
+
+    private var isDark: Bool {
+        if session.preferredTheme == "Dark" { return true }
+        if session.preferredTheme == "Light" { return false }
+        return colorScheme == .dark
+    }
+
+    private var fill: Color {
+        isDark ? Brand.sun : Brand.deepOcean.opacity(colorScheme == .dark ? 0.96 : 0.92)
+    }
+
+    private var stroke: Color {
+        colorScheme == .dark ? Brand.electricBlue.opacity(0.95) : Brand.ink
+    }
+
+    private func toggleTheme() {
+        session.preferredTheme = isDark ? "Light" : "Dark"
+    }
+}
+
+private struct FloatingThemeToggleModifier: ViewModifier {
+    let topPadding: CGFloat
+    let trailingPadding: CGFloat
+
+    func body(content: Content) -> some View {
+        content.overlay(alignment: .topTrailing) {
+            FloatingThemeToggle()
+                .padding(.top, topPadding)
+                .padding(.trailing, trailingPadding)
+        }
     }
 }
 
@@ -361,6 +432,10 @@ struct FlowLabels<Content: View>: View {
 extension View {
     func cardSurface(padding: CGFloat = 16, cornerRadius: CGFloat = 28) -> some View {
         modifier(CardSurface(padding: padding, cornerRadius: cornerRadius))
+    }
+
+    func floatingThemeToggle(topPadding: CGFloat = 14, trailingPadding: CGFloat = 14) -> some View {
+        modifier(FloatingThemeToggleModifier(topPadding: topPadding, trailingPadding: trailingPadding))
     }
 
     func storyField() -> some View {

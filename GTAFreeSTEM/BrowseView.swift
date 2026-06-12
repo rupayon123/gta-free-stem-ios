@@ -114,6 +114,7 @@ struct BrowseView: View {
                 store.useCurrentLocation(coordinate)
                 Task { await store.refresh(cache: modelContext, prioritized: true) }
             }
+            .floatingThemeToggle(topPadding: 56)
         }
     }
 

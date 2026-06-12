@@ -36,6 +36,7 @@ struct SavedView: View {
                 .padding()
             }
             .navigationTitle(session.text("saved"))
+            .floatingThemeToggle(topPadding: 56)
         }
     }
 }

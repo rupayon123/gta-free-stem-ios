@@ -30,6 +30,7 @@ struct SubmitView: View {
                 }
             }
             .navigationTitle(session.text("support"))
+            .floatingThemeToggle(topPadding: 56)
         }
     }
 

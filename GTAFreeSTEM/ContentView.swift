@@ -70,6 +70,7 @@ struct ContentView: View {
                 .tag(AppTab.account)
         }
         .tint(Brand.coral)
+        .animation(.spring(response: 0.26, dampingFraction: 0.74), value: selectedTab)
         .onChange(of: selectedTab) { _, newTab in
             configureStore(for: newTab)
         }
@@ -119,6 +120,7 @@ struct HomeView: View {
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
+            .floatingThemeToggle(topPadding: 20)
             .task {
                 if store.opportunities.isEmpty {
                     await store.refresh(cache: modelContext)
