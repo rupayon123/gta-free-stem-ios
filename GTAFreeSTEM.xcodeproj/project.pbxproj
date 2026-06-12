@@ -10,6 +10,7 @@
 		15C4002643726DEDEE370E34 /* opportunities.json in Resources */ = {isa = PBXBuildFile; fileRef = 0D340C91FCBE390D875ED59B /* opportunities.json */; };
 		168AF57FFB6496AE3B843362 /* APIClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6401728357C617A014393A8C /* APIClientTests.swift */; };
 		2D1B6259028406BFAB418C02 /* SubmitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5CE6827A07E25AA535BDD3D /* SubmitView.swift */; };
+		475FC5B26D8388188FEC26C1 /* app_strings.json in Resources */ = {isa = PBXBuildFile; fileRef = A4D516C7B3AD1D417ABBDC9C /* app_strings.json */; };
 		5D7B9E10C49C7B705FD10F5D /* OpportunityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA618962B57C2322242054A8 /* OpportunityStore.swift */; };
 		68A00260FA5F2E54B7D829AE /* BrowseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EDF5309E3C2CD4DCD01634E /* BrowseView.swift */; };
 		699F3CE961C47FE8776DD7D1 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD58966D0640D561D88FFD4C /* DesignSystem.swift */; };
@@ -18,6 +19,7 @@
 		97E9377D86E669318E0590A1 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3174729DAC307CFE04C37F5 /* Models.swift */; };
 		BAB832A177C638741DFD309F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C905F5C3CADDDAD068E2AE5A /* Assets.xcassets */; };
 		BC981A8F7A137EDFCAAB1CA5 /* GTAFreeSTEMApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE3D267D0D56895524E2A15E /* GTAFreeSTEMApp.swift */; };
+		BDC55BC8ED93665871287DEC /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = A520455FEC277FD9B1E16F33 /* Localization.swift */; };
 		D0D2EA8F4B319DCFCB55414C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E129DF28063F41A5842B167 /* SettingsView.swift */; };
 		E718E3102E49EA06E71F1C42 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3FA87A17DB14C2FA9B97306 /* SessionStore.swift */; };
 		EE6239C4E96CED0F0707F16D /* OpportunityDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07B77BBC9D9E87DAB34556E /* OpportunityDetailView.swift */; };
@@ -47,6 +49,8 @@
 		A2C45C1750835FF267CB51D1 /* SavedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedView.swift; sourceTree = "<group>"; };
 		A3FA87A17DB14C2FA9B97306 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
 		A4A6C30734DAE0C6FF3F914B /* LocalOpportunitySnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalOpportunitySnapshot.swift; sourceTree = "<group>"; };
+		A4D516C7B3AD1D417ABBDC9C /* app_strings.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = app_strings.json; sourceTree = "<group>"; };
+		A520455FEC277FD9B1E16F33 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
 		A8090B462DA48C2000491E38 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		AA618962B57C2322242054A8 /* OpportunityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpportunityStore.swift; sourceTree = "<group>"; };
 		B5CE6827A07E25AA535BDD3D /* SubmitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmitView.swift; sourceTree = "<group>"; };
@@ -96,6 +100,7 @@
 				DD58966D0640D561D88FFD4C /* DesignSystem.swift */,
 				BE3D267D0D56895524E2A15E /* GTAFreeSTEMApp.swift */,
 				3BE5FA924475A7BC651B6413 /* Info.plist */,
+				A520455FEC277FD9B1E16F33 /* Localization.swift */,
 				A4A6C30734DAE0C6FF3F914B /* LocalOpportunitySnapshot.swift */,
 				C3174729DAC307CFE04C37F5 /* Models.swift */,
 				E07B77BBC9D9E87DAB34556E /* OpportunityDetailView.swift */,
@@ -112,6 +117,7 @@
 		BD81B1E29FA39C11052C73F4 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				A4D516C7B3AD1D417ABBDC9C /* app_strings.json */,
 				0D340C91FCBE390D875ED59B /* opportunities.json */,
 			);
 			path = Resources;
@@ -196,6 +202,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BAB832A177C638741DFD309F /* Assets.xcassets in Resources */,
+				475FC5B26D8388188FEC26C1 /* app_strings.json in Resources */,
 				15C4002643726DEDEE370E34 /* opportunities.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -213,6 +220,7 @@
 				699F3CE961C47FE8776DD7D1 /* DesignSystem.swift in Sources */,
 				BC981A8F7A137EDFCAAB1CA5 /* GTAFreeSTEMApp.swift in Sources */,
 				F86D0A49E7313A143E3031CA /* LocalOpportunitySnapshot.swift in Sources */,
+				BDC55BC8ED93665871287DEC /* Localization.swift in Sources */,
 				97E9377D86E669318E0590A1 /* Models.swift in Sources */,
 				EE6239C4E96CED0F0707F16D /* OpportunityDetailView.swift in Sources */,
 				5D7B9E10C49C7B705FD10F5D /* OpportunityStore.swift in Sources */,

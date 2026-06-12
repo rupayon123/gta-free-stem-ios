@@ -9,38 +9,42 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Account") {
-                    Text("Signed in as \(session.displayName)")
+                Section(session.text("accountAdmin")) {
+                    Text("\(session.text("signedInAs")) \(session.displayName)")
                     SignInWithAppleButton(.signIn) { request in
                         request.requestedScopes = [.fullName, .email]
                     } onCompletion: { result in
                         session.handleAppleSignIn(result)
                     }
                     .frame(height: 48)
-                    Button("Sign Out", role: .destructive) {
+                    Button(session.text("signOut"), role: .destructive) {
                         session.signOut()
                     }
-                    Button("Delete Account", role: .destructive) {
+                    Button(session.text("deleteAccount"), role: .destructive) {
                         Task { await deleteAccount() }
                     }
                 }
 
-                Section("Preferences") {
-                    Picker("Language", selection: $session.preferredLanguage) {
-                        ForEach(["English", "French", "Mandarin", "Cantonese", "Punjabi", "Urdu", "Tamil", "Tagalog", "Spanish", "Arabic", "Farsi", "Hindi", "Gujarati", "Bengali", "Japanese", "Korean", "Hungarian"], id: \.self) {
-                            Text($0)
+                Section(session.text("siteLanguage")) {
+                    Picker(session.text("siteLanguage"), selection: languageBinding) {
+                        ForEach(AppLanguage.allCases) { language in
+                            Text(session.languageName(language)).tag(language.rawValue)
                         }
                     }
-                    Picker("Theme", selection: $session.preferredTheme) {
-                        ForEach(["System", "Light", "Dark"], id: \.self) {
-                            Text($0)
-                        }
+                    Picker(session.text("theme"), selection: $session.preferredTheme) {
+                        Text(session.text("system")).tag("System")
+                        Text(session.text("light")).tag("Light")
+                        Text(session.text("dark")).tag("Dark")
                     }
                 }
 
-                Section("Privacy") {
-                    NavigationLink("Privacy Policy") { LegalTextView(title: "Privacy", bodyText: "Browsing is public. Accounts are only for saves, feedback, submissions, and account deletion.") }
-                    NavigationLink("Terms") { LegalTextView(title: "Terms", bodyText: "Listings link to public provider pages. No ads, paid ranking, direct messaging, or tutoring marketplace features are included.") }
+                Section(session.text("termsTitle")) {
+                    NavigationLink(session.text("privacyPolicy")) {
+                        LegalTextView(title: session.text("privacyPolicy"), bodyText: session.text("privacyBody"))
+                    }
+                    NavigationLink(session.text("termsTitle")) {
+                        LegalTextView(title: session.text("termsTitle"), bodyText: session.text("termsBody"))
+                    }
                 }
 
                 if let authMessage = session.authMessage {
@@ -54,15 +58,22 @@ struct SettingsView: View {
                     }
                 }
             }
-            .navigationTitle("Settings")
+            .navigationTitle(session.text("settings"))
         }
+    }
+
+    private var languageBinding: Binding<String> {
+        Binding(
+            get: { session.preferredLanguageCode },
+            set: { session.preferredLanguageCode = $0 }
+        )
     }
 
     private func deleteAccount() async {
         do {
             try await api.deleteAccount(token: session.apiToken)
             session.signOut()
-            deleteMessage = "Account deleted."
+            deleteMessage = session.text("accountDeleted")
         } catch {
             deleteMessage = error.localizedDescription
         }

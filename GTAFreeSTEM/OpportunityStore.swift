@@ -4,6 +4,7 @@ import Foundation
 final class OpportunityStore: ObservableObject {
     @Published var query = ""
     @Published var mode: SearchMode = .all
+    @Published var filters = OpportunityFilters()
     @Published var opportunities: [Opportunity] = []
     @Published var activeCount = 0
     @Published var lastUpdated: String?
@@ -21,18 +22,22 @@ final class OpportunityStore: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         do {
-            let response = try await api.opportunities(query: query, mode: mode)
+            let response = try await api.opportunities(query: query, mode: mode, filters: filters)
             apply(response, source: "Rails API")
             errorMessage = nil
         } catch {
             do {
-                let response = try LocalOpportunitySnapshot.load(query: query, mode: mode)
+                let response = try LocalOpportunitySnapshot.load(query: query, mode: mode, filters: filters)
                 apply(response, source: "Preview database")
                 errorMessage = nil
             } catch {
                 errorMessage = error.localizedDescription
             }
         }
+    }
+
+    func resetFilters() {
+        filters = OpportunityFilters()
     }
 
     func save(_ opportunity: Opportunity, token: String?) async {

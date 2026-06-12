@@ -39,4 +39,22 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(payload.data.first?.title, "Robotics Club")
         XCTAssertEqual(payload.meta?.activeCount, 1)
     }
+
+    func testAppTextLoadsLaunchLanguages() {
+        XCTAssertEqual(AppLanguage.allCases.count, 18)
+        XCTAssertEqual(AppText.shared.string("browse", language: .ko), "둘러보기")
+        XCTAssertEqual(AppText.shared.string("settings", language: .bn), "সেটিংস")
+        XCTAssertEqual(AppText.shared.string("filters", language: .hu), "Szűrők")
+    }
+
+    func testLocalOpportunitySnapshotFiltersByLanguage() throws {
+        var filters = OpportunityFilters()
+        filters.language = "en"
+
+        let response = try LocalOpportunitySnapshot.load(query: "", mode: .all, filters: filters)
+
+        XCTAssertFalse(response.data.isEmpty)
+        XCTAssertTrue(response.data.allSatisfy { $0.language.contains("en") })
+        XCTAssertEqual(response.meta?.activeCount, response.data.count)
+    }
 }

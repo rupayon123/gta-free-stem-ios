@@ -73,4 +73,52 @@ enum SearchMode: String, CaseIterable, Identifiable {
     case mentorship = "Mentorship"
 
     var id: String { rawValue }
+
+    var textKey: String {
+        switch self {
+        case .all: "all"
+        case .highSchool: "highSchool"
+        case .volunteer: "volunteerHours"
+        case .coop: "coop"
+        case .mentorship: "mentorship"
+        }
+    }
+}
+
+struct OpportunityFilters: Equatable {
+    var region = "All"
+    var city = ""
+    var category = "All"
+    var age = ""
+    var language = "all"
+    var blackFocused = false
+    var girlsFocused = false
+    var indigenousFocused = false
+    var leadership = false
+
+    var hasActiveFilters: Bool {
+        region != "All" ||
+            !city.isEmpty ||
+            category != "All" ||
+            !age.isEmpty ||
+            language != "all" ||
+            blackFocused ||
+            girlsFocused ||
+            indigenousFocused ||
+            leadership
+    }
+}
+
+enum BrowseDisplayMode: String, CaseIterable, Identifiable {
+    case list
+    case map
+
+    var id: String { rawValue }
+
+    var textKey: String {
+        switch self {
+        case .list: "list"
+        case .map: "map"
+        }
+    }
 }

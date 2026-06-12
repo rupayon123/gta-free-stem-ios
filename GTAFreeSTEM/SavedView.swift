@@ -9,17 +9,17 @@ struct SavedView: View {
                 Image(systemName: session.isSignedIn ? "bookmark.fill" : "lock")
                     .font(.system(size: 46, weight: .bold))
                     .foregroundStyle(Brand.blue)
-                Text(session.isSignedIn ? "Saved opportunities will appear here." : "Sign in to save opportunities.")
+                Text(session.isSignedIn ? session.text("savedEmpty") : session.text("signInToSave"))
                     .font(.title3.weight(.semibold))
                     .multilineTextAlignment(.center)
-                Text("Expired saved listings stay available in your archive so you can remember what you found.")
+                Text(session.text("savedArchiveNote"))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
             .padding()
             .cardSurface()
             .padding()
-            .navigationTitle("Saved")
+            .navigationTitle(session.text("saved"))
         }
     }
 }

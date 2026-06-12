@@ -30,11 +30,38 @@ final class APIClient: @unchecked Sendable {
         return URLSession(configuration: configuration)
     }()
 
-    func opportunities(query: String, mode: SearchMode) async throws -> OpportunityListResponse {
+    func opportunities(query: String, mode: SearchMode, filters: OpportunityFilters) async throws -> OpportunityListResponse {
         var components = URLComponents(url: baseURL.appending(path: "opportunities"), resolvingAgainstBaseURL: false)
         var items = [URLQueryItem]()
         if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             items.append(URLQueryItem(name: "query", value: query))
+        }
+        if filters.region != "All" {
+            items.append(URLQueryItem(name: "region", value: filters.region))
+        }
+        if !filters.city.isEmpty {
+            items.append(URLQueryItem(name: "city", value: filters.city))
+        }
+        if filters.category != "All" {
+            items.append(URLQueryItem(name: "category", value: filters.category))
+        }
+        if !filters.age.isEmpty {
+            items.append(URLQueryItem(name: "age", value: filters.age))
+        }
+        if filters.language != "all" {
+            items.append(URLQueryItem(name: "language", value: filters.language))
+        }
+        if filters.blackFocused {
+            items.append(URLQueryItem(name: "blackFocused", value: "true"))
+        }
+        if filters.girlsFocused {
+            items.append(URLQueryItem(name: "girlsFocused", value: "true"))
+        }
+        if filters.indigenousFocused {
+            items.append(URLQueryItem(name: "indigenousFocused", value: "true"))
+        }
+        if filters.leadership {
+            items.append(URLQueryItem(name: "leadership", value: "true"))
         }
         switch mode {
         case .all: break

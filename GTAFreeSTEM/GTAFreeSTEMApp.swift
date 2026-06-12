@@ -10,6 +10,9 @@ struct GTAFreeSTEMApp: App {
             ContentView()
                 .environmentObject(session)
                 .environmentObject(opportunities)
+                .environment(\.locale, Locale(identifier: session.language.localeIdentifier))
+                .environment(\.layoutDirection, session.language.layoutDirection)
+                .preferredColorScheme(session.colorScheme)
         }
     }
 }

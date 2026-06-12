@@ -1,16 +1,18 @@
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject private var session: SessionStore
+
     var body: some View {
         TabView {
             BrowseView()
-                .tabItem { Label("Browse", systemImage: "magnifyingglass") }
+                .tabItem { Label(session.text("browse"), systemImage: "magnifyingglass") }
             SavedView()
-                .tabItem { Label("Saved", systemImage: "bookmark") }
+                .tabItem { Label(session.text("saved"), systemImage: "bookmark") }
             SubmitView()
-                .tabItem { Label("Submit", systemImage: "plus.message") }
+                .tabItem { Label(session.text("support"), systemImage: "plus.message") }
             SettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape") }
+                .tabItem { Label(session.text("settings"), systemImage: "gearshape") }
         }
         .tint(Brand.blue)
     }

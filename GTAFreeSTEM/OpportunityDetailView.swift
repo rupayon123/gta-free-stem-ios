@@ -15,19 +15,24 @@ struct OpportunityDetailView: View {
                 Text(opportunity.organization)
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(.secondary)
-                Text(opportunity.summary ?? opportunity.description)
+                Text(session.summary(for: opportunity))
                     .font(.body)
+                if session.language != .en {
+                    Text(session.text("translationNote"))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
                 details
                 actions
             }
             .padding()
         }
-        .alert("Save needs an account", isPresented: saveAlertBinding) {
-            Button("OK", role: .cancel) { store.errorMessage = nil }
+        .alert(session.text("saveNeedsAccountTitle"), isPresented: saveAlertBinding) {
+            Button(session.text("ok"), role: .cancel) { store.errorMessage = nil }
         } message: {
-            Text(store.errorMessage ?? "Please sign in before saving.")
+            Text(session.text("saveNeedsAccountMessage"))
         }
-        .navigationTitle("Details")
+        .navigationTitle(session.text("details"))
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -51,7 +56,7 @@ struct OpportunityDetailView: View {
             } else {
                 RoundedRectangle(cornerRadius: 28, style: .continuous)
                     .fill(LinearGradient(colors: [Brand.aqua.opacity(0.5), Brand.mint.opacity(0.5)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(height: 180)
+                .frame(height: 180)
                     .overlay(Label(opportunity.city, systemImage: "map"))
             }
         }
@@ -61,27 +66,51 @@ struct OpportunityDetailView: View {
     private var details: some View {
         Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 12) {
             GridRow {
-                Text("City").bold()
+                Text(session.text("city")).bold()
                 Text("\(opportunity.city), \(opportunity.region)")
             }
             GridRow {
-                Text("Age").bold()
+                Text(session.text("ages")).bold()
                 Text("\(opportunity.ageMin)\(opportunity.ageMax.map { "–\($0)" } ?? "+")")
             }
             GridRow {
-                Text("Cost").bold()
-                Text("Free and accessible")
+                Text(session.text("cost")).bold()
+                Text(session.text("freeAccessible"))
+            }
+            if let startDate = opportunity.startDate {
+                GridRow {
+                    Text(session.text("date")).bold()
+                    Text(startDate.prefix(10))
+                }
+            }
+            if let deadline = opportunity.deadline {
+                GridRow {
+                    Text(session.text("deadline")).bold()
+                    Text(deadline.prefix(10))
+                }
             }
             if opportunity.volunteerHoursEligible {
                 GridRow {
-                    Text("Pathway").bold()
-                    Text("Volunteer hours")
+                    Text(session.text("pathway")).bold()
+                    Text(session.text("volunteerHours"))
                 }
             }
             if opportunity.coopEligible {
                 GridRow {
-                    Text("Pathway").bold()
-                    Text("Co-op / SHSM")
+                    Text(session.text("pathway")).bold()
+                    Text(session.text("coop"))
+                }
+            }
+            GridRow {
+                Text(session.text("source")).bold()
+                Text(opportunity.sourceUrl)
+                    .lineLimit(2)
+                    .font(.caption)
+            }
+            if !opportunity.language.isEmpty {
+                GridRow {
+                    Text(session.text("languages")).bold()
+                    Text(opportunity.language.map(languageName).joined(separator: ", "))
                 }
             }
         }
@@ -92,18 +121,35 @@ struct OpportunityDetailView: View {
         VStack(spacing: 10) {
             if let url = URL(string: opportunity.registrationUrl ?? opportunity.sourceUrl) {
                 Link(destination: url) {
-                    Label("Register / Apply", systemImage: "safari")
+                    Label(session.text("registerApply"), systemImage: "safari")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
             }
+            if let url = directionsURL {
+                Link(destination: url) {
+                    Label(session.text("directions"), systemImage: "map")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            }
             Button {
                 Task { await store.save(opportunity, token: session.apiToken) }
             } label: {
-                Label("Save", systemImage: "bookmark")
+                Label(session.text("save"), systemImage: "bookmark")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
         }
+    }
+
+    private var directionsURL: URL? {
+        guard let address = opportunity.address?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return nil }
+        return URL(string: "http://maps.apple.com/?q=\(address)")
+    }
+
+    private func languageName(_ code: String) -> String {
+        guard let language = AppLanguage(rawValue: code) else { return code }
+        return session.languageName(language)
     }
 }
