@@ -2,64 +2,122 @@ import AuthenticationServices
 import SwiftUI
 
 struct SettingsView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var session: SessionStore
     @State private var deleteMessage: String?
     private let api = APIClient()
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section(session.text("accountAdmin")) {
-                    Text("\(session.text("signedInAs")) \(session.displayName)")
-                    SignInWithAppleButton(.signIn) { request in
-                        request.requestedScopes = [.fullName, .email]
-                    } onCompletion: { result in
-                        session.handleAppleSignIn(result)
-                    }
-                    .frame(height: 48)
-                    Button(session.text("signOut"), role: .destructive) {
-                        session.signOut()
-                    }
-                    Button(session.text("deleteAccount"), role: .destructive) {
-                        Task { await deleteAccount() }
-                    }
-                }
+            ZStack {
+                StorybookBackground()
 
-                Section(session.text("siteLanguage")) {
-                    Picker(session.text("siteLanguage"), selection: languageBinding) {
-                        ForEach(AppLanguage.allCases) { language in
-                            Text(session.languageName(language)).tag(language.rawValue)
+                ScrollView {
+                    VStack(spacing: 18) {
+                        accountCard
+                        preferencesCard
+                        legalCard
+                        if let authMessage = session.authMessage {
+                            messageCard(authMessage)
+                        }
+                        if let deleteMessage {
+                            messageCard(deleteMessage)
                         }
                     }
-                    Picker(session.text("theme"), selection: $session.preferredTheme) {
-                        Text(session.text("system")).tag("System")
-                        Text(session.text("light")).tag("Light")
-                        Text(session.text("dark")).tag("Dark")
-                    }
-                }
-
-                Section(session.text("termsTitle")) {
-                    NavigationLink(session.text("privacyPolicy")) {
-                        LegalTextView(title: session.text("privacyPolicy"), bodyText: session.text("privacyBody"))
-                    }
-                    NavigationLink(session.text("termsTitle")) {
-                        LegalTextView(title: session.text("termsTitle"), bodyText: session.text("termsBody"))
-                    }
-                }
-
-                if let authMessage = session.authMessage {
-                    Section {
-                        Text(authMessage)
-                    }
-                }
-                if let deleteMessage {
-                    Section {
-                        Text(deleteMessage)
-                    }
+                    .padding()
+                    .padding(.bottom, 24)
                 }
             }
             .navigationTitle(session.text("settings"))
         }
+    }
+
+    private var accountCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            StorySectionTitle(text: session.text("accountAdmin"), systemImage: "person.crop.circle.fill")
+            Text("\(session.text("signedInAs")) \(session.displayName)")
+                .font(.headline.weight(.black))
+                .foregroundStyle(Brand.outline(for: colorScheme))
+
+            SignInWithAppleButton(.signIn) { request in
+                request.requestedScopes = [.fullName, .email]
+            } onCompletion: { result in
+                session.handleAppleSignIn(result)
+            }
+            .frame(height: 50)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Brand.outline(for: colorScheme), lineWidth: 2)
+            }
+
+            HStack(spacing: 10) {
+                Button(session.text("signOut"), role: .destructive) {
+                    session.signOut()
+                }
+                .buttonStyle(StoryButtonStyle(kind: .quiet))
+
+                Button(session.text("deleteAccount"), role: .destructive) {
+                    Task { await deleteAccount() }
+                }
+                .buttonStyle(StoryButtonStyle(kind: .primary))
+            }
+        }
+        .cardSurface(padding: 18, cornerRadius: 30)
+    }
+
+    private var preferencesCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            StorySectionTitle(text: session.text("siteLanguage"), systemImage: "globe")
+            Picker(session.text("siteLanguage"), selection: languageBinding) {
+                ForEach(AppLanguage.allCases) { language in
+                    Text(session.languageName(language)).tag(language.rawValue)
+                }
+            }
+            .pickerStyle(.navigationLink)
+            .storyPickerRow()
+
+            Text(session.text("theme"))
+                .font(.headline.weight(.black))
+                .foregroundStyle(Brand.outline(for: colorScheme))
+            Picker(session.text("theme"), selection: $session.preferredTheme) {
+                Text(session.text("system")).tag("System")
+                Text(session.text("light")).tag("Light")
+                Text(session.text("dark")).tag("Dark")
+            }
+            .pickerStyle(.segmented)
+        }
+        .cardSurface(padding: 18, cornerRadius: 30)
+    }
+
+    private var legalCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            StorySectionTitle(text: session.text("termsTitle"), systemImage: "doc.text.fill")
+            NavigationLink {
+                LegalTextView(title: session.text("privacyPolicy"), bodyText: session.text("privacyBody"))
+            } label: {
+                Label(session.text("privacyPolicy"), systemImage: "lock.shield.fill")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(StoryButtonStyle(kind: .quiet))
+
+            NavigationLink {
+                LegalTextView(title: session.text("termsTitle"), bodyText: session.text("termsBody"))
+            } label: {
+                Label(session.text("termsTitle"), systemImage: "checkmark.seal.fill")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(StoryButtonStyle(kind: .quiet))
+        }
+        .cardSurface(padding: 18, cornerRadius: 30)
+    }
+
+    private func messageCard(_ text: String) -> some View {
+        Text(text)
+            .font(.headline.weight(.black))
+            .foregroundStyle(Brand.outline(for: colorScheme))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardSurface(padding: 16, cornerRadius: 24)
     }
 
     private var languageBinding: Binding<String> {
@@ -81,13 +139,21 @@ struct SettingsView: View {
 }
 
 struct LegalTextView: View {
+    @Environment(\.colorScheme) private var colorScheme
     let title: String
     let bodyText: String
 
     var body: some View {
-        ScrollView {
-            Text(bodyText)
-                .padding()
+        ZStack {
+            StorybookBackground()
+            ScrollView {
+                Text(bodyText)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Brand.outline(for: colorScheme))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .cardSurface(padding: 18, cornerRadius: 28)
+                    .padding()
+            }
         }
         .navigationTitle(title)
     }

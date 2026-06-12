@@ -14,6 +14,6 @@ struct ContentView: View {
             SettingsView()
                 .tabItem { Label(session.text("settings"), systemImage: "gearshape") }
         }
-        .tint(Brand.blue)
+        .tint(Brand.coral)
     }
 }

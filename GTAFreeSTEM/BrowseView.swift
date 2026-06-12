@@ -2,6 +2,7 @@ import MapKit
 import SwiftUI
 
 struct BrowseView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
     @State private var filtersPresented = false
@@ -75,31 +76,28 @@ struct BrowseView: View {
     }
 
     private var hero: some View {
-        VStack(spacing: 12) {
-            Image("Logo")
-                .resizable()
-                .scaledToFit()
-                .frame(maxHeight: 118)
-                .accessibilityHidden(true)
-            Text(session.text("brand"))
-                .font(.largeTitle.weight(.black))
-                .multilineTextAlignment(.center)
+        VStack(spacing: 16) {
+            StorybookWordmark()
+
             Text(session.text("mission"))
-                .font(.title3.weight(.semibold))
+                .font(.title3.weight(.black))
                 .multilineTextAlignment(.center)
-            HStack(spacing: 12) {
-                Label("\(store.activeCount) \(session.text("visible"))", systemImage: "sparkle.magnifyingglass")
+                .foregroundStyle(Brand.outline(for: colorScheme))
+
+            HStack(spacing: 10) {
+                StickerBadge(text: "\(store.activeCount) \(session.text("visible"))", color: Brand.sky, systemImage: "sparkle.magnifyingglass")
                 Spacer()
                 if store.isLoading {
                     ProgressView()
+                        .tint(Brand.coral)
                 }
             }
-            .font(.subheadline.weight(.semibold))
+
             Text("\(session.text("loadedFrom")) \(localizedDataSource)")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Brand.mutedText(for: colorScheme))
         }
-        .cardSurface()
+        .cardSurface(padding: 18, cornerRadius: 34)
     }
 
     private var searchControls: some View {
@@ -116,12 +114,11 @@ struct BrowseView: View {
                                 .lineLimit(1)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 10)
-                                .background(store.mode == mode ? Color.white : Color.white.opacity(0.44), in: Capsule())
+                                .background(store.mode == mode ? Brand.sun : Brand.raisedFill(for: colorScheme), in: Capsule())
                                 .overlay {
-                                    Capsule().stroke(Color.white.opacity(0.72), lineWidth: 1)
+                                    Capsule().stroke(Brand.outline(for: colorScheme), lineWidth: 2)
                                 }
-                                .foregroundStyle(store.mode == mode ? Brand.blue : .primary)
-                                .shadow(color: Brand.blue.opacity(store.mode == mode ? 0.18 : 0), radius: 10, y: 4)
+                                .foregroundStyle(Brand.outline(for: colorScheme))
                         }
                         .buttonStyle(.plain)
                     }
@@ -136,6 +133,12 @@ struct BrowseView: View {
                 }
             }
             .pickerStyle(.segmented)
+        }
+        .padding(10)
+        .background(Brand.cardFill(for: colorScheme).opacity(0.82), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(Brand.outline(for: colorScheme).opacity(0.45), lineWidth: 2)
         }
     }
 
@@ -161,13 +164,14 @@ struct BrowseView: View {
 
     private var opportunityMap: some View {
         VStack(alignment: .leading, spacing: 12) {
+            StorySectionTitle(text: session.text("map"), systemImage: "map")
             Map {
                 ForEach(store.opportunities.filter { $0.latitude != nil && $0.longitude != nil }) { opportunity in
                     Marker(
                         opportunity.title,
                         coordinate: CLLocationCoordinate2D(latitude: opportunity.latitude ?? 0, longitude: opportunity.longitude ?? 0)
                     )
-                    .tint(Brand.blue)
+                    .tint(Brand.coral)
                 }
             }
             .frame(minHeight: 520)
@@ -185,42 +189,60 @@ struct BrowseView: View {
     }
 
     private var background: some View {
-        LinearGradient(colors: [Brand.aqua.opacity(0.18), Brand.sun.opacity(0.14), Brand.mint.opacity(0.16)], startPoint: .topLeading, endPoint: .bottomTrailing)
-            .ignoresSafeArea()
+        StorybookBackground()
     }
 }
 
 struct OpportunityRow: View {
+    @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var session: SessionStore
     let opportunity: Opportunity
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(opportunity.category)
-                .font(.caption.weight(.bold))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(Brand.sun.opacity(0.55), in: Capsule())
-            Text(opportunity.title)
-                .font(.headline)
-                .foregroundStyle(.primary)
-            Text("\(opportunity.organization) · \(opportunity.city)")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Label("\(session.text("ages")) \(opportunity.ageMin)\(opportunity.ageMax.map { "–\($0)" } ?? "+")", systemImage: "person.2")
+                StickerBadge(text: opportunity.category, color: categoryColor, systemImage: categoryIcon)
+                Spacer()
+                Image(systemName: "chevron.right.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(Brand.coral)
+            }
+
+            Text(opportunity.title)
+                .font(.title3.weight(.black))
+                .foregroundStyle(Brand.outline(for: colorScheme))
+            Text("\(opportunity.organization) · \(opportunity.city)")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Brand.mutedText(for: colorScheme))
+
+            FlowLabels {
+                StickerBadge(text: "\(session.text("ages")) \(opportunity.ageMin)\(opportunity.ageMax.map { "–\($0)" } ?? "+")", color: Brand.sky, systemImage: "person.2")
                 if opportunity.volunteerHoursEligible {
-                    Label(session.text("volunteerHours"), systemImage: "checkmark.seal")
+                    StickerBadge(text: session.text("volunteerHours"), color: Brand.moss, systemImage: "checkmark.seal")
                 }
                 if opportunity.coopEligible {
-                    Label(session.text("coop"), systemImage: "briefcase")
+                    StickerBadge(text: session.text("coop"), color: Brand.lavender, systemImage: "briefcase")
                 }
             }
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .cardSurface()
+        .cardSurface(padding: 16, cornerRadius: 26)
+    }
+
+    private var categoryIcon: String {
+        if opportunity.coopEligible { return "briefcase.fill" }
+        if opportunity.volunteerHoursEligible { return "checkmark.seal.fill" }
+        if opportunity.category.localizedCaseInsensitiveContains("coding") { return "chevron.left.forwardslash.chevron.right" }
+        if opportunity.category.localizedCaseInsensitiveContains("science") { return "atom" }
+        return "star.fill"
+    }
+
+    private var categoryColor: Color {
+        if opportunity.coopEligible { return Brand.lavender }
+        if opportunity.volunteerHoursEligible { return Brand.moss }
+        if opportunity.category.localizedCaseInsensitiveContains("science") { return Brand.sky }
+        if opportunity.category.localizedCaseInsensitiveContains("competition") { return Brand.coral }
+        return Brand.sun
     }
 }
 
@@ -298,6 +320,9 @@ struct OpportunityFilterSheet: View {
                     Toggle(session.text("leadership"), isOn: $filters.leadership)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(StorybookBackground())
+            .tint(Brand.coral)
             .navigationTitle(session.text("filters"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -308,5 +333,7 @@ struct OpportunityFilterSheet: View {
                 }
             }
         }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 }

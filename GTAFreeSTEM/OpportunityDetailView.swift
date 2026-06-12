@@ -2,30 +2,25 @@ import MapKit
 import SwiftUI
 
 struct OpportunityDetailView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
     let opportunity: Opportunity
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                mapPreview
-                Text(opportunity.title)
-                    .font(.largeTitle.bold())
-                Text(opportunity.organization)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Text(session.summary(for: opportunity))
-                    .font(.body)
-                if session.language != .en {
-                    Text(session.text("translationNote"))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
+        ZStack {
+            StorybookBackground()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    mapPreview
+                    titleCard
+                    details
+                    actions
                 }
-                details
-                actions
+                .padding()
+                .padding(.bottom, 24)
             }
-            .padding()
         }
         .alert(session.text("saveNeedsAccountTitle"), isPresented: saveAlertBinding) {
             Button(session.text("ok"), role: .cancel) { store.errorMessage = nil }
@@ -43,6 +38,27 @@ struct OpportunityDetailView: View {
         )
     }
 
+    private var titleCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            StickerBadge(text: opportunity.category, color: Brand.sun, systemImage: "star.fill")
+            Text(opportunity.title)
+                .font(.largeTitle.weight(.black))
+                .foregroundStyle(Brand.outline(for: colorScheme))
+            Text(opportunity.organization)
+                .font(.title3.weight(.black))
+                .foregroundStyle(Brand.coral)
+            Text(session.summary(for: opportunity))
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Brand.outline(for: colorScheme))
+            if session.language != .en {
+                Text(session.text("translationNote"))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Brand.mutedText(for: colorScheme))
+            }
+        }
+        .cardSurface(padding: 18, cornerRadius: 28)
+    }
+
     private var mapPreview: some View {
         Group {
             if let latitude = opportunity.latitude, let longitude = opportunity.longitude {
@@ -51,87 +67,70 @@ struct OpportunityDetailView: View {
                     span: MKCoordinateSpan(latitudeDelta: 0.04, longitudeDelta: 0.04)
                 ))) {
                     Marker(opportunity.title, coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude))
+                        .tint(Brand.coral)
                 }
                 .frame(height: 220)
             } else {
                 RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(LinearGradient(colors: [Brand.aqua.opacity(0.5), Brand.mint.opacity(0.5)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(height: 180)
-                    .overlay(Label(opportunity.city, systemImage: "map"))
+                    .fill(LinearGradient(colors: [Brand.sky.opacity(0.72), Brand.moss.opacity(0.66)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .frame(height: 180)
+                    .overlay {
+                        Label(opportunity.city, systemImage: "map")
+                            .font(.title3.weight(.black))
+                            .foregroundStyle(Brand.ink)
+                    }
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(Brand.outline(for: colorScheme), lineWidth: 3)
+        }
+        .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.35 : 0.16), radius: 0, x: 4, y: 4)
     }
 
     private var details: some View {
-        Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 12) {
-            GridRow {
-                Text(session.text("city")).bold()
-                Text("\(opportunity.city), \(opportunity.region)")
-            }
-            GridRow {
-                Text(session.text("ages")).bold()
-                Text("\(opportunity.ageMin)\(opportunity.ageMax.map { "–\($0)" } ?? "+")")
-            }
-            GridRow {
-                Text(session.text("cost")).bold()
-                Text(session.text("freeAccessible"))
-            }
+        VStack(alignment: .leading, spacing: 14) {
+            StorySectionTitle(text: session.text("details"), systemImage: "checklist")
+            DetailFact(title: session.text("city"), value: "\(opportunity.city), \(opportunity.region)", icon: "mappin.and.ellipse")
+            DetailFact(title: session.text("ages"), value: "\(opportunity.ageMin)\(opportunity.ageMax.map { "–\($0)" } ?? "+")", icon: "person.2")
+            DetailFact(title: session.text("cost"), value: session.text("freeAccessible"), icon: "heart.fill")
             if let startDate = opportunity.startDate {
-                GridRow {
-                    Text(session.text("date")).bold()
-                    Text(startDate.prefix(10))
-                }
+                DetailFact(title: session.text("date"), value: String(startDate.prefix(10)), icon: "calendar")
             }
             if let deadline = opportunity.deadline {
-                GridRow {
-                    Text(session.text("deadline")).bold()
-                    Text(deadline.prefix(10))
-                }
+                DetailFact(title: session.text("deadline"), value: String(deadline.prefix(10)), icon: "alarm")
             }
             if opportunity.volunteerHoursEligible {
-                GridRow {
-                    Text(session.text("pathway")).bold()
-                    Text(session.text("volunteerHours"))
-                }
+                DetailFact(title: session.text("pathway"), value: session.text("volunteerHours"), icon: "checkmark.seal")
             }
             if opportunity.coopEligible {
-                GridRow {
-                    Text(session.text("pathway")).bold()
-                    Text(session.text("coop"))
-                }
-            }
-            GridRow {
-                Text(session.text("source")).bold()
-                Text(opportunity.sourceUrl)
-                    .lineLimit(2)
-                    .font(.caption)
+                DetailFact(title: session.text("pathway"), value: session.text("coop"), icon: "briefcase")
             }
             if !opportunity.language.isEmpty {
-                GridRow {
-                    Text(session.text("languages")).bold()
-                    Text(opportunity.language.map(languageName).joined(separator: ", "))
-                }
+                DetailFact(title: session.text("languages"), value: opportunity.language.map(languageName).joined(separator: ", "), icon: "globe")
             }
+            DetailFact(title: session.text("source"), value: opportunity.sourceUrl, icon: "link")
         }
-        .cardSurface()
+        .cardSurface(padding: 18, cornerRadius: 28)
     }
 
     private var actions: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
+            StorySectionTitle(text: session.text("registerApply"), systemImage: "paperplane.fill")
             if let url = URL(string: opportunity.registrationUrl ?? opportunity.sourceUrl) {
                 Link(destination: url) {
                     Label(session.text("registerApply"), systemImage: "safari")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(StoryButtonStyle(kind: .primary))
             }
             if let url = directionsURL {
                 Link(destination: url) {
                     Label(session.text("directions"), systemImage: "map")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(StoryButtonStyle(kind: .secondary))
             }
             Button {
                 Task { await store.save(opportunity, token: session.apiToken) }
@@ -139,8 +138,9 @@ struct OpportunityDetailView: View {
                 Label(session.text("save"), systemImage: "bookmark")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(StoryButtonStyle(kind: .quiet))
         }
+        .cardSurface(padding: 18, cornerRadius: 28)
     }
 
     private var directionsURL: URL? {
@@ -151,5 +151,36 @@ struct OpportunityDetailView: View {
     private func languageName(_ code: String) -> String {
         guard let language = AppLanguage(rawValue: code) else { return code }
         return session.languageName(language)
+    }
+}
+
+private struct DetailFact: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let title: String
+    let value: String
+    let icon: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.headline.weight(.black))
+                .frame(width: 30, height: 30)
+                .background(Brand.sun, in: Circle())
+                .overlay {
+                    Circle().stroke(Brand.outline(for: colorScheme), lineWidth: 2)
+                }
+                .foregroundStyle(Brand.ink)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.caption.weight(.black))
+                    .textCase(.uppercase)
+                    .foregroundStyle(Brand.mutedText(for: colorScheme))
+                Text(value)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(Brand.outline(for: colorScheme))
+                    .textSelection(.enabled)
+            }
+        }
     }
 }
