@@ -238,10 +238,10 @@ struct BrowseView: View {
                 }
 
                 Spacer()
+            }
 
-                HuntRefreshButton(isLoading: store.isLoading) {
-                    Task { await store.refresh(cache: modelContext, prioritized: true) }
-                }
+            HuntRefreshButton(isLoading: store.isLoading, title: session.text("refreshResearch")) {
+                Task { await store.refresh(cache: modelContext, prioritized: true) }
             }
 
             HStack(spacing: 10) {
@@ -554,14 +554,43 @@ struct OpportunityFilterSheet: View {
 }
 
 private struct HuntRefreshButton: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let isLoading: Bool
+    let title: String
     let action: () -> Void
+    @State private var isPressed = false
 
     var body: some View {
         Button(action: action) {
-            HuntActivityIcon(phase: isLoading ? .hunting : .idle, isActive: isLoading, size: 58)
+            HStack(spacing: 7) {
+                Image(systemName: isLoading ? "arrow.triangle.2.circlepath" : "arrow.clockwise")
+                    .font(.system(size: 15, weight: .black))
+                    .symbolEffect(.pulse, value: isLoading)
+                Text(title)
+                    .font(.subheadline.weight(.black))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.70)
+                    .allowsTightening(true)
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .padding(.horizontal, 12)
+            .background(Brand.coral, in: Capsule())
+            .overlay {
+                Capsule().stroke(Brand.surfaceStroke(for: colorScheme), lineWidth: 2)
+            }
+            .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.28 : 0.14), radius: 0, x: 2, y: 3)
+            .scaleEffect(reduceMotion ? 1 : (isPressed ? 0.94 : 1))
+            .rotationEffect(.degrees(reduceMotion ? 0 : (isPressed ? -1.2 : 0)))
+            .animation(.spring(response: 0.22, dampingFraction: 0.58), value: isPressed)
         }
         .buttonStyle(.plain)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in isPressed = true }
+                .onEnded { _ in isPressed = false }
+        )
         .accessibilityLabel(AppText.shared.string("refreshHunt", language: AppLanguage.normalized(UserDefaults.standard.string(forKey: "preferredLanguageCode") ?? AppLanguage.en.rawValue)))
     }
 }

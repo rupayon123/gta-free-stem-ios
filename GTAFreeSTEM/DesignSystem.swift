@@ -153,6 +153,7 @@ struct BrandLogoImage: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isBobbing = false
+    @State private var tapPulse = 0
     var size: CGFloat = 156
 
     var body: some View {
@@ -162,11 +163,21 @@ struct BrandLogoImage: View {
             .frame(width: size, height: size)
             .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.42 : 0.20), radius: 0, x: 4, y: 6)
             .scaleEffect(reduceMotion ? 1 : (isBobbing ? 1.018 : 0.992))
+            .scaleEffect(reduceMotion ? 1 : (tapPulse % 2 == 0 ? 1 : 1.085))
             .rotationEffect(.degrees(reduceMotion ? 0 : (isBobbing ? 0.5 : -0.35)))
             .animation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true), value: isBobbing)
+            .animation(.spring(response: 0.22, dampingFraction: 0.48), value: tapPulse)
             .onAppear {
                 guard !reduceMotion else { return }
                 isBobbing = true
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                guard !reduceMotion else { return }
+                tapPulse += 1
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                    tapPulse += 1
+                }
             }
             .accessibilityLabel("GTA FREE STEM")
     }
@@ -180,6 +191,7 @@ struct HuntActivityIcon: View {
     var size: CGFloat = 62
     @State private var isBreathing = false
     @State private var isOrbiting = false
+    @State private var tapPulse = 0
 
     var body: some View {
         ZStack {
@@ -191,31 +203,29 @@ struct HuntActivityIcon: View {
                 .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.30 : 0.16), radius: 0, x: size * 0.06, y: size * 0.08)
 
             Circle()
-                .trim(from: 0.08, to: 0.36)
-                .stroke(Brand.sky, style: StrokeStyle(lineWidth: max(size * 0.075, 4), lineCap: .round))
-                .frame(width: size * 0.74, height: size * 0.74)
-                .rotationEffect(.degrees(reduceMotion ? 18 : (isOrbiting ? 378 : 18)))
+                .fill(colorScheme == .dark ? Brand.deepOcean.opacity(0.94) : Brand.ice)
+                .frame(width: size * 0.68, height: size * 0.68)
+                .overlay {
+                    Circle().stroke(Brand.sky.opacity(colorScheme == .dark ? 0.95 : 0.72), lineWidth: max(size * 0.035, 2))
+                }
 
-            Circle()
-                .trim(from: 0.58, to: 0.84)
-                .stroke(Brand.sun, style: StrokeStyle(lineWidth: max(size * 0.07, 4), lineCap: .round))
-                .frame(width: size * 0.56, height: size * 0.56)
-                .rotationEffect(.degrees(reduceMotion ? -22 : (isOrbiting ? -382 : -22)))
-
-            orbitDot(color: Brand.coral, radius: size * 0.31, dotSize: size * 0.12, offsetDegrees: 0)
-            orbitDot(color: Brand.lake, radius: size * 0.22, dotSize: size * 0.09, offsetDegrees: 136)
+            orbitDot(color: Brand.coral, radius: size * 0.34, dotSize: size * 0.12, offsetDegrees: 18)
+            orbitDot(color: Brand.sun, radius: size * 0.31, dotSize: size * 0.10, offsetDegrees: 142)
+            orbitDot(color: Brand.lake, radius: size * 0.27, dotSize: size * 0.085, offsetDegrees: 264)
 
             Image(systemName: phase.icon)
-                .font(.system(size: size * 0.36, weight: .black))
+                .font(.system(size: size * 0.40, weight: .black))
                 .symbolRenderingMode(.palette)
                 .foregroundStyle(iconPrimaryColor, iconSecondaryColor)
                 .scaleEffect(reduceMotion ? 1 : (isActive ? 1.04 : 1.0))
         }
         .frame(width: size, height: size)
         .scaleEffect(reduceMotion ? 1 : (isBreathing ? 1.025 : 0.985))
+        .scaleEffect(reduceMotion ? 1 : (tapPulse % 2 == 0 ? 1 : 1.10))
         .rotationEffect(.degrees(reduceMotion ? 0 : (isBreathing ? 0.7 : -0.45)))
         .animation(.easeInOut(duration: 1.7).repeatForever(autoreverses: true), value: isBreathing)
         .animation(isActive && !reduceMotion ? .linear(duration: 1.05).repeatForever(autoreverses: false) : .spring(response: 0.42, dampingFraction: 0.72), value: isOrbiting)
+        .animation(.spring(response: 0.22, dampingFraction: 0.48), value: tapPulse)
         .onAppear {
             guard !reduceMotion else { return }
             isBreathing = true
@@ -224,6 +234,14 @@ struct HuntActivityIcon: View {
         .onChange(of: isActive) { _, active in
             guard !reduceMotion else { return }
             isOrbiting = active
+        }
+        .contentShape(Circle())
+        .onTapGesture {
+            guard !reduceMotion else { return }
+            tapPulse += 1
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                tapPulse += 1
+            }
         }
         .accessibilityHidden(true)
     }
@@ -251,7 +269,7 @@ struct HuntActivityIcon: View {
                 Circle().stroke(Brand.outline(for: colorScheme), lineWidth: max(dotSize * 0.18, 1.25))
             }
             .offset(x: radius)
-            .rotationEffect(.degrees(reduceMotion ? offsetDegrees : (isOrbiting ? 360 + offsetDegrees : offsetDegrees)))
+            .rotationEffect(.degrees(reduceMotion ? offsetDegrees : (isOrbiting ? 360 + offsetDegrees : (isBreathing ? offsetDegrees + 8 : offsetDegrees - 4))))
     }
 }
 

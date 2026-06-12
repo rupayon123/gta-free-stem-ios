@@ -15,8 +15,8 @@ enum HuntPhase: Equatable {
         case .idle: "sparkle.magnifyingglass"
         case .hunting: "sparkle.magnifyingglass"
         case .fresh: "checkmark.seal.fill"
-        case .cached: "externaldrive.fill.badge.checkmark"
-        case .offline: "archivebox.fill"
+        case .cached: "sparkle.magnifyingglass"
+        case .offline: "sparkle.magnifyingglass"
         }
     }
 
