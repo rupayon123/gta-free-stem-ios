@@ -14,18 +14,23 @@ Use this when you are ready to let friends test the iOS app through your Apple D
 
 ## Upload A Build
 
-1. In Xcode, choose `Any iOS Device` as the run destination.
-2. Go to Product > Archive.
-3. When Organizer opens, choose Distribute App.
-4. Select App Store Connect, then Upload.
-5. Let Xcode manage signing unless you have a reason to use manual signing.
-6. Wait for App Store Connect processing to finish.
+1. Increment `CURRENT_PROJECT_VERSION` in both `project.yml` and `GTAFreeSTEM.xcodeproj/project.pbxproj`.
+2. In Xcode, choose `Any iOS Device` as the run destination.
+3. Go to Product > Archive.
+4. When Organizer opens, choose Distribute App.
+5. Select App Store Connect, then Upload.
+6. Let Xcode manage signing unless you have a reason to use manual signing.
+7. Wait for App Store Connect processing to finish.
+8. Confirm the processed TestFlight build number matches the repo build number.
 
-Command-line archive check:
+Command-line archive and upload:
 
 ```bash
 xcodebuild archive -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'generic/platform=iOS' -archivePath build/GTAFreeSTEM.xcarchive -allowProvisioningUpdates
+xcodebuild -exportArchive -archivePath build/GTAFreeSTEM.xcarchive -exportOptionsPlist docs/AppStoreConnectExportOptions.plist -allowProvisioningUpdates
 ```
+
+Use `docs/AppStoreConnectExportOptions.plist` for command-line uploads. It disables Xcode's automatic App Store Connect build-number management so the uploaded package uses the exact `CFBundleVersion` from the repo.
 
 If this fails with `No Accounts` or `No profiles`, open Xcode > Settings > Accounts, add the Apple Developer account, choose team `FE33NM88XX`, and allow automatic signing for `com.rupayonhaldar.gtafreestem`.
 
@@ -54,6 +59,12 @@ External testing is what you use for friends outside your developer account.
 Friends install Apple’s TestFlight app, open the invite, install GTA FREE STEM, and send feedback through TestFlight screenshots or notes.
 
 ## What To Ask Friends To Test
+
+Paste this into the TestFlight "What to Test" field:
+
+```text
+Please test the full discovery flow: keyword search, city/region/age/language/category filters, high-school pathway filters, map/list switching, sorting, detail pages, refresh, offline fallback, saved hunt restore, language switching, RTL layout, Dynamic Type, dark mode, and VoiceOver. Report any duplicate results, stale updates, broken links, untranslated UI, untranslated opportunity content, confusing permission prompts, or crashes.
+```
 
 - Search by city, age, category, and high-school pathway.
 - Search with multi-word terms like `robotics Toronto`, then switch sort between best match, soonest, and nearest.

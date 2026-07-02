@@ -25,7 +25,7 @@
 - `xcodebuild -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'platform=iOS Simulator,name=iPhone 17' build`: passed.
 - `xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -destination 'platform=iOS Simulator,name=iPhone 17'`: passed, 33 tests, 0 failures.
 - `xcodebuild archive -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'generic/platform=iOS' -archivePath build/GTAFreeSTEM.xcarchive -allowProvisioningUpdates`: passed for `com.rupayonhaldar.gtafreestem` version `1.0` after signing into Apple account `rupayon244@gmail.com`.
-- `xcodebuild -exportArchive -archivePath build/GTAFreeSTEM.xcarchive -exportOptionsPlist build/ExportOptions.plist -allowProvisioningUpdates`: passed and uploaded `GTAFreeSTEM.ipa` build `1.0 (4)` to App Store Connect for processing because Xcode export had `manageAppVersionAndBuildNumber` enabled.
+- `xcodebuild -exportArchive -archivePath build/GTAFreeSTEM.xcarchive -exportOptionsPlist build/ExportOptions.plist -allowProvisioningUpdates`: passed and uploaded `GTAFreeSTEM.ipa` build `1.0 (4)` to App Store Connect for processing because the local ignored export plist had Xcode's default `manageAppVersionAndBuildNumber` behavior enabled. Future command-line uploads should use tracked `docs/AppStoreConnectExportOptions.plist`.
 - Companion repo `./node_modules/.bin/tsc --noEmit`: passed with bundled Node.
 - Companion repo `./node_modules/.bin/tsx scripts/export-public-opportunities.ts && ./node_modules/.bin/tsx scripts/qa-check.ts`: passed; QA now rejects non-English translation payloads that are English copies.
 - Companion repo `pnpm run build`: passed, regenerates `public/opportunities.json`, and exports `/privacy`.

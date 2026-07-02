@@ -5,9 +5,11 @@ Use this checklist before each TestFlight upload so the release is repeatable an
 ## Build Readiness
 
 - Regenerate the project with `xcodegen generate` if `project.yml` changed.
+- Increment `CURRENT_PROJECT_VERSION` once, then confirm `project.yml`, `GTAFreeSTEM.xcodeproj/project.pbxproj`, and the archive metadata agree.
 - Build the app on the current target simulator.
 - Run the app test target from Xcode or with `xcodebuild test`.
 - Confirm the bundled opportunity snapshot still decodes.
+- Use `docs/AppStoreConnectExportOptions.plist` for command-line App Store Connect uploads so Xcode does not auto-change the build number.
 - Confirm no signing files, provisioning profiles, archives, or secrets are staged.
 
 ## Core Discovery Flow
@@ -45,5 +47,6 @@ Use this checklist before each TestFlight upload so the release is repeatable an
 - Update beta notes with the main flows testers should try.
 - Include known limitations such as backend-only account features or unavailable source feeds.
 - Add a support contact and privacy policy URL in App Store Connect.
+- After processing, confirm App Store Connect shows the same version/build as the repo.
 - Keep the tester group small for the first build after major feed, auth, or map changes.
 - Record the build number, test date, and any known blockers in the release notes.
