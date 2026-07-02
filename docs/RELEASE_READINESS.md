@@ -9,11 +9,11 @@
 - Opportunity rows and map labels are localized in browsing screens.
 - App Store privacy manifest is bundled and declares app-only `UserDefaults` access with reason `CA92.1`, no tracking, and no collected data types.
 - Last verified on July 2, 2026:
-  - Bundled iOS snapshot: 372 public opportunities, all carrying generated translation payloads for every non-English launch language.
+  - Bundled iOS snapshot: 370 public opportunities, all carrying generated translation payloads for every non-English launch language.
   - App UI strings: 177/177 keys for each launch language, with strict duplicate-English checks passing at 0 untranslated-equals-English strings.
-  - Local companion public feed: 372 public opportunities, 100% generated summary/category/cost/title/description payload coverage.
-  - Live public feed: 394 opportunities, 0 translated opportunity payloads until the companion feed repo is pushed and deployed.
-  - Companion site production build includes `/privacy`, but the live route still returns 404 until deployment.
+  - Local companion public feed: 370 public opportunities, 100% generated summary/category/cost/title/description payload coverage.
+  - Live public feed: 394 opportunities, 0 translated opportunity payloads until Vercel production redeploys the pushed companion feed repo.
+  - Companion site production build includes `/privacy`, but the live route still returns 404 until Vercel production redeploys.
   - Release simulator build and unit tests pass.
   - Device archive is blocked on this Mac because Xcode command-line signing has no Apple account or provisioning profile for `com.rupayonhaldar.gtafreestem`.
 
@@ -28,21 +28,20 @@
 - Companion repo `./node_modules/.bin/tsc --noEmit`: passed with bundled Node.
 - Companion repo `./node_modules/.bin/tsx scripts/export-public-opportunities.ts && ./node_modules/.bin/tsx scripts/qa-check.ts`: passed; QA now rejects non-English translation payloads that are English copies.
 - Companion repo `pnpm run build`: passed, regenerates `public/opportunities.json`, and exports `/privacy`.
-- Companion repo `git push origin main`: failed with `fatal: could not read Username for 'https://github.com': Device not configured`.
+- Companion repo `git push origin main`: passed after token-based HTTPS auth.
+- iOS repo `git push origin main`: passed after token-based HTTPS auth.
 - Live `https://gta-free-stem.vercel.app/privacy/`: currently returns 404 until the companion repo deploys.
 - Live `https://gta-free-stem.vercel.app/opportunities.json`: currently 394 opportunities, 0 translated opportunity payloads.
 
 ## What is still required for public release
 
 1. **Feed translation coverage**
-   - The bundled iOS snapshot and local companion feed now include generated multilingual summaries, titles, descriptions, localized category metadata, localized cost metadata, and category tags for all 372 public listings.
+   - The bundled iOS snapshot and local companion feed now include generated multilingual summaries, titles, descriptions, localized category metadata, localized cost metadata, and category tags for all 370 public listings.
    - Public release still needs the deployed `opportunities.json` to include the same payloads.
    - Human/API-reviewed title, organization, address, source-specific tags, and richer description translations remain a quality upgrade after the generated-coverage release gate.
-   - Local companion feed repo status on July 2, 2026: `/Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-opportunities` is rebased on latest `origin/main` and ahead by three commits:
-     - `e5e5570` - generated translated feed payloads and feed QA checks.
-     - `dcfbcdd` - privacy policy route for App Store readiness.
-     - `f86a98e` - stricter multilingual feed QA and build-time public-feed export.
-   - These commits are not deployed to production yet because this Mac cannot push to GitHub over HTTPS without credentials.
+   - Local companion feed repo status on July 2, 2026: `/Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-opportunities` is pushed to GitHub at `f6dd050`.
+   - The iOS repo is pushed to GitHub at `36fbd51`, including the synced bundled opportunity snapshot.
+   - These changes are not live in production yet because Vercel has not created a new production deployment for the pushed companion feed commit.
 
 2. **Release validation commands**
    - Build release:
@@ -86,4 +85,4 @@ Current Mac status:
 - Git is installed.
 - Homebrew is not installed.
 - GitHub CLI (`gh`) is not installed.
-- `git push` to GitHub over HTTPS currently fails because no GitHub credentials are configured.
+- Repository pushes succeeded with temporary token-based HTTPS auth. Configure a persistent GitHub credential helper or GitHub CLI login before the next push.

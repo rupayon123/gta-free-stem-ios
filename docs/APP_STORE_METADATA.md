@@ -32,7 +32,7 @@ STEM, GTA, Toronto, education, youth, robotics, coding, science, engineering, ma
 - Marketing URL candidate: `https://gta-free-stem.vercel.app/`
 - Privacy policy URL candidate: `https://gta-free-stem.vercel.app/privacy/`
 
-The iOS app has an in-app privacy note in Settings, but App Store Connect should use a stable public web URL. The companion repo now has a local `/privacy/` route; push and deploy it before App Store submission.
+The iOS app has an in-app privacy note in Settings, but App Store Connect should use a stable public web URL. The companion repo has a committed `/privacy/` route; redeploy Vercel production before App Store submission so the public URL resolves.
 
 ## App Privacy Notes
 
@@ -52,6 +52,6 @@ The app is intended for families and students and does not include ads, purchase
 ## Current External Blockers
 
 - Command-line archive is blocked on this Mac until Xcode has an Apple Developer account and a provisioning profile for `com.rupayonhaldar.gtafreestem`.
-- Public multilingual release is blocked until the companion feed deployment publishes translated opportunity payloads to `https://gta-free-stem.vercel.app/opportunities.json`.
-- App Store privacy URL is blocked until the companion site's `/privacy/` route is pushed and deployed.
+- Public multilingual release is blocked until Vercel production redeploys the companion feed and publishes translated opportunity payloads to `https://gta-free-stem.vercel.app/opportunities.json`.
+- App Store privacy URL is blocked until Vercel production redeploys the companion site's committed `/privacy/` route.
 - Full dynamic content translation still needs reviewed title, organization, address, tag, and richer description translations in the companion feed pipeline.
