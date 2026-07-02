@@ -32,7 +32,7 @@ STEM, GTA, Toronto, education, youth, robotics, coding, science, engineering, ma
 - Marketing URL candidate: `https://gta-free-stem.vercel.app/`
 - Privacy policy URL candidate: `https://gta-free-stem.vercel.app/privacy/`
 
-The iOS app has an in-app privacy note in Settings, but App Store Connect should use a stable public web URL. The companion repo has a committed `/privacy/` route; redeploy Vercel production before App Store submission so the public URL resolves.
+The iOS app has an in-app privacy note in Settings, but App Store Connect should use the stable public web URL. The companion repo's `/privacy/` route is live in Vercel production.
 
 ## App Privacy Notes
 
@@ -49,9 +49,9 @@ The iOS app has an in-app privacy note in Settings, but App Store Connect should
 
 The app is intended for families and students and does not include ads, purchases, gambling, unrestricted web browsing, public chat, or public user-generated content feeds. External registration links open provider websites, so review App Store Connect age-rating questions against the final link handling before submission.
 
-## Current External Blockers
+## Current External Follow-ups
 
-- Public multilingual release is blocked until Vercel production redeploys the companion feed and publishes translated opportunity payloads to `https://gta-free-stem.vercel.app/opportunities.json`.
-- App Store privacy URL is blocked until Vercel production redeploys the companion site's committed `/privacy/` route.
-- Full dynamic content translation still needs reviewed title, organization, address, tag, and richer description translations in the companion feed pipeline.
+- Public multilingual feed is live at `https://gta-free-stem.vercel.app/opportunities.json` with generated translation payloads for all public listings.
+- App Store privacy URL is live at `https://gta-free-stem.vercel.app/privacy/`.
+- Full dynamic content translation can still be upgraded later with reviewed title, organization, address, tag, and richer description translations in the companion feed pipeline.
 - TestFlight upload is working from this Mac; the latest uploaded package should finish processing in App Store Connect before testers are added.
