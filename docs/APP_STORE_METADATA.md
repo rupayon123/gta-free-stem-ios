@@ -20,7 +20,7 @@ GTA FREE STEM helps students, parents, educators, and community groups find free
 
 Search by keyword, city, region, age, category, language, high-school pathway, distance, volunteer hours, co-op, mentorship, scholarships, and new finds. Browse in list or map view, save recent hunts locally, refresh from the public opportunity feed, and keep browsing from the bundled snapshot or local cache when the network is unavailable.
 
-The app is designed for public browsing first. Accounts are only for saved items, feedback, opportunity submissions, and account deletion when the production backend is connected.
+The app is designed for public browsing first. In the current TestFlight candidate, account-only actions are disabled until the production backend is connected; public discovery, search, map/list browsing, language switching, and refresh/offline fallback still work without an account.
 
 ## Keywords Draft
 
@@ -43,7 +43,7 @@ The iOS app has an in-app privacy note in Settings, but App Store Connect should
 - Optional location: used only while browsing to sort nearby opportunities; current app logic does not transmit device location to the feed.
 - Local cache: public opportunity data, saved hunt state, seen listing IDs, and settings are stored locally with SwiftData/UserDefaults.
 - Required reason API manifest: `PrivacyInfo.xcprivacy` declares app-only UserDefaults access with reason `CA92.1`.
-- Data collection answer: if the app ships before backend account/feedback/submission endpoints are connected, answer as public browsing with no collected user data. If those endpoints are connected before release, update App Privacy answers for account identifiers, feedback, submitted content, diagnostics, and deletion handling as implemented.
+- Data collection answer: for build `1.0 (5)`, answer as public browsing with no collected user data because account, feedback, and online submission endpoints are not connected in this iOS build. If those endpoints are connected before release, update App Privacy answers for account identifiers, feedback, submitted content, diagnostics, and deletion handling as implemented.
 
 ## Age Rating Notes
 
@@ -54,4 +54,4 @@ The app is intended for families and students and does not include ads, purchase
 - Public multilingual feed is live at `https://gta-free-stem.vercel.app/opportunities.json` with generated translation payloads for all public listings.
 - App Store privacy URL is live at `https://gta-free-stem.vercel.app/privacy/`.
 - Full dynamic content translation can still be upgraded later with reviewed title, organization, address, tag, and richer description translations in the companion feed pipeline.
-- TestFlight upload is working from this Mac; build `1.0 (4)` is uploaded, processed, and attached to the internal `Zenin` tester group in App Store Connect.
+- TestFlight upload is working from this Mac; build `1.0 (5)` uploaded successfully and Apple reported the package is processing. After processing, select build `1.0 (5)` for the internal `Zenin` tester group. The previous `1.0 (4)` build was processed and attached to `Zenin`.

@@ -29,9 +29,9 @@ Use this checklist before each TestFlight upload so the release is repeatable an
 
 ## Account And Submission Paths
 
-- Try saving while signed out and confirm the account prompt is clear.
-- Open Sign in with Apple UI and confirm cancelling returns safely to the previous screen.
-- Submit feedback or a missing opportunity through the available UI path, using test data only.
+- Try account-only actions and confirm the unavailable-in-this-build message is clear.
+- Confirm Sign in with Apple is not shown unless the iOS app exchanges Apple credentials for a backend API token.
+- Submit feedback or a missing opportunity through the available UI path only when an online backend is connected for that build, using test data only.
 - Confirm no access tokens or private user data are written to `UserDefaults`.
 
 ## Accessibility And Localization

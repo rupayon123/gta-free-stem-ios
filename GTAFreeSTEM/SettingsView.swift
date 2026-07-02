@@ -1,4 +1,3 @@
-import AuthenticationServices
 import SwiftUI
 
 struct SettingsView: View {
@@ -36,32 +35,27 @@ struct SettingsView: View {
     private var accountCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             StorySectionTitle(text: session.text("accountAdmin"), systemImage: "person.crop.circle.fill")
-            Text("\(session.text("signedInAs")) \(session.displayName)")
-                .font(.headline.weight(.black))
-                .foregroundStyle(Brand.outline(for: colorScheme))
+            if session.isSignedIn {
+                Text("\(session.text("signedInAs")) \(session.displayName)")
+                    .font(.headline.weight(.black))
+                    .foregroundStyle(Brand.outline(for: colorScheme))
 
-            SignInWithAppleButton(.signIn) { request in
-                request.requestedScopes = [.fullName, .email]
-            } onCompletion: { result in
-                session.handleAppleSignIn(result)
-            }
-            .frame(height: 50)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Brand.outline(for: colorScheme), lineWidth: 2)
-            }
+                HStack(spacing: 10) {
+                    Button(session.text("signOut"), role: .destructive) {
+                        session.signOut()
+                    }
+                    .buttonStyle(StoryButtonStyle(kind: .quiet))
 
-            HStack(spacing: 10) {
-                Button(session.text("signOut"), role: .destructive) {
-                    session.signOut()
+                    Button(session.text("deleteAccount"), role: .destructive) {
+                        Task { await deleteAccount() }
+                    }
+                    .buttonStyle(StoryButtonStyle(kind: .primary))
                 }
-                .buttonStyle(StoryButtonStyle(kind: .quiet))
-
-                Button(session.text("deleteAccount"), role: .destructive) {
-                    Task { await deleteAccount() }
-                }
-                .buttonStyle(StoryButtonStyle(kind: .primary))
+            } else {
+                Text(session.text("appleReady"))
+                    .font(.headline.weight(.black))
+                    .foregroundStyle(Brand.outline(for: colorScheme))
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .cardSurface(padding: 18, cornerRadius: 30)

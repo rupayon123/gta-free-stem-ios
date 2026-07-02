@@ -1,4 +1,3 @@
-import AuthenticationServices
 import SwiftUI
 
 @MainActor
@@ -122,18 +121,6 @@ final class SessionStore: ObservableObject {
         let candidates = Self.isoDateFormatters.compactMap { $0.date(from: value) }
         guard let date = candidates.first else { return value }
         return Self.displayDateFormatter(for: language).string(from: date)
-    }
-
-    func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
-        switch result {
-        case .success(let authorization):
-            if let credential = authorization.credential as? ASAuthorizationAppleIDCredential {
-                displayName = credential.fullName?.givenName ?? text("appleUser")
-                authMessage = text("appleReady")
-            }
-        case .failure:
-            authMessage = text("serverResponseInvalid")
-        }
     }
 
     func signOut() {

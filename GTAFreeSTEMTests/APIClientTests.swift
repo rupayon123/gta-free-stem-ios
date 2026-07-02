@@ -233,6 +233,43 @@ final class APIClientTests: XCTestCase {
         }
     }
 
+    func testReleaseStringsDoNotExposeBackendSetupInstructions() throws {
+        let url = try XCTUnwrap(AppResources.url(forResource: "app_strings", withExtension: "json"))
+        let data = try Data(contentsOf: url)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let forbiddenPhrases = ["connect rails", "oauth callback", "before testflight"]
+
+        for language in AppLanguage.allCases {
+            let strings = try XCTUnwrap(json[language.rawValue] as? [String: String])
+            for (key, value) in strings {
+                let lowercased = value.lowercased()
+                for phrase in forbiddenPhrases {
+                    XCTAssertFalse(
+                        lowercased.contains(phrase),
+                        "\(language.rawValue).\(key) exposes developer setup copy: \(value)"
+                    )
+                }
+            }
+        }
+    }
+
+    func testSettingsDoesNotExposeAppleSignInWithoutTokenExchange() throws {
+        let repoRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let settingsView = repoRoot.appendingPathComponent("GTAFreeSTEM/SettingsView.swift")
+        let sessionStore = repoRoot.appendingPathComponent("GTAFreeSTEM/SessionStore.swift")
+
+        XCTAssertFalse(
+            try String(contentsOf: settingsView).contains("SignInWithAppleButton"),
+            "Do not show Sign in with Apple until iOS exchanges Apple credentials for a backend API token."
+        )
+        XCTAssertFalse(
+            try String(contentsOf: sessionStore).contains("ASAuthorization"),
+            "SessionStore should not handle Apple authorization without a backend token exchange."
+        )
+    }
+
     func testPermissionCopyIsLocalizedForLaunchLanguages() {
         for language in AppLanguage.allCases {
             XCTAssertNotNil(

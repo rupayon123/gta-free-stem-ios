@@ -27,7 +27,7 @@ Command-line archive and upload:
 
 ```bash
 xcodebuild archive -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'generic/platform=iOS' -archivePath build/GTAFreeSTEM.xcarchive -allowProvisioningUpdates
-xcodebuild -exportArchive -archivePath build/GTAFreeSTEM.xcarchive -exportOptionsPlist docs/AppStoreConnectExportOptions.plist -allowProvisioningUpdates
+xcodebuild -exportArchive -archivePath build/GTAFreeSTEM.xcarchive -exportOptionsPlist docs/AppStoreConnectExportOptions.plist -exportPath build/export -allowProvisioningUpdates
 ```
 
 Use `docs/AppStoreConnectExportOptions.plist` for command-line uploads. It disables Xcode's automatic App Store Connect build-number management so the uploaded package uses the exact `CFBundleVersion` from the repo.
@@ -77,8 +77,8 @@ Please test the full discovery flow: keyword search, city/region/age/language/ca
 - Open list and map views.
 - Turn on VoiceOver and confirm opportunity rows, map pins, filters, detail facts, and form buttons are understandable.
 - Tap a listing and check readability with large Dynamic Type.
-- Try saving while signed out and confirm the account prompt is clear.
-- Submit feedback and a missing opportunity.
+- Try account-only actions and confirm the app clearly says account features are not available in this build.
+- Submit feedback and a missing opportunity only if an online backend is connected for that build; otherwise confirm the local-only/unavailable message is clear.
 - Report any English text that still appears in app UI controls or system prompts.
 - Report opportunity content that remains English after switching languages; dynamic listing translations require the public feed to provide translated payloads.
 - Confirm the support URL and privacy policy URL open from App Store Connect metadata.
