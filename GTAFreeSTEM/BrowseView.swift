@@ -428,6 +428,7 @@ struct OpportunityRow: View {
         .cardSurface(padding: 16, cornerRadius: 26)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint(session.text("openDetailsHint"))
     }
 
     private var categoryIcon: String {

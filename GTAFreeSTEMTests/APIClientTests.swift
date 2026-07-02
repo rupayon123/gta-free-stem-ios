@@ -131,6 +131,7 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(AppText.shared.string("browse", language: .ko), "둘러보기")
         XCTAssertEqual(AppText.shared.string("settings", language: .bn), "সেটিংস")
         XCTAssertEqual(AppText.shared.string("filters", language: .hu), "Szűrők")
+        XCTAssertEqual(AppText.shared.string("openDetailsHint", language: .es), "Abre los detalles de la oportunidad.")
     }
 
     @MainActor
@@ -606,6 +607,19 @@ final class APIClientTests: XCTestCase {
         }
 
         XCTAssertTrue(violations.isEmpty, "Hardcoded visible SwiftUI strings must use session.text/AppText:\n\(violations.joined(separator: "\n"))")
+    }
+
+    func testOpportunityRowsExposeLocalizedOpenDetailsHint() throws {
+        let repoRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let browseView = repoRoot.appendingPathComponent("GTAFreeSTEM/BrowseView.swift")
+        let contents = try String(contentsOf: browseView)
+
+        XCTAssertTrue(
+            contents.contains(".accessibilityHint(session.text(\"openDetailsHint\"))"),
+            "Opportunity rows should expose a localized VoiceOver hint for opening detail pages."
+        )
     }
 
     private func opportunity(

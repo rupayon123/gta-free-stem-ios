@@ -10,7 +10,7 @@
 - App Store privacy manifest is bundled and declares app-only `UserDefaults` access with reason `CA92.1`, no tracking, and no collected data types.
 - Last verified on July 2, 2026:
   - Bundled iOS snapshot: 370 public opportunities, all carrying generated translation payloads for every non-English launch language.
-  - App UI strings: 177/177 keys for each launch language, with strict duplicate-English checks passing at 0 untranslated-equals-English strings.
+  - App UI strings: 178/178 keys for each launch language, with strict duplicate-English checks passing at 0 untranslated-equals-English strings.
   - Local companion public feed: 370 public opportunities, 100% generated summary/category/cost/title/description payload coverage.
   - Live public feed: 370 public opportunities, 370 translated payloads, and 100% live summary/category/cost/title/description coverage after Vercel production deployment `dpl_4SjBikyTa6FQrCyjRafTz2cgJPjX`.
   - Companion site `/privacy/` resolves in production with HTTP 200.
@@ -23,7 +23,7 @@
 - `LIVE_FEED_URL=file:///Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-opportunities/public/opportunities.json STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: passed, proving the local feed artifact clears strict multilingual coverage before deployment.
 - `STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: passed against production; live feed has 370/370 translated opportunity payloads and 100% summary/category/cost/title/description coverage.
 - `xcodebuild -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'platform=iOS Simulator,name=iPhone 17' build`: passed.
-- `xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -destination 'platform=iOS Simulator,name=iPhone 17'`: passed, 32 tests, 0 failures.
+- `xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -destination 'platform=iOS Simulator,name=iPhone 17'`: passed, 33 tests, 0 failures.
 - `xcodebuild archive -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'generic/platform=iOS' -archivePath build/GTAFreeSTEM.xcarchive -allowProvisioningUpdates`: passed after signing into Apple account `rupayon244@gmail.com`.
 - `xcodebuild -exportArchive -archivePath build/GTAFreeSTEM.xcarchive -exportOptionsPlist build/ExportOptions.plist -allowProvisioningUpdates`: passed and uploaded `GTAFreeSTEM.ipa` to App Store Connect for processing.
 - Companion repo `./node_modules/.bin/tsc --noEmit`: passed with bundled Node.
@@ -56,7 +56,7 @@
      - `bash docs/scripts/check-release-readiness.sh`
 
 3. **Accessibility readiness review**
-   - Confirm VoiceOver can read each row as a single label (title, org, city, ages).
+   - Confirm VoiceOver can read each row as a single label (title, org, city, ages) with the localized open-details hint.
    - Confirm map/list mode controls expose labels.
 
 4. **Update flow checklist**
