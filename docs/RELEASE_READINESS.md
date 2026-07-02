@@ -12,7 +12,7 @@
   - Bundled iOS snapshot: 370 public opportunities, all carrying generated translation payloads for every non-English launch language.
   - App UI strings: 177/177 keys for each launch language, with strict duplicate-English checks passing at 0 untranslated-equals-English strings.
   - Local companion public feed: 370 public opportunities, 100% generated summary/category/cost/title/description payload coverage.
-  - Live public feed: 370 public opportunities, 370 translated payloads, and 100% live summary/category/cost/title/description coverage after Vercel production deployment `dpl_GGsWFcgbgJyFVDWmHJW7p4cc7fM8`.
+  - Live public feed: 370 public opportunities, 370 translated payloads, and 100% live summary/category/cost/title/description coverage after Vercel production deployment `dpl_4SjBikyTa6FQrCyjRafTz2cgJPjX`.
   - Companion site `/privacy/` resolves in production with HTTP 200.
   - Release simulator build and unit tests pass.
   - Device archive and App Store Connect upload pass from this Mac with Apple team `FE33NM88XX`; the uploaded package is processing in App Store Connect.
@@ -31,7 +31,7 @@
 - Companion repo `pnpm run build`: passed, regenerates `public/opportunities.json`, and exports `/privacy`.
 - Companion repo `git push origin main`: passed after token-based HTTPS auth.
 - iOS repo `git push origin main`: passed after token-based HTTPS auth.
-- `pnpm dlx vercel deploy --prod --yes --scope rupayon-s-projects`: passed and aliased production to `https://gta-free-stem.vercel.app`.
+- `pnpm dlx vercel deploy --prod --yes --scope rupayon-s-projects`: passed and aliased production to `https://gta-free-stem.vercel.app`. Latest clean deployment used the tracked npm project path and excluded local pnpm metadata with `.vercelignore`.
 - Live `https://gta-free-stem.vercel.app/privacy/`: returns HTTP 200.
 - Live `https://gta-free-stem.vercel.app/opportunities.json`: returns 370 opportunities, 370 translated opportunity payloads.
 
@@ -41,8 +41,8 @@
    - The bundled iOS snapshot and local companion feed now include generated multilingual summaries, titles, descriptions, localized category metadata, localized cost metadata, and category tags for all 370 public listings.
    - Production `opportunities.json` now includes the same payloads.
    - Human/API-reviewed title, organization, address, source-specific tags, and richer description translations remain a quality upgrade after the generated-coverage release gate.
-   - Companion feed repo status on July 2, 2026: `/Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-opportunities` is pushed to GitHub at `1f71fbc`, and Vercel production deployment `dpl_GGsWFcgbgJyFVDWmHJW7p4cc7fM8` is live.
-   - The iOS repo is pushed to GitHub at `8413c96`, including the synced bundled opportunity snapshot and release-readiness docs.
+   - Companion feed repo status on July 2, 2026: `/Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-opportunities` is pushed to GitHub with the `.vercelignore` reproducibility guard and deployed to Vercel production at `dpl_4SjBikyTa6FQrCyjRafTz2cgJPjX` with 370/370 translated live listings.
+   - The iOS repo is pushed to GitHub with the synced bundled opportunity snapshot and release-readiness docs.
 
 2. **Release validation commands**
    - Build release:
