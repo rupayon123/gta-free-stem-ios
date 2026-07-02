@@ -49,6 +49,12 @@ The iOS app has an in-app privacy note in Settings, but App Store Connect should
 
 The app is intended for families and students and does not include ads, purchases, gambling, unrestricted web browsing, public chat, or public user-generated content feeds. External registration links open provider websites, so review App Store Connect age-rating questions against the final link handling before submission.
 
+## Screenshot Notes
+
+- The app supports iPhone and iPad, so prepare screenshots for both the 6.9-inch iPhone and 13-inch iPad display sets.
+- Use `bash docs/scripts/capture-app-store-screenshots.sh` to generate the current Release screenshot set under `build/app-store-screenshots/`.
+- Uploading screenshots to App Store Connect is a metadata change and should happen only after explicit confirmation.
+
 ## Current External Follow-ups
 
 - Public multilingual feed is live at `https://gta-free-stem.vercel.app/opportunities.json` with generated translation payloads for all public listings.
