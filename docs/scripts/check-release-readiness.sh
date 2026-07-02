@@ -173,6 +173,27 @@ if ! echo "$PRIVACY_MANIFEST_JSON" | jq -e '
 fi
 echo "PrivacyInfo.xcprivacy declares app-only UserDefaults use with no tracking."
 
+echo -e "\n=== App Store public URL checks ==="
+if command -v curl >/dev/null 2>&1; then
+  APP_STORE_URLS=(
+    "Marketing URL|https://gta-free-stem.vercel.app/"
+    "Support URL|https://gta-free-stem.vercel.app/accessibility-support/"
+    "Privacy URL|https://gta-free-stem.vercel.app/privacy/"
+  )
+  for entry in "${APP_STORE_URLS[@]}"; do
+    label="${entry%%|*}"
+    url="${entry#*|}"
+    status=$(curl -fsSIL --max-time 15 -o /dev/null -w "%{http_code}" "$url" || true)
+    if [ "$status" != "200" ]; then
+      echo "${label} failed: ${url} returned HTTP ${status:-unreachable}"
+      exit 1
+    fi
+    echo "${label}: ${url} returns HTTP 200"
+  done
+else
+  echo "Skipped App Store URL checks: curl is not installed."
+fi
+
 echo -e "\n=== Feed translation sanity check (sample) ==="
 SAMPLE_LANGS="es zh yue pa"
 for language in $SAMPLE_LANGS; do

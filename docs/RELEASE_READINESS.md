@@ -13,7 +13,7 @@
   - App UI strings: 178/178 keys for each launch language, with strict duplicate-English checks passing at 0 untranslated-equals-English strings.
   - Local companion public feed: 370 public opportunities, 100% generated summary/category/cost/title/description payload coverage.
   - Live public feed: 370 public opportunities, 370 translated payloads, and 100% live summary/category/cost/title/description coverage after Vercel production deployment `dpl_4SjBikyTa6FQrCyjRafTz2cgJPjX`.
-  - Companion site `/privacy/` resolves in production with HTTP 200.
+  - Companion site marketing, support, and privacy URLs resolve in production with HTTP 200.
   - Release simulator build and unit tests pass.
   - Device archive and App Store Connect upload pass from this Mac with Apple team `FE33NM88XX`; TestFlight candidate `1.0 (5)` is complete in Build Uploads, appears as `Ready to Submit`, and is attached to the internal `Zenin` tester group in App Store Connect.
 
@@ -34,6 +34,8 @@
 - iOS repo `git push origin main`: passed after token-based HTTPS auth.
 - `pnpm dlx vercel deploy --prod --yes --scope rupayon-s-projects`: passed and aliased production to `https://gta-free-stem.vercel.app`. Latest clean deployment used the tracked npm project path and excluded local pnpm metadata with `.vercelignore`.
 - Live `https://gta-free-stem.vercel.app/privacy/`: returns HTTP 200.
+- Live `https://gta-free-stem.vercel.app/accessibility-support/`: returns HTTP 200.
+- Live `https://gta-free-stem.vercel.app/`: returns HTTP 200.
 - Live `https://gta-free-stem.vercel.app/opportunities.json`: returns 370 opportunities, 370 translated opportunity payloads.
 
 ## What is still required for public release
@@ -68,7 +70,7 @@
 5. **App Store**
    - Verify `docs/TESTFLIGHT.md`, update App Store Connect metadata, and process a release build.
    - Use `docs/APP_STORE_METADATA.md` as the first metadata/privacy draft.
-   - Use `https://gta-free-stem.vercel.app/privacy/` for App Store Connect; the route is live.
+   - Use `https://gta-free-stem.vercel.app/`, `https://gta-free-stem.vercel.app/accessibility-support/`, and `https://gta-free-stem.vercel.app/privacy/` for App Store Connect marketing/support/privacy URLs; all three routes are live.
    - Apple Developer account `rupayon244@gmail.com` is signed into Xcode, team `FE33NM88XX` is available, and Xcode created/downloaded a provisioning profile for `com.rupayonhaldar.gtafreestem`.
    - The latest IPA upload succeeded for TestFlight candidate `1.0 (5)`; App Store Connect shows the upload as `Complete`, the build as `Ready to Submit`, and internal group `Zenin` attached with 1 invite.
    - Account-only features are release-safe in build `1.0 (5)`: unfinished Apple sign-in/token exchange UI is hidden, and account-dependent save/submission copy says the feature is not available in this build instead of exposing backend setup instructions.
