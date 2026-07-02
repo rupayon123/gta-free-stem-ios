@@ -12,8 +12,8 @@
   - Bundled iOS snapshot: 370 public opportunities, all carrying generated translation payloads for every non-English launch language.
   - App UI strings: 177/177 keys for each launch language, with strict duplicate-English checks passing at 0 untranslated-equals-English strings.
   - Local companion public feed: 370 public opportunities, 100% generated summary/category/cost/title/description payload coverage.
-  - Live public feed: 394 opportunities, 0 translated opportunity payloads until Vercel production redeploys the pushed companion feed repo.
-  - Companion site production build includes `/privacy`, but the live route still returns 404 until Vercel production redeploys.
+  - Live public feed: 370 public opportunities, 370 translated payloads, and 100% live summary/category/cost/title/description coverage after Vercel production deployment `dpl_GGsWFcgbgJyFVDWmHJW7p4cc7fM8`.
+  - Companion site `/privacy/` resolves in production with HTTP 200.
   - Release simulator build and unit tests pass.
   - Device archive and App Store Connect upload pass from this Mac with Apple team `FE33NM88XX`; the uploaded package is processing in App Store Connect.
 
@@ -21,7 +21,7 @@
 
 - `bash docs/scripts/check-release-readiness.sh`: passed in advisory mode.
 - `LIVE_FEED_URL=file:///Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-opportunities/public/opportunities.json STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: passed, proving the local feed artifact clears strict multilingual coverage before deployment.
-- `STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: still fails against production until the companion feed deploys because the live public feed has 0/394 translated opportunity payloads.
+- `STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: passed against production; live feed has 370/370 translated opportunity payloads and 100% summary/category/cost/title/description coverage.
 - `xcodebuild -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'platform=iOS Simulator,name=iPhone 17' build`: passed.
 - `xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -destination 'platform=iOS Simulator,name=iPhone 17'`: passed, 32 tests, 0 failures.
 - `xcodebuild archive -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'generic/platform=iOS' -archivePath build/GTAFreeSTEM.xcarchive -allowProvisioningUpdates`: passed after signing into Apple account `rupayon244@gmail.com`.
@@ -31,18 +31,18 @@
 - Companion repo `pnpm run build`: passed, regenerates `public/opportunities.json`, and exports `/privacy`.
 - Companion repo `git push origin main`: passed after token-based HTTPS auth.
 - iOS repo `git push origin main`: passed after token-based HTTPS auth.
-- Live `https://gta-free-stem.vercel.app/privacy/`: currently returns 404 until the companion repo deploys.
-- Live `https://gta-free-stem.vercel.app/opportunities.json`: currently 394 opportunities, 0 translated opportunity payloads.
+- `pnpm dlx vercel deploy --prod --yes --scope rupayon-s-projects`: passed and aliased production to `https://gta-free-stem.vercel.app`.
+- Live `https://gta-free-stem.vercel.app/privacy/`: returns HTTP 200.
+- Live `https://gta-free-stem.vercel.app/opportunities.json`: returns 370 opportunities, 370 translated opportunity payloads.
 
 ## What is still required for public release
 
 1. **Feed translation coverage**
    - The bundled iOS snapshot and local companion feed now include generated multilingual summaries, titles, descriptions, localized category metadata, localized cost metadata, and category tags for all 370 public listings.
-   - Public release still needs the deployed `opportunities.json` to include the same payloads.
+   - Production `opportunities.json` now includes the same payloads.
    - Human/API-reviewed title, organization, address, source-specific tags, and richer description translations remain a quality upgrade after the generated-coverage release gate.
-   - Local companion feed repo status on July 2, 2026: `/Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-opportunities` is pushed to GitHub at `f6dd050`.
-   - The iOS repo is pushed to GitHub at `36fbd51`, including the synced bundled opportunity snapshot.
-   - These changes are not live in production yet because Vercel has not created a new production deployment for the pushed companion feed commit.
+   - Companion feed repo status on July 2, 2026: `/Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-opportunities` is pushed to GitHub at `1f71fbc`, and Vercel production deployment `dpl_GGsWFcgbgJyFVDWmHJW7p4cc7fM8` is live.
+   - The iOS repo is pushed to GitHub at `d338c81`, including the synced bundled opportunity snapshot and release-readiness docs.
 
 2. **Release validation commands**
    - Build release:
@@ -67,7 +67,7 @@
 5. **App Store**
    - Verify `docs/TESTFLIGHT.md`, update App Store Connect metadata, and process a release build.
    - Use `docs/APP_STORE_METADATA.md` as the first metadata/privacy draft.
-   - Use `https://gta-free-stem.vercel.app/privacy/` for App Store Connect after the companion site deploy confirms the route is live.
+   - Use `https://gta-free-stem.vercel.app/privacy/` for App Store Connect; the route is live.
    - Apple Developer account `rupayon244@gmail.com` is signed into Xcode, team `FE33NM88XX` is available, and Xcode created/downloaded a provisioning profile for `com.rupayonhaldar.gtafreestem`.
    - The latest IPA upload succeeded; wait for App Store Connect processing, then attach the processed build to internal TestFlight testers.
 
