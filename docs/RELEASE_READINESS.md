@@ -15,7 +15,7 @@
   - Live public feed: 394 opportunities, 0 translated opportunity payloads until Vercel production redeploys the pushed companion feed repo.
   - Companion site production build includes `/privacy`, but the live route still returns 404 until Vercel production redeploys.
   - Release simulator build and unit tests pass.
-  - Device archive is blocked on this Mac because Xcode command-line signing has no Apple account or provisioning profile for `com.rupayonhaldar.gtafreestem`.
+  - Device archive and App Store Connect upload pass from this Mac with Apple team `FE33NM88XX`; the uploaded package is processing in App Store Connect.
 
 ## Latest command results
 
@@ -24,7 +24,8 @@
 - `STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: still fails against production until the companion feed deploys because the live public feed has 0/394 translated opportunity payloads.
 - `xcodebuild -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'platform=iOS Simulator,name=iPhone 17' build`: passed.
 - `xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -destination 'platform=iOS Simulator,name=iPhone 17'`: passed, 32 tests, 0 failures.
-- `xcodebuild archive -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'generic/platform=iOS' -archivePath build/GTAFreeSTEM.xcarchive -allowProvisioningUpdates`: failed with `No Accounts` and `No profiles for 'com.rupayonhaldar.gtafreestem' were found`.
+- `xcodebuild archive -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'generic/platform=iOS' -archivePath build/GTAFreeSTEM.xcarchive -allowProvisioningUpdates`: passed after signing into Apple account `rupayon244@gmail.com`.
+- `xcodebuild -exportArchive -archivePath build/GTAFreeSTEM.xcarchive -exportOptionsPlist build/ExportOptions.plist -allowProvisioningUpdates`: passed and uploaded `GTAFreeSTEM.ipa` to App Store Connect for processing.
 - Companion repo `./node_modules/.bin/tsc --noEmit`: passed with bundled Node.
 - Companion repo `./node_modules/.bin/tsx scripts/export-public-opportunities.ts && ./node_modules/.bin/tsx scripts/qa-check.ts`: passed; QA now rejects non-English translation payloads that are English copies.
 - Companion repo `pnpm run build`: passed, regenerates `public/opportunities.json`, and exports `/privacy`.
@@ -67,10 +68,8 @@
    - Verify `docs/TESTFLIGHT.md`, update App Store Connect metadata, and process a release build.
    - Use `docs/APP_STORE_METADATA.md` as the first metadata/privacy draft.
    - Use `https://gta-free-stem.vercel.app/privacy/` for App Store Connect after the companion site deploy confirms the route is live.
-   - Add an Apple Developer account in Xcode Settings > Accounts, select team `FE33NM88XX`, and let Xcode create/download a profile for `com.rupayonhaldar.gtafreestem`.
-   - Current archive command failure:
-     - `No Accounts: Add a new account in Accounts settings.`
-     - `No profiles for 'com.rupayonhaldar.gtafreestem' were found.`
+   - Apple Developer account `rupayon244@gmail.com` is signed into Xcode, team `FE33NM88XX` is available, and Xcode created/downloaded a provisioning profile for `com.rupayonhaldar.gtafreestem`.
+   - The latest IPA upload succeeded; wait for App Store Connect processing, then attach the processed build to internal TestFlight testers.
 
 ## Mac setup to keep development unblocked
 
@@ -81,7 +80,7 @@
 Current Mac status:
 
 - Xcode is installed and command-line builds pass.
-- Command-line archive signing is not ready because Xcode has no Apple account configured.
+- Command-line archive signing and App Store Connect upload are working after Apple account login.
 - Git is installed.
 - Homebrew is not installed.
 - GitHub CLI (`gh`) is not installed.

@@ -51,7 +51,7 @@ The app is intended for families and students and does not include ads, purchase
 
 ## Current External Blockers
 
-- Command-line archive is blocked on this Mac until Xcode has an Apple Developer account and a provisioning profile for `com.rupayonhaldar.gtafreestem`.
 - Public multilingual release is blocked until Vercel production redeploys the companion feed and publishes translated opportunity payloads to `https://gta-free-stem.vercel.app/opportunities.json`.
 - App Store privacy URL is blocked until Vercel production redeploys the companion site's committed `/privacy/` route.
 - Full dynamic content translation still needs reviewed title, organization, address, tag, and richer description translations in the companion feed pipeline.
+- TestFlight upload is working from this Mac; the latest uploaded package should finish processing in App Store Connect before testers are added.
