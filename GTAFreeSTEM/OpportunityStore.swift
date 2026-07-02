@@ -39,7 +39,7 @@ final class OpportunityStore: ObservableObject {
     @Published var opportunities: [Opportunity] = []
     @Published var activeCount = 0
     @Published var lastUpdated: String?
-    @Published var dataSourceLabel = DataSource.publicLiveFeed
+    @Published var dataSourceLabel: DataSource = .publicLiveFeed
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var huntPhase: HuntPhase = .idle
@@ -47,24 +47,45 @@ final class OpportunityStore: ObservableObject {
     @Published var lastSuccessfulHuntAt: Date?
     @Published var newMatchesCount = 0
     @Published var notificationStatusMessage: String?
+    @Published var didRestoreLastHunt = false
+    @Published var shouldShowAccountRequiredAlert = false
 
     private let api: APIClient
     private let cacheKey = "latest-opportunities"
     private let huntKey = "last-hunt"
     private let knownIDsKey = "knownOpportunityIDs"
+    private let lastNotificationKey = "lastNewOpportunityNotificationAt"
+    private let minimumRefreshInterval: TimeInterval = 1.0
+    private let minimumNotificationInterval: TimeInterval = 60 * 60
+    private var lastNotificationSentAt: Date?
+    private var lastRefreshStartedAt: Date?
 
     init(api: APIClient) {
         self.api = api
+
+        if let value = UserDefaults.standard.object(forKey: lastNotificationKey) as? TimeInterval {
+            lastNotificationSentAt = Date(timeIntervalSince1970: value)
+        }
     }
 
     func refresh(cache context: ModelContext? = nil, prioritized: Bool = false, notifyOnNewMatches: Bool = false) async {
-        lastHuntStartedAt = .now
+        guard shouldStartRefresh() else { return }
+        let now = Date()
+        lastHuntStartedAt = now
+        lastRefreshStartedAt = now
+        newMatchesCount = 0
+        restoreLastHuntIfNeeded(in: context)
         huntPhase = .hunting
         isLoading = true
         defer { isLoading = false }
         do {
             if prioritized {
-                try? await api.requestPrioritizedHunt(query: query, mode: mode, filters: filters)
+                do {
+                    try await api.requestPrioritizedHunt(query: query, mode: mode, filters: filters)
+                } catch {
+                    // Best-effort kick for backend refresh; keep main feed fetch resilient.
+                    errorMessage = Self.localizedMessage(for: error)
+                }
             }
             let response = try await api.opportunities(query: query, mode: mode, filters: filters)
             let newCount = updateKnownIDs(with: response.data)
@@ -76,7 +97,7 @@ final class OpportunityStore: ObservableObject {
             lastSuccessfulHuntAt = .now
             huntPhase = .fresh
             errorMessage = nil
-            if notifyOnNewMatches, newCount > 0 {
+            if shouldNotifyOnBackgroundMatch(count: newCount, notifyOnNewMatches: notifyOnNewMatches) {
                 await sendNewMatchNotification(count: newCount)
             }
         } catch {
@@ -92,9 +113,50 @@ final class OpportunityStore: ObservableObject {
                     errorMessage = nil
                 } catch {
                     huntPhase = .offline
-                    errorMessage = error.localizedDescription
+                    errorMessage = Self.localized("serverResponseInvalid")
                 }
             }
+        }
+    }
+
+    func restoreLastHuntIfNeeded(in context: ModelContext?) {
+        guard !didRestoreLastHunt else { return }
+        guard let context else { return }
+        didRestoreLastHunt = true
+
+        do {
+            let descriptor = FetchDescriptor<SavedHuntRecord>(
+                predicate: #Predicate { record in record.cacheKey == huntKey },
+                sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
+            )
+            guard let record = try context.fetch(descriptor).first else { return }
+
+            query = record.query
+            mode = SearchMode(rawValue: record.modeRawValue) ?? mode
+            filters = OpportunityFilters(
+                region: record.region,
+                city: record.city,
+                category: record.category,
+                age: record.age,
+                language: record.language,
+                latitude: record.latitude,
+                longitude: record.longitude,
+                distanceKm: record.distanceKm,
+                sort: SearchSort(rawValue: record.sortRawValue) ?? filters.sort,
+                includeNewFinds: record.includeNewFinds,
+                volunteerHours: record.volunteerHours,
+                coop: record.coop,
+                mentorship: record.mentorship,
+                scholarships: record.scholarships,
+                blackFocused: record.blackFocused,
+                girlsFocused: record.girlsFocused,
+                indigenousFocused: record.indigenousFocused,
+                leadership: record.leadership
+            )
+            restoreCachedResultsIfAvailable(in: context)
+        } catch {
+            errorMessage = Self.localizedMessage(for: error)
+            didRestoreLastHunt = false
         }
     }
 
@@ -127,7 +189,7 @@ final class OpportunityStore: ObservableObject {
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
             notificationStatusMessage = granted ? Self.localized("alertsOn") : Self.localized("alertsOff")
         } catch {
-            notificationStatusMessage = error.localizedDescription
+            notificationStatusMessage = Self.localizedMessage(for: error)
         }
     }
 
@@ -135,12 +197,14 @@ final class OpportunityStore: ObservableObject {
         do {
             try await api.save(opportunityID: opportunity.id, token: token)
             errorMessage = Self.localized("saved")
+            shouldShowAccountRequiredAlert = false
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = Self.localizedMessage(for: error)
+            shouldShowAccountRequiredAlert = (error as? APIError) == .accountRequired
         }
     }
 
-    private func apply(_ response: OpportunityListResponse, source: String) {
+    private func apply(_ response: OpportunityListResponse, source: DataSource) {
         opportunities = response.data
         activeCount = response.meta?.activeCount ?? response.data.count
         lastUpdated = response.meta?.lastUpdated
@@ -162,7 +226,7 @@ final class OpportunityStore: ObservableObject {
             }
             try context.save()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = Self.localizedMessage(for: error)
         }
     }
 
@@ -203,14 +267,29 @@ final class OpportunityStore: ObservableObject {
                 record.longitude = filters.longitude
                 record.distanceKm = filters.distanceKm
                 record.sortRawValue = filters.sort.rawValue
+                record.includeNewFinds = filters.includeNewFinds
+                record.volunteerHours = filters.volunteerHours
+                record.coop = filters.coop
+                record.mentorship = filters.mentorship
+                record.scholarships = filters.scholarships
+                record.blackFocused = filters.blackFocused
+                record.girlsFocused = filters.girlsFocused
+                record.indigenousFocused = filters.indigenousFocused
+                record.leadership = filters.leadership
                 record.updatedAt = .now
             } else {
                 context.insert(SavedHuntRecord(cacheKey: huntKey, query: query, mode: mode, filters: filters))
             }
             try context.save()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = Self.localizedMessage(for: error)
         }
+    }
+
+    private func restoreCachedResultsIfAvailable(in context: ModelContext) {
+        guard opportunities.isEmpty, let cached = cachedResponse(from: context) else { return }
+        apply(cached, source: DataSource.savedAppCache)
+        huntPhase = .cached
     }
 
     private func markSeen(_ opportunities: [Opportunity], in context: ModelContext?) {
@@ -227,7 +306,7 @@ final class OpportunityStore: ObservableObject {
             }
             try context.save()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = Self.localizedMessage(for: error)
         }
     }
 
@@ -235,8 +314,32 @@ final class OpportunityStore: ObservableObject {
         let ids = Set(opportunities.map(\.id))
         let known = Set(UserDefaults.standard.stringArray(forKey: knownIDsKey) ?? [])
         let newIDs = ids.subtracting(known)
-        UserDefaults.standard.set(Array(known.union(ids)).suffix(2_500), forKey: knownIDsKey)
+        let recentKnownIDs = Array(Array(known.union(ids)).suffix(2_500))
+        UserDefaults.standard.set(recentKnownIDs, forKey: knownIDsKey)
         return newIDs.count
+    }
+
+    private func shouldStartRefresh() -> Bool {
+        if isLoading {
+            return false
+        }
+
+        if let lastRefreshStartedAt, Date().timeIntervalSince(lastRefreshStartedAt) < minimumRefreshInterval {
+            return false
+        }
+
+        return true
+    }
+
+    private func shouldNotifyOnBackgroundMatch(count: Int, notifyOnNewMatches: Bool) -> Bool {
+        guard notifyOnNewMatches else { return false }
+        guard count > 0 else { return false }
+        if let sentAt = lastNotificationSentAt, Date().timeIntervalSince(sentAt) < minimumNotificationInterval {
+            return false
+        }
+        lastNotificationSentAt = .now
+        UserDefaults.standard.set(lastNotificationSentAt?.timeIntervalSince1970, forKey: lastNotificationKey)
+        return true
     }
 
     private func sendNewMatchNotification(count: Int) async {
@@ -257,12 +360,23 @@ final class OpportunityStore: ObservableObject {
         let language = AppLanguage.normalized(stored ?? AppLanguage.en.rawValue)
         return AppText.shared.string(key, language: language)
     }
+
+    private static func localizedMessage(for error: Error) -> String {
+        if let localizedError = error as? LocalizedError,
+           let message = localizedError.errorDescription,
+           !message.isEmpty {
+            return message
+        }
+
+        return localized("serverResponseInvalid")
+    }
 }
 
-enum DataSource {
-    static let publicLiveFeed = "Public live feed"
-    static let previewDatabase = "Preview database"
-    static let savedAppCache = "Saved app cache"
+enum DataSource: String {
+    case publicLiveFeed = "publicLiveFeed"
+    case previewDatabase = "previewDatabase"
+    case savedAppCache = "savedAppCache"
+    case railsAPI = "railsAPI"
 }
 
 final class HuntLocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
@@ -306,7 +420,7 @@ final class HuntLocationManager: NSObject, ObservableObject, CLLocationManagerDe
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        message = error.localizedDescription
+        message = Self.localized("locationUnavailable")
     }
 
     private static func localized(_ key: String) -> String {

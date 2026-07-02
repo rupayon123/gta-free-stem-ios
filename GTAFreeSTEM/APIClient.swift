@@ -27,6 +27,25 @@ final class APIClient: @unchecked Sendable {
     let feedURL: URL
     private let session: URLSession
     private static let maxResponseBytes = 5_000_000
+    private static let bundledTranslationIndex: [String: [String: OpportunityTranslation]] = {
+        guard let url = AppResources.url(forResource: "opportunities", withExtension: "json") else {
+            return [:]
+        }
+        guard let data = try? Data(contentsOf: url) else {
+            return [:]
+        }
+        guard let response = try? JSONDecoder().decode(OpportunityListResponse.self, from: data) else {
+            return [:]
+        }
+
+        var index: [String: [String: OpportunityTranslation]] = [:]
+        for opportunity in response.data where !opportunity.id.isEmpty {
+            guard !opportunity.translations.isEmpty else { continue }
+            index[opportunity.id] = opportunity.translations
+        }
+
+        return index
+    }()
 
     init(
         baseURL: URL = URL(string: "https://gta-free-stem.onrender.com/api/v1")!,
@@ -52,12 +71,13 @@ final class APIClient: @unchecked Sendable {
 
     func opportunities(query: String, mode: SearchMode, filters: OpportunityFilters) async throws -> OpportunityListResponse {
         let response: OpportunityListResponse = try await get(feedURL)
-        let filtered = LocalOpportunitySnapshot.filter(response.data, query: query, mode: mode, filters: filters)
+        let localizedResponse = applyBundledTranslations(from: response)
+        let filtered = LocalOpportunitySnapshot.filter(localizedResponse.data, query: query, mode: mode, filters: filters)
         return OpportunityListResponse(
             data: filtered,
             meta: OpportunityListResponse.Metadata(
                 activeCount: filtered.count,
-                lastUpdated: response.meta?.lastUpdated
+                lastUpdated: localizedResponse.meta?.lastUpdated
             )
         )
     }
@@ -91,6 +111,18 @@ final class APIClient: @unchecked Sendable {
         items.append(URLQueryItem(name: "sort", value: filters.sort.rawValue))
         items.append(URLQueryItem(name: "includeNewFinds", value: filters.includeNewFinds ? "true" : "false"))
         items.append(URLQueryItem(name: "limit", value: "200"))
+        if filters.volunteerHours {
+            items.append(URLQueryItem(name: "volunteerHours", value: "true"))
+        }
+        if filters.coop {
+            items.append(URLQueryItem(name: "coop", value: "true"))
+        }
+        if filters.mentorship {
+            items.append(URLQueryItem(name: "mentorship", value: "true"))
+        }
+        if filters.scholarships {
+            items.append(URLQueryItem(name: "scholarships", value: "true"))
+        }
         if filters.blackFocused {
             items.append(URLQueryItem(name: "blackFocused", value: "true"))
         }
@@ -119,7 +151,8 @@ final class APIClient: @unchecked Sendable {
         }
         components?.queryItems = items
         guard let url = components?.url else { throw APIError.badURL }
-        return try await get(url)
+        let response: OpportunityListResponse = try await get(url)
+        return applyBundledTranslations(from: response)
     }
 
     func requestPrioritizedHunt(query: String, mode: SearchMode, filters: OpportunityFilters) async throws {
@@ -136,7 +169,16 @@ final class APIClient: @unchecked Sendable {
             "age": filters.age,
             "language": filters.language,
             "distance_km": String(filters.distanceKm),
-            "sort": filters.sort.rawValue
+            "sort": filters.sort.rawValue,
+            "include_new_finds": String(filters.includeNewFinds),
+            "volunteer_hours": String(filters.volunteerHours),
+            "coop": String(filters.coop),
+            "mentorship": String(filters.mentorship),
+            "scholarships": String(filters.scholarships),
+            "black_focused": String(filters.blackFocused),
+            "girls_focused": String(filters.girlsFocused),
+            "indigenous_focused": String(filters.indigenousFocused),
+            "leadership": String(filters.leadership)
         ]
         if let latitude = filters.latitude, let longitude = filters.longitude {
             payload["latitude"] = String(latitude)
@@ -170,6 +212,57 @@ final class APIClient: @unchecked Sendable {
             ]
         ]
         _ = try await send(url: url, method: "POST", token: token, body: body) as APIStatusResponse
+    }
+
+    private func applyBundledTranslations(from response: OpportunityListResponse) -> OpportunityListResponse {
+        let mergedData = response.data.map { augment(withBundledTranslations: $0) }
+        return OpportunityListResponse(
+            data: mergedData,
+            meta: response.meta
+        )
+    }
+
+    private func augment(withBundledTranslations opportunity: Opportunity) -> Opportunity {
+        guard let bundled = Self.bundledTranslationIndex[opportunity.id] else {
+            return opportunity
+        }
+        var translations = bundled
+        for (key, remoteTranslation) in opportunity.translations {
+            let fallback = bundled[key] ?? bundled[AppLanguage.normalized(key).rawValue]
+            translations[key] = remoteTranslation.merged(with: fallback)
+            translations[AppLanguage.normalized(key).rawValue] = translations[key]
+        }
+        let mergedTranslations = translations.compactMapValues { $0.hasContent ? $0 : nil }
+        return Opportunity(
+            id: opportunity.id,
+            title: opportunity.title,
+            organization: opportunity.organization,
+            description: opportunity.description,
+            summary: opportunity.summary,
+            category: opportunity.category,
+            city: opportunity.city,
+            region: opportunity.region,
+            address: opportunity.address,
+            latitude: opportunity.latitude,
+            longitude: opportunity.longitude,
+            startDate: opportunity.startDate,
+            endDate: opportunity.endDate,
+            deadline: opportunity.deadline,
+            ageMin: opportunity.ageMin,
+            ageMax: opportunity.ageMax,
+            language: opportunity.language,
+            cost: opportunity.cost,
+            sourceUrl: opportunity.sourceUrl,
+            registrationUrl: opportunity.registrationUrl,
+            status: opportunity.status,
+            volunteerHoursEligible: opportunity.volunteerHoursEligible,
+            coopEligible: opportunity.coopEligible,
+            tags: opportunity.tags,
+            distanceKm: opportunity.distanceKm,
+            isNewFind: opportunity.isNewFind,
+            sourceConfidence: opportunity.sourceConfidence,
+            translations: mergedTranslations
+        )
     }
 
     func deleteAccount(token: String?) async throws {

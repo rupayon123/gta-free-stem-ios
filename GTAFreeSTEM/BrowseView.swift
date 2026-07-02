@@ -110,6 +110,9 @@ struct BrowseView: View {
                     await store.refresh(cache: modelContext)
                 }
             }
+            .onChange(of: session.language) { _, _ in
+                Task { await store.refresh(cache: modelContext) }
+            }
             .onReceive(locationManager.$coordinate.compactMap { $0 }) { coordinate in
                 store.useCurrentLocation(coordinate)
                 Task { await store.refresh(cache: modelContext, prioritized: true) }
@@ -279,6 +282,13 @@ struct BrowseView: View {
                     .font(.caption.weight(.bold))
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
             }
+
+            if let message = store.errorMessage {
+                Text(message)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .cardSurface(padding: 16, cornerRadius: 30)
     }
@@ -307,9 +317,9 @@ struct BrowseView: View {
         VStack(alignment: .leading, spacing: 12) {
             StorySectionTitle(text: session.text("map"), systemImage: "map")
             Map {
-                ForEach(store.opportunities.filter { $0.latitude != nil && $0.longitude != nil }) { opportunity in
+                ForEach(OpportunityMapProjection.pins(from: store.opportunities)) { opportunity in
                     Marker(
-                        opportunity.title,
+                        "\(session.title(for: opportunity)) · \(session.city(for: opportunity))",
                         coordinate: CLLocationCoordinate2D(latitude: opportunity.latitude ?? 0, longitude: opportunity.longitude ?? 0)
                     )
                     .tint(Brand.coral)
@@ -317,6 +327,8 @@ struct BrowseView: View {
             }
             .frame(minHeight: 520)
             .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .accessibilityLabel(session.text("map"))
+            .accessibilityHint(session.text("sourceDetails"))
 
             Text(session.text("sourceDetails"))
                 .font(.caption.weight(.semibold))
@@ -333,7 +345,7 @@ struct BrowseView: View {
             session.text("previewDatabase")
         case DataSource.savedAppCache:
             session.text("savedAppCache")
-        default:
+        case DataSource.railsAPI:
             session.text("railsAPI")
         }
     }
@@ -378,17 +390,17 @@ struct OpportunityRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                StickerBadge(text: opportunity.category, color: categoryColor, systemImage: categoryIcon)
+                StickerBadge(text: session.categoryName(for: opportunity), color: categoryColor, systemImage: categoryIcon)
                 Spacer()
                 Image(systemName: "chevron.right.circle.fill")
                     .font(.title3)
                     .foregroundStyle(Brand.coral)
             }
 
-            Text(opportunity.title)
+            Text(session.title(for: opportunity))
                 .font(.title3.weight(.black))
                 .foregroundStyle(Brand.outline(for: colorScheme))
-            Text("\(opportunity.organization) · \(opportunity.city)")
+            Text("\(session.organization(for: opportunity)) · \(session.city(for: opportunity))")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Brand.mutedText(for: colorScheme))
 
@@ -398,7 +410,11 @@ struct OpportunityRow: View {
                     StickerBadge(text: session.text("newFind"), color: Brand.sun, systemImage: "sparkles")
                 }
                 if let distanceKm = opportunity.distanceKm {
-                    StickerBadge(text: String(format: "%.1f km", distanceKm), color: Brand.lavender, systemImage: "mappin.and.ellipse")
+                    StickerBadge(
+                        text: session.text("distanceRadius").replacingOccurrences(of: "{km}", with: String(format: "%.1f", distanceKm)),
+                        color: Brand.lavender,
+                        systemImage: "mappin.and.ellipse"
+                    )
                 }
                 if opportunity.volunteerHoursEligible {
                     StickerBadge(text: session.text("volunteerHours"), color: Brand.moss, systemImage: "checkmark.seal")
@@ -410,6 +426,8 @@ struct OpportunityRow: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardSurface(padding: 16, cornerRadius: 26)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
     }
 
     private var categoryIcon: String {
@@ -426,6 +444,30 @@ struct OpportunityRow: View {
         if opportunity.category.localizedCaseInsensitiveContains("science") { return Brand.sky }
         if opportunity.category.localizedCaseInsensitiveContains("competition") { return Brand.coral }
         return Brand.sun
+    }
+
+    private var accessibilityLabel: String {
+        let ageRange = "\(opportunity.ageMin)\(opportunity.ageMax.map { "–\($0)" } ?? "+")"
+        var parts = [
+            "\(session.text("details")): \(session.title(for: opportunity))",
+            "\(session.text("category")): \(session.categoryName(for: opportunity))",
+            "\(session.text("hostOrgName")): \(session.organization(for: opportunity))",
+            "\(session.text("ages")) \(ageRange)",
+            "\(session.text("city")) \(session.city(for: opportunity))"
+        ]
+        if opportunity.status == "needs_review" || opportunity.isNewFind == true {
+            parts.append(session.text("newFind"))
+        }
+        if let distanceKm = opportunity.distanceKm {
+            parts.append(session.text("distanceRadius").replacingOccurrences(of: "{km}", with: String(format: "%.1f", distanceKm)))
+        }
+        if opportunity.volunteerHoursEligible {
+            parts.append(session.text("volunteerHours"))
+        }
+        if opportunity.coopEligible {
+            parts.append(session.text("coop"))
+        }
+        return parts.joined(separator: ". ")
     }
 }
 
@@ -473,7 +515,7 @@ struct OpportunityFilterSheet: View {
                     Picker(session.text("category"), selection: $filters.category) {
                         Text(session.text("allCategories")).tag("All")
                         ForEach(categories, id: \.self) { category in
-                            Text(categoryLabel(category)).tag(category)
+                            Text(session.categoryName(category)).tag(category)
                         }
                     }
                 }
@@ -503,6 +545,10 @@ struct OpportunityFilterSheet: View {
                         }
                     }
                     Toggle(session.text("includeNewFinds"), isOn: $filters.includeNewFinds)
+                    Toggle(session.text("volunteerHours"), isOn: $filters.volunteerHours)
+                    Toggle(session.text("coop"), isOn: $filters.coop)
+                    Toggle(session.text("mentorship"), isOn: $filters.mentorship)
+                    Toggle(session.categoryName("Scholarships"), isOn: $filters.scholarships)
                     VStack(alignment: .leading, spacing: 8) {
                         Text(session.text("distanceRadius").replacingOccurrences(of: "{km}", with: "\(Int(filters.distanceKm))"))
                             .font(.headline.weight(.bold))
@@ -543,17 +589,6 @@ struct OpportunityFilterSheet: View {
         .presentationDragIndicator(.visible)
     }
 
-    private func categoryLabel(_ category: String) -> String {
-        let key = "category" + category
-            .replacingOccurrences(of: "&", with: "And")
-            .replacingOccurrences(of: "/", with: " ")
-            .components(separatedBy: CharacterSet.alphanumerics.inverted)
-            .filter { !$0.isEmpty }
-            .map { $0.prefix(1).uppercased() + $0.dropFirst() }
-            .joined()
-        let localized = session.text(key)
-        return localized == key ? category : localized
-    }
 }
 
 private struct HuntRefreshButton: View {
@@ -594,6 +629,6 @@ private struct HuntRefreshButton: View {
                 .onChanged { _ in isPressed = true }
                 .onEnded { _ in isPressed = false }
         )
-        .accessibilityLabel(AppText.shared.string("refreshHunt", language: AppLanguage.normalized(UserDefaults.standard.string(forKey: "preferredLanguageCode") ?? AppLanguage.en.rawValue)))
+        .accessibilityLabel(title)
     }
 }

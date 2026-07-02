@@ -179,7 +179,7 @@ struct BrandLogoImage: View {
                     tapPulse += 1
                 }
             }
-            .accessibilityLabel("GTA FREE STEM")
+            .accessibilityLabel(AppText.shared.string("brand", language: AppLanguage.normalized(UserDefaults.standard.string(forKey: "preferredLanguageCode") ?? AppLanguage.en.rawValue)))
     }
 }
 

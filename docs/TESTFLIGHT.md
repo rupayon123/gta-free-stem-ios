@@ -10,6 +10,7 @@ Use this when you are ready to let friends test the iOS app through your Apple D
 4. Under Signing & Capabilities, choose your Apple Developer Team and keep automatic signing on.
 5. In App Store Connect, create an app record named `GTA FREE STEM`.
 6. Add the support URL, privacy policy URL, age rating, category, and App Privacy answers.
+7. Use `docs/APP_STORE_METADATA.md` as the metadata/privacy draft.
 
 ## Upload A Build
 
@@ -19,6 +20,14 @@ Use this when you are ready to let friends test the iOS app through your Apple D
 4. Select App Store Connect, then Upload.
 5. Let Xcode manage signing unless you have a reason to use manual signing.
 6. Wait for App Store Connect processing to finish.
+
+Command-line archive check:
+
+```bash
+xcodebuild archive -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'generic/platform=iOS' -archivePath build/GTAFreeSTEM.xcarchive -allowProvisioningUpdates
+```
+
+If this fails with `No Accounts` or `No profiles`, open Xcode > Settings > Accounts, add the Apple Developer account, choose team `FE33NM88XX`, and allow automatic signing for `com.rupayonhaldar.gtafreestem`.
 
 ## Internal Testers
 
@@ -47,13 +56,21 @@ Friends install Apple’s TestFlight app, open the invite, install GTA FREE STEM
 ## What To Ask Friends To Test
 
 - Search by city, age, category, and high-school pathway.
+- Search with multi-word terms like `robotics Toronto`, then switch sort between best match, soonest, and nearest.
+- Apply and reset filters for program language, volunteer hours, co-op/SHSM, mentorship, scholarships, equity focus, and new finds.
 - Try nearby search and deny location permission once to confirm the fallback is clear.
+- Refresh repeatedly and confirm the app does not duplicate results, freeze, or show conflicting loading states.
+- Open the app offline after one successful refresh and confirm saved results still appear.
 - Switch language and dark mode.
+- Check Arabic, Farsi/Persian, or Urdu for right-to-left layout.
 - Open list and map views.
-- Tap a listing and check readability.
+- Turn on VoiceOver and confirm opportunity rows, map pins, filters, detail facts, and form buttons are understandable.
+- Tap a listing and check readability with large Dynamic Type.
 - Try saving while signed out and confirm the account prompt is clear.
 - Submit feedback and a missing opportunity.
 - Report any English text that still appears in app UI controls or system prompts.
+- Report opportunity content that remains English after switching languages; dynamic listing translations require the public feed to provide translated payloads.
+- Confirm the support URL and privacy policy URL open from App Store Connect metadata.
 
 ## Cost Control
 

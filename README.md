@@ -10,7 +10,7 @@ Native iOS app for discovering free STEM opportunities across the Greater Toront
 ## What It Does
 
 - Browse free GTA STEM opportunities without signing in.
-- Search by keyword, city, region, age, category, language, high-school pathway, and distance.
+- Search by keyword, city, region, age, category, language, high-school pathway, distance, volunteer hours, co-op/SHSM, mentorship, scholarships, and new finds.
 - Switch between list and map discovery with MapKit.
 - Use one-time nearby search through Core Location.
 - Save recent hunts and public listing cache with SwiftData.
@@ -46,12 +46,47 @@ The current free engine path is:
 
 Apple resources strengthen the app side through MapKit, Core Location, SwiftData, BackgroundTasks, UserNotifications, TestFlight, and Xcode Cloud. The actual web crawling still runs outside iOS because iOS apps cannot scrape public websites continuously in the background.
 
+## Translated Opportunity Feed
+
+The iOS app supports translated dynamic opportunity fields with English fallback. Existing English-only listings still work, and translated listings can add a `translations` object keyed by app language code or locale identifier.
+
+```json
+{
+  "id": "library-robotics",
+  "title": "Robotics Club",
+  "organization": "Public Library",
+  "description": "Build robots.",
+  "summary": "Build robots.",
+  "category": "Coding & Robotics",
+  "city": "Toronto",
+  "region": "Toronto",
+  "language": ["en"],
+  "translations": {
+    "es": {
+      "title": "Club de robotica",
+      "organization": "Biblioteca publica",
+      "description": "Construye robots.",
+      "summary": "Construye robots.",
+      "category": "Programacion y robotica",
+      "city": "Toronto",
+      "region": "Toronto",
+      "cost": "Gratis",
+      "tags": ["robotica"]
+    }
+  }
+}
+```
+
+Search uses both translated fields and English fallback/source fields, so families can search in their selected app language while English source terms still work. The bundled snapshot currently includes translated payloads for only one listing and relies on fallbacks for the rest. Full production listing translation still requires the deployed companion feed to publish reviewed translated titles, organizations, addresses, source-specific tags, and richer descriptions.
+
 ## Project Layout
 
 - `GTAFreeSTEM/` - app source, design system, views, models, API client, resources, and assets.
 - `GTAFreeSTEMTests/` - decoding, localization, permission-copy, security, and local snapshot tests.
 - `project.yml` - XcodeGen project source.
 - `docs/TESTFLIGHT.md` - TestFlight sharing guide.
+- `docs/APP_STORE_METADATA.md` - App Store Connect metadata, privacy, and signing notes.
+- `docs/RELEASE_READINESS.md` - current release blockers and validation checklist.
 
 ## Run Locally
 

@@ -129,7 +129,7 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
             .task {
-                if store.opportunities.isEmpty {
+                if store.opportunities.isEmpty, !AppRuntime.isRunningTests {
                     await store.refresh(cache: modelContext)
                 }
             }
@@ -211,33 +211,42 @@ struct HomeView: View {
     }
 
     private var statusCard: some View {
-        HStack(spacing: 14) {
-            Image(systemName: store.isLoading ? "arrow.triangle.2.circlepath.circle.fill" : "checkmark.seal.fill")
-                .font(.system(size: 34, weight: .black))
-                .foregroundStyle(Brand.coral)
-                .symbolEffect(.pulse, value: store.isLoading)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 14) {
+                Image(systemName: store.isLoading ? "arrow.triangle.2.circlepath.circle.fill" : "checkmark.seal.fill")
+                    .font(.system(size: 34, weight: .black))
+                    .foregroundStyle(Brand.coral)
+                    .symbolEffect(.pulse, value: store.isLoading)
 
-            VStack(alignment: .leading, spacing: 5) {
-                Text("\(store.activeCount) \(session.text("visible"))")
-                    .font(.title3.weight(.black))
-                    .foregroundStyle(Brand.outline(for: colorScheme))
-                Text("\(session.text("loadedFrom")) \(localizedDataSource)")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(Brand.mutedText(for: colorScheme))
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("\(store.activeCount) \(session.text("visible"))")
+                        .font(.title3.weight(.black))
+                        .foregroundStyle(Brand.outline(for: colorScheme))
+                    Text("\(session.text("loadedFrom")) \(localizedDataSource)")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(Brand.mutedText(for: colorScheme))
+                }
+
+                Spacer()
+
+                Button {
+                    Task { await store.refresh(cache: modelContext, prioritized: true) }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.headline.weight(.black))
+                }
+                .buttonStyle(StoryButtonStyle(kind: .quiet))
+                .accessibilityLabel(session.text("refreshResearch"))
             }
+            .cardSurface(padding: 16, cornerRadius: 28)
 
-            Spacer()
-
-            Button {
-                Task { await store.refresh(cache: modelContext, prioritized: true) }
-            } label: {
-                Image(systemName: "arrow.clockwise")
-                    .font(.headline.weight(.black))
+            if let message = store.errorMessage {
+                Text(message)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(StoryButtonStyle(kind: .quiet))
-            .accessibilityLabel(session.text("refreshResearch"))
         }
-        .cardSurface(padding: 16, cornerRadius: 28)
     }
 
     private var pathwayGrid: some View {
@@ -271,7 +280,7 @@ struct HomeView: View {
             session.text("previewDatabase")
         case DataSource.savedAppCache:
             session.text("savedAppCache")
-        default:
+        case DataSource.railsAPI:
             session.text("railsAPI")
         }
     }

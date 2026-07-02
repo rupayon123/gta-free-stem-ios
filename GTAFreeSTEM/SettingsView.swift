@@ -154,7 +154,7 @@ struct SettingsView: View {
             session.signOut()
             deleteMessage = session.text("accountDeleted")
         } catch {
-            deleteMessage = error.localizedDescription
+            deleteMessage = session.text("serverResponseInvalid")
         }
     }
 }

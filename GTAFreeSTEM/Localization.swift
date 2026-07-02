@@ -42,23 +42,43 @@ enum AppLanguage: String, CaseIterable, Identifiable {
     }
 
     static func normalized(_ value: String) -> AppLanguage {
-        if let language = AppLanguage(rawValue: value) {
+        let normalized = value
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "_", with: "-")
+        if let language = AppLanguage(rawValue: normalized) {
+            return language
+        }
+        if let language = AppLanguage(rawValue: normalized.lowercased()) {
             return language
         }
 
-        let legacy = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let legacy = normalized.lowercased()
         switch legacy {
+        case "en-us", "en-ca", "en-gb": return .en
+        case "fr-ca", "fr-fr": return .fr
+        case "zh-hans", "zh-cn", "zh-sg", "mandarin": return .zh
+        case "yue-hant", "zh-yue", "cantonese", "cantonese/yue": return .yue
+        case "pa-guru", "pa-in", "pa-ca": return .pa
+        case "ur-pk", "ur-in": return .ur
+        case "ta-in", "ta-lk": return .ta
+        case "fil", "tl-ph", "tagalog", "tagalog/filipino", "filipino": return .tl
+        case "es-mx", "es-es", "es-419": return .es
+        case "ar-sa", "ar-eg", "ar-ae": return .ar
+        case "fa-ir", "prs", "farsi", "persian", "farsi/persian": return .fa
+        case "hi-in": return .hi
+        case "pt-br", "pt-pt": return .pt
+        case "gu-in": return .gu
+        case "bn-bd", "bn-in": return .bn
+        case "ja-jp": return .ja
+        case "ko-kr": return .ko
+        case "hu-hu": return .hu
         case "english": return .en
         case "french": return .fr
-        case "mandarin": return .zh
-        case "cantonese", "cantonese/yue": return .yue
         case "punjabi": return .pa
         case "urdu": return .ur
         case "tamil": return .ta
-        case "tagalog", "tagalog/filipino", "filipino": return .tl
         case "spanish": return .es
         case "arabic": return .ar
-        case "farsi", "persian", "farsi/persian": return .fa
         case "hindi": return .hi
         case "portuguese": return .pt
         case "gujarati": return .gu
@@ -77,6 +97,35 @@ struct LanguageInfo: Sendable {
     let dir: String
 }
 
+enum AppResources {
+    static func url(
+        forResource name: String,
+        withExtension ext: String,
+        subdirectory: String? = nil,
+        localization: String? = nil
+    ) -> URL? {
+        candidateBundles.lazy.compactMap {
+            $0.url(forResource: name, withExtension: ext, subdirectory: subdirectory, localization: localization)
+        }.first
+    }
+
+    static func path(
+        forResource name: String,
+        ofType ext: String,
+        inDirectory subdirectory: String? = nil,
+        forLocalization localization: String? = nil
+    ) -> String? {
+        url(forResource: name, withExtension: ext, subdirectory: subdirectory, localization: localization)?.path
+    }
+
+    private static var candidateBundles: [Bundle] {
+        var seen = Set<String>()
+        return ([Bundle.main] + Bundle.allBundles + Bundle.allFrameworks).filter { bundle in
+            seen.insert(bundle.bundlePath).inserted
+        }
+    }
+}
+
 final class AppText: @unchecked Sendable {
     static let shared = AppText()
 
@@ -85,7 +134,7 @@ final class AppText: @unchecked Sendable {
 
     private init() {
         guard
-            let url = Bundle.main.url(forResource: "app_strings", withExtension: "json"),
+            let url = AppResources.url(forResource: "app_strings", withExtension: "json"),
             let data = try? Data(contentsOf: url),
             let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else {

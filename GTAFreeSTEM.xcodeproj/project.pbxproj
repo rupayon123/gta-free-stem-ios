@@ -12,6 +12,7 @@
 		2642A87CF3C8A8B20769CF63 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 7553722146CCDD02A80A91AD /* InfoPlist.strings */; };
 		2D1B6259028406BFAB418C02 /* SubmitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5CE6827A07E25AA535BDD3D /* SubmitView.swift */; };
 		475FC5B26D8388188FEC26C1 /* app_strings.json in Resources */ = {isa = PBXBuildFile; fileRef = A4D516C7B3AD1D417ABBDC9C /* app_strings.json */; };
+		4F4A06E1ACFA4D9299A2E3A6 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 5E56F2B7BD634B7496C16521 /* PrivacyInfo.xcprivacy */; };
 		5D7B9E10C49C7B705FD10F5D /* OpportunityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA618962B57C2322242054A8 /* OpportunityStore.swift */; };
 		68A00260FA5F2E54B7D829AE /* BrowseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EDF5309E3C2CD4DCD01634E /* BrowseView.swift */; };
 		699F3CE961C47FE8776DD7D1 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD58966D0640D561D88FFD4C /* DesignSystem.swift */; };
@@ -53,6 +54,7 @@
 		47B1A699131178AD42E56FB8 /* ar */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ar; path = ar.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		4E129DF28063F41A5842B167 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		4EDF5309E3C2CD4DCD01634E /* BrowseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseView.swift; sourceTree = "<group>"; };
+		5E56F2B7BD634B7496C16521 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		6401728357C617A014393A8C /* APIClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClientTests.swift; sourceTree = "<group>"; };
 		8B21BABCB9154E23096C0B6F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A2C45C1750835FF267CB51D1 /* SavedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedView.swift; sourceTree = "<group>"; };
@@ -70,7 +72,7 @@
 		C3174729DAC307CFE04C37F5 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		C905F5C3CADDDAD068E2AE5A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		CB2F8276E7D95F2A2279D227 /* bn */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = bn; path = bn.lproj/InfoPlist.strings; sourceTree = "<group>"; };
-		CF02688AB14B0594AA699477 /* GTAFreeSTEM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GTAFreeSTEM.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CF02688AB14B0594AA699477 /* GTAFreeSTEM.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = GTAFreeSTEM.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CF9F738AC3B537D997BAC36B /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		D349D7E7773A59B08DB55AA1 /* pa */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = pa; path = pa.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		DD58966D0640D561D88FFD4C /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
@@ -138,6 +140,7 @@
 			children = (
 				A4D516C7B3AD1D417ABBDC9C /* app_strings.json */,
 				0D340C91FCBE390D875ED59B /* opportunities.json */,
+				5E56F2B7BD634B7496C16521 /* PrivacyInfo.xcprivacy */,
 				7553722146CCDD02A80A91AD /* InfoPlist.strings */,
 			);
 			path = Resources;
@@ -192,6 +195,7 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					3E42DDF6414C70F70054B63D = {
+						DevelopmentTeam = FE33NM88XX;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -242,6 +246,7 @@
 				2642A87CF3C8A8B20769CF63 /* InfoPlist.strings in Resources */,
 				475FC5B26D8388188FEC26C1 /* app_strings.json in Resources */,
 				15C4002643726DEDEE370E34 /* opportunities.json in Resources */,
+				4F4A06E1ACFA4D9299A2E3A6 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -320,7 +325,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = FE33NM88XX;
@@ -329,12 +333,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.rupayonhaldar.gtafreestem;
+				PRODUCT_NAME = GTAFreeSTEM;
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTS_MACCATALYST = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -390,12 +392,14 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 0.1;
+				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 6.0;
 			};
@@ -458,13 +462,15 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 0.1;
+				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 6.0;
 			};
@@ -481,9 +487,8 @@
 					"@loader_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.rupayonhaldar.GTAFreeSTEMTests;
+				PRODUCT_NAME = GTAFreeSTEMTests;
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GTAFreeSTEM.app/GTAFreeSTEM";
 			};
@@ -500,9 +505,8 @@
 					"@loader_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.rupayonhaldar.GTAFreeSTEMTests;
+				PRODUCT_NAME = GTAFreeSTEMTests;
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GTAFreeSTEM.app/GTAFreeSTEM";
 			};
@@ -512,7 +516,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = FE33NM88XX;
@@ -521,12 +524,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.rupayonhaldar.gtafreestem;
+				PRODUCT_NAME = GTAFreeSTEM;
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTS_MACCATALYST = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
