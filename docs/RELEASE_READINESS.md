@@ -15,7 +15,7 @@
   - Live public feed: 370 public opportunities, 370 translated payloads, and 100% live summary/category/cost/title/description coverage after Vercel production deployment `dpl_4SjBikyTa6FQrCyjRafTz2cgJPjX`.
   - Companion site `/privacy/` resolves in production with HTTP 200.
   - Release simulator build and unit tests pass.
-  - Device archive and App Store Connect upload pass from this Mac with Apple team `FE33NM88XX`; TestFlight candidate `1.0 (3)` is uploaded and processing in App Store Connect.
+  - Device archive and App Store Connect upload pass from this Mac with Apple team `FE33NM88XX`; TestFlight candidate `1.0 (4)` is uploaded, processed, and attached to the internal `Zenin` tester group in App Store Connect.
 
 ## Latest command results
 
@@ -24,8 +24,8 @@
 - `STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: passed against production; live feed has 370/370 translated opportunity payloads and 100% summary/category/cost/title/description coverage.
 - `xcodebuild -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'platform=iOS Simulator,name=iPhone 17' build`: passed.
 - `xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -destination 'platform=iOS Simulator,name=iPhone 17'`: passed, 33 tests, 0 failures.
-- `xcodebuild archive -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'generic/platform=iOS' -archivePath build/GTAFreeSTEM.xcarchive -allowProvisioningUpdates`: passed for `com.rupayonhaldar.gtafreestem` version `1.0` build `3` after signing into Apple account `rupayon244@gmail.com`.
-- `xcodebuild -exportArchive -archivePath build/GTAFreeSTEM.xcarchive -exportOptionsPlist build/ExportOptions.plist -allowProvisioningUpdates`: passed and uploaded `GTAFreeSTEM.ipa` build `1.0 (3)` to App Store Connect for processing.
+- `xcodebuild archive -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'generic/platform=iOS' -archivePath build/GTAFreeSTEM.xcarchive -allowProvisioningUpdates`: passed for `com.rupayonhaldar.gtafreestem` version `1.0` after signing into Apple account `rupayon244@gmail.com`.
+- `xcodebuild -exportArchive -archivePath build/GTAFreeSTEM.xcarchive -exportOptionsPlist build/ExportOptions.plist -allowProvisioningUpdates`: passed and uploaded `GTAFreeSTEM.ipa` build `1.0 (4)` to App Store Connect for processing because Xcode export had `manageAppVersionAndBuildNumber` enabled.
 - Companion repo `./node_modules/.bin/tsc --noEmit`: passed with bundled Node.
 - Companion repo `./node_modules/.bin/tsx scripts/export-public-opportunities.ts && ./node_modules/.bin/tsx scripts/qa-check.ts`: passed; QA now rejects non-English translation payloads that are English copies.
 - Companion repo `pnpm run build`: passed, regenerates `public/opportunities.json`, and exports `/privacy`.
@@ -69,7 +69,7 @@
    - Use `docs/APP_STORE_METADATA.md` as the first metadata/privacy draft.
    - Use `https://gta-free-stem.vercel.app/privacy/` for App Store Connect; the route is live.
    - Apple Developer account `rupayon244@gmail.com` is signed into Xcode, team `FE33NM88XX` is available, and Xcode created/downloaded a provisioning profile for `com.rupayonhaldar.gtafreestem`.
-   - The latest IPA upload succeeded for TestFlight candidate `1.0 (3)`; wait for App Store Connect processing, then attach the processed build to internal TestFlight testers.
+   - The latest IPA upload succeeded for TestFlight candidate `1.0 (4)`; App Store Connect shows it as `Ready to Submit` and attached to internal group `Zenin`.
 
 ## Mac setup to keep development unblocked
 

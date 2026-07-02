@@ -54,4 +54,4 @@ The app is intended for families and students and does not include ads, purchase
 - Public multilingual feed is live at `https://gta-free-stem.vercel.app/opportunities.json` with generated translation payloads for all public listings.
 - App Store privacy URL is live at `https://gta-free-stem.vercel.app/privacy/`.
 - Full dynamic content translation can still be upgraded later with reviewed title, organization, address, tag, and richer description translations in the companion feed pipeline.
-- TestFlight upload is working from this Mac; build `1.0 (3)` is uploaded and should finish processing in App Store Connect before testers are added.
+- TestFlight upload is working from this Mac; build `1.0 (4)` is uploaded, processed, and attached to the internal `Zenin` tester group in App Store Connect.
