@@ -42,7 +42,7 @@
    - Production `opportunities.json` now includes the same payloads.
    - Human/API-reviewed title, organization, address, source-specific tags, and richer description translations remain a quality upgrade after the generated-coverage release gate.
    - Companion feed repo status on July 2, 2026: `/Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-opportunities` is pushed to GitHub at `1f71fbc`, and Vercel production deployment `dpl_GGsWFcgbgJyFVDWmHJW7p4cc7fM8` is live.
-   - The iOS repo is pushed to GitHub at `d338c81`, including the synced bundled opportunity snapshot and release-readiness docs.
+   - The iOS repo is pushed to GitHub at `8413c96`, including the synced bundled opportunity snapshot and release-readiness docs.
 
 2. **Release validation commands**
    - Build release:
