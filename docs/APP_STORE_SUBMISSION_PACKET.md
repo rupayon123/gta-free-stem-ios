@@ -6,24 +6,25 @@ Use this packet when filling App Store Connect for the first public release. It 
 
 Do not submit App Review, upload screenshots, change live metadata, invite testers, or send external beta review without explicit release-time confirmation.
 
-## Build To Select
+## Build To Upload And Select
 
-This build is the current valid upload in App Store Connect and includes the refreshed 406-listing bundled offline snapshot.
+This is the current local release candidate and includes the refreshed 382-listing bundled offline snapshot. Do not select a build for App Review until build `1.0 (11)` uploads and App Store Connect reports it as `VALID`.
 
 - App: `GTA FREE STEM`
 - Apple app ID: `6779714459`
 - Bundle ID: `com.rupayonhaldar.gtafreestem`
 - Team: `FE33NM88XX`
 - Version: `1.0`
-- Build: `10`
-- Delivery UUID: `97c05d63-7f3d-45bc-941e-c10432694ca8`
-- App Store Connect status: `VALID`
-- TestFlight status: `BETA_INTERNAL_TESTING`
-- Audience: `APP_STORE_ELIGIBLE`
+- Build: `11`
+- Delivery UUID: `Pending build 11 upload`
+- App Store Connect status: `Pending build 11 upload`
+- TestFlight status: `Pending build 11 upload`
+- Last confirmed uploaded build: `1.0 (10)`, delivery UUID `97c05d63-7f3d-45bc-941e-c10432694ca8`, status `VALID` / `BETA_INTERNAL_TESTING`
+- Audience: `Pending build 11 upload`
 - Encryption: `usesNonExemptEncryption = false`
 - Device families: iPhone and iPad
-- Live feed coverage: 406/406 translated opportunities
-- Bundled snapshot in current repo: 406/406 translated opportunities
+- Live feed coverage: 382/382 translated opportunities
+- Bundled snapshot in current repo: 382/382 translated opportunities
 
 ## Product Page Fields
 
@@ -72,7 +73,7 @@ The app uses standard HTTPS/TLS only and does not use non-exempt encryption.
 
 ## App Privacy Answers
 
-Use these answers only for build `1.0 (10)` as currently implemented.
+Use these answers only for local release candidate `1.0 (11)` as currently implemented.
 
 - Tracking: `No`
 - Data linked to the user: `None`

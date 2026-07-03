@@ -4,28 +4,29 @@ Last updated: July 3, 2026
 
 Use this as the short path from the current repo state to App Store submission for GTA FREE STEM.
 
-## Current Uploaded TestFlight Candidate
+## Current Local Release Candidate
 
 - App: `GTA FREE STEM`
 - App Apple ID: `6779714459`
 - Bundle ID: `com.rupayonhaldar.gtafreestem`
 - Apple Developer team: `FE33NM88XX`
 - Apple ID email for App Store Connect: `rupayon244@gmail.com`
-- Version/build: `1.0 (10)`
-- Delivery UUID: `97c05d63-7f3d-45bc-941e-c10432694ca8`
-- App Store Connect import status: `VALID`
-- TestFlight status: `BETA_INTERNAL_TESTING`
-- Audience: `APP_STORE_ELIGIBLE`
+- Version/build: `1.0 (11)`
+- Delivery UUID: `Pending build 11 upload`
+- App Store Connect import status: `Pending build 11 upload`
+- TestFlight status: `Pending build 11 upload`
+- Last confirmed uploaded build: `1.0 (10)`, delivery UUID `97c05d63-7f3d-45bc-941e-c10432694ca8`, status `VALID` / `BETA_INTERNAL_TESTING`
+- Audience: `Pending build 11 upload`
 - Non-exempt encryption: `false`
 
 ## Current Repo/Feed State
 
-- Public site/feed deployment: `dpl_7YVnTcUxAREXTwxAfaEUBBvFR9en`
+- Public site/feed deployment: `dpl_F2wScPMS6rqR8PB4djdyFhcV6cC2`
 - Public site/feed URL: `https://gta-free-stem.vercel.app/`
 - Live feed URL: `https://gta-free-stem.vercel.app/opportunities.json`
-- Bundled iOS snapshot: 406 translated opportunities
-- Live public feed: 406 translated opportunities
-- Uploaded build `1.0 (10)` includes the refreshed 406-item bundled snapshot and can also refresh from the live public feed online.
+- Bundled iOS snapshot: 382 translated opportunities
+- Live public feed: 382 translated opportunities
+- Local build `1.0 (11)` includes the refreshed 382-item bundled snapshot and can also refresh from the live public feed online. Archive/upload is pending macOS keychain authorization for the Apple signing key.
 
 ## One Command To Recheck The Repo
 
@@ -41,7 +42,7 @@ Expected result:
 - Release build succeeds.
 - Test suite passes with 43 tests.
 - Simulator smoke test passes.
-- Bundled and live feed translation coverage remains 406/406 opportunities.
+- Bundled and live feed translation coverage remains 382/382 opportunities.
 - App Store screenshots are regenerated and rechecked.
 
 ## GitHub CI Guard
@@ -57,8 +58,8 @@ Command-line TestFlight status check:
 ```bash
 read -r -s APP_STORE_CONNECT_APP_PASSWORD
 export APP_STORE_CONNECT_APP_PASSWORD
-BUNDLE_VERSION=10 \
-  DELIVERY_ID=97c05d63-7f3d-45bc-941e-c10432694ca8 \
+BUNDLE_VERSION=11 \
+  DELIVERY_ID=<build-11-delivery-uuid-after-upload> \
   APP_STORE_CONNECT_USERNAME=rupayon244@gmail.com \
   bash docs/scripts/check-testflight-build-status.sh
 unset APP_STORE_CONNECT_APP_PASSWORD
@@ -77,7 +78,7 @@ Use `docs/APP_STORE_SUBMISSION_PACKET.md` as the paste-ready source.
 - Marketing URL: `https://gta-free-stem.vercel.app/`
 - Support URL: `https://gta-free-stem.vercel.app/accessibility-support/`
 - Privacy Policy URL: `https://gta-free-stem.vercel.app/privacy/`
-- Build to select: `1.0 (10)`
+- Build to select: `1.0 (11)` after App Store Connect reports build 11 as `VALID`
 
 Screenshots to upload:
 
@@ -92,7 +93,7 @@ Screenshots to upload:
 
 ## Real-Device TestFlight Signoff
 
-Install build `1.0 (10)` from TestFlight on a real iPhone.
+Install build `1.0 (11)` from TestFlight on a real iPhone after upload and processing complete.
 
 Fill out:
 
@@ -131,7 +132,7 @@ This verifies that a complete temporary signoff passes and weak App Store eviden
 
 ## Final Live Steps
 
-1. Select build `1.0 (10)` in App Store Connect.
+1. Select build `1.0 (11)` in App Store Connect after it is uploaded and processed.
 2. Upload the screenshots listed above.
 3. Paste metadata, privacy, age rating, and review notes from `docs/APP_STORE_SUBMISSION_PACKET.md`.
 4. Complete `docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md`.

@@ -51,7 +51,7 @@ The iOS app has an in-app privacy note in Settings, but App Store Connect should
 - Optional location: used only while browsing to sort nearby opportunities; current app logic does not transmit device location to the feed.
 - Local cache: public opportunity data, saved hunt state, seen listing IDs, and settings are stored locally with SwiftData/UserDefaults.
 - Required reason API manifest: `PrivacyInfo.xcprivacy` declares app-only UserDefaults access with reason `CA92.1`.
-- Data collection answer: for build `1.0 (10)`, answer as public browsing with no collected user data because account, feedback, and online submission endpoints are not connected in this iOS build. If those endpoints are connected before release, update App Privacy answers for account identifiers, feedback, submitted content, diagnostics, and deletion handling as implemented.
+- Data collection answer: for the current local release candidate `1.0 (11)`, answer as public browsing with no collected user data because account, feedback, and online submission endpoints are not connected in this iOS build. If those endpoints are connected before release, update App Privacy answers for account identifiers, feedback, submitted content, diagnostics, and deletion handling as implemented.
 
 ## Age Rating Notes
 
@@ -61,15 +61,15 @@ The app is intended for families and students and does not include ads, purchase
 
 - The app supports iPhone and iPad, so prepare screenshots for both the 6.9-inch iPhone and 13-inch iPad display sets.
 - Use `bash docs/scripts/capture-app-store-screenshots.sh` to generate the current Release screenshot set under `build/app-store-screenshots/`.
-- The screenshot set was regenerated and visually reviewed on July 3, 2026 for build `1.0 (10)` after the refreshed 406-listing bundled snapshot, privacy-safe Support update, and offline-fallback label polish. The local outputs are 6.9-inch iPhone PNGs at `1320 x 2868` and 13-inch iPad PNGs at `2064 x 2752`.
-- Home screenshots show `406 visible`; Opportunity and High School screenshots show search, filter, refresh, nearby, alert, and list/map controls; Support screenshots show the unavailable feedback/submission state and no name, email, message, or missing-opportunity input fields.
+- The screenshot set was regenerated and visually reviewed on July 3, 2026 for local release candidate `1.0 (11)` after the refreshed 382-listing bundled snapshot, privacy-safe Support update, and offline-fallback label polish. The local outputs are 6.9-inch iPhone PNGs at `1320 x 2868` and 13-inch iPad PNGs at `2064 x 2752`.
+- Home screenshots show `382 visible`; Opportunity and High School screenshots show search, filter, refresh, nearby, alert, and list/map controls; Support screenshots show the unavailable feedback/submission state and no name, email, message, or missing-opportunity input fields.
 - Uploading screenshots to App Store Connect is a metadata change and should happen only after explicit confirmation.
 
 ## Current External Follow-ups
 
 - Public multilingual feed is live at `https://gta-free-stem.vercel.app/opportunities.json` with generated translation payloads for all public listings.
-- Current bundled iOS snapshot and live public feed both contain 406/406 translated public opportunities after the July 3, 2026 feed sync.
+- Current bundled iOS snapshot and live public feed both contain 382/382 translated public opportunities after the July 3, 2026 feed sync.
 - App Store marketing/support/privacy URLs are live and return HTTP 200.
 - App Store privacy URL is live at `https://gta-free-stem.vercel.app/privacy/`.
 - Full dynamic content translation can still be upgraded later with reviewed organization, address, source-specific tag, and richer prose translations in the companion feed pipeline.
-- TestFlight upload is working from this Mac; build `1.0 (10)` uploaded successfully with the first-launch system-language fix, privacy-safe Support update, public-facing offline fallback label, missing-translation summary fallback hardening, and refreshed 406-item bundled opportunity snapshot. Build `1.0 (10)` is command-line-confirmed by App Store Connect with import status `VALID`, build status `BETA_INTERNAL_TESTING`, `APP_STORE_ELIGIBLE`, and `usesNonExemptEncryption = false`.
+- TestFlight upload worked earlier from this Mac for build `1.0 (10)`, which is command-line-confirmed by App Store Connect with import status `VALID`, build status `BETA_INTERNAL_TESTING`, `APP_STORE_ELIGIBLE`, and `usesNonExemptEncryption = false`. The current local release candidate is build `1.0 (11)` with the refreshed 382-item bundled opportunity snapshot; archive/upload is pending macOS keychain authorization for the Apple signing key.

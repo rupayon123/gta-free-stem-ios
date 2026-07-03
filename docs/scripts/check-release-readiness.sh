@@ -315,10 +315,13 @@ if not packet_path.exists():
 packet = packet_path.read_text(encoding="utf-8")
 required_fragments = [
     "Version: `1.0`",
-    "Build: `10`",
-    "Delivery UUID: `97c05d63-7f3d-45bc-941e-c10432694ca8`",
-    "App Store Connect status: `VALID`",
-    "TestFlight status: `BETA_INTERNAL_TESTING`",
+    "Build: `11`",
+    "Delivery UUID: `Pending build 11 upload`",
+    "App Store Connect status: `Pending build 11 upload`",
+    "TestFlight status: `Pending build 11 upload`",
+    "Last confirmed uploaded build: `1.0 (10)`",
+    "Live feed coverage: 382/382 translated opportunities",
+    "Bundled snapshot in current repo: 382/382 translated opportunities",
     "Marketing URL: `https://gta-free-stem.vercel.app/`",
     "Support URL: `https://gta-free-stem.vercel.app/accessibility-support/`",
     "Privacy policy URL: `https://gta-free-stem.vercel.app/privacy/`",
@@ -329,7 +332,7 @@ required_fragments = [
 missing = [fragment for fragment in required_fragments if fragment not in packet]
 if missing:
     raise SystemExit("Submission packet is missing required release facts:\n" + "\n".join(f"- {item}" for item in missing))
-print("Submission packet includes confirmed build, URLs, and screenshot paths.")
+print("Submission packet includes current build candidate, URLs, and screenshot paths.")
 PY
 
 echo -e "\n=== Public release runbook checks ==="
@@ -342,10 +345,13 @@ if not runbook_path.exists():
 
 runbook = runbook_path.read_text(encoding="utf-8")
 required_fragments = [
-    "Version/build: `1.0 (10)`",
-    "Delivery UUID: `97c05d63-7f3d-45bc-941e-c10432694ca8`",
-    "App Store Connect import status: `VALID`",
-    "TestFlight status: `BETA_INTERNAL_TESTING`",
+    "Version/build: `1.0 (11)`",
+    "Delivery UUID: `Pending build 11 upload`",
+    "App Store Connect import status: `Pending build 11 upload`",
+    "TestFlight status: `Pending build 11 upload`",
+    "Last confirmed uploaded build: `1.0 (10)`",
+    "Bundled iOS snapshot: 382 translated opportunities",
+    "Live public feed: 382 translated opportunities",
     "docs/APP_STORE_SUBMISSION_PACKET.md",
     "docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md",
     "bash docs/scripts/check-local-release-candidate.sh",
@@ -362,6 +368,34 @@ if missing:
 print("Public release runbook includes build facts, manual gates, URLs, screenshots, and credential safety.")
 PY
 
+echo -e "\n=== App Store screenshot documentation checks ==="
+/usr/bin/python3 - <<'PY'
+from pathlib import Path
+
+screenshot_doc_path = Path("docs/APP_STORE_SCREENSHOTS.md")
+if not screenshot_doc_path.exists():
+    raise SystemExit("Missing docs/APP_STORE_SCREENSHOTS.md")
+
+screenshot_doc = screenshot_doc_path.read_text(encoding="utf-8")
+required_fragments = [
+    "Last updated: July 3, 2026",
+    "local release candidate `1.0 (11)`",
+    "382 visible",
+    "Offline backup",
+    "6.9-inch iPhone screenshots: `1320 x 2868`",
+    "13-inch iPad screenshots: `2064 x 2752`",
+    "Opportunity and high-school screenshots show search, filter, refresh, nearby, alert, and list/map controls.",
+    "Support/account-limited screenshots: no personal-data fields",
+    "July 3 visual review: iPhone and iPad screenshots are readable, nonblank, light-mode, free of loading spinners",
+    "build/app-store-screenshots/iphone-6.9/",
+    "build/app-store-screenshots/ipad-13/",
+]
+missing = [fragment for fragment in required_fragments if fragment not in screenshot_doc]
+if missing:
+    raise SystemExit("Screenshot documentation is missing current release evidence:\n" + "\n".join(f"- {item}" for item in missing))
+print("Screenshot documentation includes current build, dimensions, visual review, and privacy-safe support evidence.")
+PY
+
 echo -e "\n=== Real-device QA signoff check ==="
 /usr/bin/python3 - <<'PY'
 from pathlib import Path
@@ -371,9 +405,9 @@ if not signoff_path.exists():
     raise SystemExit("Missing docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md")
 signoff = signoff_path.read_text(encoding="utf-8")
 required_fragments = [
-    "Version/build: `1.0 (10)`",
-    "App Store Connect status: `VALID`",
-    "TestFlight status: `BETA_INTERNAL_TESTING`",
+    "Version/build: `1.0 (11)`",
+    "App Store Connect status: `Pending build 11 upload`",
+    "TestFlight status: `Pending build 11 upload`",
     "Overall status: `Pending`",
 ]
 missing = [fragment for fragment in required_fragments if fragment not in signoff]

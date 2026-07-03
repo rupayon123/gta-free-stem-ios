@@ -10,13 +10,14 @@ Allowed row statuses are `Pass`, `Fail`, `Pending`, and `Accepted Risk`; the fin
 
 ## Build Under Test
 
-These facts describe the current valid TestFlight upload with the refreshed 406-listing bundled snapshot.
+These facts describe the current local release candidate with the refreshed 382-listing bundled snapshot. Fill in the delivery/status fields after build `1.0 (11)` uploads and App Store Connect reports it as valid.
 
 - App: `GTA FREE STEM`
-- Version/build: `1.0 (10)`
-- Delivery UUID: `97c05d63-7f3d-45bc-941e-c10432694ca8`
-- App Store Connect status: `VALID`
-- TestFlight status: `BETA_INTERNAL_TESTING`
+- Version/build: `1.0 (11)`
+- Delivery UUID: `Pending build 11 upload`
+- App Store Connect status: `Pending build 11 upload`
+- TestFlight status: `Pending build 11 upload`
+- Last confirmed uploaded build: `1.0 (10)`, delivery UUID `97c05d63-7f3d-45bc-941e-c10432694ca8`, status `VALID` / `BETA_INTERNAL_TESTING`
 - Device family required: iPhone
 - Optional second pass: iPad
 
@@ -36,7 +37,7 @@ These facts describe the current valid TestFlight upload with the refreshed 406-
 
 Use this flow to fill the table below. Record actual observations in `Notes`; do not mark a row `Pass` from simulator-only evidence.
 
-1. Fresh-install build `1.0 (10)` from TestFlight on an iPhone, launch once online, and confirm public browsing opens without account prompts.
+1. Fresh-install build `1.0 (11)` from TestFlight on an iPhone, launch once online, and confirm public browsing opens without account prompts.
 2. Search `robotics Toronto`, then try a second multi-word query with a city or category from a visible result. Confirm results are relevant and sorting defaults to best match.
 3. Apply city, region, age, language, category, volunteer hours, co-op/SHSM, mentorship, scholarships, equity focus, new finds, and distance filters one at a time, then reset them.
 4. Switch between list and map mode after filters are applied. Confirm pins match the filtered result set and detail pages open from both modes where available.
@@ -74,7 +75,7 @@ Use this flow to fill the table below. Record actual observations in `Notes`; do
 | VoiceOver rows | Opportunity rows read as one useful label with title, category, organization, age range, city, and relevant badges. | Pending | |
 | VoiceOver map/details/forms | Map, detail facts, filter controls, save/account-limited actions, and support controls have useful labels/hints. | Pending | |
 | Dark mode | Badges, cards, buttons, map area, empty states, and errors remain readable. | Pending | |
-| Support privacy | Support tab does not collect name, email, message, or missing-opportunity details in build `1.0 (10)`. | Pending | |
+| Support privacy | Support tab does not collect name, email, message, or missing-opportunity details in build `1.0 (11)`. | Pending | |
 | Account-limited paths | Account-only actions clearly say the feature is unavailable in this build; Sign in with Apple is not exposed without backend token exchange. | Pending | |
 | App Store URLs | Marketing, support, and privacy URLs open and show expected public pages. | Pending | |
 
@@ -83,7 +84,7 @@ Use this flow to fill the table below. Record actual observations in `Notes`; do
 - Write `None` for `Accepted risks` or `Must-fix blockers` only when none apply.
 - `Submitted for App Review` may stay pending until the final App Store Connect submit click.
 - Use these exact evidence patterns for the owner fields:
-  - `App Store Connect build selected`: `1.0 (10)`
+  - `App Store Connect build selected`: `1.0 (11)`
   - `Screenshots uploaded`: `8 screenshots uploaded: 4 iPhone 6.9 + 4 iPad 13`
   - `Metadata/privacy/age rating entered`: `Metadata, App Privacy, age rating, export compliance, and review notes entered`
 - Overall status: `Pending`
@@ -96,6 +97,6 @@ Use this flow to fill the table below. Record actual observations in `Notes`; do
 
 ## Notes
 
-- Send tester feedback through TestFlight, not in-app forms, for build `1.0 (10)`.
+- Send tester feedback through TestFlight, not in-app forms, for build `1.0 (11)`.
 - Rotate or revoke the app-specific Apple password generated during setup after release work is finished.
 - If backend account, feedback, submission, analytics, crash reporting, or telemetry behavior changes before release, redo App Privacy answers and rerun the release-readiness audit.

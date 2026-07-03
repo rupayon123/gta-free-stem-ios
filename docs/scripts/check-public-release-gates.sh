@@ -23,12 +23,19 @@ if not signoff_path.exists():
 text = signoff_path.read_text(encoding="utf-8")
 
 required_facts = [
-    "Version/build: `1.0 (10)`",
-    "Delivery UUID: `97c05d63-7f3d-45bc-941e-c10432694ca8`",
+    "Version/build: `1.0 (11)`",
     "App Store Connect status: `VALID`",
     "TestFlight status: `BETA_INTERNAL_TESTING`",
 ]
 missing_facts = [fact for fact in required_facts if fact not in text]
+delivery_match = re.search(r"^- Delivery UUID:[ \t]*`?([^`\n]+)`?", text, re.MULTILINE)
+delivery_value = delivery_match.group(1).strip() if delivery_match else ""
+if (
+    not delivery_value
+    or delivery_value.lower() in {"pending build 11 upload", "pending", "missing"}
+    or not re.fullmatch(r"[0-9a-fA-F-]{8}-[0-9a-fA-F-]{4}-[0-9a-fA-F-]{4}-[0-9a-fA-F-]{4}-[0-9a-fA-F-]{12}", delivery_value)
+):
+    missing_facts.append("Delivery UUID: real build 11 delivery UUID")
 if missing_facts:
     raise SystemExit("Real-device signoff is missing required build facts:\n" + "\n".join(f"- {fact}" for fact in missing_facts))
 
@@ -102,8 +109,8 @@ for field in owner_fields:
 selected_build = field_value("App Store Connect build selected")
 if is_pending(selected_build):
     not_ready.append("App Store Connect build selected: blank")
-elif "1.0 (10)" not in selected_build:
-    not_ready.append(f"App Store Connect build selected: expected 1.0 (10), got {selected_build}")
+elif "1.0 (11)" not in selected_build:
+    not_ready.append(f"App Store Connect build selected: expected 1.0 (11), got {selected_build}")
 
 screenshots = field_value("Screenshots uploaded")
 screenshots_lower = screenshots.lower()
@@ -134,5 +141,5 @@ if not_ready:
         print(f"- {item}")
     raise SystemExit(1)
 
-print("Public release gates are complete for build 1.0 (10).")
+print("Public release gates are complete for build 1.0 (11).")
 PY

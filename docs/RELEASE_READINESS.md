@@ -10,30 +10,32 @@
 - Opportunity rows and map labels are localized in browsing screens.
 - App Store privacy manifest is bundled and declares app-only `UserDefaults` access with reason `CA92.1`, no tracking, and no collected data types.
 - Last verified on July 3, 2026:
-  - Bundled iOS snapshot: 406 public opportunities, all carrying generated translation payloads for every non-English launch language.
+  - Bundled iOS snapshot: 382 public opportunities, all carrying generated translation payloads for every non-English launch language.
   - App UI strings: 178/178 keys for each launch language, with strict duplicate-English checks passing at 0 untranslated-equals-English strings.
-  - Local companion public feed: 406 public opportunities, 100% generated summary/category/cost/title/description payload coverage.
-  - Live public feed: 406 public opportunities, 406 translated payloads, and 100% live summary/category/cost/title/description coverage after Vercel production deployment `dpl_7YVnTcUxAREXTwxAfaEUBBvFR9en`.
+  - Local companion public feed: 382 public opportunities, 100% generated summary/category/cost/title/description payload coverage.
+  - Live public feed: 382 public opportunities, 382 translated payloads, and 100% live summary/category/cost/title/description coverage after Vercel production deployment `dpl_F2wScPMS6rqR8PB4djdyFhcV6cC2`.
   - Companion site marketing, support, and privacy URLs resolve in production with HTTP 200.
   - Release simulator build and 43-test XCTest suite pass.
   - Support tab is privacy-safe for the current build: feedback and online submissions are unavailable, no personal-data input fields are shown, and submission APIs require an account token before any network request.
   - Public fallback copy now says `Offline backup` instead of internal preview database wording.
   - Missing translated summaries preserve the English source summary once inside the localized fallback text.
   - Map VoiceOver labels now include the localized visible-result count, and tests guard background refresh cache/new-match-notification wiring.
-  - Device archive and App Store Connect upload pass from this Mac with Apple team `FE33NM88XX`; TestFlight candidate `1.0 (10)` uploaded successfully with the refreshed 406-listing bundled snapshot and is command-line-confirmed with import status `VALID`, build status `BETA_INTERNAL_TESTING`, `APP_STORE_ELIGIBLE`, and `usesNonExemptEncryption = false`.
+  - Previous device archive and App Store Connect upload passed from this Mac with Apple team `FE33NM88XX`; TestFlight candidate `1.0 (10)` is command-line-confirmed with import status `VALID`, build status `BETA_INTERNAL_TESTING`, `APP_STORE_ELIGIBLE`, and `usesNonExemptEncryption = false`.
+  - Current local release candidate `1.0 (11)` includes the refreshed 382-listing bundled snapshot. Simulator Release build and XCTest pass, but device archive/upload is waiting on macOS keychain authorization for the Apple signing key.
 
 ## Latest command results
 
-- `STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: passed on July 3, 2026 against production; bundled and live feeds have 406/406 translated opportunity payloads and 100% summary/category/cost/title/description coverage.
+- `CHECK_APP_STORE_SCREENSHOTS=1 STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: passed on July 3, 2026 for local release candidate `1.0 (11)`. Bundled and live feeds have 382/382 translated opportunity payloads and 100% summary/category/cost/title/description coverage.
   - App Store metadata limits now pass inside this script: app name 13/30 characters, subtitle 23/30 characters, description 758/4000 characters, keywords 92/100 bytes.
   - Apple Developer public status check now covers App Store Connect, App Processing, App Upload, TestFlight, and App Store Connect API; the July 3, 2026 run reported no active events for those services. This does not confirm a specific uploaded build.
 - `LIVE_FEED_URL=file:///Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-opportunities/public/opportunities.json STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: passed, proving the local feed artifact clears strict multilingual coverage before deployment.
 - `xcodebuild -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'platform=iOS Simulator,name=iPhone 17' build`: passed.
 - `xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -destination 'platform=iOS Simulator,name=iPhone 17'`: passed, 43 tests, 0 failures.
-- `bash docs/scripts/smoke-release-simulator.sh`: passed on July 3, 2026 for `iPhone 17`. The script built the Release app, clean-installed it on the simulator, verified the built bundle contains 406 opportunities, captured nonblank screenshots for home, opportunities, high-school, and support routes, and saved outputs under `build/release-smoke/`.
-- `bash docs/scripts/capture-app-store-screenshots.sh`: passed; regenerated local App Store screenshots at `build/app-store-screenshots/` for 6.9-inch iPhone (`1320 x 2868`) and 13-inch iPad (`2064 x 2752`). Home screenshots show `Loaded from Offline backup`; Support screenshots show the unavailable feedback/submission state and no personal-data fields.
-- The release audit now verifies the eight App Store screenshot PNGs exist, have exact upload dimensions, and are not blank. Latest run passed with iPhone screenshots at `1320 x 2868`, iPad screenshots at `2064 x 2752`, and more than 1,300 sampled colors on every screenshot.
-- `xcodebuild archive -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'generic/platform=iOS' -archivePath build/GTAFreeSTEM-build10.xcarchive -allowProvisioningUpdates`: passed for `com.rupayonhaldar.gtafreestem` version `1.0`, build `10`.
+- `bash docs/scripts/check-ci-release-readiness.sh`: passed on July 3, 2026. It ran strict readiness without screenshot artifacts, the public-release gate self-test, a Release simulator build, and 43 XCTest tests with 0 failures.
+- `bash docs/scripts/smoke-release-simulator.sh`: passed on July 3, 2026 for `iPhone 17`. The script built the Release app, clean-installed it on the simulator, verified the built bundle contains 382 opportunities, captured nonblank screenshots for home, opportunities, high-school, and support routes, and saved outputs under `build/release-smoke/`.
+- `SCREENSHOT_DELAY=16 bash docs/scripts/capture-app-store-screenshots.sh`: passed; regenerated local App Store screenshots at `build/app-store-screenshots/` for 6.9-inch iPhone (`1320 x 2868`) and 13-inch iPad (`2064 x 2752`). Home screenshots show `Loaded from Offline backup`; Support screenshots show the unavailable feedback/submission state and no personal-data fields.
+- The release audit now verifies the eight App Store screenshot PNGs exist, have exact upload dimensions, and are not blank. Latest run passed with iPhone screenshots at `1320 x 2868`, iPad screenshots at `2064 x 2752`, and at least 1,385 sampled colors on every screenshot.
+- `xcodebuild archive -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'generic/platform=iOS' -archivePath build/GTAFreeSTEM-build10.xcarchive -allowProvisioningUpdates`: passed earlier for `com.rupayonhaldar.gtafreestem` version `1.0`, build `10`.
 - `xcodebuild -exportArchive -archivePath build/GTAFreeSTEM-build10.xcarchive -exportOptionsPlist docs/AppStoreConnectExportOptions.plist -exportPath build/export-build10 -allowProvisioningUpdates`: passed and uploaded `GTAFreeSTEM.ipa` build `1.0 (10)` to App Store Connect. Xcode distribution evidence shows delivery UUID `97c05d63-7f3d-45bc-941e-c10432694ca8`, upload-time state `success`, uploaded date `2026-07-03T09:54:23Z`, and no upload errors.
 - Xcode export evidence for build `10`: the local archive was created with automatic development signing, then the App Store Connect export pipeline remotely re-signed the uploaded payload with `Apple Distribution: RUPAYON HALDAR (FE33NM88XX)` and `get-task-allow = 0`. Do not force `CODE_SIGN_IDENTITY = Apple Distribution` while automatic signing is using the development archive path; it conflicts with Xcode's working export flow.
 - `APP_STORE_CONNECT_KEYCHAIN_SECRET_TIMEOUT=2 BUNDLE_VERSION=10 APP_STORE_CONNECT_USERNAME=rupayon244@gmail.com APP_STORE_CONNECT_KEYCHAIN_ITEM=GTA_FREE_STEM_ASC DELIVERY_ID=97c05d63-7f3d-45bc-941e-c10432694ca8 bash docs/scripts/check-testflight-build-status.sh`: retried on July 3, 2026. Local Keychain secret access still timed out, and altool's `@keychain:` lookup still reported `Failed to find item GTA_FREE_STEM_ASC for user rupayon244@gmail.com in keychain`, so use the one-off app-specific-password or App Store Connect API-key auth path until the Keychain item is re-stored.
@@ -49,16 +51,17 @@
 - Live `https://gta-free-stem.vercel.app/privacy/`: returns HTTP 200.
 - Live `https://gta-free-stem.vercel.app/accessibility-support/`: returns HTTP 200.
 - Live `https://gta-free-stem.vercel.app/`: returns HTTP 200.
-- Live `https://gta-free-stem.vercel.app/opportunities.json`: returns 406 opportunities, 406 translated opportunity payloads.
+- `xcodebuild archive -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'generic/platform=iOS' -archivePath build/GTAFreeSTEM-build11.xcarchive -allowProvisioningUpdates`: attempted on July 3, 2026 and stopped at the macOS SecurityAgent prompt for the Apple signing key. The user must enter the local Mac login password and choose `Always Allow`; do not send that password in chat.
+- Live `https://gta-free-stem.vercel.app/opportunities.json`: returns 382 opportunities, 382 translated opportunity payloads.
 
 ## What is still required for public release
 
 1. **Translation quality follow-up**
-   - The bundled iOS snapshot and local companion feed now include generated multilingual summaries, titles, descriptions, localized category metadata, localized cost metadata, and category tags for all 406 public listings.
+   - The bundled iOS snapshot and local companion feed now include generated multilingual summaries, titles, descriptions, localized category metadata, localized cost metadata, and category tags for all 382 public listings.
    - Production `opportunities.json` now includes the same payloads.
    - Human/API-reviewed organization, address, source-specific tag, and richer prose translations remain a quality upgrade after the generated-coverage release gate; they are not blocking the current generated-coverage release gate.
-   - Companion feed repo status on July 3, 2026: `/Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-opportunities` is pushed to GitHub with broader public search fields and deployed to Vercel production at `dpl_7YVnTcUxAREXTwxAfaEUBBvFR9en` with 406/406 translated live listings.
-   - The iOS repo now contains the synced 406-listing bundled opportunity snapshot and matching release-readiness docs.
+   - Companion feed repo status on July 3, 2026: `/Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-opportunities` is pushed to GitHub with broader public search fields and deployed to Vercel production at `dpl_F2wScPMS6rqR8PB4djdyFhcV6cC2` with 382/382 translated live listings.
+   - The iOS repo now contains the synced 382-listing bundled opportunity snapshot and matching release-readiness docs.
 
 2. **Release validation commands**
    - Build release:
@@ -83,13 +86,13 @@
    - Confirm manual refresh and background refresh both update `isLoading`, `dataSourceLabel`, and notifications.
 
 5. **App Store**
-   - Start with `docs/PUBLIC_RELEASE_RUNBOOK.md` for the shortest current path from uploaded build `1.0 (10)` to App Store submission.
-   - Verify `docs/TESTFLIGHT.md`, update App Store Connect metadata, select confirmed build `1.0 (10)`, upload final screenshots, complete App Privacy and age-rating forms, and submit the app for App Review.
+   - Start with `docs/PUBLIC_RELEASE_RUNBOOK.md` for the shortest current path from local build `1.0 (11)` to App Store submission.
+   - After macOS keychain authorization, archive/upload build `1.0 (11)`, verify it is `VALID`, update App Store Connect metadata, select confirmed build `1.0 (11)`, upload final screenshots, complete App Privacy and age-rating forms, and submit the app for App Review.
    - Use `docs/APP_STORE_METADATA.md` as the metadata/privacy draft and `docs/APP_STORE_SUBMISSION_PACKET.md` as the paste-ready App Store Connect packet. The draft is checked by `docs/scripts/check-release-readiness.sh` for App Store name, subtitle, description, and keyword limits.
    - Use `bash docs/scripts/check-public-release-gates.sh` after real-device QA and App Store Connect entry are recorded; it intentionally fails while `docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md` remains pending.
    - Use `https://gta-free-stem.vercel.app/`, `https://gta-free-stem.vercel.app/accessibility-support/`, and `https://gta-free-stem.vercel.app/privacy/` for App Store Connect marketing/support/privacy URLs; all three routes are live.
    - Apple Developer account `rupayon244@gmail.com` is signed into Xcode, team `FE33NM88XX` is available, and Xcode created/downloaded a provisioning profile for `com.rupayonhaldar.gtafreestem`.
-   - The latest IPA upload succeeded for TestFlight candidate `1.0 (10)`, and build `10` is now command-line-confirmed as `VALID` and `BETA_INTERNAL_TESTING`.
+   - The latest confirmed IPA upload is TestFlight candidate `1.0 (10)`, and build `10` is command-line-confirmed as `VALID` and `BETA_INTERNAL_TESTING`. Build `1.0 (11)` is prepared locally with the current 382-item bundle and still needs upload.
    - Future processing and beta status checks for build `10` can use `BUNDLE_VERSION=10 DELIVERY_ID=97c05d63-7f3d-45bc-941e-c10432694ca8 APP_STORE_CONNECT_USERNAME=rupayon244@gmail.com bash docs/scripts/check-testflight-build-status.sh` with a one-off app-specific password, or App Store Connect API-key auth. The saved Keychain item still exists but is not usable by altool's `@keychain:` lookup on this Mac.
    - Account-only and submission features are release-safe in build `1.0 (10)`: unfinished Apple sign-in/token exchange UI is hidden, the Support tab no longer collects feedback or missing-opportunity submissions, and account-dependent copy says the feature is not available in this build instead of exposing backend setup instructions.
 

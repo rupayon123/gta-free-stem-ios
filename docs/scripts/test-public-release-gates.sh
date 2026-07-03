@@ -69,13 +69,20 @@ owner_values = {
     "Overall status": "`Pass`",
     "Accepted risks": "None",
     "Must-fix blockers": "None",
-    "App Store Connect build selected": "1.0 (10)",
+    "App Store Connect build selected": "1.0 (11)",
     "Screenshots uploaded": "8 screenshots uploaded: 4 iPhone 6.9 + 4 iPad 13",
     "Metadata/privacy/age rating entered": "Metadata, App Privacy, age rating, export compliance, and review notes entered",
     "Submitted for App Review": "Pending until final click",
 }
+build_fact_values = {
+    "Delivery UUID": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    "App Store Connect status": "`VALID`",
+    "TestFlight status": "`BETA_INTERNAL_TESTING`",
+}
 
 for field, value in tester_values.items():
+    replace_line(field, value)
+for field, value in build_fact_values.items():
     replace_line(field, value)
 for field, value in owner_values.items():
     replace_line(field, value)
@@ -90,7 +97,7 @@ elif mode == "weak-screenshots":
 elif mode == "weak-metadata":
     replace_line("Metadata/privacy/age rating entered", "Done")
 elif mode == "missing-delivery":
-    text = text.replace("Delivery UUID: `97c05d63-7f3d-45bc-941e-c10432694ca8`", "Delivery UUID: `missing`")
+    text = text.replace("Delivery UUID: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "Delivery UUID: `missing`")
 else:
     raise SystemExit(f"Unknown fixture mode: {mode}")
 
@@ -144,7 +151,7 @@ make_fixture weak-metadata "$WEAK_METADATA_FIXTURE"
 make_fixture missing-delivery "$MISSING_DELIVERY_FIXTURE"
 
 expect_pass "complete signoff" "$PASS_FIXTURE"
-expect_fail "wrong selected build" "$WRONG_BUILD_FIXTURE" "App Store Connect build selected: expected 1.0 (10)"
+expect_fail "wrong selected build" "$WRONG_BUILD_FIXTURE" "App Store Connect build selected: expected 1.0 (11)"
 expect_fail "weak screenshot evidence" "$WEAK_SCREENSHOTS_FIXTURE" "Screenshots uploaded: include evidence for 8 screenshots, iPhone, and iPad"
 expect_fail "weak metadata evidence" "$WEAK_METADATA_FIXTURE" "Metadata/privacy/age rating entered: mention metadata, privacy, and age rating"
 expect_fail "missing delivery UUID" "$MISSING_DELIVERY_FIXTURE" "Real-device signoff is missing required build facts"
