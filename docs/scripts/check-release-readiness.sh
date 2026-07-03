@@ -331,6 +331,34 @@ if missing:
 print("Submission packet includes confirmed build, URLs, and screenshot paths.")
 PY
 
+echo -e "\n=== Public release runbook checks ==="
+/usr/bin/python3 - <<'PY'
+from pathlib import Path
+
+runbook_path = Path("docs/PUBLIC_RELEASE_RUNBOOK.md")
+if not runbook_path.exists():
+    raise SystemExit("Missing docs/PUBLIC_RELEASE_RUNBOOK.md")
+
+runbook = runbook_path.read_text(encoding="utf-8")
+required_fragments = [
+    "Version/build: `1.0 (9)`",
+    "Delivery UUID: `222e71fe-92f1-4da3-bad7-205b9eb7a3b3`",
+    "App Store Connect import status: `VALID`",
+    "TestFlight status: `BETA_INTERNAL_TESTING`",
+    "docs/APP_STORE_SUBMISSION_PACKET.md",
+    "docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md",
+    "bash docs/scripts/check-public-release-gates.sh",
+    "build/app-store-screenshots/iphone-6.9/01-home.png",
+    "build/app-store-screenshots/ipad-13/01-home.png",
+    "https://gta-free-stem.vercel.app/privacy/",
+    "Use an Apple app-specific password, not the normal Apple ID password.",
+]
+missing = [fragment for fragment in required_fragments if fragment not in runbook]
+if missing:
+    raise SystemExit("Public release runbook is missing required release facts:\n" + "\n".join(f"- {item}" for item in missing))
+print("Public release runbook includes build facts, manual gates, URLs, screenshots, and credential safety.")
+PY
+
 echo -e "\n=== Real-device QA signoff check ==="
 /usr/bin/python3 - <<'PY'
 from pathlib import Path

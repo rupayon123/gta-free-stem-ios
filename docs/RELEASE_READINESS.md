@@ -85,6 +85,7 @@
    - Confirm manual refresh and background refresh both update `isLoading`, `dataSourceLabel`, and notifications.
 
 5. **App Store**
+   - Start with `docs/PUBLIC_RELEASE_RUNBOOK.md` for the shortest current path from build `1.0 (9)` to App Store submission.
    - Verify `docs/TESTFLIGHT.md`, update App Store Connect metadata, select confirmed build `1.0 (9)`, upload final screenshots, complete App Privacy and age-rating forms, and submit the app for App Review.
    - Use `docs/APP_STORE_METADATA.md` as the metadata/privacy draft and `docs/APP_STORE_SUBMISSION_PACKET.md` as the paste-ready App Store Connect packet. The draft is checked by `docs/scripts/check-release-readiness.sh` for App Store name, subtitle, description, and keyword limits.
    - Use `bash docs/scripts/check-public-release-gates.sh` after real-device QA and App Store Connect entry are recorded; it intentionally fails while `docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md` remains pending.
