@@ -35,6 +35,10 @@ Expected result:
 - Bundled and live feed translation coverage remains 370/370 opportunities.
 - App Store screenshots are regenerated and rechecked.
 
+## GitHub CI Guard
+
+GitHub Actions runs `.github/workflows/ios-release-readiness.yml` on pushes to `main`, pull requests, and manual dispatch. It runs `bash docs/scripts/check-ci-release-readiness.sh`, which validates strict release readiness, a Release simulator build, and the XCTest suite without requiring App Store Connect credentials or locally generated screenshot artifacts.
+
 ## If App Store Connect Keeps Loading
 
 The web UI is still needed to select the build, upload screenshots, enter metadata, and submit for review. If the page keeps loading, use command-line checks to confirm the build is valid, then retry App Store Connect in Safari/Chrome later.

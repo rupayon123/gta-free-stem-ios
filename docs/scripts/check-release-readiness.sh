@@ -13,6 +13,7 @@ if ! command -v jq >/dev/null 2>&1; then
 fi
 
 STRICT_TRANSLATION_CHECK="${STRICT_TRANSLATION_CHECK:-0}"
+CHECK_APP_STORE_SCREENSHOTS="${CHECK_APP_STORE_SCREENSHOTS:-1}"
 if [ "$STRICT_TRANSLATION_CHECK" != "0" ]; then
   echo "Strict untranslated-language checks are enabled."
 fi
@@ -348,6 +349,7 @@ required_fragments = [
     "docs/APP_STORE_SUBMISSION_PACKET.md",
     "docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md",
     "bash docs/scripts/check-local-release-candidate.sh",
+    "bash docs/scripts/check-ci-release-readiness.sh",
     "bash docs/scripts/check-public-release-gates.sh",
     "build/app-store-screenshots/iphone-6.9/01-home.png",
     "build/app-store-screenshots/ipad-13/01-home.png",
@@ -381,7 +383,8 @@ print("Real-device QA signoff template is present and still marked Pending.")
 PY
 
 echo -e "\n=== App Store screenshot checks ==="
-/usr/bin/python3 - <<'PY'
+if [ "$CHECK_APP_STORE_SCREENSHOTS" != "0" ]; then
+  /usr/bin/python3 - <<'PY'
 from pathlib import Path
 import struct
 import zlib
@@ -488,6 +491,9 @@ for relative_path, expected_size in expected.items():
     suffix = f", {sampled_colors} sampled colors" if sampled_colors is not None else ""
     print(f"{relative_path}: {width} x {height}{suffix}")
 PY
+else
+  echo "Skipped App Store screenshot checks because CHECK_APP_STORE_SCREENSHOTS=0."
+fi
 
 echo -e "\n=== Feed translation sanity check (sample) ==="
 SAMPLE_LANGS="es zh yue pa"
