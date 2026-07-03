@@ -14,19 +14,21 @@
   - Local companion public feed: 370 public opportunities, 100% generated summary/category/cost/title/description payload coverage.
   - Live public feed: 370 public opportunities, 370 translated payloads, and 100% live summary/category/cost/title/description coverage after Vercel production deployment `dpl_4SjBikyTa6FQrCyjRafTz2cgJPjX`.
   - Companion site marketing, support, and privacy URLs resolve in production with HTTP 200.
-  - Release simulator build and unit tests pass.
-  - Device archive and App Store Connect upload pass from this Mac with Apple team `FE33NM88XX`; TestFlight candidate `1.0 (5)` is complete in Build Uploads, appears as `Ready to Submit`, and is attached to the internal `Zenin` tester group in App Store Connect.
+  - Release simulator build and 37-test XCTest suite pass.
+  - Support tab is privacy-safe for the current build: feedback and online submissions are unavailable, no personal-data input fields are shown, and submission APIs require an account token before any network request.
+  - Device archive and App Store Connect upload pass from this Mac with Apple team `FE33NM88XX`; TestFlight candidate `1.0 (6)` uploaded successfully and Apple reported the package is processing. Previous build `1.0 (5)` is complete in Build Uploads, appears as `Ready to Submit`, and is attached to the internal `Zenin` tester group in App Store Connect.
 
 ## Latest command results
 
-- `bash docs/scripts/check-release-readiness.sh`: passed in advisory mode.
+- `bash docs/scripts/check-release-readiness.sh`: passed on July 2, 2026 after the build `6` bump, privacy-safe Support change, and live-feed deployment.
 - `LIVE_FEED_URL=file:///Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-opportunities/public/opportunities.json STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: passed, proving the local feed artifact clears strict multilingual coverage before deployment.
 - `STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: passed against production; live feed has 370/370 translated opportunity payloads and 100% summary/category/cost/title/description coverage.
 - `xcodebuild -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'platform=iOS Simulator,name=iPhone 17' build`: passed.
-- `xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -destination 'platform=iOS Simulator,name=iPhone 17'`: passed, 35 tests, 0 failures.
-- `xcodebuild archive -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'generic/platform=iOS' -archivePath build/GTAFreeSTEM-build5.xcarchive -allowProvisioningUpdates`: passed for `com.rupayonhaldar.gtafreestem` version `1.0`, build `5`, after signing into Apple account `rupayon244@gmail.com`.
-- `xcodebuild -exportArchive -archivePath build/GTAFreeSTEM-build5.xcarchive -exportOptionsPlist docs/AppStoreConnectExportOptions.plist -exportPath build/export-build5 -allowProvisioningUpdates`: passed and uploaded `GTAFreeSTEM.ipa` build `1.0 (5)` to App Store Connect. The tracked export options disable Xcode's automatic build-number management.
-- App Store Connect TestFlight inspection: build upload `1.0 (5)` is `Complete`; iOS build `5` is `Ready to Submit`, attached to internal group `Zenin`, with 1 invite.
+- `xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -destination 'platform=iOS Simulator,name=iPhone 17'`: passed, 37 tests, 0 failures.
+- `bash docs/scripts/capture-app-store-screenshots.sh`: passed; regenerated local App Store screenshots at `build/app-store-screenshots/` for 6.9-inch iPhone (`1320 x 2868`) and 13-inch iPad (`2064 x 2752`). Support screenshots show the unavailable feedback/submission state and no personal-data fields.
+- `xcodebuild archive -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'generic/platform=iOS' -archivePath build/GTAFreeSTEM-build6.xcarchive -allowProvisioningUpdates`: passed for `com.rupayonhaldar.gtafreestem` version `1.0`, build `6`.
+- `xcodebuild -exportArchive -archivePath build/GTAFreeSTEM-build6.xcarchive -exportOptionsPlist docs/AppStoreConnectExportOptions.plist -exportPath build/export-build6 -allowProvisioningUpdates`: passed and uploaded `GTAFreeSTEM.ipa` build `1.0 (6)` to App Store Connect. Apple reported the uploaded package is processing. The tracked export options disable Xcode's automatic build-number management.
+- App Store Connect TestFlight inspection before build `6`: build upload `1.0 (5)` is `Complete`; iOS build `5` is `Ready to Submit`, attached to internal group `Zenin`, with 1 invite. Recheck App Store Connect after build `6` finishes processing.
 - Companion repo `./node_modules/.bin/tsc --noEmit`: passed with bundled Node.
 - Companion repo `./node_modules/.bin/tsx scripts/export-public-opportunities.ts && ./node_modules/.bin/tsx scripts/qa-check.ts`: passed; QA now rejects non-English translation payloads that are English copies.
 - Companion repo `pnpm run build`: passed, regenerates `public/opportunities.json`, and exports `/privacy`.
@@ -72,8 +74,8 @@
    - Use `docs/APP_STORE_METADATA.md` as the first metadata/privacy draft.
    - Use `https://gta-free-stem.vercel.app/`, `https://gta-free-stem.vercel.app/accessibility-support/`, and `https://gta-free-stem.vercel.app/privacy/` for App Store Connect marketing/support/privacy URLs; all three routes are live.
    - Apple Developer account `rupayon244@gmail.com` is signed into Xcode, team `FE33NM88XX` is available, and Xcode created/downloaded a provisioning profile for `com.rupayonhaldar.gtafreestem`.
-   - The latest IPA upload succeeded for TestFlight candidate `1.0 (5)`; App Store Connect shows the upload as `Complete`, the build as `Ready to Submit`, and internal group `Zenin` attached with 1 invite.
-   - Account-only features are release-safe in build `1.0 (5)`: unfinished Apple sign-in/token exchange UI is hidden, and account-dependent save/submission copy says the feature is not available in this build instead of exposing backend setup instructions.
+   - The latest IPA upload succeeded for TestFlight candidate `1.0 (6)` and Apple reported the package is processing. After processing completes, confirm build `6` appears in TestFlight, attach it to the internal tester group if needed, and run the focused TestFlight QA pass.
+   - Account-only and submission features are release-safe in build `1.0 (6)`: unfinished Apple sign-in/token exchange UI is hidden, the Support tab no longer collects feedback or missing-opportunity submissions, and account-dependent copy says the feature is not available in this build instead of exposing backend setup instructions.
 
 ## Mac setup to keep development unblocked
 

@@ -31,13 +31,14 @@ Use this checklist before each TestFlight upload so the release is repeatable an
 
 - Try account-only actions and confirm the unavailable-in-this-build message is clear.
 - Confirm Sign in with Apple is not shown unless the iOS app exchanges Apple credentials for a backend API token.
-- Submit feedback or a missing opportunity through the available UI path only when an online backend is connected for that build, using test data only.
+- Confirm the Support tab does not show name, email, message, or missing-opportunity input fields while the online backend is unavailable for this build.
+- Send tester feedback through TestFlight rather than in-app forms unless a future build connects an online backend and updates App Privacy answers.
 - Confirm no access tokens or private user data are written to `UserDefaults`.
 
 ## Accessibility And Localization
 
 - Test Dynamic Type at a large size on the main list and detail screens.
-- Test VoiceOver labels on search filters, map pins, save actions, and feedback controls.
+- Test VoiceOver labels on search filters, map pins, save actions, and support/account-limited controls.
 - Switch light and dark mode.
 - Check right-to-left layout for Arabic, Farsi/Persian, and Urdu resources.
 - Confirm system permission copy is present for location and notifications.

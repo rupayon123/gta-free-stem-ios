@@ -15,6 +15,12 @@ The script writes upload-ready PNG files to:
 - `build/app-store-screenshots/iphone-6.9/`
 - `build/app-store-screenshots/ipad-13/`
 
+Latest verified local capture: July 2, 2026, after the privacy-safe Support update.
+
+- 6.9-inch iPhone screenshots: `1320 x 2868`
+- 13-inch iPad screenshots: `2064 x 2752`
+- Support/account-limited screenshot: no personal-data fields; shows feedback and online submissions unavailable in this build.
+
 Default simulator devices:
 
 - iPhone: `iPhone 17 Pro Max`

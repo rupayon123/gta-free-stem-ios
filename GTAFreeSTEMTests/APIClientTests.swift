@@ -270,6 +270,53 @@ final class APIClientTests: XCTestCase {
         )
     }
 
+    func testSupportViewDoesNotCollectOrPersistSubmissionPersonalData() throws {
+        let repoRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let submitView = repoRoot.appendingPathComponent("GTAFreeSTEM/SubmitView.swift")
+        let contents = try String(contentsOf: submitView)
+
+        XCTAssertFalse(contents.contains("TextField("), "Release support view should not collect name, email, feedback, or submission text while App Privacy says no collected user data.")
+        XCTAssertFalse(contents.contains("previewSubmissions"), "Release support view must not store personal submission drafts in UserDefaults.")
+        XCTAssertFalse(contents.contains("UserDefaults.standard.set"), "Release support view must not persist personal support data locally.")
+        XCTAssertFalse(contents.contains("sendFeedback("), "Release support view should not transmit feedback until backend privacy handling is live.")
+        XCTAssertFalse(contents.contains("submitMissingOpportunity("), "Release support view should not transmit missing-opportunity submissions until backend privacy handling is live.")
+    }
+
+    func testFeedbackAndSubmissionRequireTokenBeforeNetwork() async throws {
+        URLProtocolStub.reset()
+        defer { URLProtocolStub.reset() }
+
+        let session = makeURLSessionForStub()
+        let client = APIClient(
+            baseURL: URL(string: "https://example.com/api/v1")!,
+            feedURL: URL(string: "https://example.com/opportunities.json")!,
+            session: session
+        )
+
+        do {
+            try await client.sendFeedback(FeedbackDraft(name: "Test", email: "test@example.com", message: "Hello"), token: nil)
+            XCTFail("Feedback should require a backend account token before any network request.")
+        } catch APIError.accountRequired {
+        } catch {
+            XCTFail("Expected accountRequired for feedback, got \(error)")
+        }
+
+        do {
+            try await client.submitMissingOpportunity(
+                MissingOpportunityDraft(title: "Test", organization: "Org", city: "Toronto", sourceURL: "https://example.com", notes: "Note"),
+                token: nil
+            )
+            XCTFail("Missing opportunity submission should require a backend account token before any network request.")
+        } catch APIError.accountRequired {
+        } catch {
+            XCTFail("Expected accountRequired for missing opportunity submission, got \(error)")
+        }
+
+        XCTAssertEqual(URLProtocolStub.requestCount, 0)
+    }
+
     func testPermissionCopyIsLocalizedForLaunchLanguages() {
         for language in AppLanguage.allCases {
             XCTAssertNotNil(

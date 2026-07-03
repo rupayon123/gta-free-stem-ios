@@ -195,12 +195,14 @@ final class APIClient: @unchecked Sendable {
     }
 
     func sendFeedback(_ draft: FeedbackDraft, token: String?) async throws {
+        guard let token, !token.isEmpty else { throw APIError.accountRequired }
         let url = baseURL.appending(path: "feedback")
         let body = ["feedback": ["name": draft.name, "email": draft.email, "message": draft.message]]
         _ = try await send(url: url, method: "POST", token: token, body: body) as APIStatusResponse
     }
 
     func submitMissingOpportunity(_ draft: MissingOpportunityDraft, token: String?) async throws {
+        guard let token, !token.isEmpty else { throw APIError.accountRequired }
         let url = baseURL.appending(path: "missing_opportunity_submissions")
         let body = [
             "missing_opportunity_submission": [

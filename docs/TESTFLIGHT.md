@@ -75,10 +75,11 @@ Please test the full discovery flow: keyword search, city/region/age/language/ca
 - Switch language and dark mode.
 - Check Arabic, Farsi/Persian, or Urdu for right-to-left layout.
 - Open list and map views.
-- Turn on VoiceOver and confirm opportunity rows, map pins, filters, detail facts, and form buttons are understandable.
+- Turn on VoiceOver and confirm opportunity rows, map pins, filters, detail facts, and support/account-limited controls are understandable.
 - Tap a listing and check readability with large Dynamic Type.
 - Try account-only actions and confirm the app clearly says account features are not available in this build.
-- Submit feedback and a missing opportunity only if an online backend is connected for that build; otherwise confirm the local-only/unavailable message is clear.
+- Confirm the Support tab does not collect name, email, message, or missing-opportunity details while the online backend is unavailable for this build.
+- Send tester feedback through TestFlight unless a future build connects an online backend and updates App Privacy answers.
 - Report any English text that still appears in app UI controls or system prompts.
 - Report opportunity content that remains English after switching languages; dynamic listing translations require the public feed to provide translated payloads.
 - Confirm the support URL and privacy policy URL open from App Store Connect metadata.
