@@ -102,18 +102,7 @@ final class SessionStore: ObservableObject {
     }
 
     func summary(for opportunity: Opportunity) -> String {
-        let summary = opportunity.localizedSummary(language: language)
-        guard language != .en else { return summary }
-        guard !opportunity.hasTranslation(for: language) else { return summary }
-        let template = text("summaryTemplate")
-        guard template != "summaryTemplate" else { return summary }
-        let ages = opportunity.ageMax.map { "\(opportunity.ageMin)-\($0)" } ?? "\(opportunity.ageMin)+"
-        return template
-            .replacingOccurrences(of: "{summary}", with: summary)
-            .replacingOccurrences(of: "{category}", with: categoryName(for: opportunity))
-            .replacingOccurrences(of: "{provider}", with: organization(for: opportunity))
-            .replacingOccurrences(of: "{city}", with: city(for: opportunity))
-            .replacingOccurrences(of: "{ages}", with: ages)
+        opportunity.localizedSummary(language: language)
     }
 
     func formattedDate(_ value: String?) -> String {

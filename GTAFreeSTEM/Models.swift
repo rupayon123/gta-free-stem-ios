@@ -463,12 +463,13 @@ struct Opportunity: Identifiable, Codable, Hashable {
     ) -> String {
         let template = AppText.shared.string("summaryTemplate", language: language)
         guard template != "summaryTemplate" else { return baseSummary }
-        return template
+        let resolved = template
             .replacingOccurrences(of: "{summary}", with: baseSummary)
             .replacingOccurrences(of: "{category}", with: category)
             .replacingOccurrences(of: "{provider}", with: provider)
             .replacingOccurrences(of: "{city}", with: city)
             .replacingOccurrences(of: "{ages}", with: ages)
+        return resolved.contains(baseSummary) ? resolved : "\(resolved)\n\(baseSummary)"
     }
 
     private func localizedCategoryName(language: AppLanguage) -> String {

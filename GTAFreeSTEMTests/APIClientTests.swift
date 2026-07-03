@@ -198,6 +198,35 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(session.cost(for: translated), "Gratis")
     }
 
+    @MainActor
+    func testSessionSummaryFallsBackToEnglishOnceWhenTranslationIsMissing() {
+        let defaults = UserDefaults.standard
+        let previousLanguage = defaults.string(forKey: "preferredLanguageCode")
+        defer {
+            if let previousLanguage {
+                defaults.set(previousLanguage, forKey: "preferredLanguageCode")
+            } else {
+                defaults.removeObject(forKey: "preferredLanguageCode")
+            }
+        }
+
+        let session = SessionStore()
+        session.preferredLanguageCode = AppLanguage.es.rawValue
+        let englishOnly = opportunity(
+            id: "session-fallback",
+            title: "Robotics Club",
+            organization: "Public Library",
+            description: "Build robots.",
+            summary: "Build robots."
+        )
+
+        let summary = session.summary(for: englishOnly)
+
+        XCTAssertTrue(summary.contains("Build robots."))
+        XCTAssertEqual(summary.components(separatedBy: "Build robots.").count - 1, 1)
+        XCTAssertFalse(summary.contains(AppText.shared.string("summaryTemplate", language: .es)))
+    }
+
     func testEveryLaunchLanguageHasEveryEnglishKey() throws {
         let url = try XCTUnwrap(AppResources.url(forResource: "app_strings", withExtension: "json"))
         let data = try Data(contentsOf: url)
