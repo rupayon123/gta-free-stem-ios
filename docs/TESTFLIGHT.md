@@ -52,6 +52,18 @@ APP_STORE_CONNECT_USERNAME=rupayon244@gmail.com \
   bash docs/scripts/check-testflight-build-status.sh
 ```
 
+If macOS stalls while releasing the saved Keychain secret, the script times out that local read after 8 seconds and falls back to altool's normal `@keychain:` lookup. You can change that with `APP_STORE_CONNECT_KEYCHAIN_SECRET_TIMEOUT=0` to wait indefinitely, or use a one-off app-specific password without storing it:
+
+```bash
+read -r -s APP_STORE_CONNECT_APP_PASSWORD
+export APP_STORE_CONNECT_APP_PASSWORD
+BUNDLE_VERSION=9 \
+  DELIVERY_ID=222e71fe-92f1-4da3-bad7-205b9eb7a3b3 \
+  APP_STORE_CONNECT_USERNAME=rupayon244@gmail.com \
+  bash docs/scripts/check-testflight-build-status.sh
+unset APP_STORE_CONNECT_APP_PASSWORD
+```
+
 Do not use or store the normal Apple ID password for this command.
 
 ## Internal Testers
