@@ -4,6 +4,7 @@ Use this checklist before each TestFlight upload so the release is repeatable an
 
 ## Build Readiness
 
+- Run `STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh` and save the opportunity count, live-feed translation coverage, and UI string coverage in the release notes.
 - Regenerate the project with `xcodegen generate` if `project.yml` changed.
 - Increment `CURRENT_PROJECT_VERSION` once, then confirm `project.yml`, `GTAFreeSTEM.xcodeproj/project.pbxproj`, and the archive metadata agree.
 - Build the app on the current target simulator.
@@ -16,10 +17,18 @@ Use this checklist before each TestFlight upload so the release is repeatable an
 ## Core Discovery Flow
 
 - Launch signed out and confirm public browsing works.
-- Search by keyword, city, age, category, pathway, and language.
-- Open list view and map view from the same result set.
+- Search by keyword across multiple fields:
+  - `robotics Toronto` should find Toronto robotics listings.
+  - A provider name should match the organization field.
+  - A category word such as `scholarship`, `mentorship`, or `volunteer` should match category/tags.
+- Search in a non-English app language and confirm translated listing text is searchable while English terms still work as fallback.
+- Apply filters one at a time for city, region, age, language, category, volunteer hours, co-op/SHSM, mentorship, scholarships, equity focus, new finds, and distance.
+- Switch sorting between best match, soonest, and nearest; nearest should only be available/useful after a nearby search or saved coordinate.
+- Open list view and map view from the same filtered result set, then confirm map pins are a subset of the visible list results.
 - Open a listing and verify title, date, location, cost, provider, and action link readability.
-- Refresh the public feed and confirm the offline bundled snapshot fallback still appears when network access is unavailable.
+- Refresh the public feed repeatedly and confirm the app does not duplicate results, freeze, or show conflicting loading/error states.
+- Turn off network after one successful refresh and confirm cached results appear; on a clean install without cache, confirm the bundled offline snapshot appears.
+- Quit and reopen the app after a search and confirm query, mode, filters, and the latest visible results restore.
 
 ## Location And Notifications
 
@@ -27,6 +36,7 @@ Use this checklist before each TestFlight upload so the release is repeatable an
 - Allow location permission once and confirm nearby results update without continuous tracking copy.
 - Toggle new-match notifications and confirm permission prompts are understandable.
 - Confirm notification state does not block normal browsing.
+- After a background or repeated refresh, confirm new-match messaging does not spam duplicate counts for already-seen listings.
 
 ## Account And Submission Paths
 
@@ -39,10 +49,22 @@ Use this checklist before each TestFlight upload so the release is repeatable an
 ## Accessibility And Localization
 
 - Test Dynamic Type at a large size on the main list and detail screens.
-- Test VoiceOver labels on search filters, map pins, save actions, and support/account-limited controls.
-- Switch light and dark mode.
-- Check right-to-left layout for Arabic, Farsi/Persian, and Urdu resources.
+- Test VoiceOver labels on opportunity rows, search filters, map pins, detail facts, save actions, and support/account-limited controls.
+- Confirm each opportunity row reads as one useful summary: title, category, organization, age range, city, and relevant badges.
+- Confirm the map announces the localized visible-result count before map interaction.
+- Switch light and dark mode and visually inspect contrast on badges, buttons, maps, cards, empty states, and error text.
+- Check right-to-left layout for Arabic, Farsi/Persian, and Urdu resources, including filters, detail pages, settings, and support.
+- Spot-check at least French, Spanish, Chinese, Punjabi, Urdu, Tamil, Tagalog/Filipino, Arabic, Hindi, Portuguese, Gujarati, Bengali, Japanese, Korean, and Hungarian for visible untranslated UI controls.
+- Confirm opportunity titles, descriptions, summaries, categories, and costs switch language where the feed has payloads, with readable English fallback where source-specific fields stay English.
 - Confirm system permission copy is present for location and notifications.
+
+## Public Release Must Pass
+
+- TestFlight build `1.0 (9)` or newer is processed and selectable in App Store Connect.
+- App Store metadata, support URL, marketing URL, privacy URL, privacy answers, age rating, and screenshots are entered and reviewed.
+- Search/hunt, refresh, cache/offline fallback, multilingual switching, RTL layout, Dynamic Type, VoiceOver, and support/account-limited flows pass on at least one real iPhone TestFlight install.
+- No secrets, provisioning profiles, archives, derived-data products, or local screenshots are staged for commit.
+- The generated app-specific Apple password used during setup has been revoked or rotated after release work is finished.
 
 ## TestFlight Notes
 
