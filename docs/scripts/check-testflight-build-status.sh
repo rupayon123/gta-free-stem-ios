@@ -37,11 +37,27 @@ auth_args=()
 if [ -n "${APP_STORE_CONNECT_API_KEY:-}" ] && [ -n "${APP_STORE_CONNECT_API_ISSUER:-}" ]; then
   auth_args+=(--api-key "$APP_STORE_CONNECT_API_KEY" --api-issuer "$APP_STORE_CONNECT_API_ISSUER")
 elif [ -n "${APP_STORE_CONNECT_USERNAME:-}" ] && [ -n "${APP_STORE_CONNECT_KEYCHAIN_ITEM:-}" ]; then
-  auth_args+=(
-    --username "$APP_STORE_CONNECT_USERNAME"
-    --password "@keychain:${APP_STORE_CONNECT_KEYCHAIN_ITEM}"
-    --provider-public-id "$PROVIDER_PUBLIC_ID"
-  )
+  if keychain_password="$(
+    security find-generic-password \
+      -a "$APP_STORE_CONNECT_USERNAME" \
+      -l "$APP_STORE_CONNECT_KEYCHAIN_ITEM" \
+      -w 2>/dev/null
+  )" && [ -n "$keychain_password" ]; then
+    export APP_STORE_CONNECT_RESOLVED_PASSWORD="$keychain_password"
+    trap 'unset APP_STORE_CONNECT_RESOLVED_PASSWORD' EXIT
+    auth_args+=(
+      --username "$APP_STORE_CONNECT_USERNAME"
+      --password "@env:APP_STORE_CONNECT_RESOLVED_PASSWORD"
+      --provider-public-id "$PROVIDER_PUBLIC_ID"
+    )
+  else
+    auth_args+=(
+      --username "$APP_STORE_CONNECT_USERNAME"
+      --password "@keychain:${APP_STORE_CONNECT_KEYCHAIN_ITEM}"
+      --provider-public-id "$PROVIDER_PUBLIC_ID"
+    )
+  fi
+  unset keychain_password
 elif [ -n "${APP_STORE_CONNECT_USERNAME:-}" ] && [ -n "${APP_STORE_CONNECT_APP_PASSWORD:-}" ]; then
   auth_args+=(
     --username "$APP_STORE_CONNECT_USERNAME"
@@ -58,7 +74,7 @@ Use one of these secure options:
    APP_STORE_CONNECT_API_KEY=... APP_STORE_CONNECT_API_ISSUER=... $0
 
 2. App-specific password stored in Keychain:
-   xcrun altool --store-password-in-keychain-item GTA_FREE_STEM_ASC \\
+   xcrun altool --store-password-in-keychain-item --item GTA_FREE_STEM_ASC \\
      -u rupayon244@gmail.com -p '<app-specific-password>'
    APP_STORE_CONNECT_USERNAME=rupayon244@gmail.com \\
      APP_STORE_CONNECT_KEYCHAIN_ITEM=GTA_FREE_STEM_ASC $0
