@@ -82,6 +82,10 @@ Use this flow to fill the table below. Record actual observations in `Notes`; do
 
 - Write `None` for `Accepted risks` or `Must-fix blockers` only when none apply.
 - `Submitted for App Review` may stay pending until the final App Store Connect submit click.
+- Use these exact evidence patterns for the owner fields:
+  - `App Store Connect build selected`: `1.0 (10)`
+  - `Screenshots uploaded`: `8 screenshots uploaded: 4 iPhone 6.9 + 4 iPad 13`
+  - `Metadata/privacy/age rating entered`: `Metadata, App Privacy, age rating, export compliance, and review notes entered`
 - Overall status: `Pending`
 - Accepted risks:
 - Must-fix blockers:

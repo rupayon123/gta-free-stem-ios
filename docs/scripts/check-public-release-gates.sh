@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 RUN_RELEASE_AUDIT="${RUN_RELEASE_AUDIT:-1}"
-SIGNOFF_PATH="docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md"
+SIGNOFF_PATH="${SIGNOFF_PATH:-docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md}"
 
 if [ "$RUN_RELEASE_AUDIT" != "0" ]; then
   STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh
@@ -24,6 +24,7 @@ text = signoff_path.read_text(encoding="utf-8")
 
 required_facts = [
     "Version/build: `1.0 (10)`",
+    "Delivery UUID: `97c05d63-7f3d-45bc-941e-c10432694ca8`",
     "App Store Connect status: `VALID`",
     "TestFlight status: `BETA_INTERNAL_TESTING`",
 ]
@@ -92,14 +93,31 @@ if overall not in allowed_statuses:
 owner_fields = [
     "Accepted risks",
     "Must-fix blockers",
-    "App Store Connect build selected",
-    "Screenshots uploaded",
-    "Metadata/privacy/age rating entered",
 ]
 for field in owner_fields:
     value = field_value(field)
     if is_pending(value):
         not_ready.append(f"{field}: {value or 'blank'}")
+
+selected_build = field_value("App Store Connect build selected")
+if is_pending(selected_build):
+    not_ready.append("App Store Connect build selected: blank")
+elif "1.0 (10)" not in selected_build:
+    not_ready.append(f"App Store Connect build selected: expected 1.0 (10), got {selected_build}")
+
+screenshots = field_value("Screenshots uploaded")
+screenshots_lower = screenshots.lower()
+if is_pending(screenshots):
+    not_ready.append("Screenshots uploaded: blank")
+elif not (("8" in screenshots_lower or "eight" in screenshots_lower) and "iphone" in screenshots_lower and "ipad" in screenshots_lower):
+    not_ready.append("Screenshots uploaded: include evidence for 8 screenshots, iPhone, and iPad")
+
+metadata = field_value("Metadata/privacy/age rating entered")
+metadata_lower = metadata.lower()
+if is_pending(metadata):
+    not_ready.append("Metadata/privacy/age rating entered: blank")
+elif not all(fragment in metadata_lower for fragment in ["metadata", "privacy", "age"]):
+    not_ready.append("Metadata/privacy/age rating entered: mention metadata, privacy, and age rating")
 
 accepted_risks_value = field_value("Accepted risks").lower()
 if (accepted_risk_rows or overall == "Accepted Risk") and accepted_risks_value in empty_decision_values:
