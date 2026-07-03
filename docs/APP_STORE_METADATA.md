@@ -1,6 +1,6 @@
 # App Store Metadata Draft
 
-Last updated: July 2, 2026
+Last updated: July 3, 2026
 
 Use this as the starting point for App Store Connect. Recheck every answer before submission if the production backend changes account, feedback, or submission handling.
 
@@ -62,5 +62,5 @@ The app is intended for families and students and does not include ads, purchase
 - Public multilingual feed is live at `https://gta-free-stem.vercel.app/opportunities.json` with generated translation payloads for all public listings.
 - App Store marketing/support/privacy URLs are live and return HTTP 200.
 - App Store privacy URL is live at `https://gta-free-stem.vercel.app/privacy/`.
-- Full dynamic content translation can still be upgraded later with reviewed title, organization, address, tag, and richer description translations in the companion feed pipeline.
-- TestFlight upload is working from this Mac; build `1.0 (8)` uploaded successfully with the privacy-safe Support update, public-facing offline fallback label, and missing-translation summary fallback hardening. Apple reported the uploaded package is processing.
+- Full dynamic content translation can still be upgraded later with reviewed organization, address, source-specific tag, and richer prose translations in the companion feed pipeline.
+- TestFlight upload is working from this Mac; build `1.0 (8)` uploaded successfully with the privacy-safe Support update, public-facing offline fallback label, and missing-translation summary fallback hardening. App Store Connect command-line status reports import status `VALID`, build status `BETA_INTERNAL_TESTING`, and `usesNonExemptEncryption = false`.
