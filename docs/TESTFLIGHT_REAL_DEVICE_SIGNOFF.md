@@ -32,6 +32,23 @@ These facts describe the current valid TestFlight upload with the refreshed 406-
 - Accessibility settings tested:
 - Languages tested:
 
+## Suggested Real-Device Flow
+
+Use this flow to fill the table below. Record actual observations in `Notes`; do not mark a row `Pass` from simulator-only evidence.
+
+1. Fresh-install build `1.0 (10)` from TestFlight on an iPhone, launch once online, and confirm public browsing opens without account prompts.
+2. Search `robotics Toronto`, then try a second multi-word query with a city or category from a visible result. Confirm results are relevant and sorting defaults to best match.
+3. Apply city, region, age, language, category, volunteer hours, co-op/SHSM, mentorship, scholarships, equity focus, new finds, and distance filters one at a time, then reset them.
+4. Switch between list and map mode after filters are applied. Confirm pins match the filtered result set and detail pages open from both modes where available.
+5. Tap refresh repeatedly while online. Confirm loading state, data source label, result count, and any new-match messaging stay stable and do not duplicate listings.
+6. Quit and reopen the app. Confirm the last query, mode, filters, and visible results restore.
+7. After one successful online refresh, enable Airplane Mode, reopen the app, and confirm cached results appear. Then fresh-install or clear app data, launch without network, and confirm the bundled offline snapshot appears.
+8. Deny location permission when prompted by nearby/distance behavior, then repeat with location allowed if available. Confirm the app explains fallback behavior and uses nearest sorting only when location context exists.
+9. Switch app language to at least French, Spanish, one South Asian language, and one CJK language. Search translated content and an English fallback term in each language.
+10. Switch to Arabic, Farsi/Persian, or Urdu and inspect browse, filters, details, settings, and support for right-to-left layout issues.
+11. Enable Large Accessibility Text, Dark Mode, and VoiceOver. Confirm rows, filters, map/detail controls, account-limited actions, and support controls are understandable and do not overlap.
+12. Open the marketing, support, and privacy URLs from App Store Connect or Safari on the device. Confirm they load the public pages.
+
 ## Required Passes
 
 | Area | Required evidence | Status | Notes |
