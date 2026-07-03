@@ -7,6 +7,7 @@ Record the real-device pass in `docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md` before A
 ## Build Readiness
 
 - Run `STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh` and save the opportunity count, live-feed translation coverage, and UI string coverage in the release notes.
+- Or run `bash docs/scripts/check-local-release-candidate.sh` to regenerate App Store screenshots and run the strict audit, Release build, test suite, and clean-install simulator smoke in one local pass.
 - Regenerate the project with `xcodegen generate` if `project.yml` changed.
 - Increment `CURRENT_PROJECT_VERSION` once, then confirm `project.yml`, `GTAFreeSTEM.xcodeproj/project.pbxproj`, and the archive metadata agree.
 - Build the app on the current target simulator.

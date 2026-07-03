@@ -347,6 +347,7 @@ required_fragments = [
     "TestFlight status: `BETA_INTERNAL_TESTING`",
     "docs/APP_STORE_SUBMISSION_PACKET.md",
     "docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md",
+    "bash docs/scripts/check-local-release-candidate.sh",
     "bash docs/scripts/check-public-release-gates.sh",
     "build/app-store-screenshots/iphone-6.9/01-home.png",
     "build/app-store-screenshots/ipad-13/01-home.png",

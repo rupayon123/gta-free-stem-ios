@@ -23,9 +23,7 @@ Use this as the short path from the current repo state to App Store submission f
 Run this before App Store submission:
 
 ```bash
-STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh
-xcodebuild -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'platform=iOS Simulator,name=iPhone 17' build
-xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -destination 'platform=iOS Simulator,name=iPhone 17'
+bash docs/scripts/check-local-release-candidate.sh
 ```
 
 Expected result:
@@ -33,7 +31,9 @@ Expected result:
 - Release-readiness audit passes.
 - Release build succeeds.
 - Test suite passes with 43 tests.
+- Simulator smoke test passes.
 - Bundled and live feed translation coverage remains 370/370 opportunities.
+- App Store screenshots are regenerated and rechecked.
 
 ## If App Store Connect Keeps Loading
 
