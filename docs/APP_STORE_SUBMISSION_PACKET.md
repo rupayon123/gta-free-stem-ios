@@ -133,5 +133,6 @@ Please test the full discovery flow: keyword search, city/region/age/language/ca
 - `xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -destination 'platform=iOS Simulator,name=iPhone 17'` passes.
 - `bash docs/scripts/smoke-release-simulator.sh` passes.
 - Real-device TestFlight QA passes for search/hunt, refresh, cache/offline fallback, language switching, RTL, Dynamic Type, VoiceOver, dark mode, Support, and account-limited flows.
+- `docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md` is filled out with the real-device pass/fail record.
 - No secrets, provisioning profiles, archives, derived-data products, or generated screenshots are staged for commit.
 - The app-specific Apple password generated during setup has been revoked or rotated after release work is finished.

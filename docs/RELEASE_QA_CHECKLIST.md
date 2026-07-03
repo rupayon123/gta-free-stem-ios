@@ -2,6 +2,8 @@
 
 Use this checklist before each TestFlight upload so the release is repeatable and easy to review later.
 
+Record the real-device pass in `docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md` before App Review submission.
+
 ## Build Readiness
 
 - Run `STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh` and save the opportunity count, live-feed translation coverage, and UI string coverage in the release notes.

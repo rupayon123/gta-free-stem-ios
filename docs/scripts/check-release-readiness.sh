@@ -323,11 +323,32 @@ required_fragments = [
     "Privacy policy URL: `https://gta-free-stem.vercel.app/privacy/`",
     "build/app-store-screenshots/iphone-6.9/01-home.png",
     "build/app-store-screenshots/ipad-13/01-home.png",
+    "docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md",
 ]
 missing = [fragment for fragment in required_fragments if fragment not in packet]
 if missing:
     raise SystemExit("Submission packet is missing required release facts:\n" + "\n".join(f"- {item}" for item in missing))
 print("Submission packet includes confirmed build, URLs, and screenshot paths.")
+PY
+
+echo -e "\n=== Real-device QA signoff check ==="
+/usr/bin/python3 - <<'PY'
+from pathlib import Path
+
+signoff_path = Path("docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md")
+if not signoff_path.exists():
+    raise SystemExit("Missing docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md")
+signoff = signoff_path.read_text(encoding="utf-8")
+required_fragments = [
+    "Version/build: `1.0 (9)`",
+    "App Store Connect status: `VALID`",
+    "TestFlight status: `BETA_INTERNAL_TESTING`",
+    "Overall status: `Pending`",
+]
+missing = [fragment for fragment in required_fragments if fragment not in signoff]
+if missing:
+    raise SystemExit("Real-device QA signoff is missing required release facts:\n" + "\n".join(f"- {item}" for item in missing))
+print("Real-device QA signoff template is present and still marked Pending.")
 PY
 
 echo -e "\n=== App Store screenshot checks ==="
