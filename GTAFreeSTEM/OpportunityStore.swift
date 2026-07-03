@@ -1,7 +1,7 @@
 import CoreLocation
 import Foundation
 import SwiftData
-import UserNotifications
+@preconcurrency import UserNotifications
 
 enum HuntPhase: Equatable {
     case idle
@@ -125,8 +125,9 @@ final class OpportunityStore: ObservableObject {
         didRestoreLastHunt = true
 
         do {
+            let savedHuntKey = huntKey
             let descriptor = FetchDescriptor<SavedHuntRecord>(
-                predicate: #Predicate { record in record.cacheKey == huntKey },
+                predicate: #Predicate { record in record.cacheKey == savedHuntKey },
                 sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
             )
             guard let record = try context.fetch(descriptor).first else { return }
