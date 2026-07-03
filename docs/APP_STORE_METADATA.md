@@ -43,7 +43,7 @@ The iOS app has an in-app privacy note in Settings, but App Store Connect should
 - Optional location: used only while browsing to sort nearby opportunities; current app logic does not transmit device location to the feed.
 - Local cache: public opportunity data, saved hunt state, seen listing IDs, and settings are stored locally with SwiftData/UserDefaults.
 - Required reason API manifest: `PrivacyInfo.xcprivacy` declares app-only UserDefaults access with reason `CA92.1`.
-- Data collection answer: for build `1.0 (6)`, answer as public browsing with no collected user data because account, feedback, and online submission endpoints are not connected in this iOS build. If those endpoints are connected before release, update App Privacy answers for account identifiers, feedback, submitted content, diagnostics, and deletion handling as implemented.
+- Data collection answer: for build `1.0 (7)`, answer as public browsing with no collected user data because account, feedback, and online submission endpoints are not connected in this iOS build. If those endpoints are connected before release, update App Privacy answers for account identifiers, feedback, submitted content, diagnostics, and deletion handling as implemented.
 
 ## Age Rating Notes
 
@@ -53,7 +53,7 @@ The app is intended for families and students and does not include ads, purchase
 
 - The app supports iPhone and iPad, so prepare screenshots for both the 6.9-inch iPhone and 13-inch iPad display sets.
 - Use `bash docs/scripts/capture-app-store-screenshots.sh` to generate the current Release screenshot set under `build/app-store-screenshots/`.
-- The screenshot set was regenerated on July 2, 2026 after the privacy-safe Support update. The local outputs are 6.9-inch iPhone PNGs at `1320 x 2868` and 13-inch iPad PNGs at `2064 x 2752`.
+- The screenshot set was regenerated on July 2, 2026 after the privacy-safe Support update and offline-fallback label polish. The local outputs are 6.9-inch iPhone PNGs at `1320 x 2868` and 13-inch iPad PNGs at `2064 x 2752`.
 - The Support screenshot now shows the unavailable feedback/submission state and no name, email, message, or missing-opportunity input fields.
 - Uploading screenshots to App Store Connect is a metadata change and should happen only after explicit confirmation.
 
@@ -63,4 +63,4 @@ The app is intended for families and students and does not include ads, purchase
 - App Store marketing/support/privacy URLs are live and return HTTP 200.
 - App Store privacy URL is live at `https://gta-free-stem.vercel.app/privacy/`.
 - Full dynamic content translation can still be upgraded later with reviewed title, organization, address, tag, and richer description translations in the companion feed pipeline.
-- TestFlight upload is working from this Mac; build `1.0 (6)` uploaded successfully with the privacy-safe Support update and Apple reported the uploaded package is processing. Previous build `1.0 (5)` reached `Ready to Submit` with internal group `Zenin` attached.
+- TestFlight upload is working from this Mac; build `1.0 (7)` uploaded successfully with the privacy-safe Support update and public-facing offline fallback label. Apple reported the uploaded package is processing.
