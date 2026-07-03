@@ -61,8 +61,8 @@ The app is intended for families and students and does not include ads, purchase
 
 - The app supports iPhone and iPad, so prepare screenshots for both the 6.9-inch iPhone and 13-inch iPad display sets.
 - Use `bash docs/scripts/capture-app-store-screenshots.sh` to generate the current Release screenshot set under `build/app-store-screenshots/`.
-- The screenshot set was regenerated on July 2, 2026 after the privacy-safe Support update and offline-fallback label polish. The local outputs are 6.9-inch iPhone PNGs at `1320 x 2868` and 13-inch iPad PNGs at `2064 x 2752`.
-- The Support screenshot now shows the unavailable feedback/submission state and no name, email, message, or missing-opportunity input fields.
+- The screenshot set was regenerated and visually reviewed on July 3, 2026 for build `1.0 (10)` after the refreshed 406-listing bundled snapshot, privacy-safe Support update, and offline-fallback label polish. The local outputs are 6.9-inch iPhone PNGs at `1320 x 2868` and 13-inch iPad PNGs at `2064 x 2752`.
+- Home screenshots show `406 visible`; Opportunity and High School screenshots show search, filter, refresh, nearby, alert, and list/map controls; Support screenshots show the unavailable feedback/submission state and no name, email, message, or missing-opportunity input fields.
 - Uploading screenshots to App Store Connect is a metadata change and should happen only after explicit confirmation.
 
 ## Current External Follow-ups
