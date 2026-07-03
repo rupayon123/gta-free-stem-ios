@@ -36,6 +36,9 @@ fi
 step "Strict release-readiness audit"
 STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh
 
+step "Public release gate self-test"
+bash docs/scripts/test-public-release-gates.sh
+
 step "Release simulator build"
 xcodebuild \
   -project "$PROJECT" \

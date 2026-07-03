@@ -121,6 +121,14 @@ bash docs/scripts/check-public-release-gates.sh
 
 This must pass before public release. It intentionally fails while real-device QA or App Store Connect owner fields are still pending.
 
+The final gate also has a fixture self-test that CI runs automatically:
+
+```bash
+bash docs/scripts/test-public-release-gates.sh
+```
+
+This verifies that a complete temporary signoff passes and weak App Store evidence, wrong build selection, or a missing delivery UUID fail.
+
 ## Final Live Steps
 
 1. Select build `1.0 (10)` in App Store Connect.

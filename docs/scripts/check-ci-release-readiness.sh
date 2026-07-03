@@ -61,6 +61,10 @@ echo "=== CI strict release-readiness audit ==="
 CHECK_APP_STORE_SCREENSHOTS=0 STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh
 
 echo
+echo "=== CI public release gate self-test ==="
+bash docs/scripts/test-public-release-gates.sh
+
+echo
 echo "=== CI Release build ==="
 xcodebuild \
   -project "$PROJECT" \
