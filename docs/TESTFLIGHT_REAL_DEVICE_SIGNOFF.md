@@ -6,6 +6,8 @@ Use this document to record the real-device QA pass before App Review submission
 
 After filling this out, run `bash docs/scripts/check-public-release-gates.sh`. It should fail while this document is still pending and pass only after required real-device and App Store Connect gates are recorded.
 
+Allowed row statuses are `Pass`, `Fail`, `Pending`, and `Accepted Risk`; the final gate passes only when every required row is `Pass` or `Accepted Risk`. Every `Accepted Risk` row must include notes and must be summarized in `Accepted risks`.
+
 ## Build Under Test
 
 - App: `GTA FREE STEM`
@@ -18,6 +20,7 @@ After filling this out, run `bash docs/scripts/check-public-release-gates.sh`. I
 
 ## Tester And Device
 
+- Fill every line before public-release signoff. Use `YYYY-MM-DD` for the date.
 - Tester:
 - Date:
 - Device model:
@@ -58,6 +61,8 @@ After filling this out, run `bash docs/scripts/check-public-release-gates.sh`. I
 
 ## Release Owner Decision
 
+- Write `None` for `Accepted risks` or `Must-fix blockers` only when none apply.
+- `Submitted for App Review` may stay pending until the final App Store Connect submit click.
 - Overall status: `Pending`
 - Accepted risks:
 - Must-fix blockers:

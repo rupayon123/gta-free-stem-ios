@@ -32,36 +32,82 @@ if missing_facts:
     raise SystemExit("Real-device signoff is missing required build facts:\n" + "\n".join(f"- {fact}" for fact in missing_facts))
 
 allowed_statuses = {"Pass", "Accepted Risk"}
+pending_values = {"", "pending", "no", "not yet", "todo", "tbd"}
+empty_decision_values = pending_values | {"none", "n/a", "na", "not applicable"}
 not_ready = []
+accepted_risk_rows = []
+
+def clean(value):
+    return value.strip().strip("`").strip()
+
+def field_value(field):
+    match = re.search(rf"^- {re.escape(field)}:[ \t]*(.*)$", text, re.MULTILINE)
+    return clean(match.group(1)) if match else ""
+
+def is_pending(value):
+    return clean(value).lower() in pending_values
+
+tester_fields = [
+    "Tester",
+    "Date",
+    "Device model",
+    "iOS/iPadOS version",
+    "Install source",
+    "Network conditions tested",
+    "Accessibility settings tested",
+    "Languages tested",
+]
+for field in tester_fields:
+    value = field_value(field)
+    if is_pending(value):
+        not_ready.append(f"{field}: {value or 'blank'}")
+
+date_value = field_value("Date")
+if date_value and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_value):
+    not_ready.append("Date: use YYYY-MM-DD")
+
+install_source = field_value("Install source").lower()
+if install_source and "testflight" not in install_source:
+    not_ready.append(f"Install source: expected TestFlight, got {field_value('Install source')}")
+
 for line in text.splitlines():
     if not line.startswith("|") or "---" in line or "Required evidence" in line:
         continue
     cells = [cell.strip() for cell in line.strip("|").split("|")]
     if len(cells) < 4:
         continue
-    area, evidence, status, notes = cells[:4]
+    area, evidence, status, notes = [clean(cell) for cell in cells[:4]]
     if status not in allowed_statuses:
         not_ready.append(f"{area}: {status or 'blank'}")
+    elif status == "Accepted Risk":
+        accepted_risk_rows.append(area)
+        if is_pending(notes):
+            not_ready.append(f"{area}: Accepted Risk requires notes")
 
-overall_match = re.search(r"^- Overall status:\s*`?([^`\n]+)`?", text, re.MULTILINE)
+overall_match = re.search(r"^- Overall status:[ \t]*`?([^`\n]+)`?", text, re.MULTILINE)
 overall = overall_match.group(1).strip() if overall_match else ""
 if overall not in allowed_statuses:
     not_ready.append(f"Overall status: {overall or 'blank'}")
 
 owner_fields = [
+    "Accepted risks",
+    "Must-fix blockers",
     "App Store Connect build selected",
     "Screenshots uploaded",
     "Metadata/privacy/age rating entered",
 ]
 for field in owner_fields:
-    match = re.search(rf"^- {re.escape(field)}:\s*(.*)$", text, re.MULTILINE)
-    value = match.group(1).strip() if match else ""
-    if not value or value.lower() in {"pending", "no", "not yet", "todo", "tbd"}:
+    value = field_value(field)
+    if is_pending(value):
         not_ready.append(f"{field}: {value or 'blank'}")
 
-submit_match = re.search(r"^- Submitted for App Review:\s*(.*)$", text, re.MULTILINE)
-submitted_value = submit_match.group(1).strip() if submit_match else ""
-if submitted_value.lower() in {"", "pending", "no", "not yet", "todo", "tbd"}:
+accepted_risks_value = field_value("Accepted risks").lower()
+if (accepted_risk_rows or overall == "Accepted Risk") and accepted_risks_value in empty_decision_values:
+    not_ready.append("Accepted risks: describe every accepted risk when any row or overall status is Accepted Risk")
+
+submit_match = re.search(r"^- Submitted for App Review:[ \t]*(.*)$", text, re.MULTILINE)
+submitted_value = clean(submit_match.group(1)) if submit_match else ""
+if submitted_value.lower() in pending_values:
     print("Submitted for App Review is not yet marked complete; this is acceptable before the final submit click.")
 
 if not_ready:
