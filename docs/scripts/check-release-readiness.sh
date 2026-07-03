@@ -4,7 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT_DIR"
 LIVE_FEED_FILE=""
-trap 'rm -f "$LIVE_FEED_FILE"' EXIT
+APPLE_STATUS_FILE=""
+trap 'rm -f "$LIVE_FEED_FILE" "$APPLE_STATUS_FILE"' EXIT
 
 if ! command -v jq >/dev/null 2>&1; then
   echo "jq is required for JSON checks."
@@ -192,6 +193,67 @@ if command -v curl >/dev/null 2>&1; then
   done
 else
   echo "Skipped App Store URL checks: curl is not installed."
+fi
+
+echo -e "\n=== Apple Developer service status check ==="
+if command -v curl >/dev/null 2>&1; then
+  APPLE_STATUS_FILE="$(mktemp)"
+  if curl -fsSL --max-time 15 "https://developer.apple.com/system-status/data/system_status_en_US.js" -o "$APPLE_STATUS_FILE"; then
+    /usr/bin/python3 - "$APPLE_STATUS_FILE" <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+status_path = Path(sys.argv[1])
+raw = status_path.read_text(encoding="utf-8").strip()
+match = re.match(r"^jsonCallback\((.*)\);?$", raw, re.DOTALL)
+payload = json.loads(match.group(1) if match else raw)
+
+watched_services = [
+    "App Store Connect",
+    "App Store Connect - App Processing",
+    "App Store Connect - App Upload",
+    "App Store Connect - TestFlight",
+    "App Store Connect API",
+]
+services = {
+    str(service.get("serviceName", "")).strip(): service
+    for service in payload.get("services", [])
+}
+
+active_events = []
+missing = []
+for service_name in watched_services:
+    service = services.get(service_name)
+    if service is None:
+        missing.append(service_name)
+        continue
+    for event in service.get("events") or []:
+        status = str(event.get("eventStatus", "")).lower()
+        if status != "resolved" and not event.get("endDate"):
+            active_events.append((service_name, event))
+
+if missing:
+    print("Apple status feed did not include expected services: " + ", ".join(missing))
+
+if active_events:
+    print("Apple developer status has active App Store Connect/TestFlight events:")
+    for service_name, event in active_events:
+        status_type = event.get("statusType", "Issue")
+        message = event.get("message", "No message provided")
+        start = event.get("startDate", "unknown start")
+        print(f"- {service_name}: {status_type} since {start}: {message}")
+    raise SystemExit(1)
+
+print("App Store Connect/TestFlight developer services: no active events.")
+print("Note: this checks Apple's public service status only; it does not confirm a specific uploaded build.")
+PY
+  else
+    echo "Skipped Apple Developer service status check: status feed was unreachable."
+  fi
+else
+  echo "Skipped Apple Developer service status check: curl is not installed."
 fi
 
 echo -e "\n=== App Store metadata checks ==="
