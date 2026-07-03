@@ -32,6 +32,8 @@ xcodebuild -exportArchive -archivePath build/GTAFreeSTEM.xcarchive -exportOption
 
 Use `docs/AppStoreConnectExportOptions.plist` for command-line uploads. It disables Xcode's automatic App Store Connect build-number management so the uploaded package uses the exact `CFBundleVersion` from the repo.
 
+Keep automatic signing on for local archives. With the current Apple account setup, Xcode creates a development-signed archive and the App Store Connect export step re-signs the uploaded payload with Apple Distribution and release entitlements. Forcing `CODE_SIGN_IDENTITY = Apple Distribution` in the project conflicts with that automatic signing path.
+
 If this fails with `No Accounts` or `No profiles`, open Xcode > Settings > Accounts, add the Apple Developer account, choose team `FE33NM88XX`, and allow automatic signing for `com.rupayonhaldar.gtafreestem`.
 
 Check App Store Connect processing status from the command line after upload:
