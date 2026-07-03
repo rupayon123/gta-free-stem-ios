@@ -194,6 +194,53 @@ else
   echo "Skipped App Store URL checks: curl is not installed."
 fi
 
+echo -e "\n=== App Store metadata checks ==="
+/usr/bin/python3 - <<'PY'
+from pathlib import Path
+import re
+import sys
+
+metadata = Path("docs/APP_STORE_METADATA.md").read_text(encoding="utf-8")
+
+def first_match(pattern, label):
+    match = re.search(pattern, metadata, re.MULTILINE)
+    if not match:
+        raise SystemExit(f"Missing {label} in docs/APP_STORE_METADATA.md")
+    return match.group(1).strip()
+
+def section(name, next_name):
+    pattern = rf"^## {re.escape(name)}\n\n(.*?)(?=\n## {re.escape(next_name)}\n)"
+    match = re.search(pattern, metadata, re.MULTILINE | re.DOTALL)
+    if not match:
+        raise SystemExit(f"Missing {name} section in docs/APP_STORE_METADATA.md")
+    return match.group(1).strip()
+
+app_name = first_match(r"^- App name:\s*(.+)$", "app name")
+subtitle = first_match(r"^- Subtitle suggestion:\s*(.+)$", "subtitle suggestion")
+keywords = section("Keywords Draft", "Metadata Limit Notes").replace("\n", "").strip()
+description = section("Description Draft", "Keywords Draft")
+
+checks = [
+    ("App name", len(app_name), 30, app_name),
+    ("Subtitle", len(subtitle), 30, subtitle),
+    ("Description", len(description), 4000, ""),
+]
+for label, length, limit, value in checks:
+    print(f"{label}: {length}/{limit} characters")
+    if length > limit:
+        extra = f": {value}" if value else ""
+        raise SystemExit(f"{label} exceeds App Store limit{extra}")
+
+keyword_bytes = len(keywords.encode("utf-8"))
+print(f"Keywords: {keyword_bytes}/100 bytes")
+if keyword_bytes > 100:
+    raise SystemExit("Keywords exceed App Store 100-byte limit")
+if ", " in keywords:
+    raise SystemExit("Keywords should be comma-separated without spaces")
+if not keywords:
+    raise SystemExit("Keywords are empty")
+PY
+
 echo -e "\n=== Feed translation sanity check (sample) ==="
 SAMPLE_LANGS="es zh yue pa"
 for language in $SAMPLE_LANGS; do

@@ -24,6 +24,7 @@
 ## Latest command results
 
 - `STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: passed on July 3, 2026 against production; live feed has 370/370 translated opportunity payloads and 100% summary/category/cost/title/description coverage.
+  - App Store metadata limits now pass inside this script: app name 13/30 characters, subtitle 23/30 characters, description 758/4000 characters, keywords 92/100 bytes.
 - `LIVE_FEED_URL=file:///Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-opportunities/public/opportunities.json STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: passed, proving the local feed artifact clears strict multilingual coverage before deployment.
 - `xcodebuild -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'platform=iOS Simulator,name=iPhone 17' build`: passed.
 - `xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -destination 'platform=iOS Simulator,name=iPhone 17'`: passed, 40 tests, 0 failures.
@@ -78,7 +79,7 @@
 
 5. **App Store**
    - Verify `docs/TESTFLIGHT.md`, update App Store Connect metadata, select build `1.0 (8)`, upload final screenshots, complete App Privacy and age-rating forms, and submit the app for App Review.
-   - Use `docs/APP_STORE_METADATA.md` as the first metadata/privacy draft.
+   - Use `docs/APP_STORE_METADATA.md` as the first metadata/privacy draft. The draft is checked by `docs/scripts/check-release-readiness.sh` for App Store name, subtitle, description, and keyword limits.
    - Use `https://gta-free-stem.vercel.app/`, `https://gta-free-stem.vercel.app/accessibility-support/`, and `https://gta-free-stem.vercel.app/privacy/` for App Store Connect marketing/support/privacy URLs; all three routes are live.
    - Apple Developer account `rupayon244@gmail.com` is signed into Xcode, team `FE33NM88XX` is available, and Xcode created/downloaded a provisioning profile for `com.rupayonhaldar.gtafreestem`.
    - The latest IPA upload succeeded for TestFlight candidate `1.0 (8)`. App Store Connect command-line status confirms build `8` is `VALID` and in `BETA_INTERNAL_TESTING`; run the focused TestFlight QA pass before public submission.

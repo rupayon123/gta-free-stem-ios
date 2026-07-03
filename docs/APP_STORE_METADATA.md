@@ -10,7 +10,7 @@ Use this as the starting point for App Store Connect. Recheck every answer befor
 - Bundle ID: `com.rupayonhaldar.gtafreestem`
 - SKU suggestion: `gta-free-stem-ios`
 - Primary category: Education
-- Subtitle suggestion: Free STEM opportunities in the GTA
+- Subtitle suggestion: Youth programs near you
 - Content rights: the app displays source-backed public opportunity listings and links users to the original providers for registration.
 - Encryption: `ITSAppUsesNonExemptEncryption` is `false`; the app uses standard HTTPS/TLS only.
 
@@ -24,7 +24,15 @@ The app is designed for public browsing first. In the current TestFlight candida
 
 ## Keywords Draft
 
-STEM, GTA, Toronto, education, youth, robotics, coding, science, engineering, math, volunteer, co-op, SHSM, mentorship, scholarships, students, families
+Toronto,robotics,coding,science,engineering,math,volunteer,coop,SHSM,mentorship,scholarships
+
+## Metadata Limit Notes
+
+- App name: 13/30 characters.
+- Subtitle: 23/30 characters.
+- Keywords: 92/100 bytes.
+- Description: under the 4000-character App Store Connect limit.
+- Apple references: [Creating your product page](https://developer.apple.com/app-store/product-page/) and [Platform version information](https://developer.apple.com/help/app-store-connect/reference/app-information/platform-version-information/).
 
 ## Support And Privacy URLs
 
