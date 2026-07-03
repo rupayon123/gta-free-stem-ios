@@ -6,9 +6,9 @@ Use this packet when filling App Store Connect for the first public release. It 
 
 Do not submit App Review, upload screenshots, change live metadata, invite testers, or send external beta review without explicit release-time confirmation.
 
-## Build To Upload And Select
+## Build To Verify And Select
 
-This is the current local release candidate and includes the refreshed 382-listing bundled offline snapshot. Do not select a build for App Review until build `1.0 (11)` uploads and App Store Connect reports it as `VALID`.
+This is the current uploaded release candidate and includes the refreshed 382-listing bundled offline snapshot. Do not select it for App Review until App Store Connect reports build `1.0 (11)` as `VALID`.
 
 - App: `GTA FREE STEM`
 - Apple app ID: `6779714459`
@@ -16,11 +16,11 @@ This is the current local release candidate and includes the refreshed 382-listi
 - Team: `FE33NM88XX`
 - Version: `1.0`
 - Build: `11`
-- Delivery UUID: `Pending build 11 upload`
-- App Store Connect status: `Pending build 11 upload`
-- TestFlight status: `Pending build 11 upload`
+- Delivery UUID: `69e5bff3-4c7e-43e4-93b6-905adc6b19bb`
+- App Store Connect status: `Uploaded; processing status unverified`
+- TestFlight status: `Uploaded; processing status unverified`
 - Last confirmed uploaded build: `1.0 (10)`, delivery UUID `97c05d63-7f3d-45bc-941e-c10432694ca8`, status `VALID` / `BETA_INTERNAL_TESTING`
-- Audience: `Pending build 11 upload`
+- Audience: `Pending App Store Connect processing`
 - Encryption: `usesNonExemptEncryption = false`
 - Device families: iPhone and iPad
 - Live feed coverage: 382/382 translated opportunities

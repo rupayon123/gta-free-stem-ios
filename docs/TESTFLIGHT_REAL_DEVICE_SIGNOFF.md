@@ -10,13 +10,13 @@ Allowed row statuses are `Pass`, `Fail`, `Pending`, and `Accepted Risk`; the fin
 
 ## Build Under Test
 
-These facts describe the current local release candidate with the refreshed 382-listing bundled snapshot. Fill in the delivery/status fields after build `1.0 (11)` uploads and App Store Connect reports it as valid.
+These facts describe the current uploaded release candidate with the refreshed 382-listing bundled snapshot. Fill in the final status fields after App Store Connect reports build `1.0 (11)` as valid.
 
 - App: `GTA FREE STEM`
 - Version/build: `1.0 (11)`
-- Delivery UUID: `Pending build 11 upload`
-- App Store Connect status: `Pending build 11 upload`
-- TestFlight status: `Pending build 11 upload`
+- Delivery UUID: `69e5bff3-4c7e-43e4-93b6-905adc6b19bb`
+- App Store Connect status: `Uploaded; processing status unverified`
+- TestFlight status: `Uploaded; processing status unverified`
 - Last confirmed uploaded build: `1.0 (10)`, delivery UUID `97c05d63-7f3d-45bc-941e-c10432694ca8`, status `VALID` / `BETA_INTERNAL_TESTING`
 - Device family required: iPhone
 - Optional second pass: iPad

@@ -12,11 +12,11 @@ Use this as the short path from the current repo state to App Store submission f
 - Apple Developer team: `FE33NM88XX`
 - Apple ID email for App Store Connect: `rupayon244@gmail.com`
 - Version/build: `1.0 (11)`
-- Delivery UUID: `Pending build 11 upload`
-- App Store Connect import status: `Pending build 11 upload`
-- TestFlight status: `Pending build 11 upload`
+- Delivery UUID: `69e5bff3-4c7e-43e4-93b6-905adc6b19bb`
+- App Store Connect import status: `Uploaded; processing status unverified`
+- TestFlight status: `Uploaded; processing status unverified`
 - Last confirmed uploaded build: `1.0 (10)`, delivery UUID `97c05d63-7f3d-45bc-941e-c10432694ca8`, status `VALID` / `BETA_INTERNAL_TESTING`
-- Audience: `Pending build 11 upload`
+- Audience: `Pending App Store Connect processing`
 - Non-exempt encryption: `false`
 
 ## Current Repo/Feed State
@@ -26,7 +26,7 @@ Use this as the short path from the current repo state to App Store submission f
 - Live feed URL: `https://gta-free-stem.vercel.app/opportunities.json`
 - Bundled iOS snapshot: 382 translated opportunities
 - Live public feed: 382 translated opportunities
-- Local build `1.0 (11)` includes the refreshed 382-item bundled snapshot and can also refresh from the live public feed online. Archive/upload is pending macOS keychain authorization for the Apple signing key.
+- Uploaded build `1.0 (11)` includes the refreshed 382-item bundled snapshot and can also refresh from the live public feed online. Xcode export/upload succeeded; App Store Connect processing status still needs command-line or web verification.
 
 ## One Command To Recheck The Repo
 
@@ -59,7 +59,7 @@ Command-line TestFlight status check:
 read -r -s APP_STORE_CONNECT_APP_PASSWORD
 export APP_STORE_CONNECT_APP_PASSWORD
 BUNDLE_VERSION=11 \
-  DELIVERY_ID=<build-11-delivery-uuid-after-upload> \
+  DELIVERY_ID=69e5bff3-4c7e-43e4-93b6-905adc6b19bb \
   APP_STORE_CONNECT_USERNAME=rupayon244@gmail.com \
   bash docs/scripts/check-testflight-build-status.sh
 unset APP_STORE_CONNECT_APP_PASSWORD

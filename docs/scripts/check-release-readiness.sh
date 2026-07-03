@@ -316,9 +316,9 @@ packet = packet_path.read_text(encoding="utf-8")
 required_fragments = [
     "Version: `1.0`",
     "Build: `11`",
-    "Delivery UUID: `Pending build 11 upload`",
-    "App Store Connect status: `Pending build 11 upload`",
-    "TestFlight status: `Pending build 11 upload`",
+    "Delivery UUID: `69e5bff3-4c7e-43e4-93b6-905adc6b19bb`",
+    "App Store Connect status: `Uploaded; processing status unverified`",
+    "TestFlight status: `Uploaded; processing status unverified`",
     "Last confirmed uploaded build: `1.0 (10)`",
     "Live feed coverage: 382/382 translated opportunities",
     "Bundled snapshot in current repo: 382/382 translated opportunities",
@@ -346,9 +346,9 @@ if not runbook_path.exists():
 runbook = runbook_path.read_text(encoding="utf-8")
 required_fragments = [
     "Version/build: `1.0 (11)`",
-    "Delivery UUID: `Pending build 11 upload`",
-    "App Store Connect import status: `Pending build 11 upload`",
-    "TestFlight status: `Pending build 11 upload`",
+    "Delivery UUID: `69e5bff3-4c7e-43e4-93b6-905adc6b19bb`",
+    "App Store Connect import status: `Uploaded; processing status unverified`",
+    "TestFlight status: `Uploaded; processing status unverified`",
     "Last confirmed uploaded build: `1.0 (10)`",
     "Bundled iOS snapshot: 382 translated opportunities",
     "Live public feed: 382 translated opportunities",
@@ -406,8 +406,9 @@ if not signoff_path.exists():
 signoff = signoff_path.read_text(encoding="utf-8")
 required_fragments = [
     "Version/build: `1.0 (11)`",
-    "App Store Connect status: `Pending build 11 upload`",
-    "TestFlight status: `Pending build 11 upload`",
+    "Delivery UUID: `69e5bff3-4c7e-43e4-93b6-905adc6b19bb`",
+    "App Store Connect status: `Uploaded; processing status unverified`",
+    "TestFlight status: `Uploaded; processing status unverified`",
     "Overall status: `Pending`",
 ]
 missing = [fragment for fragment in required_fragments if fragment not in signoff]
