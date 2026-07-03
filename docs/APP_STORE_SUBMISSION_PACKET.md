@@ -129,6 +129,7 @@ Please test the full discovery flow: keyword search, city/region/age/language/ca
 ## Final Pre-Submit Gates
 
 - `STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh` passes.
+- `bash docs/scripts/check-public-release-gates.sh` passes after real-device QA and App Store Connect entry are recorded.
 - `xcodebuild -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'platform=iOS Simulator,name=iPhone 17' build` passes.
 - `xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -destination 'platform=iOS Simulator,name=iPhone 17'` passes.
 - `bash docs/scripts/smoke-release-simulator.sh` passes.

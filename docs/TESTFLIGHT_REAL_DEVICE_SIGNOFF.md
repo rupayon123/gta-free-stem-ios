@@ -4,6 +4,8 @@ Last updated: July 3, 2026
 
 Use this document to record the real-device QA pass before App Review submission. Do not mark public release ready until every required row is `Pass` or a release owner explicitly accepts the risk.
 
+After filling this out, run `bash docs/scripts/check-public-release-gates.sh`. It should fail while this document is still pending and pass only after required real-device and App Store Connect gates are recorded.
+
 ## Build Under Test
 
 - App: `GTA FREE STEM`

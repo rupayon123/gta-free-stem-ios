@@ -87,6 +87,7 @@
 5. **App Store**
    - Verify `docs/TESTFLIGHT.md`, update App Store Connect metadata, select confirmed build `1.0 (9)`, upload final screenshots, complete App Privacy and age-rating forms, and submit the app for App Review.
    - Use `docs/APP_STORE_METADATA.md` as the metadata/privacy draft and `docs/APP_STORE_SUBMISSION_PACKET.md` as the paste-ready App Store Connect packet. The draft is checked by `docs/scripts/check-release-readiness.sh` for App Store name, subtitle, description, and keyword limits.
+   - Use `bash docs/scripts/check-public-release-gates.sh` after real-device QA and App Store Connect entry are recorded; it intentionally fails while `docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md` remains pending.
    - Use `https://gta-free-stem.vercel.app/`, `https://gta-free-stem.vercel.app/accessibility-support/`, and `https://gta-free-stem.vercel.app/privacy/` for App Store Connect marketing/support/privacy URLs; all three routes are live.
    - Apple Developer account `rupayon244@gmail.com` is signed into Xcode, team `FE33NM88XX` is available, and Xcode created/downloaded a provisioning profile for `com.rupayonhaldar.gtafreestem`.
    - The latest IPA upload succeeded for TestFlight candidate `1.0 (9)`, and build `9` is now command-line-confirmed as `VALID` and `BETA_INTERNAL_TESTING`.
