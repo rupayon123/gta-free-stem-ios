@@ -30,6 +30,7 @@
 - `bash docs/scripts/capture-app-store-screenshots.sh`: passed; regenerated local App Store screenshots at `build/app-store-screenshots/` for 6.9-inch iPhone (`1320 x 2868`) and 13-inch iPad (`2064 x 2752`). Home screenshots show `Loaded from Offline backup`; Support screenshots show the unavailable feedback/submission state and no personal-data fields.
 - `xcodebuild archive -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'generic/platform=iOS' -archivePath build/GTAFreeSTEM-build8.xcarchive -allowProvisioningUpdates`: passed for `com.rupayonhaldar.gtafreestem` version `1.0`, build `8`.
 - `xcodebuild -exportArchive -archivePath build/GTAFreeSTEM-build8.xcarchive -exportOptionsPlist docs/AppStoreConnectExportOptions.plist -exportPath build/export-build8 -allowProvisioningUpdates`: passed and uploaded `GTAFreeSTEM.ipa` build `1.0 (8)` to App Store Connect. Apple reported the uploaded package is processing; Xcode distribution logs show build upload ID `6b35d0b9-e7ce-498f-a36b-a8aa449dca35`, upload state `PROCESSING`, uploaded date `2026-07-02T17:51:22-07:00`, and no upload errors.
+- `docs/scripts/check-testflight-build-status.sh`: added as the repeatable command-line status check for App Store Connect build processing. It uses app Apple ID `6779714459` and requires either App Store Connect API credentials or an app-specific password stored in Keychain; no reusable credential is currently stored in this repo.
 - App Store Connect TestFlight inspection after build `8`: Safari requires Apple login; Xcode upload output proves the package was accepted for processing. Recheck App Store Connect after build `8` finishes processing.
 - Companion repo `./node_modules/.bin/tsc --noEmit`: passed with bundled Node.
 - Companion repo `./node_modules/.bin/tsx scripts/export-public-opportunities.ts && ./node_modules/.bin/tsx scripts/qa-check.ts`: passed; QA now rejects non-English translation payloads that are English copies.
@@ -77,6 +78,7 @@
    - Use `https://gta-free-stem.vercel.app/`, `https://gta-free-stem.vercel.app/accessibility-support/`, and `https://gta-free-stem.vercel.app/privacy/` for App Store Connect marketing/support/privacy URLs; all three routes are live.
    - Apple Developer account `rupayon244@gmail.com` is signed into Xcode, team `FE33NM88XX` is available, and Xcode created/downloaded a provisioning profile for `com.rupayonhaldar.gtafreestem`.
    - The latest IPA upload succeeded for TestFlight candidate `1.0 (8)` and Apple reported the package is processing. After processing completes, confirm build `8` appears in TestFlight, attach it to the internal tester group if needed, and run the focused TestFlight QA pass.
+   - Processing can be rechecked with `bash docs/scripts/check-testflight-build-status.sh` after adding App Store Connect API credentials or a saved app-specific password keychain item.
    - Account-only and submission features are release-safe in build `1.0 (8)`: unfinished Apple sign-in/token exchange UI is hidden, the Support tab no longer collects feedback or missing-opportunity submissions, and account-dependent copy says the feature is not available in this build instead of exposing backend setup instructions.
 
 ## Mac setup to keep development unblocked
@@ -93,3 +95,4 @@ Current Mac status:
 - Homebrew is not installed.
 - GitHub CLI (`gh`) is not installed.
 - Repository pushes succeeded with temporary token-based HTTPS auth. Configure a persistent GitHub credential helper or GitHub CLI login before the next push.
+- App Store Connect command-line status checks are now scripted, but this Mac does not currently have a reusable App Store Connect API key or app-specific password keychain item for `altool --build-status`.

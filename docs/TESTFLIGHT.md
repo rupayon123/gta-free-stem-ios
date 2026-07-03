@@ -34,6 +34,24 @@ Use `docs/AppStoreConnectExportOptions.plist` for command-line uploads. It disab
 
 If this fails with `No Accounts` or `No profiles`, open Xcode > Settings > Accounts, add the Apple Developer account, choose team `FE33NM88XX`, and allow automatic signing for `com.rupayonhaldar.gtafreestem`.
 
+Check App Store Connect processing status from the command line after upload:
+
+```bash
+bash docs/scripts/check-testflight-build-status.sh
+```
+
+The status check uses app Apple ID `6779714459`, current repo build number, platform `ios`, and provider `4bfabe71-697b-4d97-bc76-4c8d5be25591` by default. It requires either `APP_STORE_CONNECT_API_KEY` plus `APP_STORE_CONNECT_API_ISSUER`, or a saved app-specific password keychain item:
+
+```bash
+xcrun altool --store-password-in-keychain-item GTA_FREE_STEM_ASC \
+  -u rupayon244@gmail.com -p '<app-specific-password>'
+APP_STORE_CONNECT_USERNAME=rupayon244@gmail.com \
+  APP_STORE_CONNECT_KEYCHAIN_ITEM=GTA_FREE_STEM_ASC \
+  bash docs/scripts/check-testflight-build-status.sh
+```
+
+Do not use or store the normal Apple ID password for this command.
+
 ## Internal Testers
 
 Internal testers are the easiest first step.
