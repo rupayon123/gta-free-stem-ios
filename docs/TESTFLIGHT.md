@@ -57,8 +57,8 @@ If macOS stalls while releasing the saved Keychain secret, the script times out 
 ```bash
 read -r -s APP_STORE_CONNECT_APP_PASSWORD
 export APP_STORE_CONNECT_APP_PASSWORD
-BUNDLE_VERSION=9 \
-  DELIVERY_ID=222e71fe-92f1-4da3-bad7-205b9eb7a3b3 \
+BUNDLE_VERSION=10 \
+  DELIVERY_ID=97c05d63-7f3d-45bc-941e-c10432694ca8 \
   APP_STORE_CONNECT_USERNAME=rupayon244@gmail.com \
   bash docs/scripts/check-testflight-build-status.sh
 unset APP_STORE_CONNECT_APP_PASSWORD

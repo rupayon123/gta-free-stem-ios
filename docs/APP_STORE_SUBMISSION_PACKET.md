@@ -8,15 +8,15 @@ Do not submit App Review, upload screenshots, change live metadata, invite teste
 
 ## Build To Select
 
-This build is the current valid upload in App Store Connect. The repo now contains the refreshed 406-listing bundled offline snapshot; if that snapshot must ship in the submitted binary, upload a replacement TestFlight build and update this packet before selecting the build for App Review.
+This build is the current valid upload in App Store Connect and includes the refreshed 406-listing bundled offline snapshot.
 
 - App: `GTA FREE STEM`
 - Apple app ID: `6779714459`
 - Bundle ID: `com.rupayonhaldar.gtafreestem`
 - Team: `FE33NM88XX`
 - Version: `1.0`
-- Build: `9`
-- Delivery UUID: `222e71fe-92f1-4da3-bad7-205b9eb7a3b3`
+- Build: `10`
+- Delivery UUID: `97c05d63-7f3d-45bc-941e-c10432694ca8`
 - App Store Connect status: `VALID`
 - TestFlight status: `BETA_INTERNAL_TESTING`
 - Audience: `APP_STORE_ELIGIBLE`
@@ -72,7 +72,7 @@ The app uses standard HTTPS/TLS only and does not use non-exempt encryption.
 
 ## App Privacy Answers
 
-Use these answers only for build `1.0 (9)` as currently implemented.
+Use these answers only for build `1.0 (10)` as currently implemented.
 
 - Tracking: `No`
 - Data linked to the user: `None`

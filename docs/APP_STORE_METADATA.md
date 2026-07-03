@@ -51,7 +51,7 @@ The iOS app has an in-app privacy note in Settings, but App Store Connect should
 - Optional location: used only while browsing to sort nearby opportunities; current app logic does not transmit device location to the feed.
 - Local cache: public opportunity data, saved hunt state, seen listing IDs, and settings are stored locally with SwiftData/UserDefaults.
 - Required reason API manifest: `PrivacyInfo.xcprivacy` declares app-only UserDefaults access with reason `CA92.1`.
-- Data collection answer: for build `1.0 (9)`, answer as public browsing with no collected user data because account, feedback, and online submission endpoints are not connected in this iOS build. If those endpoints are connected before release, update App Privacy answers for account identifiers, feedback, submitted content, diagnostics, and deletion handling as implemented.
+- Data collection answer: for build `1.0 (10)`, answer as public browsing with no collected user data because account, feedback, and online submission endpoints are not connected in this iOS build. If those endpoints are connected before release, update App Privacy answers for account identifiers, feedback, submitted content, diagnostics, and deletion handling as implemented.
 
 ## Age Rating Notes
 
@@ -72,5 +72,4 @@ The app is intended for families and students and does not include ads, purchase
 - App Store marketing/support/privacy URLs are live and return HTTP 200.
 - App Store privacy URL is live at `https://gta-free-stem.vercel.app/privacy/`.
 - Full dynamic content translation can still be upgraded later with reviewed organization, address, source-specific tag, and richer prose translations in the companion feed pipeline.
-- TestFlight upload is working from this Mac; build `1.0 (9)` uploaded successfully with the first-launch system-language fix plus the privacy-safe Support update, public-facing offline fallback label, and missing-translation summary fallback hardening. Build `1.0 (9)` is command-line-confirmed by App Store Connect with import status `VALID`, build status `BETA_INTERNAL_TESTING`, `APP_STORE_ELIGIBLE`, and `usesNonExemptEncryption = false`.
-- Uploaded build `1.0 (9)` predates the 406-item bundled snapshot. Upload a replacement build before App Review if the submitted binary must include that refreshed offline fallback.
+- TestFlight upload is working from this Mac; build `1.0 (10)` uploaded successfully with the first-launch system-language fix, privacy-safe Support update, public-facing offline fallback label, missing-translation summary fallback hardening, and refreshed 406-item bundled opportunity snapshot. Build `1.0 (10)` is command-line-confirmed by App Store Connect with import status `VALID`, build status `BETA_INTERNAL_TESTING`, `APP_STORE_ELIGIBLE`, and `usesNonExemptEncryption = false`.

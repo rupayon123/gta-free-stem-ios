@@ -23,7 +23,7 @@ if not signoff_path.exists():
 text = signoff_path.read_text(encoding="utf-8")
 
 required_facts = [
-    "Version/build: `1.0 (9)`",
+    "Version/build: `1.0 (10)`",
     "App Store Connect status: `VALID`",
     "TestFlight status: `BETA_INTERNAL_TESTING`",
 ]
@@ -116,5 +116,5 @@ if not_ready:
         print(f"- {item}")
     raise SystemExit(1)
 
-print("Public release gates are complete for build 1.0 (9).")
+print("Public release gates are complete for build 1.0 (10).")
 PY

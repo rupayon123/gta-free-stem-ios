@@ -10,11 +10,11 @@ Allowed row statuses are `Pass`, `Fail`, `Pending`, and `Accepted Risk`; the fin
 
 ## Build Under Test
 
-These facts describe the current valid TestFlight upload. If a replacement build is uploaded for the refreshed 406-listing bundled snapshot, update this section before real-device QA.
+These facts describe the current valid TestFlight upload with the refreshed 406-listing bundled snapshot.
 
 - App: `GTA FREE STEM`
-- Version/build: `1.0 (9)`
-- Delivery UUID: `222e71fe-92f1-4da3-bad7-205b9eb7a3b3`
+- Version/build: `1.0 (10)`
+- Delivery UUID: `97c05d63-7f3d-45bc-941e-c10432694ca8`
 - App Store Connect status: `VALID`
 - TestFlight status: `BETA_INTERNAL_TESTING`
 - Device family required: iPhone
@@ -57,7 +57,7 @@ These facts describe the current valid TestFlight upload. If a replacement build
 | VoiceOver rows | Opportunity rows read as one useful label with title, category, organization, age range, city, and relevant badges. | Pending | |
 | VoiceOver map/details/forms | Map, detail facts, filter controls, save/account-limited actions, and support controls have useful labels/hints. | Pending | |
 | Dark mode | Badges, cards, buttons, map area, empty states, and errors remain readable. | Pending | |
-| Support privacy | Support tab does not collect name, email, message, or missing-opportunity details in build `1.0 (9)`. | Pending | |
+| Support privacy | Support tab does not collect name, email, message, or missing-opportunity details in build `1.0 (10)`. | Pending | |
 | Account-limited paths | Account-only actions clearly say the feature is unavailable in this build; Sign in with Apple is not exposed without backend token exchange. | Pending | |
 | App Store URLs | Marketing, support, and privacy URLs open and show expected public pages. | Pending | |
 
@@ -75,6 +75,6 @@ These facts describe the current valid TestFlight upload. If a replacement build
 
 ## Notes
 
-- Send tester feedback through TestFlight, not in-app forms, for build `1.0 (9)`.
+- Send tester feedback through TestFlight, not in-app forms, for build `1.0 (10)`.
 - Rotate or revoke the app-specific Apple password generated during setup after release work is finished.
 - If backend account, feedback, submission, analytics, crash reporting, or telemetry behavior changes before release, redo App Privacy answers and rerun the release-readiness audit.

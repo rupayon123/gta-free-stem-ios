@@ -315,8 +315,8 @@ if not packet_path.exists():
 packet = packet_path.read_text(encoding="utf-8")
 required_fragments = [
     "Version: `1.0`",
-    "Build: `9`",
-    "Delivery UUID: `222e71fe-92f1-4da3-bad7-205b9eb7a3b3`",
+    "Build: `10`",
+    "Delivery UUID: `97c05d63-7f3d-45bc-941e-c10432694ca8`",
     "App Store Connect status: `VALID`",
     "TestFlight status: `BETA_INTERNAL_TESTING`",
     "Marketing URL: `https://gta-free-stem.vercel.app/`",
@@ -342,8 +342,8 @@ if not runbook_path.exists():
 
 runbook = runbook_path.read_text(encoding="utf-8")
 required_fragments = [
-    "Version/build: `1.0 (9)`",
-    "Delivery UUID: `222e71fe-92f1-4da3-bad7-205b9eb7a3b3`",
+    "Version/build: `1.0 (10)`",
+    "Delivery UUID: `97c05d63-7f3d-45bc-941e-c10432694ca8`",
     "App Store Connect import status: `VALID`",
     "TestFlight status: `BETA_INTERNAL_TESTING`",
     "docs/APP_STORE_SUBMISSION_PACKET.md",
@@ -371,7 +371,7 @@ if not signoff_path.exists():
     raise SystemExit("Missing docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md")
 signoff = signoff_path.read_text(encoding="utf-8")
 required_fragments = [
-    "Version/build: `1.0 (9)`",
+    "Version/build: `1.0 (10)`",
     "App Store Connect status: `VALID`",
     "TestFlight status: `BETA_INTERNAL_TESTING`",
     "Overall status: `Pending`",

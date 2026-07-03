@@ -63,7 +63,7 @@ Record the real-device pass in `docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md` before A
 
 ## Public Release Must Pass
 
-- TestFlight build `1.0 (9)` or newer is processed and selectable in App Store Connect.
+- TestFlight build `1.0 (10)` or newer is processed and selectable in App Store Connect.
 - App Store metadata, support URL, marketing URL, privacy URL, privacy answers, age rating, and screenshots are entered and reviewed.
 - Search/hunt, refresh, cache/offline fallback, multilingual switching, RTL layout, Dynamic Type, VoiceOver, and support/account-limited flows pass on at least one real iPhone TestFlight install.
 - No secrets, provisioning profiles, archives, derived-data products, or local screenshots are staged for commit.
