@@ -35,3 +35,5 @@ Default captured screens:
 - Support/account-limited state
 
 Before uploading to App Store Connect, visually review each PNG for readable text, no personal data, correct light-mode appearance, and no loading spinners. Screenshot upload to App Store Connect is a public metadata change, so it should be done only after explicit confirmation.
+
+The release audit also verifies these eight screenshot files with `STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`; missing, incorrectly sized, invalid, or nearly blank screenshots fail the audit.

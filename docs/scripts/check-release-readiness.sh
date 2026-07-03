@@ -303,6 +303,115 @@ if not keywords:
     raise SystemExit("Keywords are empty")
 PY
 
+echo -e "\n=== App Store screenshot checks ==="
+/usr/bin/python3 - <<'PY'
+from pathlib import Path
+import struct
+import zlib
+
+expected = {
+    "build/app-store-screenshots/iphone-6.9/01-home.png": (1320, 2868),
+    "build/app-store-screenshots/iphone-6.9/02-opportunities.png": (1320, 2868),
+    "build/app-store-screenshots/iphone-6.9/03-high-school.png": (1320, 2868),
+    "build/app-store-screenshots/iphone-6.9/04-support-account.png": (1320, 2868),
+    "build/app-store-screenshots/ipad-13/01-home.png": (2064, 2752),
+    "build/app-store-screenshots/ipad-13/02-opportunities.png": (2064, 2752),
+    "build/app-store-screenshots/ipad-13/03-high-school.png": (2064, 2752),
+    "build/app-store-screenshots/ipad-13/04-support-account.png": (2064, 2752),
+}
+
+
+def paeth(a, b, c):
+    p = a + b - c
+    pa = abs(p - a)
+    pb = abs(p - b)
+    pc = abs(p - c)
+    if pa <= pb and pa <= pc:
+        return a
+    if pb <= pc:
+        return b
+    return c
+
+
+def png_info(path):
+    blob = path.read_bytes()
+    if len(blob) < 100_000:
+        raise SystemExit(f"{path} is unexpectedly small: {len(blob)} bytes")
+    if not blob.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise SystemExit(f"{path} is not a PNG")
+
+    offset = 8
+    width = height = bit_depth = color_type = None
+    idat = bytearray()
+    while offset < len(blob):
+        length = struct.unpack(">I", blob[offset:offset + 4])[0]
+        kind = blob[offset + 4:offset + 8]
+        data = blob[offset + 8:offset + 8 + length]
+        offset += length + 12
+        if kind == b"IHDR":
+            width, height, bit_depth, color_type, _, _, _ = struct.unpack(">IIBBBBB", data)
+        elif kind == b"IDAT":
+            idat.extend(data)
+        elif kind == b"IEND":
+            break
+
+    if width is None or height is None:
+        raise SystemExit(f"{path} is missing PNG dimensions")
+    if bit_depth != 8 or color_type not in (0, 2, 6):
+        return width, height, None
+
+    channels = {0: 1, 2: 3, 6: 4}[color_type]
+    stride = width * channels
+    raw = zlib.decompress(bytes(idat))
+    rows = []
+    cursor = 0
+    previous = bytearray(stride)
+    for _ in range(height):
+        filter_type = raw[cursor]
+        cursor += 1
+        current = bytearray(raw[cursor:cursor + stride])
+        cursor += stride
+        for index, value in enumerate(current):
+            left = current[index - channels] if index >= channels else 0
+            up = previous[index]
+            upper_left = previous[index - channels] if index >= channels else 0
+            if filter_type == 1:
+                current[index] = (value + left) & 0xFF
+            elif filter_type == 2:
+                current[index] = (value + up) & 0xFF
+            elif filter_type == 3:
+                current[index] = (value + ((left + up) // 2)) & 0xFF
+            elif filter_type == 4:
+                current[index] = (value + paeth(left, up, upper_left)) & 0xFF
+            elif filter_type != 0:
+                raise SystemExit(f"{path} has unsupported PNG filter {filter_type}")
+        rows.append(current)
+        previous = current
+
+    sampled = set()
+    y_step = max(1, height // 80)
+    x_step = max(1, width // 80)
+    for y in range(0, height, y_step):
+        row = rows[y]
+        for x in range(0, width, x_step):
+            start = x * channels
+            sampled.add(tuple(row[start:start + min(channels, 3)]))
+    return width, height, len(sampled)
+
+
+for relative_path, expected_size in expected.items():
+    path = Path(relative_path)
+    if not path.exists():
+        raise SystemExit(f"Missing App Store screenshot: {relative_path}")
+    width, height, sampled_colors = png_info(path)
+    if (width, height) != expected_size:
+        raise SystemExit(f"{relative_path} is {width} x {height}; expected {expected_size[0]} x {expected_size[1]}")
+    if sampled_colors is not None and sampled_colors < 24:
+        raise SystemExit(f"{relative_path} appears blank or nearly blank: {sampled_colors} sampled colors")
+    suffix = f", {sampled_colors} sampled colors" if sampled_colors is not None else ""
+    print(f"{relative_path}: {width} x {height}{suffix}")
+PY
+
 echo -e "\n=== Feed translation sanity check (sample) ==="
 SAMPLE_LANGS="es zh yue pa"
 for language in $SAMPLE_LANGS; do
