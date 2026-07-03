@@ -9,6 +9,7 @@ Use this checklist before each TestFlight upload so the release is repeatable an
 - Build the app on the current target simulator.
 - Run the app test target from Xcode or with `xcodebuild test`.
 - Confirm the bundled opportunity snapshot still decodes.
+- Run `bash docs/scripts/smoke-release-simulator.sh` to clean-install the Release build on a simulator, verify the bundled opportunity count, and capture nonblank launch screenshots for the home, opportunities, high-school, and support entry screens.
 - Use `docs/AppStoreConnectExportOptions.plist` for command-line App Store Connect uploads so Xcode does not auto-change the build number.
 - Confirm no signing files, provisioning profiles, archives, or secrets are staged.
 

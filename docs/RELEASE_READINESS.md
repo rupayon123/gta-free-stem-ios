@@ -27,6 +27,7 @@
 - `LIVE_FEED_URL=file:///Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-opportunities/public/opportunities.json STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: passed, proving the local feed artifact clears strict multilingual coverage before deployment.
 - `xcodebuild -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'platform=iOS Simulator,name=iPhone 17' build`: passed.
 - `xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -destination 'platform=iOS Simulator,name=iPhone 17'`: passed, 40 tests, 0 failures.
+- `bash docs/scripts/smoke-release-simulator.sh`: passed on July 3, 2026 for `iPhone 17`. The script built the Release app, clean-installed it on the simulator, verified the built bundle contains 370 opportunities, captured nonblank screenshots for home, opportunities, high-school, and support routes, and saved outputs under `build/release-smoke/`.
 - `bash docs/scripts/capture-app-store-screenshots.sh`: passed; regenerated local App Store screenshots at `build/app-store-screenshots/` for 6.9-inch iPhone (`1320 x 2868`) and 13-inch iPad (`2064 x 2752`). Home screenshots show `Loaded from Offline backup`; Support screenshots show the unavailable feedback/submission state and no personal-data fields.
 - `xcodebuild archive -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'generic/platform=iOS' -archivePath build/GTAFreeSTEM-build8.xcarchive -allowProvisioningUpdates`: passed for `com.rupayonhaldar.gtafreestem` version `1.0`, build `8`.
 - `xcodebuild -exportArchive -archivePath build/GTAFreeSTEM-build8.xcarchive -exportOptionsPlist docs/AppStoreConnectExportOptions.plist -exportPath build/export-build8 -allowProvisioningUpdates`: passed and uploaded `GTAFreeSTEM.ipa` build `1.0 (8)` to App Store Connect. Xcode distribution logs show build upload ID `6b35d0b9-e7ce-498f-a36b-a8aa449dca35`, upload-time state `PROCESSING`, uploaded date `2026-07-02T17:51:22-07:00`, and no upload errors; the command-line status check below supersedes the upload-time processing state.
@@ -63,6 +64,8 @@
      - `jq '((.opportunities // .data) | map((.translations // .localizations // .localized // {}) | length > 0) | map(select(. == true)) | length)' GTAFreeSTEM/Resources/opportunities.json`
    - Full audit script:
      - `bash docs/scripts/check-release-readiness.sh`
+   - Clean-install simulator smoke:
+     - `bash docs/scripts/smoke-release-simulator.sh`
 
 3. **Accessibility readiness review**
    - Confirm VoiceOver can read each row as a single label (title, org, city, ages) with the localized open-details hint.
