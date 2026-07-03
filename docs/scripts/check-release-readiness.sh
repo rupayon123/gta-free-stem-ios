@@ -303,6 +303,33 @@ if not keywords:
     raise SystemExit("Keywords are empty")
 PY
 
+echo -e "\n=== App Store submission packet checks ==="
+/usr/bin/python3 - <<'PY'
+from pathlib import Path
+
+packet_path = Path("docs/APP_STORE_SUBMISSION_PACKET.md")
+if not packet_path.exists():
+    raise SystemExit("Missing docs/APP_STORE_SUBMISSION_PACKET.md")
+
+packet = packet_path.read_text(encoding="utf-8")
+required_fragments = [
+    "Version: `1.0`",
+    "Build: `9`",
+    "Delivery UUID: `222e71fe-92f1-4da3-bad7-205b9eb7a3b3`",
+    "App Store Connect status: `VALID`",
+    "TestFlight status: `BETA_INTERNAL_TESTING`",
+    "Marketing URL: `https://gta-free-stem.vercel.app/`",
+    "Support URL: `https://gta-free-stem.vercel.app/accessibility-support/`",
+    "Privacy policy URL: `https://gta-free-stem.vercel.app/privacy/`",
+    "build/app-store-screenshots/iphone-6.9/01-home.png",
+    "build/app-store-screenshots/ipad-13/01-home.png",
+]
+missing = [fragment for fragment in required_fragments if fragment not in packet]
+if missing:
+    raise SystemExit("Submission packet is missing required release facts:\n" + "\n".join(f"- {item}" for item in missing))
+print("Submission packet includes confirmed build, URLs, and screenshot paths.")
+PY
+
 echo -e "\n=== App Store screenshot checks ==="
 /usr/bin/python3 - <<'PY'
 from pathlib import Path

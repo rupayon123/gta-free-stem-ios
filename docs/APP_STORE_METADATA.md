@@ -2,7 +2,7 @@
 
 Last updated: July 3, 2026
 
-Use this as the starting point for App Store Connect. Recheck every answer before submission if the production backend changes account, feedback, or submission handling.
+Use this as the starting point for App Store Connect. For the paste-ready submission packet, use `docs/APP_STORE_SUBMISSION_PACKET.md`. Recheck every answer before submission if the production backend changes account, feedback, or submission handling.
 
 ## App Information
 
