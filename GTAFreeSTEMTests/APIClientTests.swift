@@ -735,6 +735,49 @@ final class APIClientTests: XCTestCase {
         )
     }
 
+    func testMapExposesLocalizedVisibleResultCountForVoiceOver() throws {
+        let repoRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let browseView = repoRoot.appendingPathComponent("GTAFreeSTEM/BrowseView.swift")
+        let contents = try String(contentsOf: browseView)
+
+        XCTAssertTrue(
+            contents.contains(".accessibilityLabel(mapAccessibilityLabel)"),
+            "The map should use a composed localized VoiceOver label instead of a generic map-only label."
+        )
+        XCTAssertTrue(
+            contents.contains("session.text(\"map\")") &&
+            contents.contains("store.opportunities.count") &&
+            contents.contains("session.text(\"visible\")"),
+            "The map VoiceOver label should announce localized map context and the visible result count."
+        )
+    }
+
+    func testBackgroundRefreshUsesCacheContextAndNewMatchNotifications() throws {
+        let repoRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let appFile = repoRoot.appendingPathComponent("GTAFreeSTEM/GTAFreeSTEMApp.swift")
+        let appContents = try String(contentsOf: appFile)
+
+        XCTAssertTrue(appContents.contains(".backgroundTask(.appRefresh(Self.appRefreshIdentifier))"))
+        XCTAssertTrue(appContents.contains("let context = ModelContext(Self.sharedModelContainer)"))
+        XCTAssertTrue(appContents.contains("await opportunities.refresh(cache: context, prioritized: false, notifyOnNewMatches: true)"))
+        XCTAssertTrue(appContents.contains("Self.scheduleAppRefresh()"))
+
+        let infoURL = repoRoot.appendingPathComponent("GTAFreeSTEM/Info.plist")
+        let infoData = try Data(contentsOf: infoURL)
+        let plist = try XCTUnwrap(
+            PropertyListSerialization.propertyList(from: infoData, options: [], format: nil) as? [String: Any]
+        )
+        let identifiers = try XCTUnwrap(plist["BGTaskSchedulerPermittedIdentifiers"] as? [String])
+        let backgroundModes = try XCTUnwrap(plist["UIBackgroundModes"] as? [String])
+
+        XCTAssertTrue(identifiers.contains("com.rupayonhaldar.gtafreestem.hunt.refresh"))
+        XCTAssertTrue(backgroundModes.contains("fetch"))
+    }
+
     private func opportunity(
         id: String,
         title: String,

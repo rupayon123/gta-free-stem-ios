@@ -327,7 +327,7 @@ struct BrowseView: View {
             }
             .frame(minHeight: 520)
             .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .accessibilityLabel(session.text("map"))
+            .accessibilityLabel(mapAccessibilityLabel)
             .accessibilityHint(session.text("sourceDetails"))
 
             Text(session.text("sourceDetails"))
@@ -348,6 +348,10 @@ struct BrowseView: View {
         case DataSource.railsAPI:
             session.text("railsAPI")
         }
+    }
+
+    private var mapAccessibilityLabel: String {
+        "\(session.text("map")): \(store.opportunities.count) \(session.text("visible"))"
     }
 
     private var background: some View {

@@ -14,10 +14,11 @@
   - Local companion public feed: 370 public opportunities, 100% generated summary/category/cost/title/description payload coverage.
   - Live public feed: 370 public opportunities, 370 translated payloads, and 100% live summary/category/cost/title/description coverage after Vercel production deployment `dpl_4SjBikyTa6FQrCyjRafTz2cgJPjX`.
   - Companion site marketing, support, and privacy URLs resolve in production with HTTP 200.
-  - Release simulator build and 38-test XCTest suite pass.
+  - Release simulator build and 40-test XCTest suite pass.
   - Support tab is privacy-safe for the current build: feedback and online submissions are unavailable, no personal-data input fields are shown, and submission APIs require an account token before any network request.
   - Public fallback copy now says `Offline backup` instead of internal preview database wording.
   - Missing translated summaries preserve the English source summary once inside the localized fallback text.
+  - Map VoiceOver labels now include the localized visible-result count, and tests guard background refresh cache/new-match-notification wiring.
   - Device archive and App Store Connect upload pass from this Mac with Apple team `FE33NM88XX`; TestFlight candidate `1.0 (8)` uploaded successfully and Apple reported the package is processing.
 
 ## Latest command results
@@ -26,7 +27,7 @@
 - `LIVE_FEED_URL=file:///Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-opportunities/public/opportunities.json STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: passed, proving the local feed artifact clears strict multilingual coverage before deployment.
 - `STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: passed against production; live feed has 370/370 translated opportunity payloads and 100% summary/category/cost/title/description coverage.
 - `xcodebuild -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'platform=iOS Simulator,name=iPhone 17' build`: passed.
-- `xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -destination 'platform=iOS Simulator,name=iPhone 17'`: passed, 38 tests, 0 failures.
+- `xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -destination 'platform=iOS Simulator,name=iPhone 17'`: passed, 40 tests, 0 failures.
 - `bash docs/scripts/capture-app-store-screenshots.sh`: passed; regenerated local App Store screenshots at `build/app-store-screenshots/` for 6.9-inch iPhone (`1320 x 2868`) and 13-inch iPad (`2064 x 2752`). Home screenshots show `Loaded from Offline backup`; Support screenshots show the unavailable feedback/submission state and no personal-data fields.
 - `xcodebuild archive -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'generic/platform=iOS' -archivePath build/GTAFreeSTEM-build8.xcarchive -allowProvisioningUpdates`: passed for `com.rupayonhaldar.gtafreestem` version `1.0`, build `8`.
 - `xcodebuild -exportArchive -archivePath build/GTAFreeSTEM-build8.xcarchive -exportOptionsPlist docs/AppStoreConnectExportOptions.plist -exportPath build/export-build8 -allowProvisioningUpdates`: passed and uploaded `GTAFreeSTEM.ipa` build `1.0 (8)` to App Store Connect. Apple reported the uploaded package is processing; Xcode distribution logs show build upload ID `6b35d0b9-e7ce-498f-a36b-a8aa449dca35`, upload state `PROCESSING`, uploaded date `2026-07-02T17:51:22-07:00`, and no upload errors.
