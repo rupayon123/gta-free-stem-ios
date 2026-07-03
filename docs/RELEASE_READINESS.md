@@ -10,10 +10,10 @@
 - Opportunity rows and map labels are localized in browsing screens.
 - App Store privacy manifest is bundled and declares app-only `UserDefaults` access with reason `CA92.1`, no tracking, and no collected data types.
 - Last verified on July 3, 2026:
-  - Bundled iOS snapshot: 370 public opportunities, all carrying generated translation payloads for every non-English launch language.
+  - Bundled iOS snapshot: 406 public opportunities, all carrying generated translation payloads for every non-English launch language.
   - App UI strings: 178/178 keys for each launch language, with strict duplicate-English checks passing at 0 untranslated-equals-English strings.
-  - Local companion public feed: 370 public opportunities, 100% generated summary/category/cost/title/description payload coverage.
-  - Live public feed: 370 public opportunities, 370 translated payloads, and 100% live summary/category/cost/title/description coverage after Vercel production deployment `dpl_4SjBikyTa6FQrCyjRafTz2cgJPjX`.
+  - Local companion public feed: 406 public opportunities, 100% generated summary/category/cost/title/description payload coverage.
+  - Live public feed: 406 public opportunities, 406 translated payloads, and 100% live summary/category/cost/title/description coverage after Vercel production deployment `dpl_7YVnTcUxAREXTwxAfaEUBBvFR9en`.
   - Companion site marketing, support, and privacy URLs resolve in production with HTTP 200.
   - Release simulator build and 43-test XCTest suite pass.
   - Support tab is privacy-safe for the current build: feedback and online submissions are unavailable, no personal-data input fields are shown, and submission APIs require an account token before any network request.
@@ -21,16 +21,17 @@
   - Missing translated summaries preserve the English source summary once inside the localized fallback text.
   - Map VoiceOver labels now include the localized visible-result count, and tests guard background refresh cache/new-match-notification wiring.
   - Device archive and App Store Connect upload pass from this Mac with Apple team `FE33NM88XX`; TestFlight candidate `1.0 (9)` uploaded successfully and is now command-line-confirmed with import status `VALID`, build status `BETA_INTERNAL_TESTING`, `APP_STORE_ELIGIBLE`, and `usesNonExemptEncryption = false`.
+  - After the July 3 public feed refresh, uploaded build `1.0 (9)` is still valid but predates the 406-item bundled snapshot; upload a replacement TestFlight build before App Review if the submitted binary must include the current offline fallback.
 
 ## Latest command results
 
-- `STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: passed on July 3, 2026 against production; live feed has 370/370 translated opportunity payloads and 100% summary/category/cost/title/description coverage.
+- `STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: passed on July 3, 2026 against production; bundled and live feeds have 406/406 translated opportunity payloads and 100% summary/category/cost/title/description coverage.
   - App Store metadata limits now pass inside this script: app name 13/30 characters, subtitle 23/30 characters, description 758/4000 characters, keywords 92/100 bytes.
   - Apple Developer public status check now covers App Store Connect, App Processing, App Upload, TestFlight, and App Store Connect API; the July 3, 2026 run reported no active events for those services. This does not confirm a specific uploaded build.
 - `LIVE_FEED_URL=file:///Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-opportunities/public/opportunities.json STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh`: passed, proving the local feed artifact clears strict multilingual coverage before deployment.
 - `xcodebuild -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'platform=iOS Simulator,name=iPhone 17' build`: passed.
 - `xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -destination 'platform=iOS Simulator,name=iPhone 17'`: passed, 43 tests, 0 failures.
-- `bash docs/scripts/smoke-release-simulator.sh`: passed on July 3, 2026 for `iPhone 17`. The script built the Release app, clean-installed it on the simulator, verified the built bundle contains 370 opportunities, captured nonblank screenshots for home, opportunities, high-school, and support routes, and saved outputs under `build/release-smoke/`.
+- `bash docs/scripts/smoke-release-simulator.sh`: passed on July 3, 2026 for `iPhone 17`. The script built the Release app, clean-installed it on the simulator, verified the built bundle contains 406 opportunities, captured nonblank screenshots for home, opportunities, high-school, and support routes, and saved outputs under `build/release-smoke/`.
 - `bash docs/scripts/capture-app-store-screenshots.sh`: passed; regenerated local App Store screenshots at `build/app-store-screenshots/` for 6.9-inch iPhone (`1320 x 2868`) and 13-inch iPad (`2064 x 2752`). Home screenshots show `Loaded from Offline backup`; Support screenshots show the unavailable feedback/submission state and no personal-data fields.
 - The release audit now verifies the eight App Store screenshot PNGs exist, have exact upload dimensions, and are not blank. Latest run passed with iPhone screenshots at `1320 x 2868`, iPad screenshots at `2064 x 2752`, and more than 1,300 sampled colors on every screenshot.
 - `xcodebuild archive -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Release -destination 'generic/platform=iOS' -archivePath build/GTAFreeSTEM-build9.xcarchive -allowProvisioningUpdates`: passed for `com.rupayonhaldar.gtafreestem` version `1.0`, build `9`.
@@ -51,16 +52,16 @@
 - Live `https://gta-free-stem.vercel.app/privacy/`: returns HTTP 200.
 - Live `https://gta-free-stem.vercel.app/accessibility-support/`: returns HTTP 200.
 - Live `https://gta-free-stem.vercel.app/`: returns HTTP 200.
-- Live `https://gta-free-stem.vercel.app/opportunities.json`: returns 370 opportunities, 370 translated opportunity payloads.
+- Live `https://gta-free-stem.vercel.app/opportunities.json`: returns 406 opportunities, 406 translated opportunity payloads.
 
 ## What is still required for public release
 
 1. **Translation quality follow-up**
-   - The bundled iOS snapshot and local companion feed now include generated multilingual summaries, titles, descriptions, localized category metadata, localized cost metadata, and category tags for all 370 public listings.
+   - The bundled iOS snapshot and local companion feed now include generated multilingual summaries, titles, descriptions, localized category metadata, localized cost metadata, and category tags for all 406 public listings.
    - Production `opportunities.json` now includes the same payloads.
    - Human/API-reviewed organization, address, source-specific tag, and richer prose translations remain a quality upgrade after the generated-coverage release gate; they are not blocking the current generated-coverage release gate.
-   - Companion feed repo status on July 2, 2026: `/Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-opportunities` is pushed to GitHub with the `.vercelignore` reproducibility guard and deployed to Vercel production at `dpl_4SjBikyTa6FQrCyjRafTz2cgJPjX` with 370/370 translated live listings.
-   - The iOS repo is pushed to GitHub with the synced bundled opportunity snapshot and release-readiness docs.
+   - Companion feed repo status on July 3, 2026: `/Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-opportunities` is pushed to GitHub with broader public search fields and deployed to Vercel production at `dpl_7YVnTcUxAREXTwxAfaEUBBvFR9en` with 406/406 translated live listings.
+   - The iOS repo now contains the synced 406-listing bundled opportunity snapshot and matching release-readiness docs.
 
 2. **Release validation commands**
    - Build release:
@@ -85,7 +86,8 @@
    - Confirm manual refresh and background refresh both update `isLoading`, `dataSourceLabel`, and notifications.
 
 5. **App Store**
-   - Start with `docs/PUBLIC_RELEASE_RUNBOOK.md` for the shortest current path from build `1.0 (9)` to App Store submission.
+   - Start with `docs/PUBLIC_RELEASE_RUNBOOK.md` for the shortest current path from uploaded build `1.0 (9)` to App Store submission.
+   - Because the repo now bundles the refreshed 406-listing snapshot, upload a new TestFlight build before App Review if the final submitted binary should include that current offline fallback; build `1.0 (9)` will still refresh from the live feed online, but its bundled offline snapshot predates this sync.
    - Verify `docs/TESTFLIGHT.md`, update App Store Connect metadata, select confirmed build `1.0 (9)`, upload final screenshots, complete App Privacy and age-rating forms, and submit the app for App Review.
    - Use `docs/APP_STORE_METADATA.md` as the metadata/privacy draft and `docs/APP_STORE_SUBMISSION_PACKET.md` as the paste-ready App Store Connect packet. The draft is checked by `docs/scripts/check-release-readiness.sh` for App Store name, subtitle, description, and keyword limits.
    - Use `bash docs/scripts/check-public-release-gates.sh` after real-device QA and App Store Connect entry are recorded; it intentionally fails while `docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md` remains pending.

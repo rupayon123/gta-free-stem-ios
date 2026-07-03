@@ -68,7 +68,9 @@ The app is intended for families and students and does not include ads, purchase
 ## Current External Follow-ups
 
 - Public multilingual feed is live at `https://gta-free-stem.vercel.app/opportunities.json` with generated translation payloads for all public listings.
+- Current bundled iOS snapshot and live public feed both contain 406/406 translated public opportunities after the July 3, 2026 feed sync.
 - App Store marketing/support/privacy URLs are live and return HTTP 200.
 - App Store privacy URL is live at `https://gta-free-stem.vercel.app/privacy/`.
 - Full dynamic content translation can still be upgraded later with reviewed organization, address, source-specific tag, and richer prose translations in the companion feed pipeline.
 - TestFlight upload is working from this Mac; build `1.0 (9)` uploaded successfully with the first-launch system-language fix plus the privacy-safe Support update, public-facing offline fallback label, and missing-translation summary fallback hardening. Build `1.0 (9)` is command-line-confirmed by App Store Connect with import status `VALID`, build status `BETA_INTERNAL_TESTING`, `APP_STORE_ELIGIBLE`, and `usesNonExemptEncryption = false`.
+- Uploaded build `1.0 (9)` predates the 406-item bundled snapshot. Upload a replacement build before App Review if the submitted binary must include that refreshed offline fallback.

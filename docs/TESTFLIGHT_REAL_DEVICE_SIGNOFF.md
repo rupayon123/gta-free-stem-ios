@@ -10,6 +10,8 @@ Allowed row statuses are `Pass`, `Fail`, `Pending`, and `Accepted Risk`; the fin
 
 ## Build Under Test
 
+These facts describe the current valid TestFlight upload. If a replacement build is uploaded for the refreshed 406-listing bundled snapshot, update this section before real-device QA.
+
 - App: `GTA FREE STEM`
 - Version/build: `1.0 (9)`
 - Delivery UUID: `222e71fe-92f1-4da3-bad7-205b9eb7a3b3`

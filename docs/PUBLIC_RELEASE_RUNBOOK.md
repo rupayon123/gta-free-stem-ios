@@ -4,7 +4,7 @@ Last updated: July 3, 2026
 
 Use this as the short path from the current repo state to App Store submission for GTA FREE STEM.
 
-## Current Candidate
+## Current Uploaded TestFlight Candidate
 
 - App: `GTA FREE STEM`
 - App Apple ID: `6779714459`
@@ -17,6 +17,15 @@ Use this as the short path from the current repo state to App Store submission f
 - TestFlight status: `BETA_INTERNAL_TESTING`
 - Audience: `APP_STORE_ELIGIBLE`
 - Non-exempt encryption: `false`
+
+## Current Repo/Feed State
+
+- Public site/feed deployment: `dpl_7YVnTcUxAREXTwxAfaEUBBvFR9en`
+- Public site/feed URL: `https://gta-free-stem.vercel.app/`
+- Live feed URL: `https://gta-free-stem.vercel.app/opportunities.json`
+- Bundled iOS snapshot: 406 translated opportunities
+- Live public feed: 406 translated opportunities
+- Important: uploaded build `1.0 (9)` predates this 406-item bundled snapshot. It can refresh from the live feed online, but a replacement TestFlight build is required before App Review if the submitted binary must include the refreshed offline fallback.
 
 ## One Command To Recheck The Repo
 
@@ -32,7 +41,7 @@ Expected result:
 - Release build succeeds.
 - Test suite passes with 43 tests.
 - Simulator smoke test passes.
-- Bundled and live feed translation coverage remains 370/370 opportunities.
+- Bundled and live feed translation coverage remains 406/406 opportunities.
 - App Store screenshots are regenerated and rechecked.
 
 ## GitHub CI Guard
@@ -68,7 +77,7 @@ Use `docs/APP_STORE_SUBMISSION_PACKET.md` as the paste-ready source.
 - Marketing URL: `https://gta-free-stem.vercel.app/`
 - Support URL: `https://gta-free-stem.vercel.app/accessibility-support/`
 - Privacy Policy URL: `https://gta-free-stem.vercel.app/privacy/`
-- Build to select: `1.0 (9)`
+- Build to select: `1.0 (9)` only if you intentionally keep the already uploaded candidate; otherwise bump the build number, upload the synced 406-snapshot build, then update this runbook and `docs/APP_STORE_SUBMISSION_PACKET.md`.
 
 Screenshots to upload:
 
@@ -83,7 +92,7 @@ Screenshots to upload:
 
 ## Real-Device TestFlight Signoff
 
-Install build `1.0 (9)` from TestFlight on a real iPhone.
+Install build `1.0 (9)` from TestFlight on a real iPhone if validating the existing uploaded candidate. If a replacement build is uploaded for the 406-item bundled snapshot, update `docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md` first and test that newer build.
 
 Fill out:
 
@@ -114,7 +123,7 @@ This must pass before public release. It intentionally fails while real-device Q
 
 ## Final Live Steps
 
-1. Select build `1.0 (9)` in App Store Connect.
+1. Select build `1.0 (9)` in App Store Connect only if keeping the current uploaded candidate; otherwise select the newly uploaded 406-snapshot build after it is `VALID`.
 2. Upload the screenshots listed above.
 3. Paste metadata, privacy, age rating, and review notes from `docs/APP_STORE_SUBMISSION_PACKET.md`.
 4. Complete `docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md`.

@@ -8,6 +8,8 @@ Do not submit App Review, upload screenshots, change live metadata, invite teste
 
 ## Build To Select
 
+This build is the current valid upload in App Store Connect. The repo now contains the refreshed 406-listing bundled offline snapshot; if that snapshot must ship in the submitted binary, upload a replacement TestFlight build and update this packet before selecting the build for App Review.
+
 - App: `GTA FREE STEM`
 - Apple app ID: `6779714459`
 - Bundle ID: `com.rupayonhaldar.gtafreestem`
@@ -20,6 +22,8 @@ Do not submit App Review, upload screenshots, change live metadata, invite teste
 - Audience: `APP_STORE_ELIGIBLE`
 - Encryption: `usesNonExemptEncryption = false`
 - Device families: iPhone and iPad
+- Live feed coverage: 406/406 translated opportunities
+- Bundled snapshot in current repo: 406/406 translated opportunities
 
 ## Product Page Fields
 
