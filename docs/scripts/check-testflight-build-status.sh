@@ -146,5 +146,43 @@ else
   )
 fi
 
+print_keychain_auth_hint() {
+  cat >&2 <<EOF
+
+App Store Connect authentication failed before build status could be checked.
+The saved Keychain item '${APP_STORE_CONNECT_KEYCHAIN_ITEM:-GTA_FREE_STEM_ASC}' may exist by label but still be unavailable to altool's @keychain lookup.
+
+Use one of these release-safe fixes:
+
+1. One-off app-specific password, without storing it:
+   read -r -s APP_STORE_CONNECT_APP_PASSWORD
+   export APP_STORE_CONNECT_APP_PASSWORD
+   BUNDLE_VERSION=${BUNDLE_VERSION} \\
+     DELIVERY_ID=${DELIVERY_ID:-<delivery-id>} \\
+     APP_STORE_CONNECT_USERNAME=${APP_STORE_CONNECT_USERNAME:-<apple-id-email>} \\
+     bash docs/scripts/check-testflight-build-status.sh
+   unset APP_STORE_CONNECT_APP_PASSWORD
+
+2. Re-store the app-specific password in Keychain:
+   xcrun altool --store-password-in-keychain-item --item ${APP_STORE_CONNECT_KEYCHAIN_ITEM:-GTA_FREE_STEM_ASC} \\
+     -u ${APP_STORE_CONNECT_USERNAME:-<apple-id-email>} -p '<app-specific-password>'
+
+3. Use App Store Connect API-key auth with APP_STORE_CONNECT_API_KEY and APP_STORE_CONNECT_API_ISSUER.
+
+Do not use the normal Apple ID password for this command.
+EOF
+}
+
 echo "Checking App Store Connect build status for GTA FREE STEM ${BUNDLE_SHORT_VERSION} (${BUNDLE_VERSION})..."
-xcrun altool "${status_args[@]}" "${auth_args[@]}"
+set +e
+altool_output="$(xcrun altool "${status_args[@]}" "${auth_args[@]}" 2>&1)"
+altool_status=$?
+set -e
+
+printf '%s\n' "$altool_output"
+if [ "$altool_status" -ne 0 ]; then
+  if [ -n "${APP_STORE_CONNECT_KEYCHAIN_ITEM:-}" ] && echo "$altool_output" | grep -qi "Failed to find item"; then
+    print_keychain_auth_hint
+  fi
+  exit "$altool_status"
+fi

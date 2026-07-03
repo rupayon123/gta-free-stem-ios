@@ -64,6 +64,8 @@ BUNDLE_VERSION=9 \
 unset APP_STORE_CONNECT_APP_PASSWORD
 ```
 
+If the command says `Failed to find item GTA_FREE_STEM_ASC for user ... in keychain`, the saved item is not usable by altool's `@keychain:` lookup. Use the one-off app-specific password pattern above, re-run the `--store-password-in-keychain-item` command with a fresh app-specific password, or switch to App Store Connect API-key auth.
+
 Do not use or store the normal Apple ID password for this command.
 
 ## Internal Testers
