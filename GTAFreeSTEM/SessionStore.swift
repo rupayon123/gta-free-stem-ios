@@ -12,7 +12,7 @@ final class SessionStore: ObservableObject {
                 preferredLanguageCode = normalized
                 return
             }
-            UserDefaults.standard.set(normalized, forKey: Self.languageKey)
+            defaults.set(normalized, forKey: AppLanguage.preferredLanguageDefaultsKey)
             if apiToken == nil {
                 displayName = AppText.shared.string("guest", language: AppLanguage.normalized(normalized))
             }
@@ -23,19 +23,19 @@ final class SessionStore: ObservableObject {
             if !["System", "Light", "Dark"].contains(preferredTheme) {
                 preferredTheme = "System"
             }
-            UserDefaults.standard.set(preferredTheme, forKey: Self.themeKey)
+            defaults.set(preferredTheme, forKey: Self.themeKey)
         }
     }
 
-    private static let languageKey = "preferredLanguageCode"
-    private static let legacyLanguageKey = "preferredLanguage"
     private static let themeKey = "preferredTheme"
+    private let defaults: UserDefaults
 
-    init() {
-        let storedCode = UserDefaults.standard.string(forKey: Self.languageKey)
-        let legacyLanguage = UserDefaults.standard.string(forKey: Self.legacyLanguageKey)
-        preferredLanguageCode = AppLanguage.normalized(storedCode ?? legacyLanguage ?? AppLanguage.en.rawValue).rawValue
-        preferredTheme = UserDefaults.standard.string(forKey: Self.themeKey) ?? "Light"
+    init(defaults: UserDefaults = .standard, preferredLanguages: [String] = Locale.preferredLanguages) {
+        self.defaults = defaults
+        let initialLanguage = AppLanguage.preferred(defaults: defaults, preferredLanguages: preferredLanguages)
+        preferredLanguageCode = initialLanguage.rawValue
+        preferredTheme = defaults.string(forKey: Self.themeKey) ?? "Light"
+        defaults.set(initialLanguage.rawValue, forKey: AppLanguage.preferredLanguageDefaultsKey)
         displayName = text("guest")
     }
 

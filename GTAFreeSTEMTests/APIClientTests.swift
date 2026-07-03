@@ -134,6 +134,37 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(AppText.shared.string("openDetailsHint", language: .es), "Abre los detalles de la oportunidad.")
     }
 
+    func testPreferredLanguageUsesStoredLanguageBeforeSystemLanguage() {
+        let defaults = makeIsolatedDefaults()
+        defaults.set("es", forKey: AppLanguage.preferredLanguageDefaultsKey)
+
+        XCTAssertEqual(
+            AppLanguage.preferred(defaults: defaults, preferredLanguages: ["ar-CA", "fr-CA"]),
+            .es
+        )
+    }
+
+    func testPreferredLanguageFallsBackToSystemLanguageOnFirstLaunch() {
+        let defaults = makeIsolatedDefaults()
+
+        XCTAssertEqual(
+            AppLanguage.preferred(defaults: defaults, preferredLanguages: ["de-CA", "ar-CA", "fr-CA"]),
+            .ar
+        )
+        XCTAssertEqual(AppLanguage.preferredSystemLanguage(from: ["pt-BR"]), .pt)
+        XCTAssertEqual(AppLanguage.preferredSystemLanguage(from: ["fil-PH"]), .tl)
+    }
+
+    @MainActor
+    func testSessionPersistsSystemLanguageOnFirstLaunch() {
+        let defaults = makeIsolatedDefaults()
+        let session = SessionStore(defaults: defaults, preferredLanguages: ["fr-CA"])
+
+        XCTAssertEqual(session.preferredLanguageCode, AppLanguage.fr.rawValue)
+        XCTAssertEqual(defaults.string(forKey: AppLanguage.preferredLanguageDefaultsKey), AppLanguage.fr.rawValue)
+        XCTAssertEqual(session.displayName, AppText.shared.string("guest", language: .fr))
+    }
+
     @MainActor
     func testCategoryNamesUseLocalizedStringsWhenAvailable() {
         let defaults = UserDefaults.standard
@@ -675,6 +706,13 @@ final class APIClientTests: XCTestCase {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [URLProtocolStub.self]
         return URLSession(configuration: config)
+    }
+
+    private func makeIsolatedDefaults() -> UserDefaults {
+        let name = "GTAFreeSTEMTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        defaults.removePersistentDomain(forName: name)
+        return defaults
     }
 
     func testSwiftUIViewStringsUseLocalizationHelpers() throws {

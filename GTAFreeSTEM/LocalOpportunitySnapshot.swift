@@ -93,8 +93,7 @@ enum LocalOpportunitySnapshot {
     }
 
     private static var preferredLanguage: AppLanguage {
-        let stored = UserDefaults.standard.string(forKey: "preferredLanguageCode")
-        return AppLanguage.normalized(stored ?? AppLanguage.en.rawValue)
+        AppLanguage.preferred()
     }
 
     private static func containsAny(_ opportunity: Opportunity, _ needles: [String], language: AppLanguage) -> Bool {

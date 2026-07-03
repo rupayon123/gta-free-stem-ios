@@ -23,6 +23,9 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    static let preferredLanguageDefaultsKey = "preferredLanguageCode"
+    static let legacyPreferredLanguageDefaultsKey = "preferredLanguage"
+
     var localeIdentifier: String {
         switch self {
         case .zh: "zh-Hans"
@@ -41,7 +44,30 @@ enum AppLanguage: String, CaseIterable, Identifiable {
         }
     }
 
+    static func preferred(
+        defaults: UserDefaults = .standard,
+        preferredLanguages: [String] = Locale.preferredLanguages
+    ) -> AppLanguage {
+        if let stored = defaults.string(forKey: preferredLanguageDefaultsKey),
+           let language = matching(stored) {
+            return language
+        }
+        if let legacy = defaults.string(forKey: legacyPreferredLanguageDefaultsKey),
+           let language = matching(legacy) {
+            return language
+        }
+        return preferredSystemLanguage(from: preferredLanguages)
+    }
+
+    static func preferredSystemLanguage(from preferredLanguages: [String]) -> AppLanguage {
+        preferredLanguages.lazy.compactMap(matching(_:)).first ?? .en
+    }
+
     static func normalized(_ value: String) -> AppLanguage {
+        matching(value) ?? .en
+    }
+
+    private static func matching(_ value: String) -> AppLanguage? {
         let normalized = value
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "_", with: "-")
@@ -56,7 +82,7 @@ enum AppLanguage: String, CaseIterable, Identifiable {
         switch legacy {
         case "en-us", "en-ca", "en-gb": return .en
         case "fr-ca", "fr-fr": return .fr
-        case "zh-hans", "zh-cn", "zh-sg", "mandarin": return .zh
+        case "zh-hans", "zh-hant", "zh-cn", "zh-sg", "zh-tw", "zh-hk", "mandarin": return .zh
         case "yue-hant", "zh-yue", "cantonese", "cantonese/yue": return .yue
         case "pa-guru", "pa-in", "pa-ca": return .pa
         case "ur-pk", "ur-in": return .ur
@@ -86,7 +112,15 @@ enum AppLanguage: String, CaseIterable, Identifiable {
         case "japanese": return .ja
         case "korean": return .ko
         case "hungarian": return .hu
-        default: return .en
+        default:
+            guard let languageCode = legacy.split(separator: "-").first else {
+                return nil
+            }
+            let primary = String(languageCode)
+            if primary != legacy {
+                return matching(primary)
+            }
+            return AppLanguage(rawValue: primary)
         }
     }
 }

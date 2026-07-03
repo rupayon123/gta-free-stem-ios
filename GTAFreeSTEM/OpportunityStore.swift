@@ -356,8 +356,7 @@ final class OpportunityStore: ObservableObject {
     }
 
     private static func localized(_ key: String) -> String {
-        let stored = UserDefaults.standard.string(forKey: "preferredLanguageCode")
-        let language = AppLanguage.normalized(stored ?? AppLanguage.en.rawValue)
+        let language = AppLanguage.preferred()
         return AppText.shared.string(key, language: language)
     }
 
@@ -424,8 +423,7 @@ final class HuntLocationManager: NSObject, ObservableObject, CLLocationManagerDe
     }
 
     private static func localized(_ key: String) -> String {
-        let stored = UserDefaults.standard.string(forKey: "preferredLanguageCode")
-        let language = AppLanguage.normalized(stored ?? AppLanguage.en.rawValue)
+        let language = AppLanguage.preferred()
         return AppText.shared.string(key, language: language)
     }
 }
