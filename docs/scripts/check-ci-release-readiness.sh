@@ -57,6 +57,18 @@ fi
 echo "Using CI test destination: ${DESTINATION}"
 
 echo
+echo "=== CI bundled-feed integrity self-test ==="
+bash docs/scripts/test-feed-sync-integrity.sh
+
+echo
+echo "=== CI release simulator smoke integrity self-test ==="
+bash docs/scripts/test-release-smoke-integrity.sh
+
+echo
+echo "=== CI archive-verifier self-tests ==="
+bash docs/scripts/test-app-store-archive-verifier.sh
+
+echo
 echo "=== CI strict release-readiness audit ==="
 CHECK_APP_STORE_SCREENSHOTS=0 STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh
 

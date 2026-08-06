@@ -1,39 +1,91 @@
 import SwiftUI
 
+/// The app's single visual source of truth.
+///
+/// The logo carries the playful STEM character. Interface chrome stays calm,
+/// legible, and native so the opportunities remain the most prominent content.
 enum Brand {
-    static let ink = Color(red: 0.05, green: 0.07, blue: 0.08)
-    static let cream = Color(red: 1.00, green: 0.97, blue: 0.87)
-    static let paper = Color(red: 1.00, green: 0.99, blue: 0.93)
-    static let sky = Color(red: 0.50, green: 0.78, blue: 0.86)
-    static let lake = Color(red: 0.06, green: 0.44, blue: 0.52)
-    static let navy = Color(red: 0.04, green: 0.18, blue: 0.33)
-    static let deepOcean = Color(red: 0.02, green: 0.09, blue: 0.24)
-    static let nightBlue = Color(red: 0.03, green: 0.18, blue: 0.36)
-    static let electricBlue = Color(red: 0.10, green: 0.62, blue: 0.88)
-    static let ice = Color(red: 0.90, green: 0.98, blue: 1.00)
-    static let mintFoam = Color(red: 0.72, green: 0.94, blue: 0.88)
-    static let moss = Color(red: 0.55, green: 0.76, blue: 0.48)
-    static let sun = Color(red: 1.00, green: 0.73, blue: 0.12)
-    static let coral = Color(red: 0.95, green: 0.34, blue: 0.22)
-    static let orange = Color(red: 1.00, green: 0.49, blue: 0.19)
-    static let lavender = Color(red: 0.60, green: 0.54, blue: 0.86)
-    static let night = Color(red: 0.01, green: 0.04, blue: 0.16)
-    static let nightCard = Color(red: 0.03, green: 0.14, blue: 0.29)
+    // MARK: Core brand colours
+
+    static let ink = Color(red: 0.05, green: 0.09, blue: 0.11)
+    static let cream = Color(red: 0.98, green: 0.97, blue: 0.92)
+    static let paper = Color(red: 0.99, green: 0.99, blue: 0.97)
+    static let sky = Color(red: 0.45, green: 0.75, blue: 0.80)
+    static let lake = Color(red: 0.05, green: 0.40, blue: 0.45)
+    static let navy = Color(red: 0.04, green: 0.18, blue: 0.28)
+    static let deepOcean = Color(red: 0.03, green: 0.10, blue: 0.14)
+    static let nightBlue = Color(red: 0.06, green: 0.16, blue: 0.20)
+    static let electricBlue = Color(red: 0.31, green: 0.78, blue: 0.77)
+    static let ice = Color(red: 0.94, green: 0.98, blue: 0.97)
+    static let mintFoam = Color(red: 0.84, green: 0.94, blue: 0.90)
+    static let moss = Color(red: 0.39, green: 0.65, blue: 0.43)
+    static let sun = Color(red: 0.96, green: 0.70, blue: 0.22)
+    static let coral = Color(red: 0.82, green: 0.28, blue: 0.20)
+    static let orange = Color(red: 0.91, green: 0.48, blue: 0.20)
+    static let lavender = Color(red: 0.55, green: 0.50, blue: 0.78)
+    static let night = Color(red: 0.025, green: 0.065, blue: 0.085)
+    static let nightCard = Color(red: 0.055, green: 0.13, blue: 0.16)
     static let chalk = ice
 
     static var blue: Color { lake }
     static var aqua: Color { sky }
     static var mint: Color { moss }
 
+    // MARK: Semantic colours
+
+    static func canvas(for scheme: ColorScheme) -> Color {
+        scheme == .dark
+            ? night
+            : Color(red: 0.965, green: 0.973, blue: 0.955)
+    }
+
+    static func cardFill(for scheme: ColorScheme) -> Color {
+        scheme == .dark
+            ? nightCard
+            : Color(red: 0.995, green: 0.995, blue: 0.985)
+    }
+
+    static func raisedFill(for scheme: ColorScheme) -> Color {
+        scheme == .dark
+            ? Color(red: 0.075, green: 0.18, blue: 0.21)
+            : Color(red: 0.925, green: 0.95, blue: 0.93)
+    }
+
+    static func outline(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? ice : navy
+    }
+
+    static func mutedText(for scheme: ColorScheme) -> Color {
+        scheme == .dark
+            ? Color(red: 0.68, green: 0.77, blue: 0.78)
+            : Color(red: 0.29, green: 0.38, blue: 0.39)
+    }
+
+    static func surfaceStroke(for scheme: ColorScheme) -> Color {
+        scheme == .dark
+            ? Color.white.opacity(0.14)
+            : navy.opacity(0.12)
+    }
+
+    static func actionFill(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? electricBlue : lake
+    }
+
+    static func actionForeground(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? deepOcean : .white
+    }
+
+    static func selectionFill(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? electricBlue.opacity(0.18) : lake.opacity(0.10)
+    }
+
     static func pageGradient(for scheme: ColorScheme) -> LinearGradient {
         if scheme == .dark {
             return LinearGradient(
                 colors: [
                     night,
-                    deepOcean,
-                    Color(red: 0.00, green: 0.28, blue: 0.48),
-                    Color(red: 0.02, green: 0.42, blue: 0.56),
-                    Color(red: 0.15, green: 0.18, blue: 0.48)
+                    Color(red: 0.035, green: 0.12, blue: 0.15),
+                    Color(red: 0.045, green: 0.10, blue: 0.13)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -41,31 +93,36 @@ enum Brand {
         }
 
         return LinearGradient(
-            colors: [mintFoam, Color(red: 0.98, green: 0.94, blue: 0.70), Color(red: 0.94, green: 0.73, blue: 0.62), Color(red: 0.79, green: 0.93, blue: 0.96)],
+            colors: [
+                Color(red: 0.935, green: 0.975, blue: 0.955),
+                Color(red: 0.985, green: 0.975, blue: 0.925),
+                Color(red: 0.965, green: 0.973, blue: 0.955)
+            ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
     }
+}
 
-    static func cardFill(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? nightCard.opacity(0.97) : paper
-    }
+enum AppSpacing {
+    static let xSmall: CGFloat = 4
+    static let small: CGFloat = 8
+    static let medium: CGFloat = 12
+    static let standard: CGFloat = 16
+    static let large: CGFloat = 24
+    static let xLarge: CGFloat = 32
+}
 
-    static func raisedFill(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? nightBlue.opacity(0.96) : cream
-    }
+enum AppRadius {
+    static let control: CGFloat = 14
+    static let card: CGFloat = 20
+    static let feature: CGFloat = 24
+}
 
-    static func outline(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? ice.opacity(0.96) : ink
-    }
-
-    static func mutedText(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(red: 0.68, green: 0.90, blue: 1.00).opacity(0.86) : ink.opacity(0.66)
-    }
-
-    static func surfaceStroke(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? electricBlue.opacity(0.78) : ink.opacity(0.88)
-    }
+enum AppIconSize {
+    static let small: CGFloat = 14
+    static let standard: CGFloat = 18
+    static let large: CGFloat = 24
 }
 
 struct StorybookBackground: View {
@@ -75,51 +132,50 @@ struct StorybookBackground: View {
         ZStack {
             Brand.pageGradient(for: colorScheme)
                 .ignoresSafeArea()
-            DoodlePattern()
-                .stroke((colorScheme == .dark ? Brand.electricBlue : Brand.outline(for: colorScheme)).opacity(colorScheme == .dark ? 0.16 : 0.10), lineWidth: 2)
-                .ignoresSafeArea()
+
+            // One quiet discovery field carries the brand across screens without
+            // competing with text, cards, maps, or native navigation controls.
+            Circle()
+                .fill(Brand.sky.opacity(colorScheme == .dark ? 0.07 : 0.10))
+                .frame(width: 340, height: 340)
+                .blur(radius: 28)
+                .offset(x: 180, y: -320)
+
+            Circle()
+                .fill(Brand.sun.opacity(colorScheme == .dark ? 0.035 : 0.07))
+                .frame(width: 280, height: 280)
+                .blur(radius: 32)
+                .offset(x: -190, y: 380)
         }
-    }
-}
-
-private struct DoodlePattern: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let step: CGFloat = 86
-
-        for x in stride(from: rect.minX - step, through: rect.maxX + step, by: step) {
-            for y in stride(from: rect.minY - step, through: rect.maxY + step, by: step) {
-                let center = CGPoint(x: x + step * 0.5, y: y + step * 0.5)
-                path.addEllipse(in: CGRect(x: center.x - 3, y: center.y - 3, width: 6, height: 6))
-                path.move(to: CGPoint(x: center.x - 18, y: center.y + 24))
-                path.addLine(to: CGPoint(x: center.x + 20, y: center.y + 12))
-                path.move(to: CGPoint(x: center.x + 26, y: center.y - 18))
-                path.addCurve(
-                    to: CGPoint(x: center.x + 44, y: center.y - 8),
-                    control1: CGPoint(x: center.x + 31, y: center.y - 31),
-                    control2: CGPoint(x: center.x + 40, y: center.y - 28)
-                )
-            }
-        }
-
-        return path
+        .accessibilityHidden(true)
     }
 }
 
 struct CardSurface: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
-    var padding: CGFloat = 16
-    var cornerRadius: CGFloat = 28
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    var padding: CGFloat = AppSpacing.standard
+    var cornerRadius: CGFloat = AppRadius.card
 
     func body(content: Content) -> some View {
         content
             .padding(padding)
-            .background(Brand.cardFill(for: colorScheme), in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .background(
+                reduceTransparency
+                    ? Brand.cardFill(for: colorScheme)
+                    : Brand.cardFill(for: colorScheme).opacity(0.97),
+                in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            )
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Brand.surfaceStroke(for: colorScheme), lineWidth: 2)
+                    .strokeBorder(Brand.surfaceStroke(for: colorScheme), lineWidth: 0.75)
             }
-            .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.22 : 0.10), radius: 8, x: 0, y: 3)
+            .shadow(
+                color: Brand.deepOcean.opacity(colorScheme == .dark ? 0.18 : 0.07),
+                radius: colorScheme == .dark ? 10 : 14,
+                x: 0,
+                y: colorScheme == .dark ? 5 : 7
+            )
     }
 }
 
@@ -130,30 +186,32 @@ struct StickerBadge: View {
     var systemImage: String?
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 5) {
             if let systemImage {
                 Image(systemName: systemImage)
+                    .accessibilityHidden(true)
             }
             Text(text)
         }
-        .font(.caption.weight(.black))
+        .font(.caption.weight(.semibold))
         .lineLimit(1)
-        .minimumScaleFactor(0.78)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-        .background(color.opacity(colorScheme == .dark ? 0.82 : 0.72), in: Capsule())
+        .minimumScaleFactor(0.82)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            color.opacity(colorScheme == .dark ? 0.22 : 0.13),
+            in: Capsule()
+        )
         .overlay {
-            Capsule().stroke(colorScheme == .dark ? Brand.deepOcean.opacity(0.92) : Brand.outline(for: colorScheme), lineWidth: 2)
+            Capsule()
+                .strokeBorder(color.opacity(colorScheme == .dark ? 0.42 : 0.28), lineWidth: 0.75)
         }
-        .foregroundStyle(colorScheme == .dark ? Brand.ink : Brand.ink)
+        .foregroundStyle(Brand.outline(for: colorScheme))
     }
 }
 
 struct BrandLogoImage: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isBobbing = false
-    @State private var tapPulse = 0
     var size: CGFloat = 156
 
     var body: some View {
@@ -161,24 +219,12 @@ struct BrandLogoImage: View {
             .resizable()
             .scaledToFit()
             .frame(width: size, height: size)
-            .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.42 : 0.20), radius: 0, x: 4, y: 6)
-            .scaleEffect(reduceMotion ? 1 : (isBobbing ? 1.018 : 0.992))
-            .scaleEffect(reduceMotion ? 1 : (tapPulse % 2 == 0 ? 1 : 1.085))
-            .rotationEffect(.degrees(reduceMotion ? 0 : (isBobbing ? 0.5 : -0.35)))
-            .animation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true), value: isBobbing)
-            .animation(.spring(response: 0.22, dampingFraction: 0.48), value: tapPulse)
-            .onAppear {
-                guard !reduceMotion else { return }
-                isBobbing = true
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                guard !reduceMotion else { return }
-                tapPulse += 1
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-                    tapPulse += 1
-                }
-            }
+            .shadow(
+                color: Brand.deepOcean.opacity(colorScheme == .dark ? 0.26 : 0.12),
+                radius: 8,
+                x: 0,
+                y: 5
+            )
             .accessibilityLabel(AppText.shared.string("brand", language: AppLanguage.preferred()))
     }
 }
@@ -189,60 +235,40 @@ struct HuntActivityIcon: View {
     let phase: HuntPhase
     let isActive: Bool
     var size: CGFloat = 62
-    @State private var isBreathing = false
     @State private var isOrbiting = false
-    @State private var tapPulse = 0
 
     var body: some View {
         ZStack {
             Circle()
                 .fill(Brand.raisedFill(for: colorScheme))
                 .overlay {
-                    Circle().stroke(Brand.outline(for: colorScheme), lineWidth: max(size * 0.045, 2.5))
+                    Circle()
+                        .strokeBorder(Brand.surfaceStroke(for: colorScheme), lineWidth: 0.75)
                 }
-                .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.30 : 0.16), radius: 0, x: size * 0.06, y: size * 0.08)
 
             Circle()
-                .fill(colorScheme == .dark ? Brand.deepOcean.opacity(0.94) : Brand.ice)
+                .fill(iconPrimaryColor.opacity(colorScheme == .dark ? 0.19 : 0.11))
                 .frame(width: size * 0.68, height: size * 0.68)
-                .overlay {
-                    Circle().stroke(Brand.sky.opacity(colorScheme == .dark ? 0.95 : 0.72), lineWidth: max(size * 0.035, 2))
-                }
-
-            orbitDot(color: Brand.coral, radius: size * 0.34, dotSize: size * 0.12, offsetDegrees: 18)
-            orbitDot(color: Brand.sun, radius: size * 0.31, dotSize: size * 0.10, offsetDegrees: 142)
-            orbitDot(color: Brand.lake, radius: size * 0.27, dotSize: size * 0.085, offsetDegrees: 264)
 
             Image(systemName: phase.icon)
-                .font(.system(size: size * 0.40, weight: .black))
-                .symbolRenderingMode(.palette)
-                .foregroundStyle(iconPrimaryColor, iconSecondaryColor)
-                .scaleEffect(reduceMotion ? 1 : (isActive ? 1.04 : 1.0))
-        }
-        .frame(width: size, height: size)
-        .scaleEffect(reduceMotion ? 1 : (isBreathing ? 1.025 : 0.985))
-        .scaleEffect(reduceMotion ? 1 : (tapPulse % 2 == 0 ? 1 : 1.10))
-        .rotationEffect(.degrees(reduceMotion ? 0 : (isBreathing ? 0.7 : -0.45)))
-        .animation(.easeInOut(duration: 1.7).repeatForever(autoreverses: true), value: isBreathing)
-        .animation(isActive && !reduceMotion ? .linear(duration: 1.05).repeatForever(autoreverses: false) : .spring(response: 0.42, dampingFraction: 0.72), value: isOrbiting)
-        .animation(.spring(response: 0.22, dampingFraction: 0.48), value: tapPulse)
-        .onAppear {
-            guard !reduceMotion else { return }
-            isBreathing = true
-            isOrbiting = isActive
-        }
-        .onChange(of: isActive) { _, active in
-            guard !reduceMotion else { return }
-            isOrbiting = active
-        }
-        .contentShape(Circle())
-        .onTapGesture {
-            guard !reduceMotion else { return }
-            tapPulse += 1
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-                tapPulse += 1
+                .font(.system(size: size * 0.36, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(iconPrimaryColor)
+
+            if isActive {
+                Circle()
+                    .trim(from: 0.06, to: 0.26)
+                    .stroke(
+                        Brand.sun,
+                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
+                    )
+                    .frame(width: size - 3, height: size - 3)
+                    .rotationEffect(.degrees(isOrbiting ? 360 : 0))
             }
         }
+        .frame(width: size, height: size)
+        .onAppear { updateMotion() }
+        .onChange(of: isActive) { _, _ in updateMotion() }
         .accessibilityHidden(true)
     }
 
@@ -257,76 +283,54 @@ struct HuntActivityIcon: View {
         }
     }
 
-    private var iconSecondaryColor: Color {
-        colorScheme == .dark ? Brand.chalk : Brand.ink
-    }
-
-    private func orbitDot(color: Color, radius: CGFloat, dotSize: CGFloat, offsetDegrees: Double) -> some View {
-        Circle()
-            .fill(color)
-            .frame(width: dotSize, height: dotSize)
-            .overlay {
-                Circle().stroke(Brand.outline(for: colorScheme), lineWidth: max(dotSize * 0.18, 1.25))
-            }
-            .offset(x: radius)
-            .rotationEffect(.degrees(reduceMotion ? offsetDegrees : (isOrbiting ? 360 + offsetDegrees : (isBreathing ? offsetDegrees + 8 : offsetDegrees - 4))))
+    private func updateMotion() {
+        guard isActive, !reduceMotion else {
+            isOrbiting = false
+            return
+        }
+        isOrbiting = false
+        withAnimation(.linear(duration: 1.25).repeatForever(autoreverses: false)) {
+            isOrbiting = true
+        }
     }
 }
 
 struct ThemeToolbarButton: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var session: SessionStore
-    @State private var isBreathing = false
     var showLabel = true
 
     var body: some View {
         Button(action: toggleTheme) {
             HStack(spacing: 7) {
                 Image(systemName: isDark ? "sun.max.fill" : "moon.stars.fill")
-                    .font(.system(size: 13, weight: .black))
+                    .font(.system(size: AppIconSize.small, weight: .semibold))
+                    .accessibilityHidden(true)
                 if showLabel {
                     Text(session.text("theme"))
-                        .font(.caption.weight(.black))
+                        .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
                 }
             }
-            .foregroundStyle(foreground)
-            .padding(.horizontal, showLabel ? 12 : 0)
-            .frame(width: showLabel ? nil : 38, height: showLabel ? 34 : 38)
-            .background(fill, in: Capsule())
+            .foregroundStyle(Brand.outline(for: colorScheme))
+            .padding(.horizontal, showLabel ? 13 : 0)
+            .frame(minWidth: 44, minHeight: 44)
+            .background(Brand.raisedFill(for: colorScheme), in: Capsule())
             .overlay {
-                Capsule().stroke(stroke, lineWidth: 1.8)
+                Capsule()
+                    .strokeBorder(Brand.surfaceStroke(for: colorScheme), lineWidth: 0.75)
             }
-            .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.26 : 0.12), radius: 0, x: 2, y: 3)
-                .scaleEffect(reduceMotion ? 1 : (isBreathing ? 1.035 : 0.98))
-                .rotationEffect(.degrees(reduceMotion ? 0 : (isBreathing ? 1.2 : -0.8)))
-                .animation(.easeInOut(duration: 1.9).repeatForever(autoreverses: true), value: isBreathing)
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(session.text("theme"))
-        .onAppear {
-            guard !reduceMotion else { return }
-            isBreathing = true
-        }
+        .accessibilityValue(isDark ? session.text("dark") : session.text("light"))
     }
 
     private var isDark: Bool {
         if session.preferredTheme == "Dark" { return true }
         if session.preferredTheme == "Light" { return false }
         return colorScheme == .dark
-    }
-
-    private var fill: Color {
-        isDark ? Brand.sun : Brand.deepOcean.opacity(colorScheme == .dark ? 0.96 : 0.92)
-    }
-
-    private var foreground: Color {
-        isDark ? Brand.deepOcean : Brand.ice
-    }
-
-    private var stroke: Color {
-        colorScheme == .dark ? Brand.electricBlue.opacity(0.95) : Brand.ink
     }
 
     private func toggleTheme() {
@@ -336,42 +340,105 @@ struct ThemeToolbarButton: View {
 
 struct StoryButtonStyle: ButtonStyle {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     enum Kind {
         case primary
         case secondary
         case quiet
+        case destructive
     }
 
     var kind: Kind = .secondary
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.headline.weight(.black))
+            .font(.headline.weight(.semibold))
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .frame(minHeight: 48)
             .foregroundStyle(foreground)
-            .background(background.opacity(configuration.isPressed ? 0.78 : 1), in: Capsule())
+            .background(
+                background.opacity(configuration.isPressed ? 0.84 : 1),
+                in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+            )
             .overlay {
-                Capsule().stroke(Brand.surfaceStroke(for: colorScheme), lineWidth: 2)
+                RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                    .strokeBorder(border, lineWidth: kind == .primary ? 0 : 0.75)
             }
-            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
-            .rotationEffect(.degrees(configuration.isPressed ? -1.4 : 0))
-            .animation(.spring(response: 0.24, dampingFraction: 0.62), value: configuration.isPressed)
+            .contentShape(RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
+            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
     }
 
     private var background: Color {
         switch kind {
-        case .primary: Brand.coral
-        case .secondary: Brand.sun
-        case .quiet: colorScheme == .dark ? Brand.navy.opacity(0.92) : Brand.raisedFill(for: colorScheme)
+        case .primary:
+            Brand.actionFill(for: colorScheme)
+        case .secondary:
+            Brand.selectionFill(for: colorScheme)
+        case .quiet:
+            Brand.raisedFill(for: colorScheme)
+        case .destructive:
+            Color(red: 0.72, green: 0.12, blue: 0.14)
         }
     }
 
     private var foreground: Color {
         switch kind {
-        case .primary: .white
-        case .secondary, .quiet: Brand.outline(for: colorScheme)
+        case .primary:
+            Brand.actionForeground(for: colorScheme)
+        case .destructive:
+            .white
+        case .secondary, .quiet:
+            Brand.outline(for: colorScheme)
         }
+    }
+
+    private var border: Color {
+        switch kind {
+        case .primary, .destructive:
+            .clear
+        case .secondary:
+            Brand.lake.opacity(colorScheme == .dark ? 0.42 : 0.24)
+        case .quiet:
+            Brand.surfaceStroke(for: colorScheme)
+        }
+    }
+}
+
+struct SelectionChipStyle: ButtonStyle {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let isSelected: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(isSelected ? .semibold : .medium))
+            .foregroundStyle(
+                isSelected
+                    ? Brand.actionFill(for: colorScheme)
+                    : Brand.outline(for: colorScheme)
+            )
+            .padding(.horizontal, 14)
+            .frame(minHeight: 44)
+            .background(
+                isSelected
+                    ? Brand.selectionFill(for: colorScheme)
+                    : Brand.raisedFill(for: colorScheme),
+                in: Capsule()
+            )
+            .overlay {
+                Capsule()
+                    .strokeBorder(
+                        isSelected
+                            ? Brand.actionFill(for: colorScheme).opacity(colorScheme == .dark ? 0.55 : 0.30)
+                            : Brand.surfaceStroke(for: colorScheme),
+                        lineWidth: 0.75
+                    )
+            }
+            .opacity(configuration.isPressed ? 0.78 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
+            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
     }
 }
 
@@ -380,13 +447,16 @@ struct StoryFieldModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .font(.body.weight(.semibold))
+            .font(.body)
             .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(Brand.raisedFill(for: colorScheme), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .frame(minHeight: 48)
+            .background(
+                Brand.raisedFill(for: colorScheme),
+                in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+            )
             .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Brand.surfaceStroke(for: colorScheme), lineWidth: 2)
+                RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                    .strokeBorder(Brand.surfaceStroke(for: colorScheme), lineWidth: 0.75)
             }
             .foregroundStyle(Brand.outline(for: colorScheme))
     }
@@ -397,13 +467,16 @@ struct StoryPickerRowModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .font(.headline.weight(.bold))
+            .font(.body.weight(.medium))
             .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(Brand.raisedFill(for: colorScheme), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .frame(minHeight: 48)
+            .background(
+                Brand.raisedFill(for: colorScheme),
+                in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+            )
             .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Brand.surfaceStroke(for: colorScheme), lineWidth: 2)
+                RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                    .strokeBorder(Brand.surfaceStroke(for: colorScheme), lineWidth: 0.75)
             }
             .foregroundStyle(Brand.outline(for: colorScheme))
     }
@@ -415,12 +488,14 @@ struct StorySectionTitle: View {
     var systemImage: String = "sparkle.magnifyingglass"
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 9) {
             Image(systemName: systemImage)
-                .foregroundStyle(Brand.coral)
+                .font(.system(size: AppIconSize.standard, weight: .semibold))
+                .foregroundStyle(Brand.lake)
+                .accessibilityHidden(true)
             Text(text)
-                .font(.title3.weight(.black))
-            Spacer()
+                .font(.title3.weight(.semibold))
+            Spacer(minLength: 8)
         }
         .foregroundStyle(Brand.outline(for: colorScheme))
     }
@@ -435,11 +510,11 @@ struct FlowLabels<Content: View>: View {
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: 8) {
+            HStack(spacing: 7) {
                 content
             }
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 7) {
                 content
             }
         }
@@ -447,7 +522,10 @@ struct FlowLabels<Content: View>: View {
 }
 
 extension View {
-    func cardSurface(padding: CGFloat = 16, cornerRadius: CGFloat = 28) -> some View {
+    func cardSurface(
+        padding: CGFloat = AppSpacing.standard,
+        cornerRadius: CGFloat = AppRadius.card
+    ) -> some View {
         modifier(CardSurface(padding: padding, cornerRadius: cornerRadius))
     }
 

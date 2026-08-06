@@ -1,102 +1,102 @@
 # TestFlight Real-Device QA Signoff
 
-Last updated: July 3, 2026
+Last updated: August 6, 2026
 
-Use this document to record the real-device QA pass before App Review submission. Do not mark public release ready until every required row is `Pass` or a release owner explicitly accepts the risk.
-
-After filling this out, run `bash docs/scripts/check-public-release-gates.sh`. It should fail while this document is still pending and pass only after required real-device and App Store Connect gates are recorded.
-
-Allowed row statuses are `Pass`, `Fail`, `Pending`, and `Accepted Risk`; the final gate passes only when every required row is `Pass` or `Accepted Risk`. Every `Accepted Risk` row must include notes and must be summarized in `Accepted risks`.
+Record observed real-device evidence for build 1.0 (12) here. The public release gate only passes when each required row is \`Pass\` or a release owner has explicitly recorded \`Accepted Risk\` with notes. Simulator-only evidence never counts as a real-device pass.
 
 ## Build Under Test
 
-These facts describe the current uploaded release candidate with the refreshed 382-listing bundled snapshot. Fill in the final status fields after App Store Connect reports build `1.0 (11)` as valid.
+- App: \`GTA FREE STEM\`
+- Version/build: \`1.0 (12)\`
+- Delivery UUID: \`Pending upload\`
+- App Store Connect status: \`Not uploaded\`
+- TestFlight status: \`Not uploaded\`
+- App Review status: \`Not submitted\`
+- Public distribution platforms: \`Pending\`
 
-- App: `GTA FREE STEM`
-- Version/build: `1.0 (11)`
-- Delivery UUID: `69e5bff3-4c7e-43e4-93b6-905adc6b19bb`
-- App Store Connect status: `Uploaded; processing status unverified`
-- TestFlight status: `Uploaded; processing status unverified`
-- Last confirmed uploaded build: `1.0 (10)`, delivery UUID `97c05d63-7f3d-45bc-941e-c10432694ca8`, status `VALID` / `BETA_INTERNAL_TESTING`
-- Device family required: iPhone
-- Optional second pass: iPad
+Replace the pending upload fields only after App Store Connect reports actual values.
+
+Before running the final public-release gate, record the exact platforms enabled by the submitted binary and pass the same canonical, comma-separated set through \`PUBLIC_RELEASE_PLATFORMS\`. There is intentionally no default. The current binary enables iPhone and iPad and embeds the Watch companion, so its minimum set is \`iphone,ipad,watch\`; omitting iPad or Watch requires changing the binary first. Add \`,mac\` only if the optional separate Mac product is included. The gate requires platform-specific evidence for every selected platform.
 
 ## Tester And Device
 
-- Fill every line before public-release signoff. Use `YYYY-MM-DD` for the date.
 - Tester:
 - Date:
-- Device model:
-- iOS/iPadOS version:
 - Install source: TestFlight
 - Network conditions tested:
 - Accessibility settings tested:
 - Languages tested:
 
-## Suggested Real-Device Flow
-
-Use this flow to fill the table below. Record actual observations in `Notes`; do not mark a row `Pass` from simulator-only evidence.
-
-1. Fresh-install build `1.0 (11)` from TestFlight on an iPhone, launch once online, and confirm public browsing opens without account prompts.
-2. Search `robotics Toronto`, then try a second multi-word query with a city or category from a visible result. Confirm results are relevant and sorting defaults to best match.
-3. Apply city, region, age, language, category, volunteer hours, co-op/SHSM, mentorship, scholarships, equity focus, new finds, and distance filters one at a time, then reset them.
-4. Switch between list and map mode after filters are applied. Confirm pins match the filtered result set and detail pages open from both modes where available.
-5. Tap refresh repeatedly while online. Confirm loading state, data source label, result count, and any new-match messaging stay stable and do not duplicate listings.
-6. Quit and reopen the app. Confirm the last query, mode, filters, and visible results restore.
-7. After one successful online refresh, enable Airplane Mode, reopen the app, and confirm cached results appear. Then fresh-install or clear app data, launch without network, and confirm the bundled offline snapshot appears.
-8. Deny location permission when prompted by nearby/distance behavior, then repeat with location allowed if available. Confirm the app explains fallback behavior and uses nearest sorting only when location context exists.
-9. Switch app language to at least French, Spanish, one South Asian language, and one CJK language. Search translated content and an English fallback term in each language.
-10. Switch to Arabic, Farsi/Persian, or Urdu and inspect browse, filters, details, settings, and support for right-to-left layout issues.
-11. Enable Large Accessibility Text, Dark Mode, and VoiceOver. Confirm rows, filters, map/detail controls, account-limited actions, and support controls are understandable and do not overlap.
-12. Open the marketing, support, and privacy URLs from App Store Connect or Safari on the device. Confirm they load the public pages.
-
 ## Required Passes
 
 | Area | Required evidence | Status | Notes |
 | --- | --- | --- | --- |
-| Install and launch | Fresh TestFlight install opens without crash and shows public browsing. | Pending | |
-| Search keywords | Multi-word search such as `robotics Toronto` returns relevant results. | Pending | |
-| Search translated fields | Non-English app language can search translated listing content; English fallback terms still work. | Pending | |
-| Filters | City, region, age, language, category, volunteer hours, co-op/SHSM, mentorship, scholarships, equity focus, new finds, and distance filters apply and reset correctly. | Pending | |
-| Sorting | Best match, soonest, and nearest sorting behave as expected; nearest is used only after location/coordinate context. | Pending | |
-| Map/list consistency | Map pins are a subset of the filtered list results and visible labels are understandable. | Pending | |
-| Details | Listing detail pages show readable title, provider, date/deadline, location, cost, badges, and source/action links. | Pending | |
-| Manual refresh | Repeated refreshes do not duplicate results, freeze, or show conflicting loading/error states. | Pending | |
-| Cache fallback | After one successful refresh, offline reopen shows cached results. | Pending | |
-| Bundled snapshot fallback | Clean install without network shows the bundled offline opportunity snapshot. | Pending | |
-| State restore | Query, mode, filters, and latest visible results restore after app quit/reopen. | Pending | |
-| New-match messaging | Repeated/background refresh does not spam duplicate new-match counts for already-seen listings. | Pending | |
-| Location denied | Nearby search after denied location permission explains the city/filter fallback clearly. | Pending | |
-| Location allowed | Nearby search updates distance/nearest behavior without continuous-tracking copy. | Pending | |
-| Notifications | Notification permission copy is understandable and notification state does not block browsing. | Pending | |
-| Language switching | UI controls, empty states, errors, detail pages, settings, support, and opportunity content switch language where payloads exist. | Pending | |
-| RTL layout | Arabic, Farsi/Persian, and Urdu layout direction works on browse, filters, details, settings, and support. | Pending | |
-| Dynamic Type | Large text remains readable on list, filters, detail, support, and settings without important overlap. | Pending | |
-| VoiceOver rows | Opportunity rows read as one useful label with title, category, organization, age range, city, and relevant badges. | Pending | |
-| VoiceOver map/details/forms | Map, detail facts, filter controls, save/account-limited actions, and support controls have useful labels/hints. | Pending | |
-| Dark mode | Badges, cards, buttons, map area, empty states, and errors remain readable. | Pending | |
-| Support privacy | Support tab does not collect name, email, message, or missing-opportunity details in build `1.0 (11)`. | Pending | |
-| Account-limited paths | Account-only actions clearly say the feature is unavailable in this build; Sign in with Apple is not exposed without backend token exchange. | Pending | |
-| App Store URLs | Marketing, support, and privacy URLs open and show expected public pages. | Pending | |
+| Install and launch | Fresh TestFlight install opens without crash and reaches public browsing. | Pending | |
+| Warm launch experience | The branded loading experience feels intentional; progress only moves forward, reaches 100% immediately before usable browsing appears, never restarts, and never leaves a blank white screen. | Pending | |
+| Live feed | Online launch shows a current feed and a coherent data-source state. | Pending | |
+| Search keywords | Multi-word search such as \`robotics Toronto\` returns relevant results. | Pending | |
+| Search translations | Non-English listing content is searchable while English fallback terms still work. | Pending | |
+| Filters and sorting | City, region, age, language, category, high-school, volunteer, co-op, mentorship, scholarship, equity, new-find, distance, and sorting controls apply and reset correctly. | Pending | |
+| Map/list consistency | Map pins and list results agree for the current filtered hunt. | Pending | |
+| Details and external links | Listing details are readable and provider/directions links open correctly. | Pending | |
+| Local saves | Saving and removing an opportunity works without a network account. | Pending | |
+| Local profile deletion | Create a local Profile, then delete it in Settings and confirm saved opportunities and hunt history clear. | Pending | |
+| Manual refresh | Repeated refreshes do not duplicate results, freeze, or show conflicting states. | Pending | |
+| Cache fallback | After a successful refresh, offline reopening shows the cached feed. | Pending | |
+| Bundled fallback | A clean offline install opens with the bundled snapshot rather than failing. | Pending | |
+| State restore | Query, mode, filters, and visible results restore after quit/reopen. | Pending | |
+| Location | Denied and allowed nearby search cases are clear, local-only, and never block browsing. | Pending | |
+| Notifications | Declining and allowing the optional local new-opportunity alert are both understandable, do not block browsing, and do not send data or register for remote push. | Pending | |
+| Localization and RTL | Language switching works; Arabic, Farsi/Persian, or Urdu layouts remain usable. | Pending | |
+| Accessibility | Large text, VoiceOver, light/dark appearance, and contrast are usable. | Pending | |
+| Support privacy | Support collects no name, email, message, or missing-opportunity submission in this build. | Pending | |
+| App Store URLs | Marketing, support, privacy, and Terms URLs load; legal links open from Settings/Support; GitHub Issues accepts a non-sensitive test ticket. | Pending | |
+
+## Platform-Specific Evidence
+
+For every value in \`Public distribution platforms\`, record the actual device, operating-system version, and observed result below. Leave unselected platforms pending; the gate ignores their rows. A simulator never substitutes for a selected platform's real-device evidence.
+
+| Platform | Required evidence | Device model | OS version | Status | Notes |
+| --- | --- | --- | --- | --- | --- |
+| iPhone | Fresh TestFlight install; online and offline discovery flow. | | | Pending | |
+| iPad | TestFlight install; navigation and filter layout remain usable. | | | Pending | |
+| Apple Watch | Paired Watch companion loads compact live/cache data and remains readable. | | | Pending | |
+| Mac | Mac Catalyst launch, sidebar navigation, links, and window-scale appearance. | | | Pending | |
 
 ## Release Owner Decision
 
-- Write `None` for `Accepted risks` or `Must-fix blockers` only when none apply.
-- `Submitted for App Review` may stay pending until the final App Store Connect submit click.
-- Use these exact evidence patterns for the owner fields:
-  - `App Store Connect build selected`: `1.0 (11)`
-  - `Screenshots uploaded`: `8 screenshots uploaded: 4 iPhone 6.9 + 4 iPad 13`
-  - `Metadata/privacy/age rating entered`: `Metadata, App Privacy, age rating, export compliance, and review notes entered`
-- Overall status: `Pending`
+- Overall status: \`Pending\`
 - Accepted risks:
 - Must-fix blockers:
 - App Store Connect build selected:
+- Archive provenance verified:
 - Screenshots uploaded:
 - Metadata/privacy/age rating entered:
+- Support contact verified:
+- Production legal/support truthfulness verified:
+- App Review contact verified:
+- Copyright entered:
+- Platform record decision:
+- Primary language verified:
+- Availability and DSA verified:
 - Submitted for App Review:
+
+Expected evidence once the portal is completed:
+
+- App Store Connect build selected: \`1.0 (12)\`
+- Archive provenance verified: record the exact absolute path and verification date for the signed build \`1.0 (12)\` archive that passed the platform verifier, plus the Apple delivery UUID produced when that same unchanged archive was uploaded. Use that same archive path in the final public-release gate; do not select the local unsigned build-12 archive or the historical build-4 archive.
+- Screenshots uploaded: platform-specific evidence only for the values selected in \`Public distribution platforms\`.
+- Metadata/privacy/age rating entered: includes metadata, App Privacy, age rating, Made for Kids = No, export compliance, and review notes
+- Support contact verified: include the verified production Support URL, confirmed GitHub Issues route, and confirmation of a monitored public support email or telephone number; do not copy the private App Review contact here.
+- Production legal/support truthfulness verified: record a verified production review with distinct HTTPS support, privacy, and Terms URLs that match the submitted build, plus confirmation that GitHub Issues and the direct public support contact are enabled and watched. Do not copy the actual contact value into this file.
+- App Review contact verified: \`Verified in App Store Connect on YYYY-MM-DD\`; do not commit the reviewer email or phone number here.
+- Copyright entered: record the exact public App Store value, with the confirmed legal-rights holder and year.
+- Platform record decision: required only when \`mac\` is selected. Record either a verified Universal iOS/macOS decision with the shared bundle ID, or a verified Separate Mac app record with its Mac App ID, SKU, and \`.maccatalyst\` bundle ID.
+- Primary language verified: record only \`Verified in App Store Connect on YYYY-MM-DD\`; ensure the product-page fallback language matches the selected language.
+- Availability and DSA verified: record only \`Verified in App Store Connect on YYYY-MM-DD\`; this includes selected territories and the trader-status self-assessment.
 
 ## Notes
 
-- Send tester feedback through TestFlight, not in-app forms, for build `1.0 (11)`.
-- Rotate or revoke the app-specific Apple password generated during setup after release work is finished.
-- If backend account, feedback, submission, analytics, crash reporting, or telemetry behavior changes before release, redo App Privacy answers and rerun the release-readiness audit.
+- Send tester feedback through TestFlight for this build; the in-app Support tab intentionally has no online form.
+- A test-flight upload is not an App Review submission.
+- If profile, location, feedback, submission, analytics, crash reporting, or telemetry behavior changes, redo App Privacy and reviewer notes before public submission.

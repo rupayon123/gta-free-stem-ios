@@ -1,10 +1,21 @@
 import SwiftUI
+import SwiftData
+
+enum AppLegalLinks {
+    static let privacyPolicy = URL(string: "https://gta-free-stem.vercel.app/privacy/")!
+    static let termsOfUse = URL(string: "https://gta-free-stem.vercel.app/terms/")!
+    static let support = URL(string: "https://gta-free-stem.vercel.app/support/")!
+}
 
 struct SettingsView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var session: SessionStore
-    @State private var deleteMessage: String?
-    private let api = APIClient()
+    @EnvironmentObject private var opportunities: OpportunityStore
+    @State private var profileNameDraft = ""
+    @State private var accountMessage: String?
+    @State private var profileEditorPresented = false
+    @State private var deleteConfirmationPresented = false
 
     var body: some View {
         NavigationStack {
@@ -12,63 +23,108 @@ struct SettingsView: View {
                 StorybookBackground()
 
                 ScrollView {
-                    VStack(spacing: 18) {
+                    VStack(spacing: AppSpacing.standard) {
                         accountCard
                         savedCard
                         preferencesCard
                         legalCard
-                        if let authMessage = session.authMessage {
-                            messageCard(authMessage)
-                        }
-                        if let deleteMessage {
-                            messageCard(deleteMessage)
+                        if let accountMessage {
+                            messageCard(accountMessage)
                         }
                     }
-                    .padding()
-                    .padding(.bottom, 24)
+                    .frame(maxWidth: 720)
+                    .frame(maxWidth: .infinity)
+                    .padding(AppSpacing.standard)
+                    .padding(.bottom, AppSpacing.large)
                 }
             }
             .navigationTitle(session.text("settings"))
         }
+        .sheet(isPresented: $profileEditorPresented) {
+            profileEditor
+        }
+        .confirmationDialog(
+            session.text("deleteAccount"),
+            isPresented: $deleteConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            Button(session.text("deleteAccount"), role: .destructive) {
+                deleteLocalProfileAndSaves()
+            }
+        }
     }
 
     private var accountCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            StorySectionTitle(text: session.text("accountAdmin"), systemImage: "person.crop.circle.fill")
-            if session.isSignedIn {
-                Text("\(session.text("signedInAs")) \(session.displayName)")
-                    .font(.headline.weight(.black))
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            StorySectionTitle(text: session.text("account"), systemImage: "person.crop.circle.fill")
+            if session.hasLocalProfile {
+                Text("\(session.text("name")): \(session.displayName)")
+                    .font(.headline.weight(.semibold))
                     .foregroundStyle(Brand.outline(for: colorScheme))
 
-                HStack(spacing: 10) {
-                    Button(session.text("signOut"), role: .destructive) {
-                        session.signOut()
-                    }
-                    .buttonStyle(StoryButtonStyle(kind: .quiet))
+                Text(session.text("profileOnDevice"))
+                    .font(.subheadline)
+                    .foregroundStyle(Brand.mutedText(for: colorScheme))
 
-                    Button(session.text("deleteAccount"), role: .destructive) {
-                        Task { await deleteAccount() }
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) {
+                        signOutButton
+                        deleteAccountButton
                     }
-                    .buttonStyle(StoryButtonStyle(kind: .primary))
+
+                    VStack(spacing: 10) {
+                        signOutButton
+                        deleteAccountButton
+                    }
                 }
             } else {
-                Text(session.text("appleReady"))
-                    .font(.headline.weight(.black))
+                Text(session.text("guest"))
+                    .font(.headline.weight(.semibold))
                     .foregroundStyle(Brand.outline(for: colorScheme))
                     .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text(session.text("profileOnDevice"))
+                    .font(.subheadline)
+                    .foregroundStyle(Brand.mutedText(for: colorScheme))
+
+                Button(session.text("account")) {
+                    profileNameDraft = ""
+                    profileEditorPresented = true
+                }
+                .buttonStyle(StoryButtonStyle(kind: .secondary))
             }
         }
-        .cardSurface(padding: 18, cornerRadius: 30)
+        .cardSurface()
+    }
+
+    private var signOutButton: some View {
+        Button {
+            clearLocalProfileOnly()
+        } label: {
+            Text(session.text("signOut"))
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(StoryButtonStyle(kind: .quiet))
+    }
+
+    private var deleteAccountButton: some View {
+        Button(role: .destructive) {
+            deleteConfirmationPresented = true
+        } label: {
+            Text(session.text("deleteAccount"))
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(StoryButtonStyle(kind: .destructive))
     }
 
     private var savedCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             StorySectionTitle(text: session.text("saved"), systemImage: "bookmark.fill")
-            Text(session.isSignedIn ? session.text("savedEmpty") : session.text("signInToSave"))
-                .font(.headline.weight(.black))
+            Text(session.text("savedEmpty"))
+                .font(.headline.weight(.semibold))
                 .foregroundStyle(Brand.outline(for: colorScheme))
             Text(session.text("savedArchiveNote"))
-                .font(.subheadline.weight(.semibold))
+                .font(.subheadline)
                 .foregroundStyle(Brand.mutedText(for: colorScheme))
             NavigationLink {
                 SavedView()
@@ -78,7 +134,7 @@ struct SettingsView: View {
             }
             .buttonStyle(StoryButtonStyle(kind: .secondary))
         }
-        .cardSurface(padding: 18, cornerRadius: 30)
+        .cardSurface()
     }
 
     private var preferencesCard: some View {
@@ -93,7 +149,7 @@ struct SettingsView: View {
             .storyPickerRow()
 
             Text(session.text("theme"))
-                .font(.headline.weight(.black))
+                .font(.headline.weight(.semibold))
                 .foregroundStyle(Brand.outline(for: colorScheme))
             Picker(session.text("theme"), selection: $session.preferredTheme) {
                 Text(session.text("system")).tag("System")
@@ -102,37 +158,43 @@ struct SettingsView: View {
             }
             .pickerStyle(.segmented)
         }
-        .cardSurface(padding: 18, cornerRadius: 30)
+        .cardSurface()
     }
 
     private var legalCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             StorySectionTitle(text: session.text("termsTitle"), systemImage: "doc.text.fill")
-            NavigationLink {
-                LegalTextView(title: session.text("privacyPolicy"), bodyText: session.text("privacyBody"))
-            } label: {
+            Text("\(session.text("profileOnDevice")) \(session.text("localSubmissionSaved"))")
+                .font(.subheadline)
+                .foregroundStyle(Brand.mutedText(for: colorScheme))
+
+            Link(destination: AppLegalLinks.privacyPolicy) {
                 Label(session.text("privacyPolicy"), systemImage: "lock.shield.fill")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(StoryButtonStyle(kind: .quiet))
 
-            NavigationLink {
-                LegalTextView(title: session.text("termsTitle"), bodyText: session.text("termsBody"))
-            } label: {
+            Link(destination: AppLegalLinks.termsOfUse) {
                 Label(session.text("termsTitle"), systemImage: "checkmark.seal.fill")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(StoryButtonStyle(kind: .quiet))
+
+            Link(destination: AppLegalLinks.support) {
+                Label(session.text("support"), systemImage: "questionmark.bubble.fill")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(StoryButtonStyle(kind: .quiet))
         }
-        .cardSurface(padding: 18, cornerRadius: 30)
+        .cardSurface()
     }
 
     private func messageCard(_ text: String) -> some View {
         Text(text)
-            .font(.headline.weight(.black))
+            .font(.subheadline.weight(.medium))
             .foregroundStyle(Brand.outline(for: colorScheme))
             .frame(maxWidth: .infinity, alignment: .leading)
-            .cardSurface(padding: 16, cornerRadius: 24)
+            .cardSurface()
     }
 
     private var languageBinding: Binding<String> {
@@ -142,34 +204,49 @@ struct SettingsView: View {
         )
     }
 
-    private func deleteAccount() async {
-        do {
-            try await api.deleteAccount(token: session.apiToken)
-            session.signOut()
-            deleteMessage = session.text("accountDeleted")
-        } catch {
-            deleteMessage = session.text("serverResponseInvalid")
-        }
-    }
-}
-
-struct LegalTextView: View {
-    @Environment(\.colorScheme) private var colorScheme
-    let title: String
-    let bodyText: String
-
-    var body: some View {
-        ZStack {
-            StorybookBackground()
-            ScrollView {
-                Text(bodyText)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(Brand.outline(for: colorScheme))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .cardSurface(padding: 18, cornerRadius: 28)
-                    .padding()
+    private var profileEditor: some View {
+        NavigationStack {
+            Form {
+                Section(session.text("account")) {
+                    TextField(session.text("name"), text: $profileNameDraft)
+                        .textContentType(.name)
+                        .textInputAutocapitalization(.words)
+                }
+            }
+            .tint(Brand.lake)
+            .navigationTitle(session.text("account"))
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(session.text("done")) {
+                        session.saveLocalProfile(named: profileNameDraft)
+                        accountMessage = nil
+                        profileEditorPresented = false
+                    }
+                    .disabled(profileNameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
             }
         }
-        .navigationTitle(title)
+    }
+
+    private func deleteLocalProfileAndSaves() {
+        clearLocalProfileAndSaves()
+    }
+
+    private func clearLocalProfileOnly() {
+        session.clearLocalProfile()
+        accountMessage = nil
+    }
+
+    private func clearLocalProfileAndSaves() {
+        Task {
+            do {
+                try SavedOpportunityLibrary.deleteAll(in: modelContext)
+                try await opportunities.clearPersonalHistory(in: modelContext)
+                session.clearLocalProfile()
+                accountMessage = session.text("accountDeleted")
+            } catch {
+                accountMessage = session.text("serverResponseInvalid")
+            }
+        }
     }
 }

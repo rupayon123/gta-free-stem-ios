@@ -3,6 +3,8 @@ options:
   bundleIdPrefix: com.rupayonhaldar
   deploymentTarget:
     iOS: "17.0"
+    macOS: "14.0"
+    watchOS: "10.0"
 settings:
   base:
     ALWAYS_SEARCH_USER_PATHS: "NO"
@@ -14,7 +16,7 @@ settings:
     STRING_CATALOG_GENERATE_SYMBOLS: "YES"
     SWIFT_EMIT_LOC_STRINGS: "YES"
     MARKETING_VERSION: "1.0"
-    CURRENT_PROJECT_VERSION: "11"
+    CURRENT_PROJECT_VERSION: "12"
   configs:
     Debug:
       ENABLE_TESTABILITY: "YES"
@@ -31,7 +33,10 @@ targets:
     type: application
     platform: iOS
     sources:
-      - GTAFreeSTEM
+      - path: GTAFreeSTEM
+        excludes:
+          - MacCatalyst-Info.plist
+          - MacCatalyst.entitlements
     resources:
       - GTAFreeSTEM/Assets.xcassets
       - GTAFreeSTEM/Resources
@@ -51,8 +56,7 @@ targets:
         NSLocationWhenInUseUsageDescription: GTA FREE STEM can use your location only while browsing to find nearby free opportunities.
         UIBackgroundModes:
           - fetch
-        UILaunchScreen:
-          UIColorName: LaunchBackground
+        UILaunchStoryboardName: LaunchScreen
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
@@ -66,12 +70,24 @@ targets:
       base:
         PRODUCT_NAME: GTAFreeSTEM
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        CODE_SIGN_IDENTITY: iPhone Developer
         PRODUCT_BUNDLE_IDENTIFIER: com.rupayonhaldar.gtafreestem
+        "PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]": com.rupayonhaldar.gtafreestem.maccatalyst
+        "INFOPLIST_FILE[sdk=macosx*]": GTAFreeSTEM/MacCatalyst-Info.plist
+        "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": GTAFreeSTEM/MacCatalyst.entitlements
+        "ENABLE_APP_SANDBOX[sdk=macosx*]": "YES"
+        "ENABLE_HARDENED_RUNTIME[sdk=macosx*]": "YES"
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: FE33NM88XX
         TARGETED_DEVICE_FAMILY: "1,2"
-        SUPPORTS_MACCATALYST: false
+        SUPPORTS_MACCATALYST: true
+      configs:
+        debug:
+          CODE_SIGN_IDENTITY: Apple Development
+        release:
+          CODE_SIGN_IDENTITY: Apple Distribution
+    dependencies:
+      - target: GTAFreeSTEMWatch
+        destinationFilters: [iOS]
   GTAFreeSTEMTests:
     type: bundle.unit-test
     platform: iOS
@@ -80,6 +96,8 @@ targets:
     settings:
       base:
         BUNDLE_LOADER: "$(TEST_HOST)"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: FE33NM88XX
         LD_RUNPATH_SEARCH_PATHS:
           - "$(inherited)"
           - "@executable_path/Frameworks"
@@ -92,6 +110,33 @@ targets:
         CFBundleDisplayName: GTA FREE STEM Tests
     dependencies:
       - target: GTAFreeSTEM
+  GTAFreeSTEMWatch:
+    type: application
+    platform: watchOS
+    sources:
+      - GTAFreeSTEMWatch
+      - GTAFreeSTEMWatch/Assets.xcassets
+      - GTAFreeSTEMWatch/PrivacyInfo.xcprivacy
+    info:
+      path: GTAFreeSTEMWatch/Info.plist
+      properties:
+        CFBundleDisplayName: GTA FREE STEM
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        WKCompanionAppBundleIdentifier: com.rupayonhaldar.gtafreestem
+        WKApplication: true
+    settings:
+      base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        PRODUCT_NAME: GTAFreeSTEMWatch
+        PRODUCT_BUNDLE_IDENTIFIER: com.rupayonhaldar.gtafreestem.watchkitapp
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: FE33NM88XX
+      configs:
+        debug:
+          CODE_SIGN_IDENTITY: Apple Development
+        release:
+          CODE_SIGN_IDENTITY: Apple Distribution
 schemes:
   GTAFreeSTEM:
     build:
@@ -104,6 +149,19 @@ schemes:
       debugEnabled: false
       targets:
         - GTAFreeSTEMTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+  GTAFreeSTEM Watch:
+    build:
+      targets:
+        GTAFreeSTEM: all
+        GTAFreeSTEMWatch: all
+    run:
+      config: Debug
     profile:
       config: Release
     analyze:

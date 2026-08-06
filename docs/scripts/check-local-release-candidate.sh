@@ -26,15 +26,33 @@ if ! command -v xcrun >/dev/null 2>&1; then
   exit 1
 fi
 
+step "Bundled-feed integrity self-test"
+bash docs/scripts/test-feed-sync-integrity.sh
+
+step "Release simulator smoke integrity self-test"
+bash docs/scripts/test-release-smoke-integrity.sh
+
+step "Archive-verifier self-tests"
+bash docs/scripts/test-app-store-archive-verifier.sh
+
 if [ "$RUN_SCREENSHOTS" != "0" ]; then
   step "Capture App Store screenshots"
   bash docs/scripts/capture-app-store-screenshots.sh
+  bash docs/scripts/capture-watch-app-store-screenshot.sh
+  for screenshot in \
+    build/app-store-screenshots/mac/01-home.jpg \
+    build/app-store-screenshots/mac/02-opportunities.jpg; do
+    if [ ! -f "$screenshot" ]; then
+      echo "Missing $screenshot. Capture the Release Mac Catalyst window as documented in docs/APP_STORE_SCREENSHOTS.md, then rerun this check."
+      exit 1
+    fi
+  done
 else
   echo "Skipping App Store screenshot capture because RUN_SCREENSHOTS=0."
 fi
 
 step "Strict release-readiness audit"
-STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh
+STRICT_TRANSLATION_CHECK=1 CHECK_APP_STORE_SCREENSHOTS="$RUN_SCREENSHOTS" bash docs/scripts/check-release-readiness.sh
 
 step "Public release gate self-test"
 bash docs/scripts/test-public-release-gates.sh
@@ -68,5 +86,7 @@ This does not replace the final public-release gate. Before App Review submissio
 complete docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md from a real TestFlight install and
 then run:
 
-  bash docs/scripts/check-public-release-gates.sh
+  IOS_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-1.0-12.xcarchive \
+    PUBLIC_RELEASE_PLATFORMS=iphone,ipad,watch \
+    bash docs/scripts/check-public-release-gates.sh
 EOF

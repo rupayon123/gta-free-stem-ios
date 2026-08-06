@@ -1,26 +1,35 @@
 # App Store Metadata Draft
 
-Last updated: July 3, 2026
+Last updated: August 6, 2026
 
-Use this as the starting point for App Store Connect. For the paste-ready submission packet, use `docs/APP_STORE_SUBMISSION_PACKET.md`. Recheck every answer before submission if the production backend changes account, feedback, or submission handling.
+This is the source of truth for the GTA FREE STEM 1.0 (12) product page. Review it again if the app adds a server account, analytics, a feedback form, or any data collection.
 
 ## App Information
 
 - App name: GTA FREE STEM
-- Bundle ID: `com.rupayonhaldar.gtafreestem`
-- SKU suggestion: `gta-free-stem-ios`
+- Bundle ID: \`com.rupayonhaldar.gtafreestem\`
+- Mac Catalyst bundle ID: \`com.rupayonhaldar.gtafreestem.maccatalyst\`
+- Watch bundle ID: \`com.rupayonhaldar.gtafreestem.watchkitapp\`
+- SKU suggestion: \`gta-free-stem-ios\`
+- Copyright draft: \`2026 Rupayon Haldar\` (from \`LICENSE\`; confirm the legal-rights holder before saving this public field).
+- Primary language: Pending owner confirmation in App Store Connect. It controls the product-page fallback language and is not automatically chosen from the app's 18 UI languages.
+- Availability: Pending the owner's territory selection in Pricing and Availability.
+- Digital Services Act (DSA) status: Pending App Store Connect trader-status self-assessment. Complete it even when the app is not distributed in the EU; do not commit any private trader contact details.
 - Primary category: Education
 - Subtitle suggestion: Youth programs near you
-- Content rights: the app displays source-backed public opportunity listings and links users to the original providers for registration.
-- Encryption: `ITSAppUsesNonExemptEncryption` is `false`; the app uses standard HTTPS/TLS only.
+- Price: Free
+- Content rights: The app displays source-backed public opportunity listings and links to the original provider for registration.
+- Encryption: \`ITSAppUsesNonExemptEncryption\` is \`false\`; the app uses standard HTTPS/TLS only.
 
 ## Description Draft
 
-GTA FREE STEM helps students, parents, educators, and community groups find free STEM programs across the Greater Toronto Area.
+GTA FREE STEM helps students, families, educators, and community groups find free STEM opportunities across the Greater Toronto Area.
 
-Search by keyword, city, region, age, category, language, high-school pathway, distance, volunteer hours, co-op, mentorship, scholarships, and new finds. Browse in list or map view, save recent hunts locally, refresh from the public opportunity feed, and keep browsing from the bundled snapshot or local cache when the network is unavailable.
+Search by keyword, city, region, age, category, language, high-school pathway, distance, volunteer hours, co-op, mentorship, scholarships, and new finds. Browse in list or map view, open the original provider link, and save opportunities and a recent hunt on your device.
 
-The app is designed for public browsing first. In the current TestFlight candidate, account-only actions are disabled until the production backend is connected; public discovery, search, map/list browsing, language switching, and refresh/offline fallback still work without an account.
+The app refreshes from a public, source-backed opportunity feed. If the network is unavailable, it opens with the latest on-device cache or bundled snapshot so discovery can continue. Nearby search uses location only on the device to sort or filter results.
+
+No sign-in is required. A profile name and saved opportunities stay on the device and can be deleted in Settings.
 
 ## Keywords Draft
 
@@ -31,45 +40,86 @@ Toronto,robotics,coding,science,engineering,math,volunteer,coop,SHSM,mentorship,
 - App name: 13/30 characters.
 - Subtitle: 23/30 characters.
 - Keywords: 92/100 bytes.
-- Description: under the 4000-character App Store Connect limit.
-- Apple references: [Creating your product page](https://developer.apple.com/app-store/product-page/) and [Platform version information](https://developer.apple.com/help/app-store-connect/reference/app-information/platform-version-information/).
+- Description: under the 4,000-character App Store Connect limit.
 
-## Support And Privacy URLs
+## Supported Platforms
 
-- Support URL: `https://gta-free-stem.vercel.app/accessibility-support/`
-- Marketing URL: `https://gta-free-stem.vercel.app/`
-- Privacy policy URL: `https://gta-free-stem.vercel.app/privacy/`
+- iPhone and iPad: native SwiftUI app.
+- Mac: the current Mac Catalyst configuration resolves to the distinct \`com.rupayonhaldar.gtafreestem.maccatalyst\` bundle ID. It therefore needs a separate Mac App Store Connect app record, SKU, and Mac upload. Do not treat it as a platform on iOS Apple ID \`6779714459\` unless the owner first chooses the universal-record path and changes the Catalyst bundle ID to match the iOS bundle ID.
+- Apple Watch: companion app for a compact, cached opportunity view.
 
-The iOS app has an in-app privacy note in Settings, but App Store Connect should use the stable public web URL. The marketing, support, and privacy routes are live in Vercel production and return HTTP 200.
+App Store Connect needs the matching platform enabled and its screenshots uploaded before public submission.
 
-## App Privacy Notes
+Choose the final public-distribution set deliberately; the release gate accepts only the explicit canonical values \`iphone\`, \`ipad\`, \`watch\`, and \`mac\`. It does not assume that every compiled target will be publicly enabled.
+
+## Support, Privacy, Terms, And EULA URLs
+
+- Marketing URL: \`https://gta-free-stem.vercel.app/\`
+- Support URL: \`https://gta-free-stem.vercel.app/support/\`
+- Privacy policy URL: \`https://gta-free-stem.vercel.app/privacy/\`
+- Terms of Use URL: \`https://gta-free-stem.vercel.app/terms/\`
+- Custom EULA field: Leave blank for this release. Apple's Standard EULA applies automatically: \`https://www.apple.com/legal/internet-services/itunes/dev/stdeula/\`.
+
+The no-cost Support route uses a public GitHub issue tracker for non-sensitive tickets. Apple also requires the Support URL to expose actual contact information. Before deployment, add a dedicated monitored public support email or telephone number chosen by the release owner; do not invent or publish a private value from source control. Keep Issues enabled, monitor both channels while the release is available, and preserve the warning not to post private or child information. Before the final gate, open the actual production Support, Privacy, and Terms URLs and verify that all three accurately describe the submitted build's local-only Profile, data flows, deletion controls, and lack of in-app submission collection. Record that dated, three-URL truthfulness check in \`Production legal/support truthfulness verified\` in the real-device signoff. See \`docs/APP_STORE_SUBMISSION_PACKET.md\` for the reviewer wording.
+
+## App Privacy Answers
+
+Use these answers only for build \`1.0 (12)\` as implemented.
 
 - Tracking: No.
-- Third-party advertising: No.
-- Purchases: No.
-- Public browsing without account: Yes.
-- Optional location: used only while browsing to sort nearby opportunities; current app logic does not transmit device location to the feed.
-- Local cache: public opportunity data, saved hunt state, seen listing IDs, and settings are stored locally with SwiftData/UserDefaults.
-- Required reason API manifest: `PrivacyInfo.xcprivacy` declares app-only UserDefaults access with reason `CA92.1`.
-- Data collection answer: for the current local release candidate `1.0 (11)`, answer as public browsing with no collected user data because account, feedback, and online submission endpoints are not connected in this iOS build. If those endpoints are connected before release, update App Privacy answers for account identifiers, feedback, submitted content, diagnostics, and deletion handling as implemented.
+- Data linked to the user: Coarse Location and Other Diagnostic Data from retained feed-request records.
+- Data used to track the user: None.
+- Data collection: Yes. Conservatively disclose Coarse Location and Other Diagnostic Data for App Functionality and Analytics because GitHub and jsDelivr receive request IP addresses and technical request details and may retain them for delivery, security, diagnostics, service analytics, and improvement.
+- Advertising, purchases, third-party analytics, and crash-reporting SDKs: No.
+- Profile name, saved opportunities, hunt state, cached public listings, and seen-listing IDs: stored only on the device with SwiftData/UserDefaults.
+- Precise device location: not collected. Nearby search uses a one-time device location locally and does not transmit it to the public feed. The separate Coarse Location disclosure covers general location that a feed provider may infer from the request IP address.
+- Notifications: not collected. The user may opt into a local, on-device new-opportunity alert; no remote push token, service, or notification analytics is used.
+- Privacy manifests: the iOS/iPadOS/Mac Catalyst manifest declares Coarse Location and Other Diagnostic Data, linked, for Analytics and App Functionality, with tracking disabled. The Watch companion has no independent public-feed request and declares no collected data.
+- Required-reason API: UserDefaults, reason \`CA92.1\`, declared in both the iOS and Watch privacy manifests.
+
+These answers treat on-device-only processing as not collected while conservatively disclosing retained network-provider request data. Immediately before submission, reconfirm every endpoint, provider practice, SDK, and privacy-manifest entry. If the build later sends profile, precise location, feedback, submission, diagnostic, or telemetry data off-device, redo the App Privacy questionnaire, policy, and manifests before upload.
 
 ## Age Rating Notes
 
-The app is intended for families and students and does not include ads, purchases, gambling, unrestricted web browsing, public chat, or public user-generated content feeds. External registration links open provider websites, so review App Store Connect age-rating questions against the final link handling before submission.
+The app is intended for families and students. It has no ads, purchases, gambling, public chat, public user-generated-content feed, unrestricted web browser, or mature-content feature. Listings can link to third-party provider pages; answer the App Store Connect external-link questions for the actual submitted build.
+
+## Made For Kids / Kids Category
+
+- Made for Kids: Select **No** for release \`1.0 (12)\`.
+- Do not place this release in the Kids Category and do not use “For Kids” or “For Children” in App Store metadata.
+- This is a general-audience education directory for students, parents, caregivers, educators, and community groups. It opens external provider and map links without a parental gate, and its feed providers receive the limited network request data disclosed above.
+- A future Kids Category release requires a separate product and legal review, parental gates for external links, child-specific privacy analysis, and compatible network-provider practices before the setting is changed. Apple warns that an approved Kids Category selection creates continuing requirements for later updates.
+
+## Dynamic Content And Reliability Notes
+
+- Primary live feed: \`https://raw.githubusercontent.com/rupayon123/gta-free-stem-opportunities/main/public/opportunities.json\`.
+- The release gate reports the current entry count and timestamp for both the live feed and bundled fallback. Run \`docs/scripts/sync-bundled-feed.sh\` and \`docs/scripts/check-release-readiness.sh\` immediately before upload; both feeds are rejected when older than 14 days.
+- Every remote source, including the primary feed and jsDelivr CDN mirror, is rejected unless it declares data no more than 14 days old.
+- The app opens from the latest valid local cache or bundled snapshot, refreshes the live feed on each cold launch, revalidates active foreground content after 15 minutes, and waits for a live response only when neither local source is usable.
+- Seen-listing records are pruned after 120 days and known-ID tracking is capped, avoiding unbounded local growth.
 
 ## Screenshot Notes
 
-- The app supports iPhone and iPad, so prepare screenshots for both the 6.9-inch iPhone and 13-inch iPad display sets.
-- Use `bash docs/scripts/capture-app-store-screenshots.sh` to generate the current Release screenshot set under `build/app-store-screenshots/`.
-- The screenshot set was regenerated and visually reviewed on July 3, 2026 for local release candidate `1.0 (11)` after the refreshed 382-listing bundled snapshot, privacy-safe Support update, and offline-fallback label polish. The local outputs are 6.9-inch iPhone PNGs at `1320 x 2868` and 13-inch iPad PNGs at `2064 x 2752`.
-- Home screenshots show `382 visible`; Opportunity and High School screenshots show search, filter, refresh, nearby, alert, and list/map controls; Support screenshots show the unavailable feedback/submission state and no name, email, message, or missing-opportunity input fields.
-- Uploading screenshots to App Store Connect is a metadata change and should happen only after explicit confirmation.
+Apple accepts one to ten \`.jpeg\`, \`.jpg\`, or \`.png\` screenshots per required device display set, with no alpha channel. Generate release assets with:
 
-## Current External Follow-ups
+\`\`\`bash
+bash docs/scripts/capture-app-store-screenshots.sh
+bash docs/scripts/capture-watch-app-store-screenshot.sh
+\`\`\`
 
-- Public multilingual feed is live at `https://gta-free-stem.vercel.app/opportunities.json` with generated translation payloads for all public listings.
-- Current bundled iOS snapshot and live public feed both contain 382/382 translated public opportunities after the July 3, 2026 feed sync.
-- App Store marketing/support/privacy URLs are live and return HTTP 200.
-- App Store privacy URL is live at `https://gta-free-stem.vercel.app/privacy/`.
-- Full dynamic content translation can still be upgraded later with reviewed organization, address, source-specific tag, and richer prose translations in the companion feed pipeline.
-- TestFlight upload worked earlier from this Mac for build `1.0 (10)`, which is command-line-confirmed by App Store Connect with import status `VALID`, build status `BETA_INTERNAL_TESTING`, `APP_STORE_ELIGIBLE`, and `usesNonExemptEncryption = false`. Build `1.0 (11)` with the refreshed 382-item bundled opportunity snapshot uploaded successfully to Apple on July 3, 2026 with delivery UUID `69e5bff3-4c7e-43e4-93b6-905adc6b19bb`; App Store Connect processing status still needs command-line or web verification before selecting it for App Review.
+Mac Catalyst screenshots are captured manually from the Release app at an accepted 16:10 Mac size. The exact files and visual-review checklist are in \`docs/APP_STORE_SCREENSHOTS.md\`.
+
+## App Review Information
+
+- Reviewer contact: enter the release owner’s monitored name, email, and phone in App Store Connect. Do not commit those private details; record \`Verified in App Store Connect on YYYY-MM-DD\` in the real-device signoff.
+- Demo account: not required. Core review requires no login.
+- Mac record: before uploading the Mac build, record the deliberate universal-versus-separate decision in \`docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md\` and ensure it matches the generated Catalyst bundle ID.
+
+## Before Submission
+
+1. Upload and wait for TestFlight processing of build \`1.0 (12)\`.
+2. Complete the App Privacy, age-rating, Made for Kids = No, availability, export-compliance, copyright, primary-language, DSA-status, and App Review contact forms using this file and the submission packet.
+3. Choose and record the Mac universal-versus-separate app-record strategy only if \`mac\` will be publicly enabled.
+4. Record the final public platform selection in \`docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md\`, then upload the current screenshot sets for that selection.
+5. Record real-device TestFlight QA and the production Support/Privacy/Terms truthfulness check in \`docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md\`.
+6. Submit only after \`IOS_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-1.0-12.xcarchive PUBLIC_RELEASE_PLATFORMS=iphone,ipad,watch bash docs/scripts/check-public-release-gates.sh\` passes for the signed archive; if the separate Mac product is included, also set \`MAC_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-Mac-1.0-12.xcarchive\` and add \`,mac\`.

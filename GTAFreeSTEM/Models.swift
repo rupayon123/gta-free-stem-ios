@@ -1,7 +1,92 @@
 import Foundation
 import SwiftData
+#if os(iOS) && !targetEnvironment(macCatalyst)
+@preconcurrency import WatchConnectivity
+#endif
 
-struct OpportunityTranslation: Codable, Hashable {
+enum ExternalOpportunityURL {
+    static func make(from rawValue: String?) -> URL? {
+        guard let rawValue else { return nil }
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let url = URL(string: trimmed),
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let host = components.host,
+              !host.isEmpty,
+              let scheme = components.scheme?.lowercased(),
+              scheme == "http" || scheme == "https" else {
+            return nil
+        }
+
+        // Provider data occasionally contains an old HTTP link that redirects to
+        // HTTPS. The app never hands an insecure or custom-scheme link to the OS.
+        components.scheme = "https"
+        return components.url
+    }
+}
+
+enum OpportunityCostEligibility {
+    private static let zeroCostPhrases: Set<String> = [
+        "no charge",
+        "no cost",
+        "no fee",
+        "no fees",
+        "zero charge",
+        "zero cost",
+        "zero fee"
+    ]
+
+    static func isExplicitlyFree(_ rawCost: String?) -> Bool {
+        guard let cost = normalizedCost(rawCost) else { return false }
+        guard !containsPaidQualifier(cost) else { return false }
+
+        return cost == "free" ||
+            cost.hasPrefix("free ") ||
+            cost == "complimentary" ||
+            zeroCostPhrases.contains(cost) ||
+            isExplicitZeroAmount(cost)
+    }
+
+    private static func normalizedCost(_ rawCost: String?) -> String? {
+        guard let rawCost else { return nil }
+        let normalized = rawCost
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+            .lowercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        return normalized.isEmpty ? nil : normalized
+    }
+
+    private static func containsPaidQualifier(_ cost: String) -> Bool {
+        let paidPhrases = [
+            "paid",
+            "payment",
+            "tuition",
+            "purchase",
+            "subscription",
+            "free trial",
+            "fee applies",
+            "fees apply",
+            "fee required",
+            "fees required",
+            "charge applies",
+            "charges apply",
+            "cost applies",
+            "cost required"
+        ]
+        guard !paidPhrases.contains(where: cost.contains) else { return true }
+
+        let nonZeroAmountPattern = #"(?:[$£€¥₹]\s*(?:0*[1-9]\d*|0*[.,]\d*[1-9]\d*)|\b(?:cad|usd|eur|gbp)\s*(?:0*[1-9]\d*|0*[.,]\d*[1-9]\d*)\b|\b(?:0*[1-9]\d*|0*[.,]\d*[1-9]\d*)\s*(?:cad|usd|eur|gbp|dollars?)\b)"#
+        return cost.range(of: nonZeroAmountPattern, options: .regularExpression) != nil
+    }
+
+    private static func isExplicitZeroAmount(_ cost: String) -> Bool {
+        let zeroAmountPattern = #"^(?:[$£€¥₹]\s*0(?:[.,]0{1,2})?|(?:cad|usd|eur|gbp)\s*0(?:[.,]0{1,2})?|0(?:[.,]0{1,2})?\s*(?:cad|usd|eur|gbp|dollars?)?)$"#
+        return cost.range(of: zeroAmountPattern, options: .regularExpression) != nil
+    }
+}
+
+struct OpportunityTranslation: Codable, Hashable, Sendable {
     let title: String?
     let organization: String?
     let description: String?
@@ -132,7 +217,7 @@ struct OpportunityTranslation: Codable, Hashable {
     }
 }
 
-struct Opportunity: Identifiable, Codable, Hashable {
+struct Opportunity: Identifiable, Codable, Hashable, Sendable {
     let id: String
     let title: String
     let organization: String
@@ -161,6 +246,10 @@ struct Opportunity: Identifiable, Codable, Hashable {
     let isNewFind: Bool?
     let sourceConfidence: String?
     let translations: [String: OpportunityTranslation]
+
+    var isExplicitlyFree: Bool {
+        OpportunityCostEligibility.isExplicitlyFree(cost)
+    }
 
     private enum CodingKeys: String, CodingKey {
         case id
@@ -302,6 +391,7 @@ struct Opportunity: Identifiable, Codable, Hashable {
             (try? container.decode([String: OpportunityTranslation].self, forKey: .localizations)) ??
             (try? container.decode([String: OpportunityTranslation].self, forKey: .localized)) ??
             [:]
+        let decodedCost = try? container.decodeIfPresent(String.self, forKey: .cost)
 
         self.init(
             id: try container.decode(String.self, forKey: .id),
@@ -321,7 +411,7 @@ struct Opportunity: Identifiable, Codable, Hashable {
             ageMin: decodedAgeMin,
             ageMax: decodedAgeMax,
             language: decodedLanguage,
-            cost: (try? container.decode(String.self, forKey: .cost)) ?? "Free",
+            cost: decodedCost?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "",
             sourceUrl: decodedSourceURL,
             registrationUrl: try? container.decodeIfPresent(String.self, forKey: .registrationUrl),
             status: (try? container.decode(String.self, forKey: .status)) ?? "active",
@@ -386,6 +476,39 @@ struct Opportunity: Identifiable, Codable, Hashable {
 
     func hasTranslation(for language: AppLanguage) -> Bool {
         translation(for: language) != nil
+    }
+
+    func replacingStatus(with newStatus: String) -> Opportunity {
+        Opportunity(
+            id: id,
+            title: title,
+            organization: organization,
+            description: description,
+            summary: summary,
+            category: category,
+            city: city,
+            region: region,
+            address: address,
+            latitude: latitude,
+            longitude: longitude,
+            startDate: startDate,
+            endDate: endDate,
+            deadline: deadline,
+            ageMin: ageMin,
+            ageMax: ageMax,
+            language: language,
+            cost: cost,
+            sourceUrl: sourceUrl,
+            registrationUrl: registrationUrl,
+            status: newStatus,
+            volunteerHoursEligible: volunteerHoursEligible,
+            coopEligible: coopEligible,
+            tags: tags,
+            distanceKm: distanceKm,
+            isNewFind: isNewFind,
+            sourceConfidence: sourceConfidence,
+            translations: translations
+        )
     }
 
     func localizedTitle(language: AppLanguage) -> String {
@@ -501,14 +624,72 @@ struct Opportunity: Identifiable, Codable, Hashable {
     }
 }
 
-struct OpportunityListResponse: Codable {
-    struct Metadata: Codable {
+struct OpportunityListResponse: Codable, Sendable {
+    struct Metadata: Codable, Sendable {
         let activeCount: Int?
         let lastUpdated: String?
     }
 
+    struct SourceHealth: Codable, Sendable {
+        struct Library: Codable, Sendable {
+            let status: String?
+            let attemptedPages: Int?
+            let successfulPages: Int?
+            let pageSuccessRatio: Double?
+            let minimumPageSuccessRatio: Double?
+            let acceptedListings: Int?
+            let minimumAcceptedListings: Int?
+        }
+
+        struct Discovery: Codable, Sendable {
+            let status: String?
+            let sourcesChecked: Int?
+            let successfulSources: Int?
+            let sourceSuccessRatio: Double?
+            let minimumSourceSuccessRatio: Double?
+        }
+
+        let library: Library?
+        let discovery: Discovery?
+
+        func isHealthy(forPublishedCount publishedCount: Int) -> Bool {
+            guard
+                let library,
+                let discovery,
+                library.status?.lowercased() == "healthy",
+                discovery.status?.lowercased() == "healthy",
+                let attemptedPages = library.attemptedPages,
+                attemptedPages > 0,
+                let successfulPages = library.successfulPages,
+                successfulPages >= 0,
+                successfulPages <= attemptedPages,
+                let pageSuccessRatio = library.pageSuccessRatio,
+                let minimumPageSuccessRatio = library.minimumPageSuccessRatio,
+                pageSuccessRatio >= minimumPageSuccessRatio,
+                Double(successfulPages) / Double(attemptedPages) >= minimumPageSuccessRatio,
+                let acceptedListings = library.acceptedListings,
+                let minimumAcceptedListings = library.minimumAcceptedListings,
+                acceptedListings >= minimumAcceptedListings,
+                publishedCount >= minimumAcceptedListings,
+                let sourcesChecked = discovery.sourcesChecked,
+                sourcesChecked > 0,
+                let successfulSources = discovery.successfulSources,
+                successfulSources >= 0,
+                successfulSources <= sourcesChecked,
+                let sourceSuccessRatio = discovery.sourceSuccessRatio,
+                let minimumSourceSuccessRatio = discovery.minimumSourceSuccessRatio,
+                sourceSuccessRatio >= minimumSourceSuccessRatio,
+                Double(successfulSources) / Double(sourcesChecked) >= minimumSourceSuccessRatio
+            else {
+                return false
+            }
+            return true
+        }
+    }
+
     let data: [Opportunity]
     let meta: Metadata?
+    let sourceHealth: SourceHealth?
 
     private enum CodingKeys: String, CodingKey {
         case data
@@ -516,49 +697,86 @@ struct OpportunityListResponse: Codable {
         case meta
         case count
         case lastDataChange
+        case sourceHealth
     }
 
-    init(data: [Opportunity], meta: Metadata?) {
-        self.data = data
-        self.meta = meta
+    init(data: [Opportunity], meta: Metadata?, sourceHealth: SourceHealth? = nil) {
+        let eligibleData = data.filter(\.isExplicitlyFree)
+        self.data = eligibleData
+        self.meta = meta.map {
+            Metadata(activeCount: eligibleData.count, lastUpdated: $0.lastUpdated)
+        }
+        self.sourceHealth = sourceHealth
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let decodedData =
-            (try? container.decode([Opportunity].self, forKey: .data)) ??
-            (try? container.decode([Opportunity].self, forKey: .opportunities)) ??
-            []
+        let decodedData: [Opportunity]
+        if container.contains(.data) {
+            decodedData = try container.decode([Opportunity].self, forKey: .data)
+        } else if container.contains(.opportunities) {
+            decodedData = try container.decode([Opportunity].self, forKey: .opportunities)
+        } else {
+            throw DecodingError.keyNotFound(
+                CodingKeys.data,
+                DecodingError.Context(
+                    codingPath: container.codingPath,
+                    debugDescription: "The public opportunity feed must contain either data or opportunities."
+                )
+            )
+        }
+        if let declaredCount = try container.decodeIfPresent(Int.self, forKey: .count), declaredCount != decodedData.count {
+            throw DecodingError.dataCorruptedError(
+                forKey: .count,
+                in: container,
+                debugDescription: "The declared opportunity count does not match the payload."
+            )
+        }
         let decodedMeta = try? container.decode(Metadata.self, forKey: .meta)
-        let feedCount = try? container.decode(Int.self, forKey: .count)
         let feedUpdated = try? container.decode(String.self, forKey: .lastDataChange)
+        let decodedSourceHealth = try container.decodeIfPresent(SourceHealth.self, forKey: .sourceHealth)
 
-        data = decodedData
-        meta = decodedMeta ?? Metadata(
-            activeCount: feedCount ?? decodedData.count,
-            lastUpdated: feedUpdated
+        let eligibleData = decodedData.filter(\.isExplicitlyFree)
+        data = eligibleData
+        meta = Metadata(
+            activeCount: eligibleData.count,
+            lastUpdated: decodedMeta?.lastUpdated ?? feedUpdated
         )
+        sourceHealth = decodedSourceHealth
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(data, forKey: .data)
         try container.encodeIfPresent(meta, forKey: .meta)
+        try container.encodeIfPresent(sourceHealth, forKey: .sourceHealth)
+    }
+
+    var hasValidUniqueIDs: Bool {
+        var seen = Set<String>()
+        for opportunity in data {
+            let id = opportunity.id.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !id.isEmpty, seen.insert(id).inserted else { return false }
+        }
+        return true
+    }
+
+    /// Current network and bundled snapshots must prove that their upstream
+    /// refresh completed. Legacy cache decoding remains possible because cache
+    /// restoration does not call this remote-input validation predicate.
+    var hasHealthyDeclaredSources: Bool {
+        sourceHealth?.isHealthy(forPublishedCount: data.count) == true
+    }
+
+    /// Removing saved events is intentionally stricter than displaying a feed:
+    /// only a publisher-declared healthy, complete snapshot may make IDs absent.
+    var permitsDestructiveSavedReconciliation: Bool {
+        sourceHealth?.isHealthy(forPublishedCount: data.count) == true
     }
 }
 
 struct OpportunityResponse: Codable {
     let data: Opportunity
-}
-
-struct APIStatusResponse: Codable {
-    struct Payload: Codable {
-        let id: Int?
-        let status: String?
-        let deleted: Bool?
-    }
-
-    let data: Payload
 }
 
 @Model
@@ -638,19 +856,345 @@ final class SeenOpportunityRecord {
     }
 }
 
-struct FeedbackDraft {
-    var name = ""
-    var email = ""
-    var message = ""
+@Model
+final class SavedOpportunityRecord {
+    @Attribute(.unique) var opportunityID: String
+    var payload: Data
+    var savedAt: Date
+
+    init(opportunity: Opportunity, savedAt: Date = .now) throws {
+        self.opportunityID = opportunity.id
+        self.payload = try JSONEncoder().encode(opportunity)
+        self.savedAt = savedAt
+    }
+
+    var opportunity: Opportunity? {
+        try? JSONDecoder().decode(Opportunity.self, from: payload)
+    }
 }
 
-struct MissingOpportunityDraft {
-    var title = ""
-    var organization = ""
-    var city = ""
-    var sourceURL = ""
-    var notes = ""
+struct WatchSavedEventTransfer: Codable, Hashable, Sendable {
+    let id: String
+    let title: String
+    let organization: String
+    let details: String
+    let category: String
+    let city: String
+    let region: String
+    let address: String?
+    let latitude: Double?
+    let longitude: Double?
+    let startDate: String?
+    let endDate: String?
+    let deadline: String?
+    let archiveBoundary: Date?
+    let archived: Bool
+    let sourceURL: String?
+    let registrationURL: String?
+    let savedAt: Date
+
+    init(opportunity: Opportunity, savedAt: Date, language: AppLanguage = .preferred()) {
+        let summary = opportunity.localizedSummary(language: language)
+        let description = opportunity.localizedDescription(language: language)
+        let combinedDetails = summary == description ? summary : "\(summary)\n\n\(description)"
+
+        id = Self.compactIdentifier(opportunity.id, limit: 200)
+        title = Self.compact(opportunity.localizedTitle(language: language), limit: 140)
+        organization = Self.compact(opportunity.localizedOrganization(language: language), limit: 120)
+        details = Self.compact(combinedDetails, limit: 640)
+        category = Self.compact(opportunity.localizedCategory(language: language), limit: 80)
+        city = Self.compact(opportunity.localizedCity(language: language), limit: 80)
+        region = Self.compact(opportunity.localizedRegion(language: language), limit: 80)
+        address = Self.compactOptional(opportunity.localizedAddress(language: language), limit: 240)
+        latitude = opportunity.latitude
+        longitude = opportunity.longitude
+        startDate = opportunity.startDate
+        endDate = opportunity.endDate
+        deadline = opportunity.deadline
+        archiveBoundary = LocalOpportunitySnapshot.archiveBoundary(for: opportunity)
+        archived = LocalOpportunitySnapshot.isArchived(opportunity)
+        sourceURL = Self.compactOptional(opportunity.sourceUrl, limit: 500)
+        registrationURL = Self.compactOptional(opportunity.registrationUrl, limit: 500)
+        self.savedAt = savedAt
+    }
+
+    private static func compactOptional(_ value: String?, limit: Int) -> String? {
+        guard let value else { return nil }
+        let compacted = compact(value, limit: limit)
+        return compacted.isEmpty ? nil : compacted
+    }
+
+    private static func compactIdentifier(_ value: String, limit: Int) -> String {
+        let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        var hash: UInt64 = 14_695_981_039_346_656_037
+        for byte in normalized.utf8 {
+            hash ^= UInt64(byte)
+            hash &*= 1_099_511_628_211
+        }
+        let suffix = String(format: "%016llx", hash)
+        guard !normalized.isEmpty else { return "saved-\(suffix)" }
+        guard normalized.count > limit else { return normalized }
+        let prefixLength = max(1, limit - suffix.count - 1)
+        return "\(normalized.prefix(prefixLength))-\(suffix)"
+    }
+
+    private static func compact(_ value: String, limit: Int) -> String {
+        let normalized = value
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "[ \\t]+", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
+        guard normalized.count > limit else { return normalized }
+        return String(normalized.prefix(max(0, limit - 1))).trimmingCharacters(in: .whitespacesAndNewlines) + "…"
+    }
 }
+
+struct WatchSavedEventsTransfer: Codable, Sendable {
+    static let currentSchemaVersion = 1
+
+    let schemaVersion: Int
+    let syncedAt: Date
+    let totalSavedCount: Int
+    let events: [WatchSavedEventTransfer]
+
+    init(syncedAt: Date = .now, totalSavedCount: Int, events: [WatchSavedEventTransfer]) {
+        schemaVersion = Self.currentSchemaVersion
+        self.syncedAt = syncedAt
+        self.totalSavedCount = totalSavedCount
+        self.events = events
+    }
+}
+
+enum WatchSavedEventsPayloadBuilder {
+    nonisolated static let maximumTransferredEvents = 48
+    // updateApplicationContext serializes a surrounding property-list
+    // dictionary as well as this JSON Data. Stay comfortably below the
+    // transport ceiling so long localized text and URLs cannot make Watch
+    // updates fail with WCError.payloadTooLarge.
+    nonisolated static let maximumEncodedPayloadBytes = 48 * 1_024
+
+    nonisolated static func makePayload(
+        totalSavedCount: Int,
+        prioritizedEvents: [WatchSavedEventTransfer],
+        syncedAt: Date = .now
+    ) -> Data? {
+        let encoder = JSONEncoder()
+        var accepted: [WatchSavedEventTransfer] = []
+
+        for event in prioritizedEvents.prefix(maximumTransferredEvents) {
+            let candidate = WatchSavedEventsTransfer(
+                syncedAt: syncedAt,
+                totalSavedCount: totalSavedCount,
+                events: accepted + [event]
+            )
+            guard let candidatePayload = try? encoder.encode(candidate) else { continue }
+            guard candidatePayload.count <= maximumEncodedPayloadBytes else { continue }
+            accepted.append(event)
+        }
+
+        let envelope = WatchSavedEventsTransfer(
+            syncedAt: syncedAt,
+            totalSavedCount: totalSavedCount,
+            events: accepted
+        )
+        guard let payload = try? encoder.encode(envelope), payload.count <= maximumEncodedPayloadBytes else {
+            return nil
+        }
+        return payload
+    }
+}
+
+@MainActor
+enum SavedOpportunityLibrary {
+    static func isSaved(_ opportunity: Opportunity, in records: [SavedOpportunityRecord]) -> Bool {
+        records.contains { $0.opportunityID == opportunity.id }
+    }
+
+    @discardableResult
+    static func toggle(_ opportunity: Opportunity, in context: ModelContext) throws -> Bool {
+        let opportunityID = opportunity.id
+        let descriptor = FetchDescriptor<SavedOpportunityRecord>(
+            predicate: #Predicate { record in record.opportunityID == opportunityID }
+        )
+
+        if let existingRecord = try context.fetch(descriptor).first {
+            context.delete(existingRecord)
+            try context.save()
+            syncWatch(in: context)
+            return false
+        }
+
+        context.insert(try SavedOpportunityRecord(opportunity: opportunity))
+        try context.save()
+        syncWatch(in: context)
+        return true
+    }
+
+    static func deleteAll(in context: ModelContext) throws {
+        for record in try context.fetch(FetchDescriptor<SavedOpportunityRecord>()) {
+            context.delete(record)
+        }
+        try context.save()
+        syncWatch(in: context)
+    }
+
+    /// Refreshes mutable saved-event details from a retained full feed without
+    /// changing when the user saved the event. Only a validated live feed may
+    /// mark missing IDs unavailable; cache/bundle reconciliation updates IDs it
+    /// knows about but preserves older archive snapshots that may be omitted.
+    @discardableResult
+    static func reconcile(
+        with opportunities: [Opportunity],
+        in context: ModelContext,
+        markMissingAsUnavailable: Bool
+    ) throws -> Int {
+        var latestByID = [String: Opportunity]()
+        for opportunity in opportunities where !opportunity.id.isEmpty {
+            latestByID[opportunity.id] = opportunity
+        }
+
+        let records = try context.fetch(FetchDescriptor<SavedOpportunityRecord>())
+        var updatedCount = 0
+        for record in records {
+            let replacement: Opportunity?
+            if let current = latestByID[record.opportunityID] {
+                replacement = current
+            } else if markMissingAsUnavailable,
+                      let saved = record.opportunity,
+                      saved.status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "active" {
+                replacement = saved.replacingStatus(with: "removed")
+            } else {
+                replacement = nil
+            }
+
+            guard let replacement else { continue }
+            let payload = try JSONEncoder().encode(replacement)
+            guard payload != record.payload else { continue }
+            record.payload = payload
+            updatedCount += 1
+        }
+
+        guard updatedCount > 0 else { return 0 }
+        try context.save()
+        syncWatch(in: context)
+        return updatedCount
+    }
+
+    static func syncWatch(in context: ModelContext) {
+#if os(iOS) && !targetEnvironment(macCatalyst)
+        WatchSavedOpportunitySync.shared.sync(in: context)
+#endif
+    }
+}
+
+#if os(iOS) && !targetEnvironment(macCatalyst)
+@MainActor
+final class WatchSavedOpportunitySync: NSObject, WCSessionDelegate {
+    static let shared = WatchSavedOpportunitySync()
+
+    nonisolated static let payloadKey = "savedEventsPayload"
+    nonisolated static let requestKey = "requestSavedEvents"
+
+    private var modelContainer: ModelContainer?
+    private var latestPayload: Data?
+    private(set) var lastPublishErrorDescription: String?
+    private var isConfigured = false
+
+    private override init() {
+        super.init()
+    }
+
+    func configure(container: ModelContainer) {
+        modelContainer = container
+        activateIfSupported()
+        syncLatest()
+    }
+
+    func sync(in context: ModelContext) {
+        let descriptor = FetchDescriptor<SavedOpportunityRecord>(
+            sortBy: [SortDescriptor(\.savedAt, order: .reverse)]
+        )
+        guard let records = try? context.fetch(descriptor) else { return }
+
+        let language = AppLanguage.preferred()
+        let decoded = records.compactMap { record -> (event: WatchSavedEventTransfer, archived: Bool)? in
+            guard let opportunity = record.opportunity else { return nil }
+            return (
+                WatchSavedEventTransfer(opportunity: opportunity, savedAt: record.savedAt, language: language),
+                LocalOpportunitySnapshot.isArchived(opportunity)
+            )
+        }
+        let prioritized = decoded.filter { !$0.archived } + decoded.filter(\.archived)
+        guard let payload = WatchSavedEventsPayloadBuilder.makePayload(
+            totalSavedCount: decoded.count,
+            prioritizedEvents: prioritized.map(\.event)
+        ) else { return }
+
+        latestPayload = payload
+        publishLatestPayload()
+    }
+
+    private func activateIfSupported() {
+        guard WCSession.isSupported(), !isConfigured else { return }
+        isConfigured = true
+        let session = WCSession.default
+        session.delegate = self
+        session.activate()
+    }
+
+    private func syncLatest() {
+        guard let modelContainer else { return }
+        sync(in: ModelContext(modelContainer))
+    }
+
+    private func publishLatestPayload() {
+        guard let latestPayload, WCSession.isSupported() else { return }
+        let session = WCSession.default
+        guard session.activationState == .activated,
+              session.isPaired,
+              session.isWatchAppInstalled else { return }
+        do {
+            try session.updateApplicationContext([Self.payloadKey: latestPayload])
+            lastPublishErrorDescription = nil
+        } catch {
+            lastPublishErrorDescription = error.localizedDescription
+            NSLog("GTA FREE STEM Watch sync failed: %@", error.localizedDescription)
+        }
+    }
+
+    nonisolated func session(
+        _ session: WCSession,
+        activationDidCompleteWith activationState: WCSessionActivationState,
+        error: Error?
+    ) {
+        guard activationState == .activated, error == nil else { return }
+        Task { @MainActor [weak self] in
+            self?.syncLatest()
+        }
+    }
+
+    nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}
+
+    nonisolated func sessionDidDeactivate(_ session: WCSession) {
+        Task { @MainActor [weak self] in
+            self?.isConfigured = false
+            self?.activateIfSupported()
+        }
+    }
+
+    nonisolated func sessionWatchStateDidChange(_ session: WCSession) {
+        Task { @MainActor [weak self] in
+            self?.syncLatest()
+        }
+    }
+
+    nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+        guard message[Self.requestKey] as? Bool == true else { return }
+        Task { @MainActor [weak self] in
+            self?.syncLatest()
+        }
+    }
+}
+#endif
 
 enum SearchMode: String, CaseIterable, Identifiable {
     case all = "All"

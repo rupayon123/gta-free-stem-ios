@@ -10,7 +10,17 @@ PROJECT="${PROJECT:-GTAFreeSTEM.xcodeproj}"
 CONFIGURATION="${CONFIGURATION:-Release}"
 DEVICE="${DEVICE:-iPhone 17}"
 OUTPUT_DIR="${OUTPUT_DIR:-build/release-smoke}"
-SCREENSHOT_DELAY="${SCREENSHOT_DELAY:-5}"
+DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-build/DerivedData-release-smoke}"
+# BrowseView renders a live, filterable result surface on the screenshot-only
+# deep-link routes. Give a clean simulator enough time to leave the branded
+# loader and render that surface before asserting the capture is useful.
+# The bundled offline snapshot is intentionally decoded before the home screen
+# becomes interactive. A fresh simulator can take longer than seven seconds to
+# perform its first decode; wait long enough to verify the actual destination
+# screen instead of capturing the deliberate, brief 100% handoff frame.
+SCREENSHOT_DELAY="${SCREENSHOT_DELAY:-1}"
+SCREENSHOT_READY_TIMEOUT="${SCREENSHOT_READY_TIMEOUT:-30}"
+SCREENSHOT_READY_MARKER="gta-free-stem-screenshot-ready"
 EXPECTED_OPPORTUNITY_COUNT="${EXPECTED_OPPORTUNITY_COUNT:-}"
 
 mkdir -p "$OUTPUT_DIR"
@@ -29,23 +39,6 @@ for runtime_devices in data.get("devices", {}).values():
             print(device["udid"])
             raise SystemExit(0)
 raise SystemExit(f"Simulator device not found: {target}")
-PY
-}
-
-latest_app_path() {
-  /usr/bin/python3 - "$HOME/Library/Developer/Xcode/DerivedData" "$SCHEME" <<'PY'
-from pathlib import Path
-import sys
-
-derived_data = Path(sys.argv[1])
-scheme = sys.argv[2]
-matches = sorted(
-    derived_data.glob(f"*/Build/Products/Release-iphonesimulator/{scheme}.app"),
-    key=lambda path: path.stat().st_mtime,
-    reverse=True,
-)
-if matches:
-    print(matches[0])
 PY
 }
 
@@ -161,25 +154,79 @@ print(f"{path}: {width} x {height}, {len(sampled)} sampled colors")
 PY
 }
 
+read_ready_nonce() {
+  local device="$1"
+  local data_container
+  if [ -n "${SCREENSHOT_READY_OVERRIDE+x}" ]; then
+    echo "$SCREENSHOT_READY_OVERRIDE"
+    return 0
+  fi
+  data_container="$(xcrun simctl get_app_container "$device" "$BUNDLE_ID" data 2>/dev/null || true)"
+  [ -n "$data_container" ] || return 0
+  /bin/cat "$data_container/Library/Caches/$SCREENSHOT_READY_MARKER" 2>/dev/null || true
+}
+
+wait_for_app_ready() {
+  local device="$1"
+  local expected_nonce="$2"
+  local deadline=$((SECONDS + SCREENSHOT_READY_TIMEOUT))
+  local ready=""
+
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    ready="$(read_ready_nonce "$device")"
+    if [ "$ready" = "$expected_nonce" ]; then
+      return 0
+    fi
+    sleep 0.25
+  done
+
+  echo "GTAFreeSTEM did not expose its interactive screenshot state within ${SCREENSHOT_READY_TIMEOUT}s." >&2
+  return 1
+}
+
 capture() {
   local device="$1"
   local output="$2"
+  local ready_nonce
   shift 2
 
   xcrun simctl terminate "$device" "$BUNDLE_ID" >/dev/null 2>&1 || true
-  xcrun simctl launch "$device" "$BUNDLE_ID" "$@" >/dev/null
+  ready_nonce="$(/usr/bin/uuidgen)"
+  SIMCTL_CHILD_GTA_FREE_STEM_SCREENSHOT_MODE=1 \
+    SIMCTL_CHILD_GTA_FREE_STEM_SCREENSHOT_READY_NONCE="$ready_nonce" \
+    xcrun simctl launch "$device" "$BUNDLE_ID" "$@" >/dev/null
+  wait_for_app_ready "$device" "$ready_nonce"
   sleep "$SCREENSHOT_DELAY"
   xcrun simctl io "$device" screenshot "$output" >/dev/null
   verify_png "$output"
   xcrun simctl terminate "$device" "$BUNDLE_ID" >/dev/null 2>&1 || true
 }
 
-echo "Building ${SCHEME} ${CONFIGURATION} for ${DEVICE}..."
-xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration "$CONFIGURATION" -destination "platform=iOS Simulator,name=${DEVICE}" build >/dev/null
+if [ "${1:-}" = "--self-test" ]; then
+  SCREENSHOT_READY_TIMEOUT=1
+  SCREENSHOT_READY_OVERRIDE="current-nonce"
+  wait_for_app_ready "self-test" "current-nonce"
+  SCREENSHOT_READY_OVERRIDE="stale-nonce"
+  if wait_for_app_ready "self-test" "current-nonce"; then
+    echo "Release smoke readiness self-test failed: a never-ready app was accepted." >&2
+    exit 1
+  fi
+  echo "Release smoke readiness self-test passed."
+  exit 0
+fi
 
-APP_PATH="$(latest_app_path)"
-if [ -z "$APP_PATH" ]; then
-  echo "Could not find built ${SCHEME}.app"
+echo "Building ${SCHEME} ${CONFIGURATION} for ${DEVICE}..."
+xcodebuild \
+  -project "$PROJECT" \
+  -scheme "$SCHEME" \
+  -configuration "$CONFIGURATION" \
+  -destination "platform=iOS Simulator,name=${DEVICE}" \
+  -derivedDataPath "$DERIVED_DATA_PATH" \
+  build >/dev/null
+
+APP_PATH="$DERIVED_DATA_PATH/Build/Products/${CONFIGURATION}-iphonesimulator/${SCHEME}.app"
+if [ ! -d "$APP_PATH" ]; then
+  echo "Could not find the app built by this run at ${APP_PATH}"
   exit 1
 fi
 
@@ -202,6 +249,11 @@ fi
 
 if [ "$APP_COUNT" != "$EXPECTED_OPPORTUNITY_COUNT" ]; then
   echo "Built app opportunity count ${APP_COUNT} does not match expected ${EXPECTED_OPPORTUNITY_COUNT}"
+  exit 1
+fi
+
+if ! cmp -s "GTAFreeSTEM/Resources/opportunities.json" "$APP_OPPORTUNITIES"; then
+  echo "Built app opportunities.json is not byte-for-byte identical to the release source feed"
   exit 1
 fi
 
