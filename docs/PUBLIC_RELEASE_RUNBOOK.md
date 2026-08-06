@@ -14,7 +14,7 @@ This is the short, safe path for GTA FREE STEM 1.0 (12). It separates three diff
 - iOS/iPad bundle ID: \`com.rupayonhaldar.gtafreestem\`
 - Mac Catalyst bundle ID: \`com.rupayonhaldar.gtafreestem.maccatalyst\`
 - Watch bundle ID: \`com.rupayonhaldar.gtafreestem.watchkitapp\`
-- Archive/upload state: See \`docs/APP_STORE_SUBMISSION_PACKET.md\`; do not trust an old build status. The local unsigned build-12 archive and \`build/GTAFreeSTEM-1.0-12.xcarchive\` (Apple Development-signed diagnostic only) are not uploadable. The generic \`build/GTAFreeSTEM.xcarchive\` is the historical build-4 archive.
+- Archive/upload state: See \`docs/APP_STORE_SUBMISSION_PACKET.md\`; do not trust an old build status. A fresh automatic-signing archive may correctly carry an Apple Development signature before export; the export step re-signs it for App Store distribution. Old unsigned, stale-source, or historical archives are not valid release inputs. The generic \`build/GTAFreeSTEM.xcarchive\` is the historical build-4 archive.
 - Live primary feed: GitHub raw \`opportunities.json\`. \`docs/scripts/sync-bundled-feed.sh\` copies the sibling website's verified-active public export into the offline fallback and rejects malformed, duplicate, or non-active records. Publish that exact website export before upload; \`docs/scripts/check-release-readiness.sh\` then requires the deployed GitHub feed and bundled fallback to have the same verified-active ID set. Pending-review records stay out of the consumer app until their details are confirmed.
 - Launch resilience: opens from the on-device cache or bundled snapshot, then refreshes the live feed in the background; if neither local source is usable, it waits for live data.
 
@@ -27,32 +27,41 @@ RUN_SCREENSHOTS=0 bash docs/scripts/check-local-release-candidate.sh
 
 The tracked \`GTAFreeSTEM.xcodeproj\` is the release input and does not require XcodeGen. XcodeGen is an optional free maintenance tool only when a developer intentionally changes \`project.yml\`; if used, review the generated project diff before release verification. Use \`RUN_SCREENSHOTS=1\` once the simulator screenshot capture is ready. The full local pass includes strict translation checks, Release build, XCTest, and clean-install simulator smoke.
 
-## Upload The Phone Build
+## Export And Upload The Phone Build
 
-The tracked export configuration uploads during the export step. It preserves build number 12 and lets Xcode manage distribution signing:
+First create a local, distribution-signed IPA. This is reversible and does not upload:
 
 \`\`\`bash
-xcodebuild archive \
-  -project GTAFreeSTEM.xcodeproj \
-  -scheme GTAFreeSTEM \
-  -configuration Release \
-  -destination 'generic/platform=iOS' \
-  -archivePath build/GTAFreeSTEM-build12.xcarchive \
-  -allowProvisioningUpdates
+ARCHIVE_PATH="$PWD/build/GTAFreeSTEM-build12.xcarchive" \
+  bash docs/scripts/archive-release-candidate.sh ios
 
 bash docs/scripts/verify-app-store-archive.sh \
   build/GTAFreeSTEM-build12.xcarchive
 
 xcodebuild -exportArchive \
   -archivePath build/GTAFreeSTEM-build12.xcarchive \
-  -exportOptionsPlist docs/AppStoreConnectExportOptions.plist \
+  -exportOptionsPlist docs/AppStoreExportOptions.plist \
   -exportPath build/export-build12 \
   -allowProvisioningUpdates
+
+bash docs/scripts/verify-app-store-ipa.sh \
+  build/export-build12/GTAFreeSTEM.ipa \
+  build/GTAFreeSTEM-build12.xcarchive
 \`\`\`
 
-The verifier must pass on that exact signed archive before export. The export plist uses \`destination=upload\`, so export is the irreversible upload step: do not rebuild between verification and export. Record the same archive path, verification date, and resulting Apple delivery UUID in the real-device signoff and pass that same path to the final public gate.
+The archive helper refuses dirty or mismatched app/project inputs and embeds the exact 40-character source commit in the signed main and Watch metadata. The archive verifier must pass before export, and the exported IPA verifier must then pass on the exact distributable. The local export plist uses \`destination=export\`; it cannot upload. The IPA check requires Apple Distribution signing, exact main and Watch App Store identifiers and profiles, release entitlements, unexpired signing material, matching embedded source commits, and executable UUIDs that match the source archive.
 
-Release is configured to request Apple Distribution through automatic signing. Do not substitute a manually selected identity or change the team. If archive/export reports an account, agreement, team-role, certificate, or provisioning error, resolve that exact Apple-account issue before retrying.
+Only after those checks pass, upload that exact IPA with Apple's Transporter app or the installed Xcode toolchain's IPA command:
+
+\`\`\`bash
+xcrun altool --upload-package build/export-build12/GTAFreeSTEM.ipa \\
+  --api-key 'REPLACE_WITH_KEY_ID' \\
+  --api-issuer 'REPLACE_WITH_ISSUER_UUID'
+\`\`\`
+
+Xcode 26.6's own \`altool --help\` identifies \`--upload-package\` as the IPA upload command. Keep the authentication values out of the repository, and replace the placeholders at execution time with one supported authentication method. Upload is the irreversible step. Do not rebuild or re-export between verification and delivery. Record the archive path, IPA path and SHA-256, verification date, and resulting Apple delivery UUID in the real-device signoff.
+
+Release uses automatic signing without a hard-coded identity. Xcode signs the archive for development and selects the distribution identity and profiles during App Store export. Do not manually override the identity or change the team. If archive/export reports an account, agreement, team-role, certificate, or provisioning error, resolve that exact Apple-account issue before retrying.
 
 After App Store Connect finishes processing:
 
@@ -81,28 +90,27 @@ Before public submission, add a dedicated monitored public support email or tele
 - If the owner instead chooses one universal iOS/macOS record, first confirm no separate released Mac product depends on the suffix, change the Catalyst bundle ID to \`com.rupayonhaldar.gtafreestem\`, regenerate the project, and add macOS to iOS Apple ID \`6779714459\`. Then create a new signed Mac archive; never reuse a build made with the previous identifier.
 - Capture and upload the required Mac 16:10 screenshots and Apple Watch Series 11 screenshots before enabling those platforms for public sale.
 
-After the separate Mac record and signing assets exist, archive, verify, and upload the exact same Mac artifact in this order:
+After the separate Mac record and signing assets exist, archive and create a safe local export first:
 
 \`\`\`bash
-xcodebuild archive \
-  -project GTAFreeSTEM.xcodeproj \
-  -scheme GTAFreeSTEM \
-  -configuration Release \
-  -destination 'generic/platform=macOS,variant=Mac Catalyst' \
-  -archivePath build/GTAFreeSTEM-Mac-build12.xcarchive \
-  -allowProvisioningUpdates
+ARCHIVE_PATH="$PWD/build/GTAFreeSTEM-Mac-build12.xcarchive" \
+  bash docs/scripts/archive-release-candidate.sh mac
 
 bash docs/scripts/verify-mac-app-store-archive.sh \
   build/GTAFreeSTEM-Mac-build12.xcarchive
 
 xcodebuild -exportArchive \
   -archivePath build/GTAFreeSTEM-Mac-build12.xcarchive \
-  -exportOptionsPlist docs/AppStoreConnectExportOptions.plist \
+  -exportOptionsPlist docs/AppStoreExportOptions.plist \
   -exportPath build/export-mac-build12 \
   -allowProvisioningUpdates
+
+bash docs/scripts/verify-mac-app-store-pkg.sh \
+  build/export-mac-build12/GTAFreeSTEM.pkg \
+  build/GTAFreeSTEM-Mac-build12.xcarchive
 \`\`\`
 
-As with iOS, the Mac verifier must pass before the upload export, and the verified archive must not be rebuilt or replaced between those commands.
+The local export does not upload. The package verifier separately requires the Apple installer signature, Apple Distribution app signature, exact Mac App Store profile and sandbox entitlements, the same embedded source commit as the selected archive, safe script-free package layout, current resources, and executable/non-signing-content provenance. Only then upload that unchanged package and record its own Apple delivery UUID; it is never interchangeable with the iOS delivery UUID.
 
 ## Final App Review Gate
 
@@ -110,13 +118,16 @@ Only after real-device QA and portal work are complete:
 
 \`\`\`bash
 IOS_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-1.0-12.xcarchive \
+  IOS_IPA_PATH=/absolute/path/to/GTAFreeSTEM-1.0-12.ipa \
   PUBLIC_RELEASE_PLATFORMS=iphone,ipad,watch \
   bash docs/scripts/check-public-release-gates.sh
 \`\`\`
 
 Replace the example selection with the exact final public set using only \`iphone\`, \`ipad\`, \`watch\`, and \`mac\`; there is no default. That gate intentionally fails while selected-platform TestFlight evidence, screenshot-upload evidence, metadata/privacy/age-rating/copyright/reviewer-contact/availability/DSA evidence, the production legal/support truthfulness check, a real Apple delivery UUID, or a verified support route is pending. It requires the Mac record decision only when \`mac\` is selected. Do not mark \`Submitted for App Review\` complete until the final App Store Connect submit action is intentionally performed.
-\`IOS_ARCHIVE_PATH\` must be a real signed iOS \`.xcarchive\`; the gate rejects development/ad-hoc signatures, debug entitlements or provisioning, missing dSYMs/privacy manifests, mismatched versions or identifiers, and stale main-app bundled opportunity data. The Watch companion receives saved-item updates through WatchConnectivity and does not bundle the full opportunity feed. When \`mac\` is selected, also set \`MAC_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-Mac-1.0-12.xcarchive\`; the gate independently verifies its Mac App Store signature, profile, sandbox entitlements, dSYM, privacy manifest, and bundled feed.
+\`IOS_ARCHIVE_PATH\` must be the real signed export-source \`.xcarchive\`, and \`IOS_IPA_PATH\` must be the distribution-signed IPA exported from it. The pre-export gate permits only an exact identifier or a trusted namespace-scoped terminal development wildcard such as \`FE33NM88XX.com.rupayonhaldar.*\`; it rejects the team-wide \`FE33NM88XX.*\` form, and the signed entitlement must always remain exact. The IPA gate never accepts wildcards: it rejects development/ad-hoc signing, debug entitlements, mismatched identifiers or teams, expired or enterprise/device profiles, wrong signing certificates, stale resources, unsafe ZIP layouts, and archive-to-IPA UUID drift. The Watch companion receives saved-item updates through WatchConnectivity and does not bundle the full opportunity feed. When \`mac\` is selected, also set both \`MAC_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-Mac-1.0-12.xcarchive\` and \`MAC_PKG_PATH=/absolute/path/to/GTAFreeSTEM.pkg\`; the gate verifies both exact Mac artifacts and requires a separate Mac delivery UUID.
+
+The signoff's canonical paths, deterministic archive tree hashes, IPA/package file hashes, verification date, and full published source commit must match what the gate calculates. The signed archives and exported packages must embed that same commit in \`GTAReleaseSourceCommit\`. The recorded commit must be reachable from live \`origin/main\`, and its app, Watch, Xcode project, and \`project.yml\` inputs must byte-match both live main and the local verification inputs. This allows later docs-only signoff commits without weakening source provenance; descriptive prose alone cannot satisfy artifact provenance.
 
 ## Cost Constraint
 
-Xcode simulator and personal-device development testing can be free. TestFlight and App Store distribution require an enrolled Apple Developer Program team, unless the team receives an Apple fee waiver for an eligible nonprofit, accredited educational institution, or government entity. There is no compliant free-account workaround for TestFlight distribution.
+Xcode simulator and personal-device development testing can be free. Team \`FE33NM88XX\` currently has an active Apple Developer Program membership through June 10, 2027, so this release needs no additional Apple membership purchase now. Future TestFlight and App Store distribution still require an active enrolled team unless Apple approves a fee waiver for an eligible nonprofit, accredited educational institution, or government entity. There is no compliant free-account workaround for distribution after membership expires.

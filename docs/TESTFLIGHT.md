@@ -27,28 +27,31 @@ bash docs/scripts/install-connected-device.sh
 
 The opt-in provisioning flag may register the selected device and create or refresh development provisioning under the Apple team already configured in Xcode. Use it only for a team and phone you control. Depending on the installed Xcode/CoreDevice version, the script accepts the selected device as `connected` or `available`; if it says `unavailable`, reconnect/unlock/trust it before building. It builds, installs, and launches the app; it never uploads, submits, or changes App Store Connect. If you prefer, select the connected phone in Xcode and press Run instead.
 
-## Archive And Upload
+## Archive, Verify, And Upload
 
 ```bash
-xcodebuild archive \
-  -project GTAFreeSTEM.xcodeproj \
-  -scheme GTAFreeSTEM \
-  -configuration Release \
-  -destination 'generic/platform=iOS' \
-  -archivePath build/GTAFreeSTEM-build12.xcarchive \
-  -allowProvisioningUpdates
+ARCHIVE_PATH="$PWD/build/GTAFreeSTEM-build12.xcarchive" \
+  bash docs/scripts/archive-release-candidate.sh ios
 
 bash docs/scripts/verify-app-store-archive.sh \
   build/GTAFreeSTEM-build12.xcarchive
 
 xcodebuild -exportArchive \
   -archivePath build/GTAFreeSTEM-build12.xcarchive \
-  -exportOptionsPlist docs/AppStoreConnectExportOptions.plist \
+  -exportOptionsPlist docs/AppStoreExportOptions.plist \
   -exportPath build/export-build12 \
   -allowProvisioningUpdates
+
+bash docs/scripts/verify-app-store-ipa.sh \
+  build/export-build12/GTAFreeSTEM.ipa \
+  build/GTAFreeSTEM-build12.xcarchive
 ```
 
-The archive verifier must pass before export. The export plist uses `destination=upload`, so the export command is the irreversible upload of the iOS/iPad build and embedded Watch companion. It preserves the source build number. Do not rebuild or replace the verified archive between these steps, and do not upload the exported IPA a second time. Record the exact verified archive path, verification date, and resulting delivery UUID in `docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md`.
+The helper first proves the app, Watch, Xcode project, and `project.yml` bytes match one exact Git commit, then embeds that commit in both signed bundles. The first verifier establishes that the archive is a trusted export source and checks that provenance. With automatic signing, that archive is normally Apple Development signed; its signed main and Watch entitlements must use the exact identifiers. Only a namespace-scoped terminal wildcard such as `FE33NM88XX.com.rupayonhaldar.*` may appear inside a development provisioning profile; the team-wide `FE33NM88XX.*` form is rejected. No wildcard is accepted as final distribution evidence.
+
+`docs/AppStoreExportOptions.plist` uses `destination=export`, so the export is local and does not upload. The IPA verifier then requires Apple Distribution signing, exact main and Watch App Store profiles, the expected team, unexpired signing material, `get-task-allow=false`, current resources, and matching Mach-O UUIDs from the verified archive. Only an IPA that passes that verifier is the release distributable.
+
+Uploading is a separate, irreversible action. Deliver that exact verified IPA with Apple's Transporter app, or with authenticated `xcrun altool --upload-package`; never put an app-specific password directly on the command line. Record the structured canonical archive/IPA paths and hashes, full published commit, current verification date, and resulting iOS delivery UUID in `docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md`. Do not rebuild, re-export, or upload a different IPA between verification and delivery.
 
 If automatic signing fails, fix the reported Apple account/team/certificate/profile issue in Xcode rather than forcing a signing identity in the project.
 

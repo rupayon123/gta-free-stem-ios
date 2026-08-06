@@ -44,11 +44,11 @@ struct SettingsView: View {
             profileEditor
         }
         .confirmationDialog(
-            session.text("deleteAccount"),
+            session.text(session.hasLocalProfile ? "deleteAccountConfirmation" : "deleteLocalData"),
             isPresented: $deleteConfirmationPresented,
             titleVisibility: .visible
         ) {
-            Button(session.text("deleteAccount"), role: .destructive) {
+            Button(session.text(session.hasLocalProfile ? "deleteAccount" : "deleteLocalData"), role: .destructive) {
                 deleteLocalProfileAndSaves()
             }
         }
@@ -92,6 +92,8 @@ struct SettingsView: View {
                     profileEditorPresented = true
                 }
                 .buttonStyle(StoryButtonStyle(kind: .secondary))
+
+                guestDataDeletionButton
             }
         }
         .cardSurface()
@@ -112,6 +114,16 @@ struct SettingsView: View {
             deleteConfirmationPresented = true
         } label: {
             Text(session.text("deleteAccount"))
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(StoryButtonStyle(kind: .destructive))
+    }
+
+    private var guestDataDeletionButton: some View {
+        Button(role: .destructive) {
+            deleteConfirmationPresented = true
+        } label: {
+            Text(session.text("deleteLocalData"))
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(StoryButtonStyle(kind: .destructive))
@@ -238,12 +250,13 @@ struct SettingsView: View {
     }
 
     private func clearLocalProfileAndSaves() {
+        let hadLocalProfile = session.hasLocalProfile
         Task {
             do {
                 try SavedOpportunityLibrary.deleteAll(in: modelContext)
                 try await opportunities.clearPersonalHistory(in: modelContext)
                 session.clearLocalProfile()
-                accountMessage = session.text("accountDeleted")
+                accountMessage = session.text(hadLocalProfile ? "accountDeleted" : "localDataDeleted")
             } catch {
                 accountMessage = session.text("serverResponseInvalid")
             }

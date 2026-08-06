@@ -87,6 +87,7 @@ complete docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md from a real TestFlight install a
 then run:
 
   IOS_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-1.0-12.xcarchive \
+    IOS_IPA_PATH=/absolute/path/to/GTAFreeSTEM-1.0-12.ipa \
     PUBLIC_RELEASE_PLATFORMS=iphone,ipad,watch \
     bash docs/scripts/check-public-release-gates.sh
 EOF

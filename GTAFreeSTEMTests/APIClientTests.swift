@@ -55,6 +55,72 @@ final class APIClientTests: XCTestCase {
         XCTAssertFalse(clearButtonSource.contains("clearLocalProfileAndSaves()"))
     }
 
+    func testGuestSettingsExposeBulkPersonalDataDeletion() throws {
+        let repoRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let source = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/SettingsView.swift"))
+        let accountCardStart = try XCTUnwrap(source.range(of: "private var accountCard"))
+        let accountCardEnd = try XCTUnwrap(
+            source.range(of: "private var signOutButton", range: accountCardStart.lowerBound..<source.endIndex)
+        )
+        let accountCardSource = String(source[accountCardStart.lowerBound..<accountCardEnd.lowerBound])
+
+        XCTAssertTrue(
+            accountCardSource.contains("guestDataDeletionButton"),
+            "Guests can save opportunities and hunt history, so Settings must expose their bulk deletion action without requiring a profile."
+        )
+        XCTAssertTrue(source.contains("private var guestDataDeletionButton"))
+        XCTAssertTrue(source.contains("session.text(\"deleteLocalData\")"))
+        XCTAssertTrue(source.contains("\"localDataDeleted\""))
+    }
+
+    func testProfileDeletionCopyDisclosesHuntHistoryInEveryLanguage() throws {
+        let historyTermsByLanguage = [
+            "en": "hunt history",
+            "fr": "historique de recherche",
+            "zh": "搜索记录",
+            "yue": "搜尋記錄",
+            "pa": "ਖੋਜ ਇਤਿਹਾਸ",
+            "ur": "تلاش کی سرگزشت",
+            "ta": "தேடல் வரலா",
+            "tl": "kasaysayan ng paghahanap",
+            "es": "historial de busqueda",
+            "ar": "سجل البحث",
+            "fa": "سابقه جستجو",
+            "hi": "खोज इतिहास",
+            "pt": "historico de pesquisa",
+            "gu": "શોધ ઇતિહાસ",
+            "bn": "অনুসন্ধানের ইতিহাস",
+            "ja": "検索履歴",
+            "ko": "검색 기록",
+            "hu": "keresési előzmények"
+        ]
+
+        let url = try XCTUnwrap(AppResources.url(forResource: "app_strings", withExtension: "json"))
+        let data = try Data(contentsOf: url)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        for language in AppLanguage.allCases {
+            let strings = try XCTUnwrap(json[language.rawValue] as? [String: String])
+            let historyTerm = try XCTUnwrap(historyTermsByLanguage[language.rawValue])
+            for key in ["deleteAccountConfirmation", "accountDeleted"] {
+                let value = try XCTUnwrap(strings[key])
+                XCTAssertTrue(
+                    value.lowercased().contains(historyTerm.lowercased()),
+                    "\(language.rawValue).\(key) must disclose that hunt/search history is deleted."
+                )
+            }
+        }
+
+        let repoRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let source = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/SettingsView.swift"))
+        XCTAssertTrue(source.contains("session.hasLocalProfile ? \"deleteAccountConfirmation\" : \"deleteLocalData\""))
+        XCTAssertTrue(source.contains("session.hasLocalProfile ? \"deleteAccount\" : \"deleteLocalData\""))
+    }
+
     func testOpportunityDecodesFromRailsPayload() throws {
         let json = """
         {
@@ -1133,17 +1199,21 @@ final class APIClientTests: XCTestCase {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
         let project = try String(contentsOf: repoRoot.appendingPathComponent("project.yml"))
+        let generatedProject = try String(
+            contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM.xcodeproj/project.pbxproj")
+        )
         let entitlementsURL = repoRoot.appendingPathComponent("GTAFreeSTEM/MacCatalyst.entitlements")
         let infoURL = repoRoot.appendingPathComponent("GTAFreeSTEM/MacCatalyst-Info.plist")
 
         XCTAssertTrue(project.contains("\"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]\": GTAFreeSTEM/MacCatalyst.entitlements"))
         XCTAssertTrue(project.contains("\"ENABLE_APP_SANDBOX[sdk=macosx*]\": \"YES\""))
         XCTAssertTrue(project.contains("\"ENABLE_HARDENED_RUNTIME[sdk=macosx*]\": \"YES\""))
-        XCTAssertEqual(
-            project.components(separatedBy: "CODE_SIGN_IDENTITY: Apple Distribution").count - 1,
-            2,
-            "The iOS/Mac app and Watch companion must request Apple Distribution signing for Release."
-        )
+        for signingConfiguration in [project, generatedProject] {
+            XCTAssertFalse(
+                signingConfiguration.contains("CODE_SIGN_IDENTITY"),
+                "Automatic signing must choose the development identity for archives and the distribution identity at export time."
+            )
+        }
 
         let entitlementsData = try Data(contentsOf: entitlementsURL)
         let entitlements = try XCTUnwrap(
@@ -1496,6 +1566,23 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(filteredListResults.map(\.id), ["mapped", "list-only"])
         XCTAssertEqual(mapPins.map(\.id), ["mapped"])
         XCTAssertTrue(Set(mapPins.map(\.id)).isSubset(of: Set(filteredListResults.map(\.id))))
+    }
+
+    func testMapProjectionRejectsInvalidAndIncompleteCoordinatePairs() {
+        let opportunities = [
+            opportunity(id: "valid", title: "Valid Map Lab", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "latitude-out-of-range", title: "Bad Latitude", latitude: 91, longitude: -79.384),
+            opportunity(id: "longitude-out-of-range", title: "Bad Longitude", latitude: 43.654, longitude: -181),
+            opportunity(id: "non-finite", title: "Infinite Coordinate", latitude: .infinity, longitude: -79.384),
+            opportunity(id: "latitude-only", title: "Half Coordinate", latitude: 43.654, longitude: nil)
+        ]
+
+        XCTAssertEqual(OpportunityMapProjection.pins(from: opportunities).map(\.id), ["valid"])
+        XCTAssertTrue(OpportunityCoordinate.isValid(latitude: 43.654, longitude: -79.384))
+        XCTAssertFalse(OpportunityCoordinate.isValid(latitude: 91, longitude: -79.384))
+        XCTAssertFalse(OpportunityCoordinate.isValid(latitude: 43.654, longitude: -181))
+        XCTAssertFalse(OpportunityCoordinate.isValid(latitude: .nan, longitude: -79.384))
+        XCTAssertFalse(OpportunityCoordinate.isValid(latitude: 43.654, longitude: nil))
     }
 
     func testSearchSortsByRelevanceThenDate() {

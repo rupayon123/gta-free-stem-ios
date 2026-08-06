@@ -25,6 +25,20 @@ enum ExternalOpportunityURL {
     }
 }
 
+enum OpportunityCoordinate {
+    static func isValid(latitude: Double?, longitude: Double?) -> Bool {
+        guard let latitude,
+              let longitude,
+              latitude.isFinite,
+              longitude.isFinite
+        else {
+            return false
+        }
+
+        return (-90...90).contains(latitude) && (-180...180).contains(longitude)
+    }
+}
+
 enum OpportunityCostEligibility {
     private static let zeroCostPhrases: Set<String> = [
         "no charge",
@@ -332,8 +346,13 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
         self.city = city
         self.region = region
         self.address = address
-        self.latitude = latitude
-        self.longitude = longitude
+        if OpportunityCoordinate.isValid(latitude: latitude, longitude: longitude) {
+            self.latitude = latitude
+            self.longitude = longitude
+        } else {
+            self.latitude = nil
+            self.longitude = nil
+        }
         self.startDate = startDate
         self.endDate = endDate
         self.deadline = deadline
@@ -1253,7 +1272,7 @@ struct OpportunityFilters: Equatable {
     var leadership = false
 
     var hasLocation: Bool {
-        latitude != nil && longitude != nil
+        OpportunityCoordinate.isValid(latitude: latitude, longitude: longitude)
     }
 
     var hasActiveFilters: Bool {
@@ -1278,7 +1297,9 @@ struct OpportunityFilters: Equatable {
 
 enum OpportunityMapProjection {
     static func pins(from opportunities: [Opportunity]) -> [Opportunity] {
-        opportunities.filter { $0.latitude != nil && $0.longitude != nil }
+        opportunities.filter {
+            OpportunityCoordinate.isValid(latitude: $0.latitude, longitude: $0.longitude)
+        }
     }
 }
 

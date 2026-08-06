@@ -18,7 +18,15 @@ done
 echo "=== Version and project configuration ==="
 rg -Fq 'MARKETING_VERSION: "1.0"' project.yml
 rg -Fq 'CURRENT_PROJECT_VERSION: "12"' project.yml
+rg -Fq 'GTA_RELEASE_SOURCE_COMMIT: UNSET' project.yml
 rg -Fq 'ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon' project.yml
+for info_plist in GTAFreeSTEM/Info.plist GTAFreeSTEM/MacCatalyst-Info.plist GTAFreeSTEMWatch/Info.plist; do
+  [ "$(plutil -extract GTAReleaseSourceCommit raw -o - "$info_plist")" = '$(GTA_RELEASE_SOURCE_COMMIT)' ] || {
+    echo "$info_plist must embed GTA_RELEASE_SOURCE_COMMIT in the signed bundle metadata."
+    exit 1
+  }
+done
+rg -Fq '"GTA_RELEASE_SOURCE_COMMIT=$SOURCE_COMMIT"' docs/scripts/install-connected-device.sh
 echo "Version/build: 1.0 (12)"
 
 echo
@@ -90,8 +98,11 @@ echo
 echo "=== Mac Catalyst App Store configuration ==="
 MAC_ENTITLEMENTS="GTAFreeSTEM/MacCatalyst.entitlements"
 MAC_INFO_PLIST="GTAFreeSTEM/MacCatalyst-Info.plist"
+PBXPROJ="GTAFreeSTEM.xcodeproj/project.pbxproj"
 test -f "$MAC_ENTITLEMENTS" || { echo "Missing $MAC_ENTITLEMENTS"; exit 1; }
 test -f "$MAC_INFO_PLIST" || { echo "Missing $MAC_INFO_PLIST"; exit 1; }
+[ -f project.yml ] || { echo "Missing project.yml"; exit 1; }
+[ -f "$PBXPROJ" ] || { echo "Missing $PBXPROJ"; exit 1; }
 plutil -convert json -o - "$MAC_ENTITLEMENTS" | jq -e '
   .["com.apple.security.app-sandbox"] == true and
   .["com.apple.security.network.client"] == true and
@@ -108,12 +119,11 @@ for setting in \
   '"ENABLE_HARDENED_RUNTIME[sdk=macosx*]": "YES"'; do
   rg -Fq "$setting" project.yml || { echo "Missing Mac Catalyst setting: $setting"; exit 1; }
 done
-DISTRIBUTION_IDENTITY_COUNT="$(rg -F -c 'CODE_SIGN_IDENTITY: Apple Distribution' project.yml || true)"
-[ "$DISTRIBUTION_IDENTITY_COUNT" = "2" ] || {
-  echo "Release signing must request Apple Distribution for the app and Watch companion."
+if rg -n 'CODE_SIGN_IDENTITY' project.yml "$PBXPROJ"; then
+  echo "Automatic signing must not hard-code a signing identity; Xcode selects development for archive and distribution at export."
   exit 1
-}
-echo "Verified Mac Catalyst sandbox, metadata, release settings, and distribution-signing configuration."
+fi
+echo "Verified Mac Catalyst sandbox, metadata, release settings, and automatic-signing configuration."
 
 echo
 echo "=== Public URL availability ==="

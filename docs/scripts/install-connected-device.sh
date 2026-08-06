@@ -13,6 +13,20 @@ PROJECT="${PROJECT:-GTAFreeSTEM.xcodeproj}"
 CONFIGURATION="${CONFIGURATION:-Debug}"
 DEVICE_ID="${DEVICE_ID:-}"
 DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-$ROOT_DIR/build/DerivedData-connected-device}"
+SOURCE_COMMIT="${SOURCE_COMMIT:-$(git rev-parse HEAD)}"
+SOURCE_PATHS=(GTAFreeSTEM GTAFreeSTEMWatch GTAFreeSTEM.xcodeproj project.yml)
+
+if [ "${#SOURCE_COMMIT}" -ne 40 ] || [[ "$SOURCE_COMMIT" == *[!0-9a-f]* ]]; then
+  echo "SOURCE_COMMIT must be the full lowercase 40-character Git commit used for this build."
+  exit 2
+fi
+
+if [ -n "$(git status --porcelain=v1 --untracked-files=all -- "${SOURCE_PATHS[@]}")" ] || \
+   ! git diff --quiet "$SOURCE_COMMIT" -- "${SOURCE_PATHS[@]}"; then
+  echo "App, Watch, project, or project.yml inputs do not exactly match SOURCE_COMMIT=$SOURCE_COMMIT."
+  echo "Commit the intended source first so the installed build cannot be attributed to the wrong revision."
+  exit 2
+fi
 
 if [ -z "$DEVICE_ID" ]; then
   echo "No DEVICE_ID was supplied. Connect, unlock, and trust your iPhone or iPad, then run:"
@@ -64,11 +78,12 @@ echo "Building ${SCHEME} for the explicitly selected device ${DEVICE_ID}..."
 if [ "${ALLOW_PROVISIONING_UPDATES:-0}" = "1" ]; then
   # This opt-in may register the selected device and create or refresh
   # development provisioning under the Apple team already configured in Xcode.
-  build_for_device -allowProvisioningUpdates -allowProvisioningDeviceRegistration
+  build_for_device \
+    -allowProvisioningUpdates \
+    -allowProvisioningDeviceRegistration \
+    "GTA_RELEASE_SOURCE_COMMIT=$SOURCE_COMMIT"
 else
-  # Calling the helper without arguments is safe under the macOS Bash 3.2
-  # shipped with Xcode hosts, even when `set -u` is enabled.
-  build_for_device
+  build_for_device "GTA_RELEASE_SOURCE_COMMIT=$SOURCE_COMMIT"
 fi
 
 APP_PATH="$DERIVED_DATA_PATH/Build/Products/${CONFIGURATION}-iphoneos/${SCHEME}.app"
@@ -83,4 +98,4 @@ xcrun devicectl device install app --device "$DEVICE_ID" "$APP_PATH"
 echo "Launching ${BUNDLE_ID}..."
 xcrun devicectl device process launch --terminate-existing --device "$DEVICE_ID" "$BUNDLE_ID"
 
-echo "Installed and launched. This is a local development install only; it was not uploaded to TestFlight or App Store Connect."
+echo "Installed and launched source commit ${SOURCE_COMMIT}. This is a local development install only; it was not uploaded to TestFlight or App Store Connect."

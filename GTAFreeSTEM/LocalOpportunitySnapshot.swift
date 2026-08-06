@@ -64,8 +64,17 @@ enum LocalOpportunitySnapshot {
                 guard opportunity.ageMin <= normalizedAge, normalizedAge <= maxAge else { return false }
             }
             guard languagesMatch(opportunity.language, selected: filters.language) else { return false }
-            if let latitude = filters.latitude, let longitude = filters.longitude {
-                guard let opportunityLatitude = opportunity.latitude, let opportunityLongitude = opportunity.longitude else { return false }
+            if filters.hasLocation,
+               let latitude = filters.latitude,
+               let longitude = filters.longitude {
+                guard OpportunityCoordinate.isValid(
+                    latitude: opportunity.latitude,
+                    longitude: opportunity.longitude
+                ), let opportunityLatitude = opportunity.latitude,
+                   let opportunityLongitude = opportunity.longitude
+                else {
+                    return false
+                }
                 guard distanceKm(fromLatitude: latitude, longitude: longitude, toLatitude: opportunityLatitude, longitude: opportunityLongitude) <= filters.distanceKm else { return false }
             }
             if !normalizedTerms.isEmpty {
@@ -217,7 +226,10 @@ enum LocalOpportunitySnapshot {
         case .date:
             return opportunities.sorted { dateValue($0, now: now) < dateValue($1, now: now) }
         case .distance:
-            guard let latitude = filters.latitude, let longitude = filters.longitude else {
+            guard filters.hasLocation,
+                  let latitude = filters.latitude,
+                  let longitude = filters.longitude
+            else {
                 return opportunities.sorted { dateValue($0, now: now) < dateValue($1, now: now) }
             }
             return opportunities.sorted {

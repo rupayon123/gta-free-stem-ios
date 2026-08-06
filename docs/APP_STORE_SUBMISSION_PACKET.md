@@ -14,8 +14,12 @@ Use this packet to prepare App Store Connect for GTA FREE STEM build 1.0 (12). I
 - Watch bundle ID: \`com.rupayonhaldar.gtafreestem.watchkitapp\`
 - Version: \`1.0\`
 - Build: \`12\`
-- Archive status: \`Pending signed archive\`
-- Delivery UUID: \`Pending upload\`
+- iOS archive status: \`Fresh development-signed export-source archive created; 49/49 verifier checks pass\`
+- iOS IPA status: \`Safe no-upload Apple Distribution export created; 53/53 verifier checks pass\`
+- Mac archive status: \`Fresh development-signed export-source archive created; 35/35 verifier checks pass\`
+- Mac package status: \`Safe no-upload Mac App Store package created and signed\`
+- iOS Delivery UUID: \`Pending upload\`
+- Mac Delivery UUID: \`Pending upload unless the separate Mac product is selected\`
 - App Store Connect status: \`Not uploaded\`
 - TestFlight status: \`Not uploaded\`
 - App Review status: \`Not submitted\`
@@ -24,7 +28,13 @@ Use this packet to prepare App Store Connect for GTA FREE STEM build 1.0 (12). I
 
 After Xcode uploads and App Store Connect processes the build, replace the pending fields with observed values. Do not upload until the release owner explicitly authorizes it; App Review is a separate, later decision.
 
-Local archive evidence is deliberately not upload evidence. \`build/Unsigned-iOS-build12.xcarchive\` is unsigned and stale. \`build/GTAFreeSTEM-1.0-12.xcarchive\` is also stale, carries development entitlements/profiles, and does not contain the current feed or privacy artifacts; even if Xcode can re-sign an archive during export, never select that historical candidate. \`build/GTAFreeSTEM.xcarchive\` is historical build 4. Create and validate a fresh current-source archive at \`build/GTAFreeSTEM-build12.xcarchive\`, then export it with automatic App Store distribution signing only after the release-owner gate succeeds.
+Local archive/export evidence is deliberately not upload evidence. The fresh iOS export-source archive is \`build/final-release-ios-20260806-r4-exact-dev.xcarchive\`. It is development-signed, which is normal before export, and passes 49/49 pre-export checks. Both the main app and Watch companion now use exact development provisioning identifiers.
+
+The safe no-upload distribution export is \`build/final-release-ios-20260806-r4-export/GTAFreeSTEM.ipa\` with SHA-256 \`97abd09803140cce746767acfaab157fc2f5aa42dd61cf189de58c1195319b68\`. It passes 53/53 strict IPA checks: both bundles are Apple Distribution signed, both App Store profiles use exact identifiers, \`get-task-allow=false\`, signing material is unexpired, and both executable UUID sets match the source archive. This resolves the former Watch provisioning concern at both archive and distributable stages, but neither artifact has been uploaded. Recreate and reverify them from the exact published commit before delivery.
+
+The fresh Mac Catalyst export-source archive is \`build/final-release-mac-20260806/GTAFreeSTEM-Mac.xcarchive\`; its pre-export verifier passes 35/35 checks. The correctly signed no-upload Mac App Store package is \`build/final-release-mac-20260806-export/GTAFreeSTEM.pkg\`, SHA-256 \`47a448ec7dc88c531c7d3e78f5b49ebcf4a9bddbf9542eb06c1fe4f0c55a8515\`. Neither package has been uploaded, and there is no processed TestFlight build or delivery UUID.
+
+The exact current source passed the full iPad Simulator suite, 108/108, in \`build/final-full-ipad-tests-20260806.log\`. Do not select the historical archives at \`build/Unsigned-iOS-build12.xcarchive\`, \`build/GTAFreeSTEM-1.0-12.xcarchive\`, or \`build/GTAFreeSTEM.xcarchive\`. They are not the current release candidate. The current signing-repair tree is not yet published to GitHub, and the exact final published commit must be the source of the upload archive.
 
 ## Product Page Fields
 
@@ -70,13 +80,15 @@ GTA FREE STEM is a public discovery app for free STEM opportunities in the Great
 
 No account is required to browse, search, filter, view details, switch languages, use map/list mode, or save an opportunity. The optional Profile is entirely on-device: it stores a display name locally, and Settings can delete that profile, saved opportunities, and personal hunt history.
 
-The app loads the public opportunity feed from a GitHub-hosted JSON endpoint. At launch, it prepares the latest on-device cache or bundled snapshot, then refreshes the GitHub-hosted feed in the background. If no usable local snapshot exists, it waits for the live source. It validates every response and its declared age. The jsDelivr CDN mirror is only used when its declared content is no more than 14 days old.
+The app loads the public opportunity feed from a GitHub-hosted JSON endpoint. At launch, it waits only until a usable on-device cache, bundled snapshot, or live snapshot is ready; the live refresh may continue after the main interface appears. If no usable local snapshot exists, it waits for the live source. It validates every response and its declared age. The jsDelivr CDN mirror is only used when its declared content is no more than 14 days old.
 
 GitHub and jsDelivr receive the request IP address and technical request details and may retain them for delivery, security, diagnostics, service analytics, and improvement. App Privacy therefore conservatively discloses linked Coarse Location and Other Diagnostic Data for App Functionality and Analytics, with tracking disabled. No local Profile, search, save, device location, advertising identifier, or GTA FREE STEM user ID is attached to the feed request.
 
 The app may request location permission only after the user starts nearby search. Location is used locally to sort/filter nearby opportunities and is not sent to the public feed.
 
-The app may request notification permission only after the user chooses to enable alerts. If allowed, a system-granted background refresh can schedule an on-device alert for newly found public listings. There is no remote push token, notification service, account, or notification analytics.
+The app may request notification permission only after the user chooses to enable alerts. If allowed, an Apple-scheduled background refresh can create an on-device alert for newly found public listings; refresh timing is controlled by the operating system and is not guaranteed. There is no remote push token, notification service, account, or notification analytics.
+
+Map pins are display-only; actions remain in the listing detail and external provider or directions links. The Watch companion displays a capped set of saved opportunities and archive status synced from the phone. It does not independently fetch the public feed or provide the full search and filter interface.
 
 There is no login, advertising, purchase flow, in-app feedback form, or user-submitted-content flow in this build. The Support tab does not collect personal information.
 
@@ -132,20 +144,21 @@ All submitted screenshots must be opaque and free of personal data, debugging UI
 ## TestFlight What To Test
 
 \`\`\`text
-Please test the discovery flow: keyword search; city, region, age, language, category, high-school, volunteer, co-op, mentorship, scholarship, equity, new-find, and distance filters; map/list switching; sorting; detail pages; saving; local profile creation/deletion; refresh; cache and offline fallback; language switching; Dynamic Type; dark mode; and VoiceOver. If \`watch\` is selected for public distribution, also test Watch companion browsing. Report duplicate or stale results, broken links, permission problems, untranslated UI, visual overlap, or crashes through TestFlight feedback.
+Please test the discovery flow: keyword search; city, region, age, language, category, high-school, volunteer, co-op, mentorship, scholarship, equity, new-find, and distance filters; map/list switching; sorting; detail pages; saving; local profile creation/deletion; refresh; cache and offline fallback; language switching; Dynamic Type; dark mode; and VoiceOver. If \`watch\` is selected for public distribution, also test capped saved-opportunity sync and archive status on a paired Watch. Report duplicate or stale results, broken links, permission problems, untranslated UI, visual overlap, or crashes through TestFlight feedback.
 \`\`\`
 
 ## Portal Checklist
 
-1. Confirm the Developer Program team is enrolled or has an approved fee waiver, and the Account Holder has accepted current agreements.
+1. Confirm team \`FE33NM88XX\` remains active and that the Account Holder has accepted current agreements. The membership was verified active through June 10, 2027, so no additional Apple membership purchase is currently required.
 2. Choose the exact public platform selection (\`iphone\`, \`ipad\`, \`watch\`, \`mac\`) and record it in the signoff. Make and record the Mac App Store Connect decision only if \`mac\` is selected: the current Catalyst build uses \`com.rupayonhaldar.gtafreestem.maccatalyst\`. Retaining it requires a separate Mac app record, Mac App ID, SKU, and signed Mac upload. A universal iOS/macOS record instead requires changing the Catalyst bundle ID to \`com.rupayonhaldar.gtafreestem\`, confirming no separate live Mac product must retain the suffix, and adding macOS to Apple ID \`6779714459\`. The Watch companion is included with the iOS upload.
-3. Upload the signed build and wait for App Store Connect processing.
-4. Enter the product page, App Privacy, age rating, availability, and export-compliance information above.
-5. Add the release owner's chosen monitored public support email or telephone number, deploy the Support, Privacy, and Terms pages, confirm all three final HTTPS URLs in Safari, and verify that the public GitHub Issues route accepts a non-sensitive test ticket. Record the dated production truthfulness check in the signoff.
-6. Set Made for Kids to No, complete the age-rating questionnaire, and enter the App Review Information contact name, email, and phone in App Store Connect. Keep those private values out of this repository; record only the verification date in the signoff.
-7. Confirm the legal-rights holder and enter the exact Copyright value in App Store Connect.
-8. Confirm the product-page primary language, select territories in Pricing and Availability, and complete the DSA trader-status self-assessment. Keep any private trader contact data out of this repository.
-9. Upload fresh, opaque platform screenshots only for the recorded public-platform selection.
-10. Add the release owner as an internal TestFlight tester, then record actual real-device evidence for every selected platform in \`docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md\`.
-11. Run \`IOS_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-1.0-12.xcarchive PUBLIC_RELEASE_PLATFORMS=iphone,ipad,watch bash docs/scripts/check-public-release-gates.sh\` only after TestFlight QA and portal fields are complete; if the separate Mac product is included, also set \`MAC_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-Mac-1.0-12.xcarchive\` and add \`,mac\`.
-12. Leave the custom-EULA field blank so Apple's Standard EULA applies, then submit for App Review only after explicit release confirmation.
+3. Publish the final source tree, then create and verify fresh iOS and selected Mac archives from that exact GitHub commit. The explicit Watch distribution profile is now available; keep verifying its exact identifier in the exported IPA.
+4. Export with automatic App Store distribution signing, run the strict IPA verifier against the source archive, and verify the Mac package if Mac is selected. Upload only those unchanged verified deliverables, then wait for App Store Connect processing. Record real delivery UUIDs and processed builds only after Apple reports them.
+5. Enter the product page, App Privacy, age rating, availability, and export-compliance information above.
+6. Add the release owner's chosen monitored public support email or telephone number, deploy the Support, Privacy, and Terms pages, confirm all three final HTTPS URLs in Safari, and verify that the public GitHub Issues route accepts a non-sensitive test ticket. Record the dated production truthfulness check in the signoff.
+7. Set Made for Kids to No, complete the age-rating questionnaire, and enter the App Review Information contact name, email, and phone in App Store Connect. Keep those private values out of this repository; record only the verification date in the signoff.
+8. Confirm the legal-rights holder and enter the exact Copyright value in App Store Connect.
+9. Confirm the product-page primary language, select territories in Pricing and Availability, and complete the DSA trader-status self-assessment. Keep any private trader contact data out of this repository.
+10. Upload fresh, opaque platform screenshots only for the recorded public-platform selection.
+11. Add the release owner as an internal TestFlight tester, then record actual real-device evidence for every selected platform in \`docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md\`.
+12. Run \`IOS_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-1.0-12.xcarchive IOS_IPA_PATH=/absolute/path/to/GTAFreeSTEM-1.0-12.ipa PUBLIC_RELEASE_PLATFORMS=iphone,ipad,watch bash docs/scripts/check-public-release-gates.sh\` only after TestFlight QA and portal fields are complete; if the separate Mac product is included, also set \`MAC_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-Mac-1.0-12.xcarchive MAC_PKG_PATH=/absolute/path/to/GTAFreeSTEM.pkg\` and add \`,mac\`.
+13. Leave the custom-EULA field blank so Apple's Standard EULA applies, then submit for App Review only after explicit release confirmation.

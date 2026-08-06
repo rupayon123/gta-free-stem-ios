@@ -10,12 +10,9 @@ enum AppleMapsDestinationURL {
         fallbackComponents: [String] = []
     ) -> URL? {
         let destination: String?
-        if let latitude,
-           let longitude,
-           latitude.isFinite,
-           longitude.isFinite,
-           (-90...90).contains(latitude),
-           (-180...180).contains(longitude) {
+        if OpportunityCoordinate.isValid(latitude: latitude, longitude: longitude),
+           let latitude,
+           let longitude {
             destination = String(
                 format: "%.6f,%.6f",
                 locale: Locale(identifier: "en_US_POSIX"),
@@ -109,7 +106,10 @@ struct OpportunityDetailView: View {
 
     private var mapPreview: some View {
         Group {
-            if let latitude = opportunity.latitude, let longitude = opportunity.longitude {
+            if OpportunityCoordinate.isValid(
+                latitude: opportunity.latitude,
+                longitude: opportunity.longitude
+            ), let latitude = opportunity.latitude, let longitude = opportunity.longitude {
                 Map(initialPosition: .region(MKCoordinateRegion(
                     center: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
                     span: MKCoordinateSpan(latitudeDelta: 0.04, longitudeDelta: 0.04)
