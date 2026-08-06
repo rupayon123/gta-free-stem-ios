@@ -9,7 +9,7 @@ Record observed real-device evidence for build 1.0 (12) here. The public release
 - App: \`GTA FREE STEM\`
 - Version/build: \`1.0 (12)\`
 - iOS Delivery UUID: \`Pending upload\`
-- Mac Delivery UUID: \`Pending upload\`
+- Mac Delivery UUID: \`Pending only if mac is selected and uploaded\`
 - App Store Connect status: \`Not uploaded\`
 - TestFlight status: \`Not uploaded\`
 - App Review status: \`Not submitted\`
@@ -17,16 +17,16 @@ Record observed real-device evidence for build 1.0 (12) here. The public release
 
 ## Verified Artifact Binding
 
-- Published commit: \`Pending\`
-- Artifact verification date: \`Pending\`
-- iOS archive path: \`Pending\`
-- iOS archive SHA-256: \`Pending\`
-- iOS IPA path: \`Pending\`
-- iOS IPA SHA-256: \`Pending\`
-- Mac archive path: \`Pending\`
-- Mac archive SHA-256: \`Pending\`
-- Mac package path: \`Pending\`
-- Mac package SHA-256: \`Pending\`
+- Published commit: \`42c138436ece43ecca120ff76edbf1c4f90b17ff\`
+- Artifact verification date: \`2026-08-06\`
+- iOS archive path: \`/Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-ios/build/final-release-ios-20260806-r6-published-source.xcarchive\`
+- iOS archive SHA-256: \`443c03f13685caa34eb36b6f875d18bee8226476fd288187f22104ae42228dd5\`
+- iOS IPA path: \`/Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-ios/build/final-release-ios-20260806-r6-export/GTAFreeSTEM.ipa\`
+- iOS IPA SHA-256: \`8cf97134ce8985f1a9ca62c6dd52cb1680e876ca7a56eafe6ee31cdd901081eb\`
+- Mac archive path: \`/Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-ios/build/final-release-mac-20260806-r3-published-source.xcarchive\`
+- Mac archive SHA-256: \`450e335911c8babedeecfaa0d68841c95543c83a978f38d5eed85d92b641b5b6\`
+- Mac package path: \`/Users/rh_mac/Documents/Codex/2026-07-01/bri/work/gta-free-stem-ios/build/final-release-mac-20260806-r3-export/GTAFreeSTEM.pkg\`
+- Mac package SHA-256: \`b9afd175d605ea9ba588702d92df71a31044714cf893ad9633cff126f1320f34\`
 
 The archive hashes are deterministic tree SHA-256 values calculated by the public-release gate; the IPA and package hashes are ordinary file SHA-256 values. Record canonical absolute paths. The published commit must be the full source commit embedded as \`GTAReleaseSourceCommit\` in every signed archive and exported package. It must be reachable from live \`origin/main\`, and its app, Watch, Xcode project, and \`project.yml\` inputs must byte-match both live main and the local verification inputs. Later docs-only signoff commits may advance main without changing this recorded source commit. The verification date must be the date the gate reruns the strict verifiers on those exact bytes.
 
@@ -34,12 +34,12 @@ Replace the pending upload fields only after App Store Connect reports actual va
 
 Current local archive/export evidence is not TestFlight evidence:
 
-- iOS archive \`build/final-release-ios-20260806-r4-exact-dev.xcarchive\` is a valid development-signed export source and passes 49/49 checks with exact main and Watch development provisioning identifiers.
-- Exported IPA \`build/final-release-ios-20260806-r4-export/GTAFreeSTEM.ipa\` is a safe no-upload Apple Distribution export and passes 53/53 strict checks with exact main/Watch App Store profiles and matching archive UUIDs. SHA-256: \`97abd09803140cce746767acfaab157fc2f5aa42dd61cf189de58c1195319b68\`.
-- Mac Catalyst archive \`build/final-release-mac-20260806/GTAFreeSTEM-Mac.xcarchive\` is a valid development-signed export source and passes 35/35 pre-export checks. The correctly signed no-upload package is \`build/final-release-mac-20260806-export/GTAFreeSTEM.pkg\`, SHA-256 \`47a448ec7dc88c531c7d3e78f5b49ebcf4a9bddbf9542eb06c1fe4f0c55a8515\`.
-- The exact current source passed 108/108 tests in the full iPad Simulator suite recorded at \`build/final-full-ipad-tests-20260806.log\`. A fresh Mac Release launch also completed a single loader handoff at 100%; search, details, and local Profile persistence across relaunch were manually verified.
+- iOS archive \`build/final-release-ios-20260806-r6-published-source.xcarchive\` is a valid development-signed export source and passes 52/52 checks with exact main and Watch development provisioning identifiers and published-source provenance.
+- Exported IPA \`build/final-release-ios-20260806-r6-export/GTAFreeSTEM.ipa\` is a safe no-upload Apple Distribution export and passes 62/62 strict checks with exact main/Watch App Store profiles, matching archive UUIDs, and published-source provenance. SHA-256: \`8cf97134ce8985f1a9ca62c6dd52cb1680e876ca7a56eafe6ee31cdd901081eb\`.
+- Mac Catalyst archive \`build/final-release-mac-20260806-r3-published-source.xcarchive\` is a valid development-signed export source and passes 36/36 pre-export checks. The correctly signed no-upload package is \`build/final-release-mac-20260806-r3-export/GTAFreeSTEM.pkg\`, SHA-256 \`b9afd175d605ea9ba588702d92df71a31044714cf893ad9633cff126f1320f34\`, and passes 48/48 strict package checks.
+- The published artifact source commit \`42c138436ece43ecca120ff76edbf1c4f90b17ff\` passed 108/108 tests in the fresh full iPad Simulator suite recorded at \`build/DerivedData-final-tests-source-provenance-20260806/Logs/Test/Test-GTAFreeSTEM-2026.08.06_16-54-57--0400.xcresult\`. A fresh Mac Release launch also completed a single loader handoff at 100%; search, details, and local Profile persistence across relaunch were manually verified.
 - Development signing on these archives is not itself a failure. Xcode re-signs the packaged app for distribution during App Store export.
-- The current signing-repair source tree has not yet been published, and the exact final tree has not been installed on the iPhone. Xcode reports Kurihara disconnected and CoreDevice reports it unavailable. Do not record an install or launch pass until the published build is installed and observed.
+- Source commit \`42c138436ece43ecca120ff76edbf1c4f90b17ff\` was published through pull request #4 and is reachable from current \`origin/main\`. The exact final tree has not yet been installed on the iPhone. Xcode reports Kurihara unavailable and live USB inspection does not enumerate the phone. Do not record an install or launch pass until the published build is installed and observed.
 - No build has been uploaded or processed in TestFlight, so all TestFlight and real-device rows remain pending.
 
 Before running the final public-release gate, record the exact platforms enabled by the submitted binary and pass the same canonical, comma-separated set through \`PUBLIC_RELEASE_PLATFORMS\`. There is intentionally no default. The current binary enables iPhone and iPad and embeds the Watch companion, so its minimum set is \`iphone,ipad,watch\`; omitting iPad or Watch requires changing the binary first. Add \`,mac\` only if the optional separate Mac product is included. The gate requires platform-specific evidence for every selected platform.
