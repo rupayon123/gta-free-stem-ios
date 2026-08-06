@@ -1,60 +1,97 @@
 import MapKit
+import SwiftData
 import SwiftUI
+
+enum AppleMapsDestinationURL {
+    static func make(
+        latitude: Double? = nil,
+        longitude: Double? = nil,
+        address: String?,
+        fallbackComponents: [String] = []
+    ) -> URL? {
+        let destination: String?
+        if let latitude,
+           let longitude,
+           latitude.isFinite,
+           longitude.isFinite,
+           (-90...90).contains(latitude),
+           (-180...180).contains(longitude) {
+            destination = String(
+                format: "%.6f,%.6f",
+                locale: Locale(identifier: "en_US_POSIX"),
+                latitude,
+                longitude
+            )
+        } else if let address = normalized(address) {
+            destination = address
+        } else {
+            var seen = Set<String>()
+            let parts = fallbackComponents.compactMap(normalized).filter { seen.insert($0).inserted }
+            destination = parts.isEmpty ? nil : parts.joined(separator: ", ")
+        }
+        guard let destination else { return nil }
+
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "maps.apple.com"
+        components.path = "/"
+        components.queryItems = [URLQueryItem(name: "daddr", value: destination)]
+        return components.url
+    }
+
+    private static func normalized(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+}
 
 struct OpportunityDetailView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var session: SessionStore
-    @EnvironmentObject private var store: OpportunityStore
+    @Query(sort: \SavedOpportunityRecord.savedAt, order: .reverse) private var savedRecords: [SavedOpportunityRecord]
     let opportunity: Opportunity
+    @State private var saveErrorMessage: String?
 
     var body: some View {
         ZStack {
             StorybookBackground()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: AppSpacing.standard) {
                     mapPreview
                     titleCard
                     details
                     actions
                 }
-                .padding()
-                .padding(.bottom, 24)
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
+                .padding(AppSpacing.standard)
+                .padding(.bottom, AppSpacing.large)
             }
-        }
-        .alert(session.text("saveNeedsAccountTitle"), isPresented: saveAlertBinding) {
-            Button(session.text("ok"), role: .cancel) { store.errorMessage = nil }
-        } message: {
-            Text(session.text("saveNeedsAccountMessage"))
         }
         .navigationTitle(session.text("details"))
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var saveAlertBinding: Binding<Bool> {
-        Binding(
-            get: { store.shouldShowAccountRequiredAlert },
-            set: {
-                if !$0 {
-                    store.shouldShowAccountRequiredAlert = false
-                    store.errorMessage = nil
-                }
-            }
-        )
+    private var isSaved: Bool {
+        SavedOpportunityLibrary.isSaved(opportunity, in: savedRecords)
     }
 
     private var titleCard: some View {
         ZStack(alignment: .topTrailing) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: AppSpacing.medium) {
                 StickerBadge(text: session.categoryName(for: opportunity), color: Brand.sun, systemImage: "star.fill")
                 Text(session.title(for: opportunity))
-                    .font(.largeTitle.weight(.black))
+                    .font(.title.weight(.bold))
                     .foregroundStyle(Brand.outline(for: colorScheme))
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(session.organization(for: opportunity))
-                    .font(.title3.weight(.black))
-                    .foregroundStyle(Brand.coral)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Brand.lake)
                 Text(session.summary(for: opportunity))
-                    .font(.body.weight(.semibold))
+                    .font(.body)
                     .foregroundStyle(Brand.outline(for: colorScheme))
                 if session.language != .en, opportunity.hasTranslation(for: session.language) {
                     Text(session.text("translationNote"))
@@ -67,7 +104,7 @@ struct OpportunityDetailView: View {
 
             ThemeToolbarButton(showLabel: false)
         }
-        .cardSurface(padding: 18, cornerRadius: 28)
+        .cardSurface(padding: AppSpacing.large, cornerRadius: AppRadius.feature)
     }
 
     private var mapPreview: some View {
@@ -81,27 +118,27 @@ struct OpportunityDetailView: View {
                         "\(session.title(for: opportunity)) · \(session.city(for: opportunity))",
                         coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
                     )
-                        .tint(Brand.coral)
+                        .tint(Brand.lake)
                 }
                 .accessibilityLabel("\(session.text("map")): \(session.title(for: opportunity)), \(session.city(for: opportunity))")
                 .frame(height: 220)
             } else {
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(LinearGradient(colors: [Brand.sky.opacity(0.72), Brand.moss.opacity(0.66)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+                    .fill(Brand.selectionFill(for: colorScheme))
                     .frame(height: 180)
                     .overlay {
                         Label(session.city(for: opportunity), systemImage: "map")
-                            .font(.title3.weight(.black))
-                            .foregroundStyle(Brand.ink)
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(Brand.outline(for: colorScheme))
                     }
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(Brand.outline(for: colorScheme), lineWidth: 3)
+            RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+                .strokeBorder(Brand.surfaceStroke(for: colorScheme), lineWidth: 0.75)
         }
-        .shadow(color: Brand.ink.opacity(colorScheme == .dark ? 0.35 : 0.16), radius: 0, x: 4, y: 4)
+        .shadow(color: Brand.deepOcean.opacity(colorScheme == .dark ? 0.18 : 0.07), radius: 12, x: 0, y: 6)
     }
 
     private var details: some View {
@@ -110,11 +147,11 @@ struct OpportunityDetailView: View {
             DetailFact(title: session.text("city"), value: "\(session.city(for: opportunity)), \(session.region(for: opportunity))", icon: "mappin.and.ellipse")
             DetailFact(title: session.text("ages"), value: "\(opportunity.ageMin)\(opportunity.ageMax.map { "–\($0)" } ?? "+")", icon: "person.2")
             DetailFact(title: session.text("cost"), value: session.cost(for: opportunity), icon: "heart.fill")
-            if let startDate = opportunity.startDate {
-                DetailFact(title: session.text("date"), value: session.formattedDate(startDate), icon: "calendar")
+            if let scheduleDateValue {
+                DetailFact(title: session.text("date"), value: scheduleDateValue, icon: "calendar")
             }
-            if let deadline = opportunity.deadline {
-                DetailFact(title: session.text("deadline"), value: session.formattedDate(deadline), icon: "alarm")
+            if let deadline = opportunity.deadline, shouldShowDeadline {
+                DetailFact(title: session.text("deadline"), value: session.formattedEventDateTime(deadline), icon: "alarm")
             }
             if opportunity.volunteerHoursEligible {
                 DetailFact(title: session.text("pathway"), value: session.text("volunteerHours"), icon: "checkmark.seal")
@@ -127,13 +164,21 @@ struct OpportunityDetailView: View {
             }
             DetailFact(title: session.text("source"), value: opportunity.sourceUrl, icon: "link")
         }
-        .cardSurface(padding: 18, cornerRadius: 28)
+        .cardSurface()
+    }
+
+    private var scheduleDateValue: String? {
+        session.formattedSchedule(start: opportunity.startDate, end: opportunity.endDate)
+    }
+
+    private var shouldShowDeadline: Bool {
+        LocalOpportunitySnapshot.hasDistinctRegistrationDeadline(opportunity)
     }
 
     private var actions: some View {
         VStack(spacing: 12) {
             StorySectionTitle(text: session.text("registerApply"), systemImage: "paperplane.fill")
-            if let url = URL(string: opportunity.registrationUrl ?? opportunity.sourceUrl) {
+            if let url = ExternalOpportunityURL.make(from: opportunity.registrationUrl ?? opportunity.sourceUrl) {
                 Link(destination: url) {
                     Label(session.text("registerApply"), systemImage: "safari")
                         .frame(maxWidth: .infinity)
@@ -148,19 +193,40 @@ struct OpportunityDetailView: View {
                 .buttonStyle(StoryButtonStyle(kind: .secondary))
             }
             Button {
-                Task { await store.save(opportunity, token: session.apiToken) }
+                do {
+                    _ = try SavedOpportunityLibrary.toggle(opportunity, in: modelContext)
+                    saveErrorMessage = nil
+                } catch {
+                    saveErrorMessage = session.text("serverResponseInvalid")
+                }
             } label: {
-                Label(session.text("save"), systemImage: "bookmark")
+                Label(session.text(isSaved ? "saved" : "save"), systemImage: isSaved ? "bookmark.fill" : "bookmark")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(StoryButtonStyle(kind: .quiet))
+            .accessibilityHint(session.text("savedArchiveNote"))
+
+            if let saveErrorMessage {
+                Label(saveErrorMessage, systemImage: "exclamationmark.triangle.fill")
+                    .font(.footnote)
+                    .foregroundStyle(Brand.coral)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
-        .cardSurface(padding: 18, cornerRadius: 28)
+        .cardSurface()
     }
 
     private var directionsURL: URL? {
-        guard let address = opportunity.address?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return nil }
-        return URL(string: "https://maps.apple.com/?q=\(address)")
+        AppleMapsDestinationURL.make(
+            latitude: opportunity.latitude,
+            longitude: opportunity.longitude,
+            address: opportunity.localizedAddress(language: session.language),
+            fallbackComponents: [
+                opportunity.localizedOrganization(language: session.language),
+                opportunity.localizedCity(language: session.language),
+                opportunity.localizedRegion(language: session.language)
+            ]
+        )
     }
 
     private func languageName(_ code: String) -> String {
@@ -179,24 +245,23 @@ private struct DetailFact: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
-                .font(.headline.weight(.black))
-                .frame(width: 30, height: 30)
-                .background(Brand.sun, in: Circle())
-                .overlay {
-                    Circle().stroke(Brand.outline(for: colorScheme), lineWidth: 2)
-                }
-                .foregroundStyle(Brand.ink)
+                .font(.subheadline.weight(.semibold))
+                .frame(width: 32, height: 32)
+                .background(Brand.selectionFill(for: colorScheme), in: Circle())
+                .foregroundStyle(Brand.lake)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.caption.weight(.black))
-                    .textCase(.uppercase)
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
                 Text(value)
-                    .font(.subheadline.weight(.bold))
+                    .font(.subheadline)
                     .foregroundStyle(Brand.outline(for: colorScheme))
                     .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .padding(.vertical, 3)
     }
 }

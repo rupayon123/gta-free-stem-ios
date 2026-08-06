@@ -7,26 +7,34 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0FEC777605D5C112F928C309 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 21AFF436C007F0677616CD97 /* LaunchScreen.storyboard */; };
 		15C4002643726DEDEE370E34 /* opportunities.json in Resources */ = {isa = PBXBuildFile; fileRef = 0D340C91FCBE390D875ED59B /* opportunities.json */; };
 		168AF57FFB6496AE3B843362 /* APIClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6401728357C617A014393A8C /* APIClientTests.swift */; };
 		2642A87CF3C8A8B20769CF63 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 7553722146CCDD02A80A91AD /* InfoPlist.strings */; };
 		2D1B6259028406BFAB418C02 /* SubmitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5CE6827A07E25AA535BDD3D /* SubmitView.swift */; };
+		37389CC9F5A30FB882A2E1CB /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = E7CB6FE24D27F001F0CBF5C9 /* PrivacyInfo.xcprivacy */; };
+		3EBDCD33EFB70EB1790F90A8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8DB1CE4E347C97CCE6867695 /* Assets.xcassets */; };
 		475FC5B26D8388188FEC26C1 /* app_strings.json in Resources */ = {isa = PBXBuildFile; fileRef = A4D516C7B3AD1D417ABBDC9C /* app_strings.json */; };
-		4F4A06E1ACFA4D9299A2E3A6 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 5E56F2B7BD634B7496C16521 /* PrivacyInfo.xcprivacy */; };
 		5D7B9E10C49C7B705FD10F5D /* OpportunityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA618962B57C2322242054A8 /* OpportunityStore.swift */; };
 		68A00260FA5F2E54B7D829AE /* BrowseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EDF5309E3C2CD4DCD01634E /* BrowseView.swift */; };
 		699F3CE961C47FE8776DD7D1 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD58966D0640D561D88FFD4C /* DesignSystem.swift */; };
 		7210461E6FC5A14FEDE2FCA0 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8090B462DA48C2000491E38 /* APIClient.swift */; };
+		795D1A1B39BAB88ED21AB068 /* AppShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CD854A982BF8398EE4B0699 /* AppShortcuts.swift */; };
 		8A075A7A8FECA9A2C55DEC90 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 391D855DB9BFE69A9A84C74E /* ContentView.swift */; };
 		97E9377D86E669318E0590A1 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3174729DAC307CFE04C37F5 /* Models.swift */; };
 		BAB832A177C638741DFD309F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C905F5C3CADDDAD068E2AE5A /* Assets.xcassets */; };
 		BC981A8F7A137EDFCAAB1CA5 /* GTAFreeSTEMApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE3D267D0D56895524E2A15E /* GTAFreeSTEMApp.swift */; };
 		BDC55BC8ED93665871287DEC /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = A520455FEC277FD9B1E16F33 /* Localization.swift */; };
 		D0D2EA8F4B319DCFCB55414C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E129DF28063F41A5842B167 /* SettingsView.swift */; };
+		D9F1C987BCF7D7855EFE2FF1 /* GTAFreeSTEMWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 4660EB31E07CDB1070E208B5 /* GTAFreeSTEMWatch.app */; platformFilters = (ios, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E718E3102E49EA06E71F1C42 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3FA87A17DB14C2FA9B97306 /* SessionStore.swift */; };
+		E87B5B887C0C3F6DD71E443A /* GTAFreeSTEMWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A6CF6708A8D835D61B3180 /* GTAFreeSTEMWatchApp.swift */; };
+		EE09F46022F670609FDFE888 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F81D27386203249D913B5F66 /* PrivacyInfo.xcprivacy */; };
 		EE6239C4E96CED0F0707F16D /* OpportunityDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07B77BBC9D9E87DAB34556E /* OpportunityDetailView.swift */; };
 		F2DBCAC93578B065A14CF04B /* SavedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2C45C1750835FF267CB51D1 /* SavedView.swift */; };
 		F86D0A49E7313A143E3031CA /* LocalOpportunitySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4A6C30734DAE0C6FF3F914B /* LocalOpportunitySnapshot.swift */; };
+		FEE1DAB0C0DE000000000005 /* FreeOpportunityEligibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE1DAB0C0DE000000000004 /* FreeOpportunityEligibilityTests.swift */; };
+		FEE1DAB0C0DE000000000002 /* FeedFreshness.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE1DAB0C0DE000000000001 /* FeedFreshness.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -37,13 +45,35 @@
 			remoteGlobalIDString = 3E42DDF6414C70F70054B63D;
 			remoteInfo = GTAFreeSTEM;
 		};
+		7D0A32065623C4C152466F4D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FA340A41CB4F72B4347F261E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 76C67C0CBC761D0603D0F456;
+			remoteInfo = GTAFreeSTEMWatch;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		147EF173B16F7651821B7E5B /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				D9F1C987BCF7D7855EFE2FF1 /* GTAFreeSTEMWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		075A6BF3E1AAE190CCD6FA31 /* hi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = hi; path = hi.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		0CCB8D45730C284CAF039598 /* hu */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = hu; path = hu.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		0D340C91FCBE390D875ED59B /* opportunities.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = opportunities.json; sourceTree = "<group>"; };
 		10267833E1A37F88CCA218E9 /* pt */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = pt; path = pt.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		21AFF436C007F0677616CD97 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		21EFF9472240DB2B9D207083 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
 		2E4ED038F15E585D7BE99979 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		354ECB8939F70914513E21CD /* ta */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ta; path = ta.lproj/InfoPlist.strings; sourceTree = "<group>"; };
@@ -51,12 +81,15 @@
 		3BE5FA924475A7BC651B6413 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		416100D79AB96A0AFF716828 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		443304F071235DDFB0AE9F60 /* GTAFreeSTEMTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = GTAFreeSTEMTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		4660EB31E07CDB1070E208B5 /* GTAFreeSTEMWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GTAFreeSTEMWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		47B1A699131178AD42E56FB8 /* ar */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ar; path = ar.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		4E129DF28063F41A5842B167 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		4EDF5309E3C2CD4DCD01634E /* BrowseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseView.swift; sourceTree = "<group>"; };
-		5E56F2B7BD634B7496C16521 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		6401728357C617A014393A8C /* APIClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClientTests.swift; sourceTree = "<group>"; };
+		70574251FD7BDC234756AB68 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		7CD854A982BF8398EE4B0699 /* AppShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShortcuts.swift; sourceTree = "<group>"; };
 		8B21BABCB9154E23096C0B6F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		8DB1CE4E347C97CCE6867695 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A2C45C1750835FF267CB51D1 /* SavedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedView.swift; sourceTree = "<group>"; };
 		A3FA87A17DB14C2FA9B97306 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
 		A4A6C30734DAE0C6FF3F914B /* LocalOpportunitySnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalOpportunitySnapshot.swift; sourceTree = "<group>"; };
@@ -64,6 +97,7 @@
 		A520455FEC277FD9B1E16F33 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
 		A8090B462DA48C2000491E38 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		AA618962B57C2322242054A8 /* OpportunityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpportunityStore.swift; sourceTree = "<group>"; };
+		B2A6CF6708A8D835D61B3180 /* GTAFreeSTEMWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GTAFreeSTEMWatchApp.swift; sourceTree = "<group>"; };
 		B2BFA9F438E053F5B08578FD /* yue-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "yue-Hant"; path = "yue-Hant.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
 		B552BDF20E083053B31E6220 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		B5CE6827A07E25AA535BDD3D /* SubmitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmitView.swift; sourceTree = "<group>"; };
@@ -78,16 +112,32 @@
 		DD58966D0640D561D88FFD4C /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		E07B77BBC9D9E87DAB34556E /* OpportunityDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpportunityDetailView.swift; sourceTree = "<group>"; };
 		E75B49E49A6786F4FFB11835 /* ko */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ko; path = ko.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		E7CB6FE24D27F001F0CBF5C9 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F63A18700A19EE73CDD6EDE7 /* fil */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fil; path = fil.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		F81D27386203249D913B5F66 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		FEE1DAB0C0DE000000000004 /* FreeOpportunityEligibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreeOpportunityEligibilityTests.swift; sourceTree = "<group>"; };
+		FEE1DAB0C0DE000000000001 /* FeedFreshness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedFreshness.swift; sourceTree = "<group>"; };
 		FAAEB0585D9E067B1270CC19 /* gu */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = gu; path = gu.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		FBD26104225597E7C756CFB0 /* ur */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ur; path = ur.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		24118630770379D30079EEA1 /* GTAFreeSTEMWatch */ = {
+			isa = PBXGroup;
+			children = (
+				8DB1CE4E347C97CCE6867695 /* Assets.xcassets */,
+				B2A6CF6708A8D835D61B3180 /* GTAFreeSTEMWatchApp.swift */,
+				70574251FD7BDC234756AB68 /* Info.plist */,
+				E7CB6FE24D27F001F0CBF5C9 /* PrivacyInfo.xcprivacy */,
+			);
+			path = GTAFreeSTEMWatch;
+			sourceTree = "<group>";
+		};
 		45CC2B233F6A3F7FA0BCBF31 /* GTAFreeSTEMTests */ = {
 			isa = PBXGroup;
 			children = (
 				6401728357C617A014393A8C /* APIClientTests.swift */,
+				FEE1DAB0C0DE000000000004 /* FreeOpportunityEligibilityTests.swift */,
 				8B21BABCB9154E23096C0B6F /* Info.plist */,
 			);
 			path = GTAFreeSTEMTests;
@@ -98,6 +148,7 @@
 			children = (
 				B3581554EF7A318422A94FFF /* GTAFreeSTEM */,
 				45CC2B233F6A3F7FA0BCBF31 /* GTAFreeSTEMTests */,
+				24118630770379D30079EEA1 /* GTAFreeSTEMWatch */,
 				8238FD5CC5F0BBA01ABC1BD4 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -107,6 +158,7 @@
 			children = (
 				CF02688AB14B0594AA699477 /* GTAFreeSTEM.app */,
 				443304F071235DDFB0AE9F60 /* GTAFreeSTEMTests.xctest */,
+				4660EB31E07CDB1070E208B5 /* GTAFreeSTEMWatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -115,12 +167,15 @@
 			isa = PBXGroup;
 			children = (
 				A8090B462DA48C2000491E38 /* APIClient.swift */,
+				7CD854A982BF8398EE4B0699 /* AppShortcuts.swift */,
 				C905F5C3CADDDAD068E2AE5A /* Assets.xcassets */,
 				4EDF5309E3C2CD4DCD01634E /* BrowseView.swift */,
 				391D855DB9BFE69A9A84C74E /* ContentView.swift */,
 				DD58966D0640D561D88FFD4C /* DesignSystem.swift */,
+				FEE1DAB0C0DE000000000001 /* FeedFreshness.swift */,
 				BE3D267D0D56895524E2A15E /* GTAFreeSTEMApp.swift */,
 				3BE5FA924475A7BC651B6413 /* Info.plist */,
+				21AFF436C007F0677616CD97 /* LaunchScreen.storyboard */,
 				A520455FEC277FD9B1E16F33 /* Localization.swift */,
 				A4A6C30734DAE0C6FF3F914B /* LocalOpportunitySnapshot.swift */,
 				C3174729DAC307CFE04C37F5 /* Models.swift */,
@@ -140,7 +195,7 @@
 			children = (
 				A4D516C7B3AD1D417ABBDC9C /* app_strings.json */,
 				0D340C91FCBE390D875ED59B /* opportunities.json */,
-				5E56F2B7BD634B7496C16521 /* PrivacyInfo.xcprivacy */,
+				F81D27386203249D913B5F66 /* PrivacyInfo.xcprivacy */,
 				7553722146CCDD02A80A91AD /* InfoPlist.strings */,
 			);
 			path = Resources;
@@ -155,10 +210,12 @@
 			buildPhases = (
 				255C0902FB86ABEC934502DA /* Sources */,
 				766E7E4A8E8ECCFE3E607590 /* Resources */,
+				147EF173B16F7651821B7E5B /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				00B76582E652838A6BE9015F /* PBXTargetDependency */,
 			);
 			name = GTAFreeSTEM;
 			packageProductDependencies = (
@@ -185,6 +242,24 @@
 			productReference = 443304F071235DDFB0AE9F60 /* GTAFreeSTEMTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		76C67C0CBC761D0603D0F456 /* GTAFreeSTEMWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9A81B85510AF63513B25D840 /* Build configuration list for PBXNativeTarget "GTAFreeSTEMWatch" */;
+			buildPhases = (
+				2AF44B0182EBC28EAF54A4D0 /* Sources */,
+				D9F8A85CDD21089CD537C1CA /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GTAFreeSTEMWatch;
+			packageProductDependencies = (
+			);
+			productName = GTAFreeSTEMWatch;
+			productReference = 4660EB31E07CDB1070E208B5 /* GTAFreeSTEMWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -195,6 +270,10 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					3E42DDF6414C70F70054B63D = {
+						DevelopmentTeam = FE33NM88XX;
+						ProvisioningStyle = Automatic;
+					};
+					76C67C0CBC761D0603D0F456 = {
 						DevelopmentTeam = FE33NM88XX;
 						ProvisioningStyle = Automatic;
 					};
@@ -233,6 +312,7 @@
 			targets = (
 				3E42DDF6414C70F70054B63D /* GTAFreeSTEM */,
 				6DB3CA7F9E850F0D38F42DF4 /* GTAFreeSTEMTests */,
+				76C67C0CBC761D0603D0F456 /* GTAFreeSTEMWatch */,
 			);
 		};
 /* End PBXProject section */
@@ -244,9 +324,19 @@
 			files = (
 				BAB832A177C638741DFD309F /* Assets.xcassets in Resources */,
 				2642A87CF3C8A8B20769CF63 /* InfoPlist.strings in Resources */,
+				0FEC777605D5C112F928C309 /* LaunchScreen.storyboard in Resources */,
+				EE09F46022F670609FDFE888 /* PrivacyInfo.xcprivacy in Resources */,
 				475FC5B26D8388188FEC26C1 /* app_strings.json in Resources */,
 				15C4002643726DEDEE370E34 /* opportunities.json in Resources */,
-				4F4A06E1ACFA4D9299A2E3A6 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D9F8A85CDD21089CD537C1CA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3EBDCD33EFB70EB1790F90A8 /* Assets.xcassets in Resources */,
+				37389CC9F5A30FB882A2E1CB /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -258,6 +348,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7210461E6FC5A14FEDE2FCA0 /* APIClient.swift in Sources */,
+				795D1A1B39BAB88ED21AB068 /* AppShortcuts.swift in Sources */,
 				68A00260FA5F2E54B7D829AE /* BrowseView.swift in Sources */,
 				8A075A7A8FECA9A2C55DEC90 /* ContentView.swift in Sources */,
 				699F3CE961C47FE8776DD7D1 /* DesignSystem.swift in Sources */,
@@ -271,6 +362,15 @@
 				E718E3102E49EA06E71F1C42 /* SessionStore.swift in Sources */,
 				D0D2EA8F4B319DCFCB55414C /* SettingsView.swift in Sources */,
 				2D1B6259028406BFAB418C02 /* SubmitView.swift in Sources */,
+				FEE1DAB0C0DE000000000002 /* FeedFreshness.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2AF44B0182EBC28EAF54A4D0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E87B5B887C0C3F6DD71E443A /* GTAFreeSTEMWatchApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -279,12 +379,21 @@
 			buildActionMask = 2147483647;
 			files = (
 				168AF57FFB6496AE3B843362 /* APIClientTests.swift in Sources */,
+				FEE1DAB0C0DE000000000005 /* FreeOpportunityEligibilityTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		00B76582E652838A6BE9015F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilters = (
+				ios,
+			);
+			target = 76C67C0CBC761D0603D0F456 /* GTAFreeSTEMWatch */;
+			targetProxy = 7D0A32065623C4C152466F4D /* PBXContainerItemProxy */;
+		};
 		B84FC38A9B28F3B09EA64A1F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 3E42DDF6414C70F70054B63D /* GTAFreeSTEM */;
@@ -321,22 +430,27 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
-		327EB599ABB73D0498FD8C4E /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+			327EB599ABB73D0498FD8C4E /* Debug */ = {
+				isa = XCBuildConfiguration;
+				buildSettings = {
+					ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+					"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = GTAFreeSTEM/MacCatalyst.entitlements;
+					CODE_SIGN_IDENTITY = "Apple Development";
+					CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = FE33NM88XX;
+				"ENABLE_APP_SANDBOX[sdk=macosx*]" = YES;
+				"ENABLE_HARDENED_RUNTIME[sdk=macosx*]" = YES;
 				INFOPLIST_FILE = GTAFreeSTEM/Info.plist;
+				"INFOPLIST_FILE[sdk=macosx*]" = "GTAFreeSTEM/MacCatalyst-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.rupayonhaldar.gtafreestem;
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = com.rupayonhaldar.gtafreestem.maccatalyst;
 				PRODUCT_NAME = GTAFreeSTEM;
 				SDKROOT = iphoneos;
-				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MACCATALYST = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -377,7 +491,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -392,16 +506,33 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 6.0;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
+		7FA0CCF302B55BF7D7ED67B3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = FE33NM88XX;
+				INFOPLIST_FILE = GTAFreeSTEMWatch/Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = com.rupayonhaldar.gtafreestem.watchkitapp;
+				PRODUCT_NAME = GTAFreeSTEMWatch;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 4;
 			};
 			name = Release;
 		};
@@ -441,7 +572,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -462,17 +593,18 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 6.0;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
 			};
 			name = Debug;
 		};
@@ -480,6 +612,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = FE33NM88XX;
 				INFOPLIST_FILE = GTAFreeSTEMTests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -498,6 +632,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = FE33NM88XX;
 				INFOPLIST_FILE = GTAFreeSTEMTests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -512,22 +648,43 @@
 			};
 			name = Release;
 		};
+		E5351F9ED78BC844E1D883E6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = FE33NM88XX;
+				INFOPLIST_FILE = GTAFreeSTEMWatch/Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = com.rupayonhaldar.gtafreestem.watchkitapp;
+				PRODUCT_NAME = GTAFreeSTEMWatch;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 4;
+			};
+			name = Debug;
+		};
 		EDD04753374275E711BB5F46 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = GTAFreeSTEM/MacCatalyst.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = FE33NM88XX;
+				"ENABLE_APP_SANDBOX[sdk=macosx*]" = YES;
+				"ENABLE_HARDENED_RUNTIME[sdk=macosx*]" = YES;
 				INFOPLIST_FILE = GTAFreeSTEM/Info.plist;
+				"INFOPLIST_FILE[sdk=macosx*]" = "GTAFreeSTEM/MacCatalyst-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.rupayonhaldar.gtafreestem;
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = com.rupayonhaldar.gtafreestem.maccatalyst;
 				PRODUCT_NAME = GTAFreeSTEM;
 				SDKROOT = iphoneos;
-				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MACCATALYST = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -540,6 +697,15 @@
 			buildConfigurations = (
 				8447C7CAC8CC0FFCB7BCA012 /* Debug */,
 				3BF44962363E6C0B0CB7E1A8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		9A81B85510AF63513B25D840 /* Build configuration list for PBXNativeTarget "GTAFreeSTEMWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E5351F9ED78BC844E1D883E6 /* Debug */,
+				7FA0CCF302B55BF7D7ED67B3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

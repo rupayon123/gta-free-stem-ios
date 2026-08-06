@@ -4,14 +4,12 @@ enum APIError: Error, LocalizedError {
     case badURL
     case invalidResponse
     case insecureConnection
-    case accountRequired
 
     var errorDescription: String? {
         switch self {
         case .badURL: Self.localized("serverAddressInvalid")
         case .invalidResponse: Self.localized("serverResponseInvalid")
         case .insecureConnection: Self.localized("serverAddressInvalid")
-        case .accountRequired: Self.localized("signInToUseFeature")
         }
     }
 
@@ -22,10 +20,17 @@ enum APIError: Error, LocalizedError {
 }
 
 final class APIClient: @unchecked Sendable {
-    let baseURL: URL
+    static let primaryPublicFeedURL = URL(string: "https://raw.githubusercontent.com/rupayon123/gta-free-stem-opportunities/main/public/opportunities.json")!
+    // A CDN mirror keeps a current, independent retrieval path when the raw
+    // GitHub endpoint is temporarily unavailable. Every source is still held
+    // to the same HTTPS, payload-size, schema, and freshness checks below.
+    static let fallbackPublicFeedURL = URL(string: "https://cdn.jsdelivr.net/gh/rupayon123/gta-free-stem-opportunities@main/public/opportunities.json")!
+
     let feedURL: URL
+    private let fallbackFeedURLs: [URL]
     private let session: URLSession
-    private static let maxResponseBytes = 5_000_000
+    private let now: () -> Date
+    private static let maxResponseBytes = 10_000_000
     private static let bundledTranslationIndex: [String: [String: OpportunityTranslation]] = {
         guard let url = AppResources.url(forResource: "opportunities", withExtension: "json") else {
             return [:]
@@ -47,20 +52,27 @@ final class APIClient: @unchecked Sendable {
     }()
 
     init(
-        baseURL: URL = URL(string: "https://gta-free-stem.onrender.com/api/v1")!,
-        feedURL: URL = URL(string: "https://gta-free-stem.vercel.app/opportunities.json")!,
-        session: URLSession? = nil
+        feedURL: URL? = nil,
+        fallbackFeedURLs: [URL]? = nil,
+        session: URLSession? = nil,
+        now: @escaping () -> Date = { .now }
     ) {
-        self.baseURL = baseURL
-        self.feedURL = feedURL
+        let primaryFeedURL = feedURL ?? Self.primaryPublicFeedURL
+        self.feedURL = primaryFeedURL
+        self.fallbackFeedURLs = (fallbackFeedURLs ?? (feedURL == nil ? [Self.fallbackPublicFeedURL] : []))
+            .filter { $0 != primaryFeedURL }
         self.session = session ?? Self.defaultSession
+        self.now = now
     }
 
     private static let defaultSession: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = 3
-        configuration.timeoutIntervalForResource = 5
-        configuration.waitsForConnectivity = true
+        configuration.timeoutIntervalForRequest = 10
+        configuration.timeoutIntervalForResource = 20
+        // The app has a retained local snapshot, so an offline device should
+        // surface that usable state immediately instead of holding a refresh
+        // request open while the system waits for a network path.
+        configuration.waitsForConnectivity = false
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.httpShouldSetCookies = false
         configuration.httpCookieAcceptPolicy = .never
@@ -69,157 +81,56 @@ final class APIClient: @unchecked Sendable {
     }()
 
     func opportunities(query: String, mode: SearchMode, filters: OpportunityFilters) async throws -> OpportunityListResponse {
-        let response: OpportunityListResponse = try await get(feedURL)
-        let localizedResponse = applyBundledTranslations(from: response)
-        let filtered = LocalOpportunitySnapshot.filter(localizedResponse.data, query: query, mode: mode, filters: filters)
+        let response = try await opportunityFeed()
+        let filtered = LocalOpportunitySnapshot.filter(
+            response.data,
+            query: query,
+            mode: mode,
+            filters: filters,
+            now: now()
+        )
         return OpportunityListResponse(
             data: filtered,
             meta: OpportunityListResponse.Metadata(
                 activeCount: filtered.count,
-                lastUpdated: localizedResponse.meta?.lastUpdated
+                lastUpdated: response.meta?.lastUpdated
             )
         )
     }
 
-    func opportunitiesFromRailsAPI(query: String, mode: SearchMode, filters: OpportunityFilters) async throws -> OpportunityListResponse {
-        var components = URLComponents(url: baseURL.appending(path: "opportunities"), resolvingAgainstBaseURL: false)
-        var items = [URLQueryItem]()
-        if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            items.append(URLQueryItem(name: "query", value: query))
-        }
-        if filters.region != "All" {
-            items.append(URLQueryItem(name: "region", value: filters.region))
-        }
-        if !filters.city.isEmpty {
-            items.append(URLQueryItem(name: "city", value: filters.city))
-        }
-        if filters.category != "All" {
-            items.append(URLQueryItem(name: "category", value: filters.category))
-        }
-        if !filters.age.isEmpty {
-            items.append(URLQueryItem(name: "age", value: filters.age))
-        }
-        if filters.language != "all" {
-            items.append(URLQueryItem(name: "language", value: filters.language))
-        }
-        if let latitude = filters.latitude, let longitude = filters.longitude {
-            items.append(URLQueryItem(name: "latitude", value: String(latitude)))
-            items.append(URLQueryItem(name: "longitude", value: String(longitude)))
-            items.append(URLQueryItem(name: "distanceKm", value: String(filters.distanceKm)))
-        }
-        items.append(URLQueryItem(name: "sort", value: filters.sort.rawValue))
-        items.append(URLQueryItem(name: "includeNewFinds", value: filters.includeNewFinds ? "true" : "false"))
-        items.append(URLQueryItem(name: "limit", value: "200"))
-        if filters.volunteerHours {
-            items.append(URLQueryItem(name: "volunteerHours", value: "true"))
-        }
-        if filters.coop {
-            items.append(URLQueryItem(name: "coop", value: "true"))
-        }
-        if filters.mentorship {
-            items.append(URLQueryItem(name: "mentorship", value: "true"))
-        }
-        if filters.scholarships {
-            items.append(URLQueryItem(name: "scholarships", value: "true"))
-        }
-        if filters.blackFocused {
-            items.append(URLQueryItem(name: "blackFocused", value: "true"))
-        }
-        if filters.girlsFocused {
-            items.append(URLQueryItem(name: "girlsFocused", value: "true"))
-        }
-        if filters.indigenousFocused {
-            items.append(URLQueryItem(name: "indigenousFocused", value: "true"))
-        }
-        if filters.leadership {
-            items.append(URLQueryItem(name: "leadership", value: "true"))
-        }
-        switch mode {
-        case .all: break
-        case .highSchool:
-            items.append(URLQueryItem(name: "highSchool", value: "true"))
-        case .volunteer:
-            items.append(URLQueryItem(name: "volunteerHours", value: "true"))
-            items.append(URLQueryItem(name: "highSchool", value: "true"))
-        case .coop:
-            items.append(URLQueryItem(name: "coop", value: "true"))
-            items.append(URLQueryItem(name: "highSchool", value: "true"))
-        case .mentorship:
-            items.append(URLQueryItem(name: "mentorship", value: "true"))
-            items.append(URLQueryItem(name: "highSchool", value: "true"))
-        }
-        components?.queryItems = items
-        guard let url = components?.url else { throw APIError.badURL }
-        let response: OpportunityListResponse = try await get(url)
-        return applyBundledTranslations(from: response)
-    }
+    func opportunityFeed() async throws -> OpportunityListResponse {
+        var lastError: Error?
 
-    func requestPrioritizedHunt(query: String, mode: SearchMode, filters: OpportunityFilters) async throws {
-        guard ProcessInfo.processInfo.environment["GTA_FREE_STEM_ENABLE_PRIORITY_HUNT"] == "1" else {
-            return
+        for source in [feedURL] + fallbackFeedURLs {
+            do {
+                let response: OpportunityListResponse = try await get(source)
+                guard FeedFreshness.isCurrent(response.meta?.lastUpdated, now: now()) else {
+                    throw APIError.invalidResponse
+                }
+                // An empty yet recent response is not useful to this discovery
+                // app and is most often a partial publisher failure. Retain the
+                // last good cache or bundled fallback instead of replacing it.
+                guard !response.data.isEmpty else {
+                    throw APIError.invalidResponse
+                }
+                guard response.hasValidUniqueIDs, response.hasHealthyDeclaredSources else {
+                    throw APIError.invalidResponse
+                }
+                return applyBundledTranslations(from: response)
+            } catch {
+                lastError = error
+            }
         }
-        let url = baseURL.appending(path: "hunt_refresh")
-        var payload: [String: String] = [
-            "query": query,
-            "mode": mode.rawValue,
-            "region": filters.region,
-            "city": filters.city,
-            "category": filters.category,
-            "age": filters.age,
-            "language": filters.language,
-            "distance_km": String(filters.distanceKm),
-            "sort": filters.sort.rawValue,
-            "include_new_finds": String(filters.includeNewFinds),
-            "volunteer_hours": String(filters.volunteerHours),
-            "coop": String(filters.coop),
-            "mentorship": String(filters.mentorship),
-            "scholarships": String(filters.scholarships),
-            "black_focused": String(filters.blackFocused),
-            "girls_focused": String(filters.girlsFocused),
-            "indigenous_focused": String(filters.indigenousFocused),
-            "leadership": String(filters.leadership)
-        ]
-        if let latitude = filters.latitude, let longitude = filters.longitude {
-            payload["latitude"] = String(latitude)
-            payload["longitude"] = String(longitude)
-        }
-        _ = try await send(url: url, method: "POST", token: nil, body: ["hunt": payload]) as APIStatusResponse
-    }
 
-    func save(opportunityID: String, token: String?) async throws {
-        guard let token, !token.isEmpty else { throw APIError.accountRequired }
-        let url = baseURL.appending(path: "saved_opportunities")
-        let body = ["opportunity_id": opportunityID]
-        _ = try await send(url: url, method: "POST", token: token, body: body) as APIStatusResponse
-    }
-
-    func sendFeedback(_ draft: FeedbackDraft, token: String?) async throws {
-        guard let token, !token.isEmpty else { throw APIError.accountRequired }
-        let url = baseURL.appending(path: "feedback")
-        let body = ["feedback": ["name": draft.name, "email": draft.email, "message": draft.message]]
-        _ = try await send(url: url, method: "POST", token: token, body: body) as APIStatusResponse
-    }
-
-    func submitMissingOpportunity(_ draft: MissingOpportunityDraft, token: String?) async throws {
-        guard let token, !token.isEmpty else { throw APIError.accountRequired }
-        let url = baseURL.appending(path: "missing_opportunity_submissions")
-        let body = [
-            "missing_opportunity_submission": [
-                "title": draft.title,
-                "organization": draft.organization,
-                "city": draft.city,
-                "source_url": draft.sourceURL,
-                "notes": draft.notes
-            ]
-        ]
-        _ = try await send(url: url, method: "POST", token: token, body: body) as APIStatusResponse
+        throw lastError ?? APIError.invalidResponse
     }
 
     private func applyBundledTranslations(from response: OpportunityListResponse) -> OpportunityListResponse {
         let mergedData = response.data.map { augment(withBundledTranslations: $0) }
         return OpportunityListResponse(
             data: mergedData,
-            meta: response.meta
+            meta: response.meta,
+            sourceHealth: response.sourceHealth
         )
     }
 
@@ -266,12 +177,6 @@ final class APIClient: @unchecked Sendable {
         )
     }
 
-    func deleteAccount(token: String?) async throws {
-        guard let token, !token.isEmpty else { throw APIError.accountRequired }
-        let url = baseURL.appending(path: "account")
-        _ = try await send(url: url, method: "DELETE", token: token, body: [String: String]()) as APIStatusResponse
-    }
-
     private func get<T: Decodable>(_ url: URL) async throws -> T {
         guard Self.isTrustedTransport(url) else { throw APIError.insecureConnection }
         let (data, response) = try await session.data(from: url)
@@ -280,26 +185,9 @@ final class APIClient: @unchecked Sendable {
         return try JSONDecoder().decode(T.self, from: data)
     }
 
-    private func send<T: Decodable, Body: Encodable>(url: URL, method: String, token: String?, body: Body) async throws -> T {
-        guard Self.isTrustedTransport(url) else { throw APIError.insecureConnection }
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        if let token, !token.isEmpty {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-        request.httpBody = try JSONEncoder().encode(body)
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
-        if http.statusCode == 401 { throw APIError.accountRequired }
-        guard data.count <= Self.maxResponseBytes else { throw APIError.invalidResponse }
-        guard 200..<300 ~= http.statusCode else { throw APIError.invalidResponse }
-        return try JSONDecoder().decode(T.self, from: data)
-    }
-
     private static func isTrustedTransport(_ url: URL) -> Bool {
         guard url.scheme?.lowercased() == "https" else { return false }
         return url.host?.isEmpty == false
     }
+
 }

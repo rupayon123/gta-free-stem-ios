@@ -1,141 +1,122 @@
 # Public Release Runbook
 
-Last updated: July 3, 2026
+Last updated: August 6, 2026
 
-Use this as the short path from the current repo state to App Store submission for GTA FREE STEM.
+This is the short, safe path for GTA FREE STEM 1.0 (12). It separates three different actions:
 
-## Current Local Release Candidate
+1. Build and upload to TestFlight so the owner can test on a real phone.
+2. Complete App Store Connect metadata and platform assets.
+3. Submit to App Review only after TestFlight QA and an explicit release decision.
 
-- App: `GTA FREE STEM`
-- App Apple ID: `6779714459`
-- Bundle ID: `com.rupayonhaldar.gtafreestem`
-- Apple Developer team: `FE33NM88XX`
-- Apple ID email for App Store Connect: `rupayon244@gmail.com`
-- Version/build: `1.0 (11)`
-- Delivery UUID: `69e5bff3-4c7e-43e4-93b6-905adc6b19bb`
-- App Store Connect import status: `Uploaded; processing status unverified`
-- TestFlight status: `Uploaded; processing status unverified`
-- Last confirmed uploaded build: `1.0 (10)`, delivery UUID `97c05d63-7f3d-45bc-941e-c10432694ca8`, status `VALID` / `BETA_INTERNAL_TESTING`
-- Audience: `Pending App Store Connect processing`
-- Non-exempt encryption: `false`
+## Current Candidate
 
-## Current Repo/Feed State
+- Version/build: \`1.0 (12)\`
+- iOS/iPad bundle ID: \`com.rupayonhaldar.gtafreestem\`
+- Mac Catalyst bundle ID: \`com.rupayonhaldar.gtafreestem.maccatalyst\`
+- Watch bundle ID: \`com.rupayonhaldar.gtafreestem.watchkitapp\`
+- Archive/upload state: See \`docs/APP_STORE_SUBMISSION_PACKET.md\`; do not trust an old build status. The local unsigned build-12 archive and \`build/GTAFreeSTEM-1.0-12.xcarchive\` (Apple Development-signed diagnostic only) are not uploadable. The generic \`build/GTAFreeSTEM.xcarchive\` is the historical build-4 archive.
+- Live primary feed: GitHub raw \`opportunities.json\`. \`docs/scripts/sync-bundled-feed.sh\` copies the sibling website's verified-active public export into the offline fallback and rejects malformed, duplicate, or non-active records. Publish that exact website export before upload; \`docs/scripts/check-release-readiness.sh\` then requires the deployed GitHub feed and bundled fallback to have the same verified-active ID set. Pending-review records stay out of the consumer app until their details are confirmed.
+- Launch resilience: opens from the on-device cache or bundled snapshot, then refreshes the live feed in the background; if neither local source is usable, it waits for live data.
 
-- Public site/feed deployment: `dpl_F2wScPMS6rqR8PB4djdyFhcV6cC2`
-- Public site/feed URL: `https://gta-free-stem.vercel.app/`
-- Live feed URL: `https://gta-free-stem.vercel.app/opportunities.json`
-- Bundled iOS snapshot: 382 translated opportunities
-- Live public feed: 382 translated opportunities
-- Uploaded build `1.0 (11)` includes the refreshed 382-item bundled snapshot and can also refresh from the live public feed online. Xcode export/upload succeeded; App Store Connect processing status still needs command-line or web verification.
+## Local Verification
 
-## One Command To Recheck The Repo
+\`\`\`bash
+bash docs/scripts/sync-bundled-feed.sh
+RUN_SCREENSHOTS=0 bash docs/scripts/check-local-release-candidate.sh
+\`\`\`
 
-Run this before App Store submission:
+The tracked \`GTAFreeSTEM.xcodeproj\` is the release input and does not require XcodeGen. XcodeGen is an optional free maintenance tool only when a developer intentionally changes \`project.yml\`; if used, review the generated project diff before release verification. Use \`RUN_SCREENSHOTS=1\` once the simulator screenshot capture is ready. The full local pass includes strict translation checks, Release build, XCTest, and clean-install simulator smoke.
 
-```bash
-bash docs/scripts/check-local-release-candidate.sh
-```
+## Upload The Phone Build
 
-Expected result:
+The tracked export configuration uploads during the export step. It preserves build number 12 and lets Xcode manage distribution signing:
 
-- Release-readiness audit passes.
-- Release build succeeds.
-- Test suite passes with 43 tests.
-- Simulator smoke test passes.
-- Bundled and live feed translation coverage remains 382/382 opportunities.
-- App Store screenshots are regenerated and rechecked.
+\`\`\`bash
+xcodebuild archive \
+  -project GTAFreeSTEM.xcodeproj \
+  -scheme GTAFreeSTEM \
+  -configuration Release \
+  -destination 'generic/platform=iOS' \
+  -archivePath build/GTAFreeSTEM-build12.xcarchive \
+  -allowProvisioningUpdates
 
-## GitHub CI Guard
+bash docs/scripts/verify-app-store-archive.sh \
+  build/GTAFreeSTEM-build12.xcarchive
 
-GitHub Actions runs `.github/workflows/ios-release-readiness.yml` on pushes to `main`, pull requests, and manual dispatch. It runs `bash docs/scripts/check-ci-release-readiness.sh`, which validates strict release readiness, a Release simulator build, and the XCTest suite without requiring App Store Connect credentials or locally generated screenshot artifacts.
+xcodebuild -exportArchive \
+  -archivePath build/GTAFreeSTEM-build12.xcarchive \
+  -exportOptionsPlist docs/AppStoreConnectExportOptions.plist \
+  -exportPath build/export-build12 \
+  -allowProvisioningUpdates
+\`\`\`
 
-## If App Store Connect Keeps Loading
+The verifier must pass on that exact signed archive before export. The export plist uses \`destination=upload\`, so export is the irreversible upload step: do not rebuild between verification and export. Record the same archive path, verification date, and resulting Apple delivery UUID in the real-device signoff and pass that same path to the final public gate.
 
-The web UI is still needed to select the build, upload screenshots, enter metadata, and submit for review. If the page keeps loading, use command-line checks to confirm the build is valid, then retry App Store Connect in Safari/Chrome later.
+Release is configured to request Apple Distribution through automatic signing. Do not substitute a manually selected identity or change the team. If archive/export reports an account, agreement, team-role, certificate, or provisioning error, resolve that exact Apple-account issue before retrying.
 
-Command-line TestFlight status check:
+After App Store Connect finishes processing:
 
-```bash
-read -r -s APP_STORE_CONNECT_APP_PASSWORD
-export APP_STORE_CONNECT_APP_PASSWORD
-BUNDLE_VERSION=11 \
-  DELIVERY_ID=69e5bff3-4c7e-43e4-93b6-905adc6b19bb \
-  APP_STORE_CONNECT_USERNAME=rupayon244@gmail.com \
-  bash docs/scripts/check-testflight-build-status.sh
-unset APP_STORE_CONNECT_APP_PASSWORD
-```
+1. Open TestFlight in App Store Connect.
+2. Confirm version 1.0 build 12 is processed.
+3. Add the owner to an internal tester group if they are not already included, then add build 12 to that group (or use automatic distribution for the group).
+4. On the owner’s iPhone, open TestFlight, pull to refresh, and tap Update for GTA FREE STEM.
+5. Record actual testing in \`docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md\`.
 
-Use an Apple app-specific password, not the normal Apple ID password.
+An internal tester can receive the build as soon as it processes. External testers need TestFlight beta review first. This TestFlight upload does not submit the app to App Review.
 
-## App Store Connect Values
+## App Store Connect Preparation
 
-Use `docs/APP_STORE_SUBMISSION_PACKET.md` as the paste-ready source.
+Use \`docs/APP_STORE_SUBMISSION_PACKET.md\` as the paste-ready source for:
 
-- Name: `GTA FREE STEM`
-- Subtitle: `Youth programs near you`
-- Category: `Education`
-- SKU: `gta-free-stem-ios`
-- Marketing URL: `https://gta-free-stem.vercel.app/`
-- Support URL: `https://gta-free-stem.vercel.app/accessibility-support/`
-- Privacy Policy URL: `https://gta-free-stem.vercel.app/privacy/`
-- Build to select: `1.0 (11)` after App Store Connect reports build 11 as `VALID`
+- Product page metadata, price, category, marketing, support, privacy, and Terms URLs, plus the Standard-EULA choice.
+- App Privacy, age rating, export-compliance, copyright, primary language, availability, DSA trader status, App Review contact, and review notes.
+- Screenshots for the explicit platforms selected for public distribution.
 
-Screenshots to upload:
+Before public submission, add a dedicated monitored public support email or telephone number chosen by the release owner, then verify the public Support, Privacy, and Terms pages accurately describe the submitted build's on-device Profile, no in-app form collection, deletion controls, direct contact method, and public GitHub support route. Confirm both contact channels are monitored, leave the custom-EULA field blank so Apple's Standard EULA applies, and record the dated three-URL truthfulness verification in the signoff.
 
-- `build/app-store-screenshots/iphone-6.9/01-home.png`
-- `build/app-store-screenshots/iphone-6.9/02-opportunities.png`
-- `build/app-store-screenshots/iphone-6.9/03-high-school.png`
-- `build/app-store-screenshots/iphone-6.9/04-support-account.png`
-- `build/app-store-screenshots/ipad-13/01-home.png`
-- `build/app-store-screenshots/ipad-13/02-opportunities.png`
-- `build/app-store-screenshots/ipad-13/03-high-school.png`
-- `build/app-store-screenshots/ipad-13/04-support-account.png`
+## Mac And Watch Distribution
 
-## Real-Device TestFlight Signoff
+- The iOS TestFlight archive embeds the Watch companion, so the Watch update arrives with the iPhone build.
+- Mac Catalyst needs its own signed archive/upload. The current \`.maccatalyst\` bundle ID means it must use a separate Mac App Store Connect record for \`com.rupayonhaldar.gtafreestem.maccatalyst\`, with its own Mac App ID, SKU, primary language, agreements, and team access. Do not try to add that Mac build to the iOS record \`6779714459\`.
+- If the owner instead chooses one universal iOS/macOS record, first confirm no separate released Mac product depends on the suffix, change the Catalyst bundle ID to \`com.rupayonhaldar.gtafreestem\`, regenerate the project, and add macOS to iOS Apple ID \`6779714459\`. Then create a new signed Mac archive; never reuse a build made with the previous identifier.
+- Capture and upload the required Mac 16:10 screenshots and Apple Watch Series 11 screenshots before enabling those platforms for public sale.
 
-Install build `1.0 (11)` from TestFlight on a real iPhone after upload and processing complete.
+After the separate Mac record and signing assets exist, archive, verify, and upload the exact same Mac artifact in this order:
 
-Fill out:
+\`\`\`bash
+xcodebuild archive \
+  -project GTAFreeSTEM.xcodeproj \
+  -scheme GTAFreeSTEM \
+  -configuration Release \
+  -destination 'generic/platform=macOS,variant=Mac Catalyst' \
+  -archivePath build/GTAFreeSTEM-Mac-build12.xcarchive \
+  -allowProvisioningUpdates
 
-```text
-docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md
-```
+bash docs/scripts/verify-mac-app-store-archive.sh \
+  build/GTAFreeSTEM-Mac-build12.xcarchive
 
-Required real-device coverage:
+xcodebuild -exportArchive \
+  -archivePath build/GTAFreeSTEM-Mac-build12.xcarchive \
+  -exportOptionsPlist docs/AppStoreConnectExportOptions.plist \
+  -exportPath build/export-mac-build12 \
+  -allowProvisioningUpdates
+\`\`\`
 
-- Fresh install and launch.
-- Search keywords and translated fields.
-- Filters, sorting, map/list consistency, details, refresh, cache fallback, bundled fallback, and state restore.
-- New-match messaging, location denied/allowed, notifications.
-- Language switching, RTL layout, Dynamic Type, VoiceOver, and dark mode.
-- Support privacy, account-limited paths, and public App Store URLs.
+As with iOS, the Mac verifier must pass before the upload export, and the verified archive must not be rebuilt or replaced between those commands.
 
-Use `Pass` only when tested. Use `Accepted Risk` only with notes and owner approval. Leave `Submitted for App Review` pending until the final submit click.
+## Final App Review Gate
 
-## Final Gate
+Only after real-device QA and portal work are complete:
 
-Run:
+\`\`\`bash
+IOS_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-1.0-12.xcarchive \
+  PUBLIC_RELEASE_PLATFORMS=iphone,ipad,watch \
+  bash docs/scripts/check-public-release-gates.sh
+\`\`\`
 
-```bash
-bash docs/scripts/check-public-release-gates.sh
-```
+Replace the example selection with the exact final public set using only \`iphone\`, \`ipad\`, \`watch\`, and \`mac\`; there is no default. That gate intentionally fails while selected-platform TestFlight evidence, screenshot-upload evidence, metadata/privacy/age-rating/copyright/reviewer-contact/availability/DSA evidence, the production legal/support truthfulness check, a real Apple delivery UUID, or a verified support route is pending. It requires the Mac record decision only when \`mac\` is selected. Do not mark \`Submitted for App Review\` complete until the final App Store Connect submit action is intentionally performed.
+\`IOS_ARCHIVE_PATH\` must be a real signed iOS \`.xcarchive\`; the gate rejects development/ad-hoc signatures, debug entitlements or provisioning, missing dSYMs/privacy manifests, mismatched versions or identifiers, and stale main-app bundled opportunity data. The Watch companion receives saved-item updates through WatchConnectivity and does not bundle the full opportunity feed. When \`mac\` is selected, also set \`MAC_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-Mac-1.0-12.xcarchive\`; the gate independently verifies its Mac App Store signature, profile, sandbox entitlements, dSYM, privacy manifest, and bundled feed.
 
-This must pass before public release. It intentionally fails while real-device QA or App Store Connect owner fields are still pending.
+## Cost Constraint
 
-The final gate also has a fixture self-test that CI runs automatically:
-
-```bash
-bash docs/scripts/test-public-release-gates.sh
-```
-
-This verifies that a complete temporary signoff passes and weak App Store evidence, wrong build selection, or a missing delivery UUID fail.
-
-## Final Live Steps
-
-1. Select build `1.0 (11)` in App Store Connect after it is uploaded and processed.
-2. Upload the screenshots listed above.
-3. Paste metadata, privacy, age rating, and review notes from `docs/APP_STORE_SUBMISSION_PACKET.md`.
-4. Complete `docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md`.
-5. Run `bash docs/scripts/check-public-release-gates.sh`.
-6. Submit for App Review.
-7. Rotate or revoke the app-specific Apple password generated during release setup.
+Xcode simulator and personal-device development testing can be free. TestFlight and App Store distribution require an enrolled Apple Developer Program team, unless the team receives an Apple fee waiver for an eligible nonprofit, accredited educational institution, or government entity. There is no compliant free-account workaround for TestFlight distribution.

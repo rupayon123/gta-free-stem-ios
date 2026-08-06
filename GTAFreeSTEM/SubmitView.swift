@@ -10,12 +10,14 @@ struct SubmitView: View {
                 StorybookBackground()
 
                 ScrollView {
-                    VStack(spacing: 18) {
+                    VStack(spacing: AppSpacing.standard) {
                         supportHeader
                         unavailableCard
                     }
-                    .padding()
-                    .padding(.bottom, 24)
+                    .frame(maxWidth: 720)
+                    .frame(maxWidth: .infinity)
+                    .padding(AppSpacing.standard)
+                    .padding(.bottom, AppSpacing.large)
                 }
             }
             .navigationTitle(session.text("support"))
@@ -27,10 +29,10 @@ struct SubmitView: View {
         ZStack(alignment: .topTrailing) {
             VStack(alignment: .leading, spacing: 5) {
                 Text(session.text("support"))
-                    .font(.largeTitle.weight(.black))
+                    .font(.largeTitle.weight(.bold))
                     .foregroundStyle(Brand.outline(for: colorScheme))
                 Text(session.text("feedback"))
-                    .font(.subheadline.weight(.bold))
+                    .font(.subheadline)
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -38,18 +40,18 @@ struct SubmitView: View {
 
             ThemeToolbarButton(showLabel: false)
         }
-        .cardSurface(padding: 18, cornerRadius: 30)
+        .cardSurface(padding: AppSpacing.large, cornerRadius: AppRadius.feature)
     }
 
     private var unavailableCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             StorySectionTitle(text: session.text("feedback"), systemImage: "bubble.left.and.bubble.right.fill")
             Text(session.text("localSubmissionSaved"))
-                .font(.headline.weight(.bold))
+                .font(.headline.weight(.semibold))
                 .foregroundStyle(Brand.outline(for: colorScheme))
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Text(session.text("appleReady"))
-                .font(.subheadline.weight(.semibold))
+            Text(session.text("profileOnDevice"))
+                .font(.subheadline)
                 .foregroundStyle(Brand.mutedText(for: colorScheme))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -57,10 +59,22 @@ struct SubmitView: View {
                 Label(session.text("missingOpportunity"), systemImage: "magnifyingglass.circle.fill")
                 Label(session.text("privacyPolicy"), systemImage: "lock.shield.fill")
             }
-            .font(.subheadline.weight(.black))
+            .font(.subheadline.weight(.semibold))
             .foregroundStyle(Brand.outline(for: colorScheme))
             .accessibilityElement(children: .combine)
+
+            Link(destination: AppLegalLinks.support) {
+                Label(session.text("support"), systemImage: "arrow.up.right.square.fill")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(StoryButtonStyle(kind: .secondary))
+
+            Link(destination: AppLegalLinks.privacyPolicy) {
+                Label(session.text("privacyPolicy"), systemImage: "lock.shield.fill")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(StoryButtonStyle(kind: .quiet))
         }
-        .cardSurface(padding: 18, cornerRadius: 30)
+        .cardSurface()
     }
 }
