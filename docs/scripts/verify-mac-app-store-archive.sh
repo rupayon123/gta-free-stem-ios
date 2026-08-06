@@ -46,6 +46,11 @@ PROJECT_FILE = ROOT / "project.yml"
 SOURCE_OPPORTUNITIES = ROOT / "GTAFreeSTEM" / "Resources" / "opportunities.json"
 SOURCE_PRIVACY = ROOT / "GTAFreeSTEM" / "Resources" / "PrivacyInfo.xcprivacy"
 EXPECTED_BUNDLE_ID = "com.rupayonhaldar.gtafreestem.maccatalyst"
+SOURCE_COMMIT_KEY = "GTAReleaseSourceCommit"
+FIXTURE_SOURCE_COMMIT = "0123456789abcdef0123456789abcdef01234567"
+SIGNING_DEVELOPMENT = "development"
+SIGNING_DISTRIBUTION = "distribution"
+TRUSTED_SIGNING_MODES = {SIGNING_DEVELOPMENT, SIGNING_DISTRIBUTION}
 
 
 class InspectionError(Exception):
@@ -107,6 +112,28 @@ def application_identifier(entitlements):
 
 def debug_entitlement(entitlements):
     return entitlements.get("com.apple.security.get-task-allow", entitlements.get("get-task-allow"))
+
+
+def valid_source_commit(value):
+    return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{40}", value) is not None
+
+
+def signing_mode(authority):
+    if not isinstance(authority, str):
+        return ""
+    if authority.startswith("Apple Development:"):
+        return SIGNING_DEVELOPMENT
+    if authority.startswith("Apple Distribution:"):
+        return SIGNING_DISTRIBUTION
+    return ""
+
+
+def signing_mode_label(mode):
+    if mode == SIGNING_DEVELOPMENT:
+        return "Apple Development"
+    if mode == SIGNING_DISTRIBUTION:
+        return "Apple Distribution"
+    return "unknown"
 
 
 class LiveInspector:
@@ -172,42 +199,79 @@ class LiveInspector:
 
 
 class FixtureInspector:
-    def __init__(self, broken_security=False):
+    def __init__(
+        self,
+        broken_security=False,
+        signing_mode=SIGNING_DISTRIBUTION,
+        signed_identifier=None,
+        profile_identifier=None,
+        profile_team_identifiers=None,
+        profile_expiration=None,
+        provisions_all_devices=False,
+        bad_dsym=False,
+        ad_hoc=False,
+        get_task_allow_override=None,
+    ):
         self.broken_security = broken_security
+        self.signing_mode = signing_mode
+        self.signed_identifier = signed_identifier
+        self.profile_identifier = profile_identifier
+        self.profile_team_identifiers = profile_team_identifiers
+        self.profile_expiration = profile_expiration
+        self.provisions_all_devices = provisions_all_devices
+        self.bad_dsym = bad_dsym
+        self.ad_hoc = ad_hoc
+        self.get_task_allow_override = get_task_allow_override
 
     def signature(self, bundle):
-        authority = "Apple Development: Fixture ({})" if self.broken_security else "Apple Distribution: Fixture ({})"
+        if self.ad_hoc:
+            raise InspectionError("ad-hoc code signature")
+        development_signed = self.broken_security or self.signing_mode == SIGNING_DEVELOPMENT
+        authority = "Apple Development: Fixture ({})" if development_signed else "Apple Distribution: Fixture ({})"
         return {"authority": authority.format(EXPECTED_TEAM), "team": EXPECTED_TEAM}
 
     def entitlements(self, bundle):
-        return {
-            "com.apple.application-identifier": "{}.{}".format(EXPECTED_TEAM, EXPECTED_BUNDLE_ID),
-            "com.apple.developer.team-identifier": EXPECTED_TEAM,
+        development_signed = self.broken_security or self.signing_mode == SIGNING_DEVELOPMENT
+        entitlements = {
             "com.apple.security.app-sandbox": not self.broken_security,
             "com.apple.security.network.client": True,
             "com.apple.security.personal-information.location": True,
-            "com.apple.security.get-task-allow": self.broken_security,
         }
+        if self.signing_mode == SIGNING_DISTRIBUTION or self.broken_security:
+            entitlements.update({
+                "com.apple.application-identifier": self.signed_identifier or "{}.{}".format(EXPECTED_TEAM, EXPECTED_BUNDLE_ID),
+                "com.apple.developer.team-identifier": EXPECTED_TEAM,
+                "com.apple.security.get-task-allow": development_signed,
+            })
+        if self.get_task_allow_override is not None:
+            entitlements["com.apple.security.get-task-allow"] = self.get_task_allow_override
+        return entitlements
 
     def profile(self, path):
+        development_profile = self.broken_security or self.signing_mode == SIGNING_DEVELOPMENT
         entitlements = {
-            "com.apple.application-identifier": "{}.{}".format(EXPECTED_TEAM, EXPECTED_BUNDLE_ID),
+            "com.apple.application-identifier": self.profile_identifier or "{}.{}".format(EXPECTED_TEAM, EXPECTED_BUNDLE_ID),
             "com.apple.developer.team-identifier": EXPECTED_TEAM,
-            "get-task-allow": self.broken_security,
-            "beta-reports-active": not self.broken_security,
+            "get-task-allow": development_profile,
         }
+        if not development_profile:
+            entitlements["beta-reports-active"] = True
         profile = {
-            "Name": "Fixture Mac App Store Profile",
+            "Name": "Fixture Mac Development Profile" if development_profile else "Fixture Mac App Store Profile",
             "UUID": "00000000-0000-0000-0000-000000000000",
-            "TeamIdentifier": [EXPECTED_TEAM],
-            "ExpirationDate": dt.datetime(2099, 1, 1),
+            "TeamIdentifier": self.profile_team_identifiers or [EXPECTED_TEAM],
+            "ExpirationDate": self.profile_expiration or dt.datetime(2099, 1, 1),
             "Entitlements": entitlements,
         }
-        if self.broken_security:
+        if development_profile:
             profile["ProvisionedDevices"] = ["fixture-device"]
+        if self.provisions_all_devices:
+            profile["ProvisionsAllDevices"] = True
         return profile
 
     def uuids(self, path):
+        if self.bad_dsym and path.name.endswith(".dSYM"):
+            return {("44444444-4444-4444-4444-444444444444", "arm64")}
         return {("33333333-3333-3333-3333-333333333333", "arm64")}
 
 
@@ -266,40 +330,89 @@ def check_hash(label, archived_path, source_path, reporter):
     )
 
 
-def distribution_authority(value):
-    return value.startswith("Apple Distribution:") or value.startswith("3rd Party Mac Developer Application:")
-
-
-def check_signature(app, inspector, reporter):
+def check_signature(app, inspector, reporter, expected_signing_mode=""):
     try:
         signature = inspector.signature(app)
     except InspectionError as error:
         reporter.fail("Mac code signature", str(error))
-        return
+        return ""
     authority = signature.get("authority", "")
     team = signature.get("team", "")
+    observed_signing_mode = signing_mode(authority)
+    trusted_mode = observed_signing_mode in TRUSTED_SIGNING_MODES
+    matches_archive = not expected_signing_mode or observed_signing_mode == expected_signing_mode
+    if not trusted_mode:
+        failure = "expected trusted Apple Development or Apple Distribution, observed {}".format(authority or "none")
+    elif not matches_archive:
+        failure = "expected {} to match archive, observed {}".format(
+            signing_mode_label(expected_signing_mode),
+            authority,
+        )
+    else:
+        failure = ""
     reporter.expect(
-        distribution_authority(authority),
+        trusted_mode and matches_archive,
         "Mac code signature",
-        "{}; TeamIdentifier={}".format(authority, team or "missing"),
-        "expected Apple Distribution/Mac App Store authority, observed {}".format(authority or "none"),
+        "{}; mode={}; TeamIdentifier={}".format(authority, observed_signing_mode, team or "missing"),
+        failure,
     )
     reporter.expect(team == EXPECTED_TEAM, "Mac signing team", team, "expected {}, observed {}".format(EXPECTED_TEAM, team or "missing"))
+    return observed_signing_mode
 
 
-def check_entitlements(app, inspector, reporter):
+def check_entitlements(app, signing_mode_value, inspector, reporter):
     try:
         entitlements = inspector.entitlements(app)
     except InspectionError as error:
         reporter.fail("Mac entitlements", str(error))
         return
     expected_identifier = "{}.{}".format(EXPECTED_TEAM, EXPECTED_BUNDLE_ID)
-    reporter.expect(debug_entitlement(entitlements) is not True, "Mac get-task-allow", "false or absent", "debug entitlement is true")
+    observed_get_task_allow = debug_entitlement(entitlements)
+    if signing_mode_value == SIGNING_DEVELOPMENT:
+        get_task_allow_valid = observed_get_task_allow in {None, False, True}
+        get_task_allow_policy = "true, false, or absent for a trusted development archive"
+    elif signing_mode_value == SIGNING_DISTRIBUTION:
+        get_task_allow_valid = observed_get_task_allow in {None, False}
+        get_task_allow_policy = "false or absent for a trusted distribution archive"
+    else:
+        get_task_allow_valid = False
+        get_task_allow_policy = "a known trusted signing mode"
+    reporter.expect(
+        get_task_allow_valid,
+        "Mac get-task-allow",
+        "{!r} accepted in {} mode".format(observed_get_task_allow, signing_mode_value),
+        "expected {}, observed {!r} in {} mode".format(
+            get_task_allow_policy,
+            observed_get_task_allow,
+            signing_mode_value or "unknown",
+        ),
+    )
     reporter.expect(entitlements.get("com.apple.security.app-sandbox") is True, "Mac App Sandbox", "enabled", "com.apple.security.app-sandbox must be true")
     reporter.expect(entitlements.get("com.apple.security.network.client") is True, "Mac outbound network entitlement", "enabled", "com.apple.security.network.client must be true")
     reporter.expect(entitlements.get("com.apple.security.personal-information.location") is True, "Mac location entitlement", "enabled", "location entitlement must be true")
-    reporter.expect(application_identifier(entitlements) == expected_identifier, "Mac application identifier entitlement", expected_identifier, "expected {}, observed {!r}".format(expected_identifier, application_identifier(entitlements)))
-    reporter.expect(entitlements.get("com.apple.developer.team-identifier") == EXPECTED_TEAM, "Mac team entitlement", EXPECTED_TEAM, "expected {}, observed {!r}".format(EXPECTED_TEAM, entitlements.get("com.apple.developer.team-identifier")))
+    observed_identifier = application_identifier(entitlements)
+    observed_team = entitlements.get("com.apple.developer.team-identifier")
+    identifiers_optional = signing_mode_value == SIGNING_DEVELOPMENT
+    reporter.expect(
+        observed_identifier == expected_identifier or (identifiers_optional and observed_identifier is None),
+        "Mac application identifier entitlement",
+        expected_identifier if observed_identifier else "absent in development archive; certificate and archive metadata validated",
+        "expected {}{}, observed {!r}".format(
+            expected_identifier,
+            " or absence in development mode" if identifiers_optional else "",
+            observed_identifier,
+        ),
+    )
+    reporter.expect(
+        observed_team == EXPECTED_TEAM or (identifiers_optional and observed_team is None),
+        "Mac team entitlement",
+        EXPECTED_TEAM if observed_team else "absent in development archive; certificate and archive metadata validated",
+        "expected {}{}, observed {!r}".format(
+            EXPECTED_TEAM,
+            " or absence in development mode" if identifiers_optional else "",
+            observed_team,
+        ),
+    )
 
 
 def profile_path(app):
@@ -312,35 +425,61 @@ def profile_path(app):
     return next((candidate for candidate in candidates if candidate.is_file()), None)
 
 
-def check_profile(app, inspector, reporter):
+def check_profile(app, signing_mode_value, inspector, reporter):
+    if signing_mode_value == SIGNING_DEVELOPMENT:
+        profile_kind = "development"
+    elif signing_mode_value == SIGNING_DISTRIBUTION:
+        profile_kind = "App Store"
+    else:
+        profile_kind = "unknown-mode"
+    report_label = "Mac {} provisioning".format(profile_kind)
     path = profile_path(app)
     if path is None:
-        reporter.fail("Mac App Store provisioning", "missing embedded provisioning profile")
+        if signing_mode_value == SIGNING_DEVELOPMENT:
+            reporter.pass_(
+                report_label,
+                "no embedded profile; valid for certificate-signed Mac Catalyst development archive",
+            )
+            return
+        reporter.fail(report_label, "missing embedded provisioning profile")
         return
     try:
         profile = inspector.profile(path)
     except InspectionError as error:
-        reporter.fail("Mac App Store provisioning", str(error))
+        reporter.fail(report_label, str(error))
         return
     entitlements = profile.get("Entitlements")
     if not isinstance(entitlements, dict):
-        reporter.fail("Mac App Store provisioning", "profile Entitlements dictionary is missing")
+        reporter.fail(report_label, "profile Entitlements dictionary is missing")
         return
     expected_identifier = "{}.{}".format(EXPECTED_TEAM, EXPECTED_BUNDLE_ID)
     issues = []
-    if debug_entitlement(entitlements) is not False:
-        issues.append("profile get-task-allow is not false")
-    if entitlements.get("beta-reports-active") is not True:
-        issues.append("beta-reports-active is not true")
+    provisioned_devices = profile.get("ProvisionedDevices")
+    if signing_mode_value == SIGNING_DEVELOPMENT:
+        if debug_entitlement(entitlements) is not True:
+            issues.append("profile get-task-allow is not true for development signing")
+        if not isinstance(provisioned_devices, list) or not provisioned_devices:
+            issues.append("ProvisionedDevices is missing or empty for development signing")
+        if entitlements.get("beta-reports-active") is True:
+            issues.append("beta-reports-active is true on a development profile")
+    elif signing_mode_value == SIGNING_DISTRIBUTION:
+        if debug_entitlement(entitlements) is not False:
+            issues.append("profile get-task-allow is not false")
+        if entitlements.get("beta-reports-active") is not True:
+            issues.append("beta-reports-active is not true")
+        if "ProvisionedDevices" in profile:
+            issues.append("ProvisionedDevices is present (development/ad-hoc profile)")
+    else:
+        issues.append("unable to determine development or distribution signing mode")
     if application_identifier(entitlements) != expected_identifier:
         issues.append("application identifier expected {}, observed {!r}".format(expected_identifier, application_identifier(entitlements)))
-    if "ProvisionedDevices" in profile:
-        issues.append("ProvisionedDevices is present")
+    if entitlements.get("com.apple.developer.team-identifier") != EXPECTED_TEAM:
+        issues.append("profile team entitlement expected {}, observed {!r}".format(EXPECTED_TEAM, entitlements.get("com.apple.developer.team-identifier")))
     if profile.get("ProvisionsAllDevices") is True:
-        issues.append("ProvisionsAllDevices is true")
+        issues.append("ProvisionsAllDevices is true (enterprise profile)")
     teams = profile.get("TeamIdentifier")
-    if not isinstance(teams, list) or EXPECTED_TEAM not in teams:
-        issues.append("TeamIdentifier does not include {}".format(EXPECTED_TEAM))
+    if not isinstance(teams, list) or teams != [EXPECTED_TEAM]:
+        issues.append("TeamIdentifier expected [{}], observed {!r}".format(EXPECTED_TEAM, teams))
     expiration = profile.get("ExpirationDate")
     if not isinstance(expiration, dt.datetime):
         issues.append("ExpirationDate is missing or invalid")
@@ -349,9 +488,17 @@ def check_profile(app, inspector, reporter):
         if expiration <= now:
             issues.append("profile expired at {}".format(expiration.isoformat()))
     if issues:
-        reporter.fail("Mac App Store provisioning", "; ".join(issues))
+        reporter.fail(report_label, "; ".join(issues))
     else:
-        reporter.pass_("Mac App Store provisioning", "{}; expires={}".format(profile.get("Name", "unnamed profile"), expiration.isoformat()))
+        reporter.pass_(
+            report_label,
+            "{}; mode={}; UUID={}; expires={}".format(
+                profile.get("Name", "unnamed profile"),
+                signing_mode_value,
+                profile.get("UUID", "missing"),
+                expiration.isoformat(),
+            ),
+        )
 
 
 def find_dsym(archive, reporter):
@@ -398,6 +545,7 @@ def check_uuid_coverage(executable, dsym, inspector, reporter):
 def verify_archive(archive, inspector, emit=True):
     reporter = Reporter(emit=emit)
     archive = archive.resolve()
+    archive_signing_mode = ""
     reporter.expect(archive.name.endswith(".xcarchive"), "Mac archive suffix", archive.name, "expected a .xcarchive directory")
     reporter.expect(archive.is_dir(), "Mac archive directory", str(archive), "path does not exist: {}".format(archive))
     if not archive.is_dir():
@@ -423,7 +571,19 @@ def verify_archive(archive, inspector, emit=True):
             reporter.expect(str(properties.get("CFBundleShortVersionString", "")) == EXPECTED_VERSION, "Mac archive version metadata", EXPECTED_VERSION, "unexpected version {!r}".format(properties.get("CFBundleShortVersionString")))
             reporter.expect(str(properties.get("CFBundleVersion", "")) == EXPECTED_BUILD, "Mac archive build metadata", EXPECTED_BUILD, "unexpected build {!r}".format(properties.get("CFBundleVersion")))
             identity = str(properties.get("SigningIdentity", ""))
-            reporter.expect(distribution_authority(identity), "Mac archive signing identity", identity, "expected Apple Distribution/Mac App Store identity, observed {!r}".format(identity))
+            archive_signing_mode = signing_mode(identity)
+            reporter.expect(
+                archive_signing_mode in TRUSTED_SIGNING_MODES,
+                "Mac archive signing identity",
+                "{}; pre-export mode={}".format(identity, archive_signing_mode),
+                "expected trusted Apple Development or Apple Distribution, observed {!r}".format(identity),
+            )
+            reporter.expect(
+                properties.get("Team") == EXPECTED_TEAM,
+                "Mac archive signing team",
+                EXPECTED_TEAM,
+                "expected {}, observed {!r}".format(EXPECTED_TEAM, properties.get("Team")),
+            )
 
     info = load_plist(contents / "Info.plist", "Mac Info.plist", reporter)
     if info:
@@ -436,6 +596,16 @@ def verify_archive(archive, inspector, emit=True):
         reporter.expect(isinstance(supported, list) and "MacOSX" in supported, "Mac supported platform", "MacOSX", "CFBundleSupportedPlatforms must include MacOSX")
         reporter.expect(str(info.get("LSMinimumSystemVersion", "")) == EXPECTED_MINIMUM_SYSTEM, "Mac minimum system version", EXPECTED_MINIMUM_SYSTEM, "expected {}, observed {!r}".format(EXPECTED_MINIMUM_SYSTEM, info.get("LSMinimumSystemVersion")))
         reporter.expect(info.get("ITSAppUsesNonExemptEncryption") is False, "Mac export encryption declaration", "false", "must be explicitly false")
+        source_commit = info.get(SOURCE_COMMIT_KEY)
+        reporter.expect(
+            valid_source_commit(source_commit),
+            "Mac signed source commit provenance",
+            "{}={}".format(SOURCE_COMMIT_KEY, source_commit),
+            "{} must be a full lowercase 40-hex Git commit, observed {!r}".format(
+                SOURCE_COMMIT_KEY,
+                source_commit,
+            ),
+        )
 
     reporter.expect(not (app / "Watch").exists() and not (contents / "Watch").exists(), "Mac archive excludes Watch bundle", "no embedded Watch app", "Mac Catalyst archive must not embed an iOS Watch companion")
     resources = contents / "Resources"
@@ -444,9 +614,15 @@ def verify_archive(archive, inspector, emit=True):
         check_hash("Mac privacy manifest SHA", resources / "PrivacyInfo.xcprivacy", SOURCE_PRIVACY, reporter)
     check_hash("Mac bundled opportunities SHA", resources / "opportunities.json", SOURCE_OPPORTUNITIES, reporter)
 
-    check_signature(app, inspector, reporter)
-    check_entitlements(app, inspector, reporter)
-    check_profile(app, inspector, reporter)
+    observed_signing_mode = check_signature(
+        app,
+        inspector,
+        reporter,
+        expected_signing_mode=archive_signing_mode,
+    )
+    verification_mode = archive_signing_mode or observed_signing_mode
+    check_entitlements(app, verification_mode, inspector, reporter)
+    check_profile(app, verification_mode, inspector, reporter)
     if info:
         executable_name = info.get("CFBundleExecutable")
         if not isinstance(executable_name, str) or not executable_name:
@@ -463,8 +639,8 @@ def write_plist(path, value):
         plistlib.dump(value, stream, fmt=plistlib.FMT_XML, sort_keys=True)
 
 
-def build_fixture(base):
-    archive = base / "MacFixture.xcarchive"
+def build_fixture(base, signing_mode=SIGNING_DISTRIBUTION, name="MacFixture.xcarchive"):
+    archive = base / name
     app = archive / "Products" / "Applications" / "GTAFreeSTEM.app"
     contents = app / "Contents"
     resources = contents / "Resources"
@@ -476,7 +652,10 @@ def build_fixture(base):
             "CFBundleIdentifier": EXPECTED_BUNDLE_ID,
             "CFBundleShortVersionString": EXPECTED_VERSION,
             "CFBundleVersion": EXPECTED_BUILD,
-            "SigningIdentity": "Apple Distribution: Fixture ({})".format(EXPECTED_TEAM),
+            "SigningIdentity": "Apple {}: Fixture ({})".format(
+                "Development" if signing_mode == SIGNING_DEVELOPMENT else "Distribution",
+                EXPECTED_TEAM,
+            ),
             "Team": EXPECTED_TEAM,
         },
     })
@@ -488,6 +667,7 @@ def build_fixture(base):
         "CFBundleVersion": EXPECTED_BUILD,
         "CFBundleSupportedPlatforms": ["MacOSX"],
         "DTPlatformName": "macosx",
+        SOURCE_COMMIT_KEY: FIXTURE_SOURCE_COMMIT,
         "ITSAppUsesNonExemptEncryption": False,
         "LSMinimumSystemVersion": EXPECTED_MINIMUM_SYSTEM,
     })
@@ -495,7 +675,8 @@ def build_fixture(base):
     shutil.copyfile(SOURCE_OPPORTUNITIES, resources / "opportunities.json")
     (contents / "MacOS").mkdir(parents=True)
     (contents / "MacOS" / "GTAFreeSTEM").write_bytes(b"fixture-mac-mach-o")
-    (contents / "embedded.provisionprofile").write_bytes(b"fixture-profile")
+    if signing_mode == SIGNING_DISTRIBUTION:
+        (contents / "embedded.provisionprofile").write_bytes(b"fixture-profile")
     write_plist(
         archive / "dSYMs" / "GTAFreeSTEM.app.dSYM" / "Contents" / "Info.plist",
         {"CFBundleIdentifier": "com.apple.xcode.dsym.{}".format(EXPECTED_BUNDLE_ID)},
@@ -515,8 +696,85 @@ def run_self_test():
                 print(failure, file=sys.stderr)
             return 1
 
+        development_archive = build_fixture(
+            Path(temporary),
+            signing_mode=SIGNING_DEVELOPMENT,
+            name="MacDevelopmentFixture.xcarchive",
+        )
+        development_signed = verify_archive(
+            development_archive,
+            FixtureInspector(signing_mode=SIGNING_DEVELOPMENT),
+            emit=False,
+        )
+        if development_signed.failures:
+            print("Mac archive verifier self-test failed: valid development-signed fixture was rejected.", file=sys.stderr)
+            for failure in development_signed.failures:
+                print(failure, file=sys.stderr)
+            return 1
+
+        development_with_debug_entitlement = verify_archive(
+            development_archive,
+            FixtureInspector(
+                signing_mode=SIGNING_DEVELOPMENT,
+                get_task_allow_override=True,
+            ),
+            emit=False,
+        )
+        if development_with_debug_entitlement.failures:
+            print(
+                "Mac archive verifier self-test failed: valid development get-task-allow entitlement was rejected.",
+                file=sys.stderr,
+            )
+            for failure in development_with_debug_entitlement.failures:
+                print(failure, file=sys.stderr)
+            return 1
+
+        distribution_with_debug_entitlement = verify_archive(
+            archive,
+            FixtureInspector(
+                signing_mode=SIGNING_DISTRIBUTION,
+                get_task_allow_override=True,
+            ),
+            emit=False,
+        )
+        if not any(
+            line.startswith("FAIL Mac get-task-allow")
+            for line in distribution_with_debug_entitlement.failures
+        ):
+            print(
+                "Mac archive verifier self-test failed: distribution get-task-allow entitlement was not rejected.",
+                file=sys.stderr,
+            )
+            return 1
+
         info_path = archive / "Products" / "Applications" / "GTAFreeSTEM.app" / "Contents" / "Info.plist"
         info = read_plist(info_path)
+
+        del info[SOURCE_COMMIT_KEY]
+        write_plist(info_path, info)
+        missing_source_commit = verify_archive(archive, FixtureInspector(), emit=False)
+        if not any(
+            line.startswith("FAIL Mac signed source commit provenance")
+            and "observed None" in line
+            for line in missing_source_commit.failures
+        ):
+            print("Mac archive verifier self-test failed: missing source commit was not rejected.", file=sys.stderr)
+            return 1
+
+        info[SOURCE_COMMIT_KEY] = FIXTURE_SOURCE_COMMIT.upper()
+        write_plist(info_path, info)
+        malformed_source_commit = verify_archive(archive, FixtureInspector(), emit=False)
+        if not any(
+            line.startswith("FAIL Mac signed source commit provenance")
+            and "lowercase 40-hex" in line
+            for line in malformed_source_commit.failures
+        ):
+            print("Mac archive verifier self-test failed: malformed source commit was not rejected.", file=sys.stderr)
+            return 1
+
+        info[SOURCE_COMMIT_KEY] = FIXTURE_SOURCE_COMMIT
+        write_plist(info_path, info)
+
         info["CFBundleVersion"] = "999"
         write_plist(info_path, info)
         stale_build = verify_archive(archive, FixtureInspector(), emit=False)
@@ -526,6 +784,26 @@ def run_self_test():
         info["CFBundleVersion"] = EXPECTED_BUILD
         write_plist(info_path, info)
 
+        info["CFBundleIdentifier"] = "com.example.wrong"
+        write_plist(info_path, info)
+        wrong_bundle = verify_archive(archive, FixtureInspector(), emit=False)
+        if not any(line.startswith("FAIL Mac bundle identifier") for line in wrong_bundle.failures):
+            print("Mac archive verifier self-test failed: wrong Mac Catalyst bundle ID was not rejected.", file=sys.stderr)
+            return 1
+        info["CFBundleIdentifier"] = EXPECTED_BUNDLE_ID
+        write_plist(info_path, info)
+
+        archive_info_path = archive / "Info.plist"
+        archive_info = read_plist(archive_info_path)
+        archive_info["ApplicationProperties"]["Team"] = "WRONGTEAM1"
+        write_plist(archive_info_path, archive_info)
+        wrong_archive_team = verify_archive(archive, FixtureInspector(), emit=False)
+        if not any(line.startswith("FAIL Mac archive signing team") for line in wrong_archive_team.failures):
+            print("Mac archive verifier self-test failed: wrong archive team was not rejected.", file=sys.stderr)
+            return 1
+        archive_info["ApplicationProperties"]["Team"] = EXPECTED_TEAM
+        write_plist(archive_info_path, archive_info)
+
         feed_path = archive / "Products" / "Applications" / "GTAFreeSTEM.app" / "Contents" / "Resources" / "opportunities.json"
         feed_path.write_bytes(feed_path.read_bytes() + b"\n")
         stale_feed = verify_archive(archive, FixtureInspector(), emit=False)
@@ -534,13 +812,116 @@ def run_self_test():
             return 1
         shutil.copyfile(SOURCE_OPPORTUNITIES, feed_path)
 
+        wildcard_profile = verify_archive(
+            archive,
+            FixtureInspector(profile_identifier="{}.*".format(EXPECTED_TEAM)),
+            emit=False,
+        )
+        if not any(
+            line.startswith("FAIL Mac App Store provisioning")
+            and "application identifier expected" in line
+            for line in wildcard_profile.failures
+        ):
+            print("Mac archive verifier self-test failed: wildcard profile was not rejected.", file=sys.stderr)
+            return 1
+
+        wrong_signed_identifier = verify_archive(
+            archive,
+            FixtureInspector(signed_identifier="{}.com.example.wrong".format(EXPECTED_TEAM)),
+            emit=False,
+        )
+        if not any(
+            line.startswith("FAIL Mac application identifier entitlement")
+            for line in wrong_signed_identifier.failures
+        ):
+            print("Mac archive verifier self-test failed: wrong signed application identifier was not rejected.", file=sys.stderr)
+            return 1
+
+        wrong_profile_team = verify_archive(
+            archive,
+            FixtureInspector(profile_team_identifiers=[EXPECTED_TEAM, "WRONGTEAM1"]),
+            emit=False,
+        )
+        if not any(
+            line.startswith("FAIL Mac App Store provisioning")
+            and "TeamIdentifier expected" in line
+            for line in wrong_profile_team.failures
+        ):
+            print("Mac archive verifier self-test failed: non-exact profile team was not rejected.", file=sys.stderr)
+            return 1
+
+        expired_profile = verify_archive(
+            archive,
+            FixtureInspector(profile_expiration=dt.datetime(2000, 1, 1)),
+            emit=False,
+        )
+        if not any(
+            line.startswith("FAIL Mac App Store provisioning")
+            and "profile expired" in line
+            for line in expired_profile.failures
+        ):
+            print("Mac archive verifier self-test failed: expired profile was not rejected.", file=sys.stderr)
+            return 1
+
+        enterprise_profile = verify_archive(
+            archive,
+            FixtureInspector(provisions_all_devices=True),
+            emit=False,
+        )
+        if not any(
+            line.startswith("FAIL Mac App Store provisioning")
+            and "enterprise profile" in line
+            for line in enterprise_profile.failures
+        ):
+            print("Mac archive verifier self-test failed: enterprise profile was not rejected.", file=sys.stderr)
+            return 1
+
+        distribution_profile_path = (
+            archive
+            / "Products"
+            / "Applications"
+            / "GTAFreeSTEM.app"
+            / "Contents"
+            / "embedded.provisionprofile"
+        )
+        distribution_profile_path.unlink()
+        missing_distribution_profile = verify_archive(archive, FixtureInspector(), emit=False)
+        if not any(
+            line.startswith("FAIL Mac App Store provisioning")
+            and "missing embedded provisioning profile" in line
+            for line in missing_distribution_profile.failures
+        ):
+            print("Mac archive verifier self-test failed: missing distribution profile was not rejected.", file=sys.stderr)
+            return 1
+        distribution_profile_path.write_bytes(b"fixture-profile")
+
+        ad_hoc = verify_archive(archive, FixtureInspector(ad_hoc=True), emit=False)
+        if not any(
+            line.startswith("FAIL Mac code signature") and "ad-hoc" in line
+            for line in ad_hoc.failures
+        ):
+            print("Mac archive verifier self-test failed: ad-hoc signature was not rejected.", file=sys.stderr)
+            return 1
+
+        bad_dsym = verify_archive(archive, FixtureInspector(bad_dsym=True), emit=False)
+        if not any(
+            line.startswith("FAIL Mac executable/dSYM UUID coverage")
+            for line in bad_dsym.failures
+        ):
+            print("Mac archive verifier self-test failed: mismatched dSYM was not rejected.", file=sys.stderr)
+            return 1
+
         unsafe = verify_archive(archive, FixtureInspector(broken_security=True), emit=False)
         for prefix in ["FAIL Mac code signature", "FAIL Mac get-task-allow", "FAIL Mac App Sandbox", "FAIL Mac App Store provisioning"]:
             if not any(line.startswith(prefix) for line in unsafe.failures):
                 print("Mac archive verifier self-test failed: missing rejection {}.".format(prefix), file=sys.stderr)
                 return 1
 
-    print("Mac archive verifier self-test passed (valid fixture plus stale-build, stale-feed, and signing failures).")
+    print(
+        "Mac archive verifier self-test passed "
+        "(development/distribution fixtures plus source-commit, stale-content, identifier/team/expiry, "
+        "ad-hoc/enterprise, dSYM, and security failures)."
+    )
     return 0
 
 

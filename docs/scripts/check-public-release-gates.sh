@@ -8,7 +8,9 @@ RUN_RELEASE_AUDIT="${RUN_RELEASE_AUDIT:-1}"
 SIGNOFF_PATH="${SIGNOFF_PATH:-docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md}"
 EXPECTED_BUILD="1.0 (12)"
 IOS_ARCHIVE_PATH="${IOS_ARCHIVE_PATH:-}"
+IOS_IPA_PATH="${IOS_IPA_PATH:-}"
 MAC_ARCHIVE_PATH="${MAC_ARCHIVE_PATH:-}"
+MAC_PKG_PATH="${MAC_PKG_PATH:-}"
 # The metadata fixture suite sets this together with RUN_RELEASE_AUDIT=0. It is
 # never a valid public-release signoff mode.
 PUBLIC_GATE_TEST_FIXTURE_ONLY="${PUBLIC_GATE_TEST_FIXTURE_ONLY:-0}"
@@ -16,34 +18,49 @@ PUBLIC_GATE_TEST_FIXTURE_ONLY="${PUBLIC_GATE_TEST_FIXTURE_ONLY:-0}"
 # platforms are actually being enabled for public distribution.
 PUBLIC_RELEASE_PLATFORMS="${PUBLIC_RELEASE_PLATFORMS:-}"
 
+NORMALIZED_PUBLIC_PLATFORMS="$(printf '%s' "$PUBLIC_RELEASE_PLATFORMS" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+MAC_SELECTED=0
+case ",$NORMALIZED_PUBLIC_PLATFORMS," in
+  *,mac,*|*,maccatalyst,*) MAC_SELECTED=1 ;;
+esac
+
+if [ -z "$IOS_ARCHIVE_PATH" ]; then
+  echo "IOS_ARCHIVE_PATH is required for public App Store signoff and must point to the signed pre-export .xcarchive."
+  exit 1
+fi
+if [ -z "$IOS_IPA_PATH" ]; then
+  echo "IOS_IPA_PATH is required for public App Store signoff and must point to the distribution-signed IPA exported from IOS_ARCHIVE_PATH."
+  exit 1
+fi
+if [ "$MAC_SELECTED" = "1" ] && [ -z "$MAC_ARCHIVE_PATH" ]; then
+  echo "MAC_ARCHIVE_PATH is required when mac is selected and must point to the signed Mac Catalyst .xcarchive."
+  exit 1
+fi
+if [ "$MAC_SELECTED" = "1" ] && [ -z "$MAC_PKG_PATH" ]; then
+  echo "MAC_PKG_PATH is required when mac is selected and must point to the exported Mac App Store .pkg."
+  exit 1
+fi
+
 if [ "$PUBLIC_GATE_TEST_FIXTURE_ONLY" = "1" ]; then
   if [ "$RUN_RELEASE_AUDIT" != "0" ]; then
     echo "PUBLIC_GATE_TEST_FIXTURE_ONLY=1 requires RUN_RELEASE_AUDIT=0 and cannot be used for release signoff."
     exit 1
   fi
-  echo "Skipping signed archive verification in explicit metadata-fixture mode."
+  echo "Skipping binary signing verification in explicit metadata-fixture mode; evidence binding remains active."
 else
-  NORMALIZED_PUBLIC_PLATFORMS="$(printf '%s' "$PUBLIC_RELEASE_PLATFORMS" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
-  MAC_SELECTED=0
-  case ",$NORMALIZED_PUBLIC_PLATFORMS," in
-    *,mac,*|*,maccatalyst,*) MAC_SELECTED=1 ;;
-  esac
-
-  if [ -z "$IOS_ARCHIVE_PATH" ]; then
-    echo "IOS_ARCHIVE_PATH is required for public App Store signoff and must point to the signed .xcarchive."
-    exit 1
-  fi
-  if [ "$MAC_SELECTED" = "1" ] && [ -z "$MAC_ARCHIVE_PATH" ]; then
-    echo "MAC_ARCHIVE_PATH is required when mac is selected and must point to the signed Mac Catalyst .xcarchive."
-    exit 1
-  fi
   echo
-  echo "=== Strict iOS/iPadOS/watchOS App Store archive verification ==="
+  echo "=== Strict iOS/iPadOS/watchOS pre-export archive verification ==="
   bash docs/scripts/verify-app-store-archive.sh "$IOS_ARCHIVE_PATH"
+  echo
+  echo "=== Strict exported iOS/iPadOS/watchOS App Store IPA verification ==="
+  bash docs/scripts/verify-app-store-ipa.sh "$IOS_IPA_PATH" "$IOS_ARCHIVE_PATH"
   if [ "$MAC_SELECTED" = "1" ]; then
     echo
     echo "=== Strict Mac Catalyst App Store archive verification ==="
     bash docs/scripts/verify-mac-app-store-archive.sh "$MAC_ARCHIVE_PATH"
+    echo
+    echo "=== Strict exported Mac Catalyst App Store package verification ==="
+    bash docs/scripts/verify-mac-app-store-pkg.sh "$MAC_PKG_PATH" "$MAC_ARCHIVE_PATH"
   fi
 fi
 
@@ -51,14 +68,33 @@ if [ "$RUN_RELEASE_AUDIT" != "0" ]; then
   STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh
 fi
 
-/usr/bin/python3 - "$SIGNOFF_PATH" "$EXPECTED_BUILD" "$PUBLIC_RELEASE_PLATFORMS" <<'PY'
+/usr/bin/python3 - \
+  "$SIGNOFF_PATH" \
+  "$EXPECTED_BUILD" \
+  "$PUBLIC_RELEASE_PLATFORMS" \
+  "$IOS_ARCHIVE_PATH" \
+  "$IOS_IPA_PATH" \
+  "$MAC_ARCHIVE_PATH" \
+  "$MAC_PKG_PATH" \
+  "$PUBLIC_GATE_TEST_FIXTURE_ONLY" <<'PY'
+import datetime as dt
+import hashlib
+import os
+import plistlib
 import re
+import stat
+import subprocess
 import sys
 from pathlib import Path
 
 path = Path(sys.argv[1])
 expected_build = sys.argv[2]
 configured_platforms_raw = sys.argv[3]
+ios_archive_argument = sys.argv[4]
+ios_ipa_argument = sys.argv[5]
+mac_archive_argument = sys.argv[6]
+mac_pkg_argument = sys.argv[7]
+fixture_only = sys.argv[8] == "1"
 if not path.exists():
     raise SystemExit(f"Missing {path}")
 text = path.read_text(encoding="utf-8")
@@ -78,6 +114,67 @@ def is_pending(value):
         "", "pending", "pending upload", "not uploaded", "not submitted",
         "no", "not yet", "todo", "tbd", "n/a", "na",
     } or normalized.startswith(("include ", "record ", "enter ", "confirm "))
+
+
+def run(command):
+    return subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+
+
+def file_sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def tree_sha256(path):
+    """Hash a directory's names, types, modes, links, and file bytes deterministically."""
+    digest = hashlib.sha256()
+    digest.update(b"GTA-FREE-STEM-RELEASE-TREE-SHA256-v1\0")
+    for candidate in sorted(path.rglob("*"), key=lambda item: item.relative_to(path).as_posix()):
+        relative = candidate.relative_to(path).as_posix().encode("utf-8")
+        metadata = candidate.lstat()
+        mode = stat.S_IMODE(metadata.st_mode)
+        if stat.S_ISLNK(metadata.st_mode):
+            digest.update(b"L\0" + relative + b"\0" + oct(mode).encode("ascii") + b"\0")
+            digest.update(os.readlink(candidate).encode("utf-8") + b"\0")
+        elif stat.S_ISDIR(metadata.st_mode):
+            digest.update(b"D\0" + relative + b"\0" + oct(mode).encode("ascii") + b"\0")
+        elif stat.S_ISREG(metadata.st_mode):
+            digest.update(b"F\0" + relative + b"\0" + oct(mode).encode("ascii") + b"\0")
+            digest.update(str(metadata.st_size).encode("ascii") + b"\0")
+            with candidate.open("rb") as stream:
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            digest.update(b"\0")
+        else:
+            digest.update(b"O\0" + relative + b"\0" + oct(mode).encode("ascii") + b"\0")
+    return digest.hexdigest()
+
+
+def resolve_artifact(argument, label, expected_kind, problems):
+    raw = Path(os.path.expanduser(argument))
+    if not raw.is_absolute():
+        problems.append(f"{label}: gate input must be an absolute path")
+    try:
+        resolved = raw.resolve(strict=True)
+    except (OSError, RuntimeError) as error:
+        problems.append(f"{label}: unable to resolve artifact: {error}")
+        return None
+    if expected_kind == "directory" and not resolved.is_dir():
+        problems.append(f"{label}: expected a directory, observed {resolved}")
+        return None
+    if expected_kind == "file" and not resolved.is_file():
+        problems.append(f"{label}: expected a file, observed {resolved}")
+        return None
+    return resolved
 
 PLATFORM_ORDER = ("iphone", "ipad", "watch", "mac")
 PLATFORM_LABELS = {
@@ -147,11 +244,204 @@ def table_rows(section, expected_columns, header):
 
 
 not_ready = []
+recorded_commit = field_value("Published commit").lower()
+if not re.fullmatch(r"[0-9a-f]{40}", recorded_commit):
+    not_ready.append("Published commit: record the full 40-character published source commit")
+
 selected_platforms, platform_errors = parse_platforms(
     configured_platforms_raw,
     "PUBLIC_RELEASE_PLATFORMS",
 )
 not_ready.extend(platform_errors)
+
+ios_archive_path = resolve_artifact(
+    ios_archive_argument,
+    "iOS archive path",
+    "directory",
+    not_ready,
+)
+ios_ipa_path = resolve_artifact(
+    ios_ipa_argument,
+    "iOS IPA path",
+    "file",
+    not_ready,
+)
+mac_archive_path = None
+mac_pkg_path = None
+if "mac" in selected_platforms:
+    mac_archive_path = resolve_artifact(
+        mac_archive_argument,
+        "Mac archive path",
+        "directory",
+        not_ready,
+    )
+    mac_pkg_path = resolve_artifact(
+        mac_pkg_argument,
+        "Mac package path",
+        "file",
+        not_ready,
+    )
+
+artifact_evidence = {}
+for label, artifact, hasher in [
+    ("iOS archive", ios_archive_path, tree_sha256),
+    ("iOS IPA", ios_ipa_path, file_sha256),
+    ("Mac archive", mac_archive_path, tree_sha256),
+    ("Mac package", mac_pkg_path, file_sha256),
+]:
+    if artifact is None:
+        continue
+    try:
+        artifact_evidence[label] = {
+            "path": str(artifact),
+            "sha256": hasher(artifact),
+        }
+    except (OSError, RuntimeError) as error:
+        not_ready.append(f"{label}: unable to hash exact artifact: {error}")
+
+
+def archive_source_commit(archive, relative_info_path, label):
+    info_path = archive / relative_info_path
+    try:
+        with info_path.open("rb") as stream:
+            info = plistlib.load(stream)
+    except (OSError, plistlib.InvalidFileException) as error:
+        not_ready.append(f"{label} source commit: unable to read signed Info.plist: {error}")
+        return ""
+    value = info.get("GTAReleaseSourceCommit") if isinstance(info, dict) else None
+    if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{40}", value):
+        not_ready.append(
+            f"{label} source commit: signed artifact must embed a full lowercase 40-character commit"
+        )
+        return ""
+    return value
+
+
+if fixture_only:
+    fixture_artifact_commit = os.environ.get(
+        "PUBLIC_GATE_TEST_ARTIFACT_SOURCE_COMMIT",
+        recorded_commit,
+    ).lower()
+    artifact_source_commits = {"iOS archive": fixture_artifact_commit}
+    if "mac" in selected_platforms:
+        artifact_source_commits["Mac archive"] = fixture_artifact_commit
+else:
+    artifact_source_commits = {}
+    if ios_archive_path is not None:
+        artifact_source_commits["iOS archive"] = archive_source_commit(
+            ios_archive_path,
+            Path("Products/Applications/GTAFreeSTEM.app/Info.plist"),
+            "iOS archive",
+        )
+    if mac_archive_path is not None:
+        artifact_source_commits["Mac archive"] = archive_source_commit(
+            mac_archive_path,
+            Path("Products/Applications/GTAFreeSTEM.app/Contents/Info.plist"),
+            "Mac archive",
+        )
+
+for artifact_label, artifact_commit in artifact_source_commits.items():
+    if artifact_commit and artifact_commit != recorded_commit:
+        not_ready.append(
+            f"{artifact_label} source commit: signed artifact embeds {artifact_commit}, "
+            f"but signoff records {recorded_commit or 'blank'}"
+        )
+
+source_paths = [
+    "GTAFreeSTEM",
+    "GTAFreeSTEMWatch",
+    "GTAFreeSTEM.xcodeproj",
+    "project.yml",
+]
+if fixture_only:
+    live_main_commit = os.environ.get("PUBLIC_GATE_TEST_LIVE_MAIN_COMMIT", "c" * 40).lower()
+    verification_date = os.environ.get("PUBLIC_GATE_TEST_TODAY", "2026-08-06")
+    recorded_reachable_from_live = (
+        os.environ.get("PUBLIC_GATE_TEST_RECORDED_REACHABLE_FROM_LIVE", "1") == "1"
+    )
+    recorded_matches_live_source = (
+        os.environ.get("PUBLIC_GATE_TEST_RECORDED_MATCHES_LIVE_SOURCE", "1") == "1"
+    )
+    local_matches_recorded_source = (
+        os.environ.get("PUBLIC_GATE_TEST_LOCAL_MATCHES_RECORDED_SOURCE", "1") == "1"
+    )
+else:
+    remote_result = run(["git", "ls-remote", "--exit-code", "origin", "refs/heads/main"])
+    remote_tokens = remote_result.stdout.strip().split()
+    live_main_commit = remote_tokens[0].lower() if remote_result.returncode == 0 and remote_tokens else ""
+    if not re.fullmatch(r"[0-9a-f]{40}", live_main_commit):
+        detail = (remote_result.stderr or remote_result.stdout).strip()
+        not_ready.append(
+            "Published source: unable to verify live origin/main{}".format(
+                ": " + detail if detail else ""
+            )
+        )
+
+    recorded_reachable_from_live = None
+    recorded_matches_live_source = None
+    local_matches_recorded_source = None
+    live_main_available = False
+    recorded_commit_available = False
+
+    if re.fullmatch(r"[0-9a-f]{40}", live_main_commit):
+        live_object_check = run(["git", "cat-file", "-e", live_main_commit + "^{commit}"])
+        live_main_available = live_object_check.returncode == 0
+        if not live_main_available:
+            not_ready.append(
+                "Published source: origin/main commit is not available locally; fetch it before signoff"
+            )
+
+    if re.fullmatch(r"[0-9a-f]{40}", recorded_commit):
+        recorded_object_check = run(["git", "cat-file", "-e", recorded_commit + "^{commit}"])
+        recorded_commit_available = recorded_object_check.returncode == 0
+        if not recorded_commit_available:
+            not_ready.append(
+                "Published commit: recorded source commit is not available locally; fetch it before signoff"
+            )
+
+    if live_main_available and recorded_commit_available:
+        recorded_reachable_from_live = (
+            run(["git", "merge-base", "--is-ancestor", recorded_commit, live_main_commit]).returncode
+            == 0
+        )
+        recorded_matches_live_source = (
+            run(
+                ["git", "diff", "--quiet", recorded_commit, live_main_commit, "--"]
+                + source_paths
+            ).returncode
+            == 0
+        )
+        source_status = run(
+            ["git", "status", "--porcelain=v1", "--untracked-files=all", "--"]
+            + source_paths
+        )
+        local_source_diff = run(
+            ["git", "diff", "--quiet", recorded_commit, "--"] + source_paths
+        )
+        local_matches_recorded_source = (
+            source_status.returncode == 0
+            and not source_status.stdout.strip()
+            and local_source_diff.returncode == 0
+        )
+    verification_date = dt.date.today().isoformat()
+
+if recorded_reachable_from_live is False:
+    not_ready.append(
+        "Published commit: recorded source commit {} is not reachable from live origin/main {}".format(
+            recorded_commit or "blank",
+            live_main_commit or "unknown",
+        )
+    )
+if recorded_matches_live_source is False:
+    not_ready.append(
+        "Published source: recorded source commit app, Watch, and Xcode project inputs "
+        "must byte-match live origin/main"
+    )
+if local_matches_recorded_source is False:
+    not_ready.append(
+        "Published source: current local app, Watch, and Xcode project inputs must "
+        "byte-match the recorded published source commit"
+    )
 
 project_path = Path("project.yml")
 project_text = project_path.read_text(encoding="utf-8") if project_path.exists() else ""
@@ -203,9 +493,58 @@ for label, required in required_build_facts.items():
     if required not in value:
         not_ready.append(f"{label}: expected {required}, got {value or 'blank'}")
 
-delivery = field_value("Delivery UUID")
-if not re.fullmatch(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", delivery):
-    not_ready.append("Delivery UUID: real build-12 delivery UUID required")
+uuid_pattern = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+ios_delivery = field_value("iOS Delivery UUID")
+if not re.fullmatch(uuid_pattern, ios_delivery):
+    not_ready.append("iOS Delivery UUID: real build-12 Apple delivery UUID required")
+
+recorded_verification_date = field_value("Artifact verification date")
+if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", recorded_verification_date):
+    not_ready.append("Artifact verification date: use YYYY-MM-DD")
+elif recorded_verification_date != verification_date:
+    not_ready.append(
+        "Artifact verification date: exact artifacts were verified today ({}), recorded {}".format(
+            verification_date, recorded_verification_date
+        )
+    )
+
+
+def require_artifact_binding(evidence_name, field_prefix):
+    evidence = artifact_evidence.get(evidence_name)
+    recorded_path = field_value(field_prefix + " path")
+    recorded_hash = field_value(field_prefix + " SHA-256").lower()
+    if evidence is None:
+        return
+    if recorded_path != evidence["path"]:
+        not_ready.append(
+            "{} path: signoff must equal verified artifact {} (recorded {})".format(
+                field_prefix,
+                evidence["path"],
+                recorded_path or "blank",
+            )
+        )
+    if not re.fullmatch(r"[0-9a-f]{64}", recorded_hash):
+        not_ready.append("{} SHA-256: record the full lowercase digest".format(field_prefix))
+    elif recorded_hash != evidence["sha256"]:
+        not_ready.append(
+            "{} SHA-256: verified {} but signoff records {}".format(
+                field_prefix,
+                evidence["sha256"],
+                recorded_hash,
+            )
+        )
+
+
+require_artifact_binding("iOS archive", "iOS archive")
+require_artifact_binding("iOS IPA", "iOS IPA")
+if "mac" in selected_platforms:
+    require_artifact_binding("Mac archive", "Mac archive")
+    require_artifact_binding("Mac package", "Mac package")
+    mac_delivery = field_value("Mac Delivery UUID")
+    if not re.fullmatch(uuid_pattern, mac_delivery):
+        not_ready.append("Mac Delivery UUID: separate real Apple delivery UUID required")
+    elif mac_delivery.lower() == ios_delivery.lower():
+        not_ready.append("Mac Delivery UUID: must be separate from the iOS delivery UUID")
 
 for label in [
     "Tester", "Date", "Install source",
