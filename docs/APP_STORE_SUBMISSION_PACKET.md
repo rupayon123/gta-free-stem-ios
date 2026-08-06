@@ -14,10 +14,10 @@ Use this packet to prepare App Store Connect for GTA FREE STEM build 1.0 (12). I
 - Watch bundle ID: \`com.rupayonhaldar.gtafreestem.watchkitapp\`
 - Version: \`1.0\`
 - Build: \`12\`
-- iOS archive status: \`Fresh development-signed export-source archive created; 49/49 verifier checks pass\`
-- iOS IPA status: \`Safe no-upload Apple Distribution export created; 53/53 verifier checks pass\`
-- Mac archive status: \`Fresh development-signed export-source archive created; 35/35 verifier checks pass\`
-- Mac package status: \`Safe no-upload Mac App Store package created and signed\`
+- iOS archive status: \`Published-source development-signed export-source archive created; 52/52 verifier checks pass\`
+- iOS IPA status: \`Safe no-upload Apple Distribution export created; 62/62 verifier checks pass\`
+- Mac archive status: \`Published-source development-signed export-source archive created; 36/36 verifier checks pass\`
+- Mac package status: \`Safe no-upload Mac App Store package created and signed; 48/48 verifier checks pass\`
 - iOS Delivery UUID: \`Pending upload\`
 - Mac Delivery UUID: \`Pending upload unless the separate Mac product is selected\`
 - App Store Connect status: \`Not uploaded\`
@@ -28,13 +28,13 @@ Use this packet to prepare App Store Connect for GTA FREE STEM build 1.0 (12). I
 
 After Xcode uploads and App Store Connect processes the build, replace the pending fields with observed values. Do not upload until the release owner explicitly authorizes it; App Review is a separate, later decision.
 
-Local archive/export evidence is deliberately not upload evidence. The fresh iOS export-source archive is \`build/final-release-ios-20260806-r4-exact-dev.xcarchive\`. It is development-signed, which is normal before export, and passes 49/49 pre-export checks. Both the main app and Watch companion now use exact development provisioning identifiers.
+Local archive/export evidence is deliberately not upload evidence. The published-source iOS export-source archive is \`build/final-release-ios-20260806-r6-published-source.xcarchive\`. It embeds source commit \`42c138436ece43ecca120ff76edbf1c4f90b17ff\`, is development-signed, which is normal before export, and passes 52/52 pre-export checks. Both the main app and Watch companion use exact development provisioning identifiers.
 
-The safe no-upload distribution export is \`build/final-release-ios-20260806-r4-export/GTAFreeSTEM.ipa\` with SHA-256 \`97abd09803140cce746767acfaab157fc2f5aa42dd61cf189de58c1195319b68\`. It passes 53/53 strict IPA checks: both bundles are Apple Distribution signed, both App Store profiles use exact identifiers, \`get-task-allow=false\`, signing material is unexpired, and both executable UUID sets match the source archive. This resolves the former Watch provisioning concern at both archive and distributable stages, but neither artifact has been uploaded. Recreate and reverify them from the exact published commit before delivery.
+The unchanged safe no-upload distribution export is \`build/final-release-ios-20260806-r6-export/GTAFreeSTEM.ipa\` with SHA-256 \`8cf97134ce8985f1a9ca62c6dd52cb1680e876ca7a56eafe6ee31cdd901081eb\`. It passes 62/62 strict IPA checks: both bundles are Apple Distribution signed, both App Store profiles use exact identifiers, \`get-task-allow=false\`, signing material is unexpired, both executable UUID sets match the source archive, and the embedded source provenance matches the published commit. This resolves the former Watch provisioning concern at both archive and distributable stages, but neither artifact has been uploaded. Upload only this unchanged verified IPA after explicit authorization.
 
-The fresh Mac Catalyst export-source archive is \`build/final-release-mac-20260806/GTAFreeSTEM-Mac.xcarchive\`; its pre-export verifier passes 35/35 checks. The correctly signed no-upload Mac App Store package is \`build/final-release-mac-20260806-export/GTAFreeSTEM.pkg\`, SHA-256 \`47a448ec7dc88c531c7d3e78f5b49ebcf4a9bddbf9542eb06c1fe4f0c55a8515\`. Neither package has been uploaded, and there is no processed TestFlight build or delivery UUID.
+The published-source Mac Catalyst export-source archive is \`build/final-release-mac-20260806-r3-published-source.xcarchive\`; it embeds source commit \`42c138436ece43ecca120ff76edbf1c4f90b17ff\` and its pre-export verifier passes 36/36 checks. The correctly signed no-upload Mac App Store package is \`build/final-release-mac-20260806-r3-export/GTAFreeSTEM.pkg\`, SHA-256 \`b9afd175d605ea9ba588702d92df71a31044714cf893ad9633cff126f1320f34\`, and passes 48/48 strict package checks. Neither Mac artifact has been uploaded, and there is no processed TestFlight build or delivery UUID.
 
-The exact current source passed the full iPad Simulator suite, 108/108, in \`build/final-full-ipad-tests-20260806.log\`. Do not select the historical archives at \`build/Unsigned-iOS-build12.xcarchive\`, \`build/GTAFreeSTEM-1.0-12.xcarchive\`, or \`build/GTAFreeSTEM.xcarchive\`. They are not the current release candidate. The current signing-repair tree is not yet published to GitHub, and the exact final published commit must be the source of the upload archive.
+The published artifact source commit \`42c138436ece43ecca120ff76edbf1c4f90b17ff\` passed the fresh full iPad Simulator suite, 108/108 with zero failures, in \`build/DerivedData-final-tests-source-provenance-20260806/Logs/Test/Test-GTAFreeSTEM-2026.08.06_16-54-57--0400.xcresult\`. Do not select the historical archives at \`build/Unsigned-iOS-build12.xcarchive\`, \`build/GTAFreeSTEM-1.0-12.xcarchive\`, or \`build/GTAFreeSTEM.xcarchive\`. They are not the current release candidate. Source commit \`42c138436ece43ecca120ff76edbf1c4f90b17ff\` was published and merged through GitHub pull request #4; it is reachable from live \`origin/main\`, and the verified source inputs byte-match current main.
 
 ## Product Page Fields
 
@@ -151,8 +151,8 @@ Please test the discovery flow: keyword search; city, region, age, language, cat
 
 1. Confirm team \`FE33NM88XX\` remains active and that the Account Holder has accepted current agreements. The membership was verified active through June 10, 2027, so no additional Apple membership purchase is currently required.
 2. Choose the exact public platform selection (\`iphone\`, \`ipad\`, \`watch\`, \`mac\`) and record it in the signoff. Make and record the Mac App Store Connect decision only if \`mac\` is selected: the current Catalyst build uses \`com.rupayonhaldar.gtafreestem.maccatalyst\`. Retaining it requires a separate Mac app record, Mac App ID, SKU, and signed Mac upload. A universal iOS/macOS record instead requires changing the Catalyst bundle ID to \`com.rupayonhaldar.gtafreestem\`, confirming no separate live Mac product must retain the suffix, and adding macOS to Apple ID \`6779714459\`. The Watch companion is included with the iOS upload.
-3. Publish the final source tree, then create and verify fresh iOS and selected Mac archives from that exact GitHub commit. The explicit Watch distribution profile is now available; keep verifying its exact identifier in the exported IPA.
-4. Export with automatic App Store distribution signing, run the strict IPA verifier against the source archive, and verify the Mac package if Mac is selected. Upload only those unchanged verified deliverables, then wait for App Store Connect processing. Record real delivery UUIDs and processed builds only after Apple reports them.
+3. Confirm source commit \`42c138436ece43ecca120ff76edbf1c4f90b17ff\` remains reachable from live \`origin/main\`, then preserve the unchanged published-source artifacts recorded above. The explicit Watch distribution profile is present and its exact identifier has been verified in the exported IPA. Recreate and reverify the artifacts only if source, signing, or packaged bytes change.
+4. Upload only those unchanged verified deliverables after explicit authorization, then wait for App Store Connect processing. Record real delivery UUIDs and processed builds only after Apple reports them.
 5. Enter the product page, App Privacy, age rating, availability, and export-compliance information above.
 6. Add the release owner's chosen monitored public support email or telephone number, deploy the Support, Privacy, and Terms pages, confirm all three final HTTPS URLs in Safari, and verify that the public GitHub Issues route accepts a non-sensitive test ticket. Record the dated production truthfulness check in the signoff.
 7. Set Made for Kids to No, complete the age-rating questionnaire, and enter the App Review Information contact name, email, and phone in App Store Connect. Keep those private values out of this repository; record only the verification date in the signoff.
