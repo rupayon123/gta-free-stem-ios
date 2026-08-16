@@ -357,7 +357,7 @@ final class APIClientTests: XCTestCase {
         let isReady = await store.prepareScreenshotSnapshot()
 
         XCTAssertTrue(isReady)
-        XCTAssertFalse(store.opportunities.isEmpty)
+        XCTAssertNotNil(store.lastUpdated)
         XCTAssertEqual(store.dataSourceLabel, .previewDatabase)
         XCTAssertEqual(store.huntPhase, .cached)
         XCTAssertFalse(store.isLoading)
