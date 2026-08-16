@@ -21,9 +21,9 @@ There is no online account, Sign in with Apple flow, in-app feedback form, or op
 
 Primary live feed:
 
-\`\`\`text
+```text
 https://raw.githubusercontent.com/rupayon123/gta-free-stem-opportunities/main/public/opportunities.json
-\`\`\`
+```
 
 The app validates public feed responses, caps response/cache size, and opens from the latest valid on-device full feed or bundled snapshot before refreshing the public feed on each cold launch. If neither local source is usable, it waits for the live feed. Active foreground data is revalidated after 15 minutes. Every remote source, including the primary GitHub feed and jsDelivr CDN mirror, must declare data no more than 14 days old; otherwise it is rejected. Seen-listing history is pruned after 120 days and known IDs are capped to avoid unbounded local growth.
 
@@ -31,18 +31,18 @@ The native app does not crawl websites in the background. Feed collection, sourc
 
 ## Project Layout
 
-- \`GTAFreeSTEM/\` — iPhone, iPad, and Mac Catalyst app source.
-- \`GTAFreeSTEMWatch/\` — Watch companion, icon assets, and privacy manifest.
-- \`GTAFreeSTEMTests/\` — unit and release-configuration coverage.
-- \`project.yml\` — XcodeGen project definition.
-- \`docs/APP_STORE_SUBMISSION_PACKET.md\` — App Store Connect source of truth.
-- \`docs/PUBLIC_RELEASE_RUNBOOK.md\` — archive, TestFlight, and App Review handoff.
+- `GTAFreeSTEM/` — iPhone, iPad, and Mac Catalyst app source.
+- `GTAFreeSTEMWatch/` — Watch companion, icon assets, and privacy manifest.
+- `GTAFreeSTEMTests/` — unit and release-configuration coverage.
+- `project.yml` — XcodeGen project definition.
+- `docs/APP_STORE_SUBMISSION_PACKET.md` — App Store Connect source of truth.
+- `docs/PUBLIC_RELEASE_RUNBOOK.md` — archive, TestFlight, and App Review handoff.
 
 ## Run And Verify
 
-Open the tracked \`GTAFreeSTEM.xcodeproj\` in Xcode. The checked-in project is the release input and does not require XcodeGen; \`project.yml\` remains an optional maintenance definition whose generated diff must be reviewed if XcodeGen is used.
+Open the tracked `GTAFreeSTEM.xcodeproj` in Xcode. The checked-in project is the release input and does not require XcodeGen; `project.yml` remains an optional maintenance definition whose generated diff must be reviewed if XcodeGen is used.
 
-\`\`\`bash
+```bash
 xcodebuild build \
   -project GTAFreeSTEM.xcodeproj \
   -scheme GTAFreeSTEM \
@@ -55,7 +55,7 @@ xcodebuild test \
 
 CHECK_APP_STORE_SCREENSHOTS=0 STRICT_TRANSLATION_CHECK=1 \
   bash docs/scripts/check-release-readiness.sh
-\`\`\`
+```
 
 ## Privacy Defaults
 
@@ -63,9 +63,25 @@ CHECK_APP_STORE_SCREENSHOTS=0 STRICT_TRANSLATION_CHECK=1 \
 - Profile name, saved opportunities, hunt state, settings, and public-feed cache remain on device.
 - Nearby search requests one-time location only when the user asks; location is not sent to the public feed.
 - No ads, purchases, third-party analytics, or crash-reporting SDKs are included.
-- Both privacy manifests declare local UserDefaults use with reason \`CA92.1\`. The iOS/iPadOS/Mac Catalyst manifest also conservatively declares IP-derived Coarse Location and Other Diagnostic Data retained by feed providers; Watch makes no independent feed request and declares no collected data.
+- Both privacy manifests declare local UserDefaults use with reason `CA92.1`. The iOS/iPadOS/Mac Catalyst manifest also conservatively declares IP-derived Coarse Location and Other Diagnostic Data retained by feed providers; Watch makes no independent feed request and declares no collected data.
 - The public feed uses HTTPS; provider links are normalized to HTTPS before opening.
 
 ## Release
 
-Build 1.0 (12) is the current release candidate, pending its first TestFlight upload. Use \`docs/TESTFLIGHT.md\` to upload it for real-phone testing, then complete \`docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md\`. TestFlight distribution and App Store release require Apple Developer Program eligibility; see the runbook for the no-cost personal-device alternative and fee-waiver eligibility.
+Build 1.0 (12) is the current release candidate, pending its first TestFlight upload. Use `docs/TESTFLIGHT.md` to upload it for real-phone testing, then complete `docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md`. TestFlight distribution and App Store release require Apple Developer Program eligibility; see the runbook for the no-cost personal-device alternative and fee-waiver eligibility.
+
+## Open Source And Community
+
+This project is available under the [MIT License](LICENSE). Contributions are
+welcome, especially human-reviewed translations, accessibility improvements,
+cross-platform testing, documentation, and focused bug fixes.
+
+The MIT license covers project-owned source and documentation. Opportunity
+descriptions, provider materials, and third-party names or marks remain subject
+to their original sources and owners; the license does not grant trademark
+endorsement rights.
+
+- Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+- Use [the Apple-platform localization guide](docs/LOCALIZATION.md) for language work.
+- Follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+- Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).

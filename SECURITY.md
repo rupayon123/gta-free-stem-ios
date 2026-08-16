@@ -1,26 +1,48 @@
 # Security Policy
 
-## Supported Branch
+## Supported code
 
-Security fixes are accepted against `main`.
+Security fixes target the latest code on `main` and, when practical, the most
+recent App Store or TestFlight build. Older builds are not maintained separately.
 
-## Reporting A Vulnerability
+## Report a vulnerability privately
 
-Please do not open a public issue for account, authentication, credential, or data-access vulnerabilities. Use a private GitHub security advisory where available, or contact the maintainer directly.
+Do not open a public issue for a vulnerability or include exploit details,
+credentials, personal data, or precise location information in a public post.
 
-Include:
+Use GitHub's **Report a vulnerability** button on the repository's Security tab:
 
-- a short summary of the issue
-- steps to reproduce
-- affected app screens, files, or API routes
-- whether any real user data, tokens, or credentials may be exposed
+<https://github.com/rupayon123/gta-free-stem-ios/security/advisories/new>
 
-## App Safety Defaults
+If GitHub does not show that private form, use the
+[public support page](https://gta-free-stem.vercel.app/support/) only to request
+a private contact method. Do not include vulnerability details in that public
+request.
 
-- Do not commit certificates, provisioning profiles, `.ipa` files, private keys, API tokens, OAuth secrets, or backend admin credentials.
-- Keep browsing account-free.
-- Keep location access optional and limited to while-using permission.
+Please include, when safe:
+
+- the affected app version, Apple platform, OS version, and device type
+- a concise description and impact
+- reproducible steps or a minimal proof of concept
+- whether credentials, local app data, or another person's information may be
+  exposed
+- any suggested mitigation
+
+The maintainer will acknowledge and assess reports as capacity permits, avoid
+unnecessary disclosure, and coordinate publication after a fix when possible.
+
+## Security-sensitive project rules
+
+- Never commit certificates, provisioning profiles, `.ipa` files, private keys,
+  API tokens, OAuth secrets, backend credentials, or real user data.
+- Keep browsing account-free and keep location access optional and limited to
+  while-use permission.
 - Do not persist bearer tokens in `UserDefaults`.
-- Require HTTPS for production API traffic.
-- Keep App Store privacy details accurate before TestFlight external testing.
-- Keep account deletion, privacy policy, support URL, and terms ready before a public App Store release.
+- Require HTTPS for production network traffic and validate externally supplied
+  opportunity data.
+- Keep App Store privacy details accurate before external testing or release.
+
+Incorrect public opportunity information is a content issue rather than a
+software vulnerability. Report it in the
+[opportunity-data repository](https://github.com/rupayon123/gta-free-stem-opportunities/issues/new/choose)
+without including private information.

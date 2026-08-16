@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/rupayon123/gta-free-stem-ios/security/advisories/new
+    about: Report vulnerabilities privately. Do not post exploit details in a public issue.
+  - name: Opportunity listing or content correction
+    url: https://github.com/rupayon123/gta-free-stem-opportunities/issues/new/choose
+    about: Report source-backed listing, schedule, eligibility, or opportunity-translation corrections in the data repository.

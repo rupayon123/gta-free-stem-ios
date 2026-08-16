@@ -1,0 +1,56 @@
+name: Translation help
+description: Propose, review, or correct Apple-app interface language
+title: "[Translation]: "
+labels:
+  - translation
+body:
+  - type: input
+    id: language
+    attributes:
+      label: Language and locale
+      placeholder: "For example: Urdu (ur) or Cantonese Traditional (yue-Hant)"
+    validations:
+      required: true
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Contribution type
+      options:
+        - New translation
+        - Review an existing translation
+        - Correct wording or grammar
+        - Right-to-left layout review
+        - Accessibility-language review
+        - Location-permission wording review
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Keys or screens in scope
+      description: List app_strings.json keys, screens, or the exact English source text.
+    validations:
+      required: true
+  - type: textarea
+    id: recommendation
+    attributes:
+      label: Recommended translation or feedback
+      description: Provide context and explain choices that may not be obvious to reviewers.
+    validations:
+      required: true
+  - type: textarea
+    id: review
+    attributes:
+      label: Language experience
+      description: Briefly describe your fluency, regional variant, or community review. No identity documents are needed.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I read docs/LOCALIZATION.md and preserved replacement tokens and the GTA FREE STEM name.
+          required: true
+        - label: I did not include personal or sensitive information.
+          required: true

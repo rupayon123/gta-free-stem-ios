@@ -1,0 +1,47 @@
+name: Feature request
+description: Suggest an improvement to the Apple-platform app
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: User need
+      description: Who would this help, and what are they trying to do?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe the smallest useful outcome rather than only a visual treatment.
+    validations:
+      required: true
+  - type: textarea
+    id: platforms
+    attributes:
+      label: Platforms affected
+      description: Note iPhone, iPad, Mac Catalyst, Apple Watch, or shared behaviour.
+    validations:
+      required: true
+  - type: textarea
+    id: accessibility
+    attributes:
+      label: Accessibility and language considerations
+      description: Note VoiceOver, Dynamic Type, contrast, motor access, right-to-left, or translation needs.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues for the same request.
+          required: true
+        - label: This request does not include private or sensitive information.
+          required: true
