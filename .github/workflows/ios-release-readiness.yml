@@ -23,10 +23,13 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
-      - name: Ensure jq is available
+      - name: Ensure release-check tools are available
         run: |
-          if ! command -v jq >/dev/null 2>&1; then
-            brew install jq
+          missing=()
+          command -v jq >/dev/null 2>&1 || missing+=(jq)
+          command -v rg >/dev/null 2>&1 || missing+=(ripgrep)
+          if (( ${#missing[@]} > 0 )); then
+            brew install "${missing[@]}"
           fi
 
       - name: Run CI release-readiness checks
