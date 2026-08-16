@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a reproducible problem in the Apple-platform app
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve GTA FREE STEM. Do not post passwords, precise personal locations, children's information, or security exploit details. Follow SECURITY.md for vulnerabilities.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. Tap ...
+        3. See ...
+    validations:
+      required: true
+  - type: input
+    id: app_version
+    attributes:
+      label: App version
+      placeholder: "For example: 1.0 (12)"
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - iPhone
+        - iPad
+        - Mac Catalyst
+        - Apple Watch
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and OS version
+      placeholder: "For example: iPhone 17, iOS 26"
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add privacy-safe screenshots, logs, theme, text size, accessibility settings, and locale if relevant.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed personal information and this is not a private security report.
+          required: true
