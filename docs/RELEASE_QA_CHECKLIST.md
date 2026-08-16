@@ -36,19 +36,19 @@ Use this checklist for every GTA FREE STEM TestFlight upload. Record the actual 
 
 ## Platform Coverage
 
-First record the deliberate final public selection in \`docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md\` using \`iphone\`, \`ipad\`, \`watch\`, and/or \`mac\`. Test and retain evidence only for the selected values; the release gate has no implied platform default.
+Build 1.0 (12) is scoped to \`iphone,ipad,watch,mac\`. Keep that exact value in \`docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md\` and test every platform. The generic release gate has no implied default, so pass this release's four-platform value explicitly.
 
-- iPhone (when \`iphone\` is selected): TestFlight fresh install, online and offline flow.
-- iPad (when \`ipad\` is selected): sidebar/navigation and filter layout.
-- Apple Watch (when \`watch\` is selected): launch, compact live/cache data, and readability on paired hardware.
-- Mac Catalyst (when \`mac\` is selected): launch, sidebar navigation, links, and window-scale appearance.
+- iPhone: TestFlight fresh install, online and offline flow.
+- iPad: TestFlight install, sidebar/navigation and filter layout.
+- Apple Watch: paired launch, capped saved-opportunity sync and archive status from the iPhone, and compact-screen readability. The Watch app does not independently request the public feed.
+- Mac Catalyst: separate Mac build launch, sidebar navigation, links, and window-scale appearance.
 
 ## App Store Gate
 
 - Product page, support URL, privacy URL, App Privacy, age rating, availability, export compliance, and review notes match \`docs/APP_STORE_SUBMISSION_PACKET.md\`.
 - The live support route has a real, user-owned contact method and does not promise unsupported web accounts, submissions, or feedback.
 - The production Support and Privacy URLs were opened and verified against the submitted build, then recorded in the signoff without private contact details.
-- Current screenshots are opaque, current, and visually reviewed for every selected platform.
+- All 13 JPEGs under \`build/app-store-screenshots/final/\` pass structural checks and independent full-size visual review. The August 6, 2026 set resolved the prior data-state, title, Mac framing/sharpness, Watch truncation, and persisted-query defects. Preserve the reviewed bytes and require the source-bound manifest before upload.
 - The selected App Store Connect build has processed successfully.
 - \`docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md\` contains actual TestFlight evidence.
-- \`IOS_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-1.0-12.xcarchive IOS_IPA_PATH=/absolute/path/to/GTAFreeSTEM-1.0-12.ipa PUBLIC_RELEASE_PLATFORMS=iphone,ipad,watch bash docs/scripts/check-public-release-gates.sh\` passes for the current archive and its verified distribution-signed IPA; if the separate Mac product is included, also set \`MAC_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-Mac-1.0-12.xcarchive MAC_PKG_PATH=/absolute/path/to/GTAFreeSTEM.pkg\` and add \`,mac\`.
+- \`IOS_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-1.0-12.xcarchive IOS_IPA_PATH=/absolute/path/to/GTAFreeSTEM-1.0-12.ipa MAC_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-Mac-1.0-12.xcarchive MAC_PKG_PATH=/absolute/path/to/GTAFreeSTEM.pkg PUBLIC_RELEASE_PLATFORMS=iphone,ipad,watch,mac bash docs/scripts/check-public-release-gates.sh\` passes for the verified iOS/Watch and separate Mac artifacts.

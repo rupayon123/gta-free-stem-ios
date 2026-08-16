@@ -152,7 +152,7 @@ if [ "$REQUIRE_DIRECT_SUPPORT_CONTACT" != "0" ]; then
   rm -f "$SUPPORT_PAGE_FILE"
   echo "Production Support page exposes direct contact information."
 else
-  echo "Direct support contact check skipped for CI; the default release audit still requires it."
+  echo "Skipping the release-owner support-contact check in CI; the local/public release gates still require it."
 fi
 
 echo
@@ -192,10 +192,13 @@ print(f"Keywords: {len(keyword_value.encode('utf-8'))}/100 bytes")
 
 required = {
     "README.md": ["1.0 (12)", "on-device", "Apple Watch"],
-    "docs/APP_STORE_SUBMISSION_PACKET.md": ["Build:", "12", "App Store Connect status:", "TestFlight status:", "App Review status:", "Watch bundle ID:", "Production legal/support truthfulness verified", "Terms of Use URL", "Custom EULA", "PUBLIC_RELEASE_PLATFORMS", "Coarse Location", "Other Diagnostic Data"],
-    "docs/PUBLIC_RELEASE_RUNBOOK.md": ["1.0 (12)", "TestFlight", "App Review", "Apple Developer Program", "PUBLIC_RELEASE_PLATFORMS", "truthfulness", "Standard EULA"],
-    "docs/APP_STORE_SCREENSHOTS.md": ["1320 x 2868", "2064 x 2752", "1440 x 900", "416 x 496", "alpha"],
-    "docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md": ["1.0 (12)", "Warm launch experience", "Local profile deletion", "Watch companion", "Public distribution platforms", "Platform-Specific Evidence", "Production legal/support truthfulness verified"],
+    "docs/RELEASE_READINESS.md": ["iphone,ipad,watch,mac", "selected separate Mac App Store", "build/app-store-screenshots/final/"],
+    "docs/APP_STORE_METADATA.md": ["iphone,ipad,watch,mac", "selected separate Mac App Store", "does not independently request or cache the public feed", "build/app-store-screenshots/final/"],
+    "docs/APP_STORE_SUBMISSION_PACKET.md": ["Build:", "12", "iOS App Store Connect status:", "iOS TestFlight status:", "Mac App Store Connect status:", "Mac TestFlight status:", "App Review status:", "Watch bundle ID:", "Production legal/support truthfulness verified", "Terms of Use URL", "Custom EULA", "PUBLIC_RELEASE_PLATFORMS", "Coarse Location", "Other Diagnostic Data", "build/app-store-screenshots/final/", "13-file canonical package"],
+    "docs/PUBLIC_RELEASE_RUNBOOK.md": ["1.0 (12)", "TestFlight", "App Review", "Apple Developer Program", "PUBLIC_RELEASE_PLATFORMS=iphone,ipad,watch,mac", "truthfulness", "Standard EULA", "selected separate Mac App Store"],
+    "docs/APP_STORE_SCREENSHOTS.md": ["1320 x 2868", "2064 x 2752", "1440 x 900", "416 x 496", "alpha", "build/app-store-screenshots/final/", "Screenshot visual QA"],
+    "docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md": ["1.0 (12)", "Warm launch experience", "Local profile deletion", "Watch companion", "Public distribution platforms", "iphone,ipad,watch,mac", "Artifact binding status", "iOS App Store Connect status", "Mac App Store Connect status", "iOS App Store Connect build selected", "Mac App Store Connect build selected", "Platform-Specific Evidence", "Screenshot visual QA", "Production legal/support truthfulness verified"],
+    "docs/RELEASE_QA_CHECKLIST.md": ["iphone,ipad,watch,mac", "capped saved-opportunity sync", "build/app-store-screenshots/final/"],
 }
 for raw_path, fragments in required.items():
     text = Path(raw_path).read_text(encoding="utf-8")
@@ -203,7 +206,16 @@ for raw_path, fragments in required.items():
     if missing:
         raise SystemExit(f"{raw_path} missing: {', '.join(missing)}")
 
-stale = ["1.0 (11)", "build 11", "382 translated opportunities", "processing status unverified", "account-only actions"]
+stale = [
+    "1.0 (11)",
+    "build 11",
+    "382 translated opportunities",
+    "processing status unverified",
+    "account-only actions",
+    "Mac remains an optional separate record decision",
+    "Pending only if mac is selected and uploaded",
+    "compact live/cache data",
+]
 for path in [Path("README.md"), *Path("docs").glob("*.md")]:
     text = path.read_text(encoding="utf-8")
     hit = [needle for needle in stale if needle in text]
@@ -322,12 +334,20 @@ import re
 import subprocess
 
 expected = {
-    **{f"build/app-store-screenshots/iphone-6.9/{name}.jpg": (1320, 2868) for name in ["01-home", "02-opportunities", "03-high-school", "04-profile"]},
-    **{f"build/app-store-screenshots/ipad-13/{name}.jpg": (2064, 2752) for name in ["01-home", "02-opportunities", "03-high-school", "04-profile"]},
-    "build/app-store-screenshots/mac/01-home.jpg": (1440, 900),
-    "build/app-store-screenshots/mac/02-opportunities.jpg": (1440, 900),
-    "build/app-store-screenshots/watch-series-11/01-home.jpg": (416, 496),
+    **{f"build/app-store-screenshots/final/iphone-6.9/{name}.jpg": (1320, 2868) for name in ["01-home", "02-opportunities", "03-high-school", "04-profile"]},
+    **{f"build/app-store-screenshots/final/ipad-13/{name}.jpg": (2064, 2752) for name in ["01-home", "02-opportunities", "03-high-school", "04-profile"]},
+    **{f"build/app-store-screenshots/final/mac/{name}.jpg": (1440, 900) for name in ["01-home", "02-opportunities", "03-high-school", "04-profile"]},
+    "build/app-store-screenshots/final/watch-series-11/01-home.jpg": (416, 496),
 }
+
+actual = {
+    str(path)
+    for directory in ["iphone-6.9", "ipad-13", "mac", "watch-series-11"]
+    for path in (Path("build/app-store-screenshots/final") / directory).glob("*.jpg")
+}
+unexpected = sorted(actual - set(expected))
+if unexpected:
+    raise SystemExit("Unexpected platform JPEGs in canonical screenshot package: " + ", ".join(unexpected))
 
 def sips_property(path, name):
     output = subprocess.check_output(["sips", "-g", name, str(path)], text=True)
@@ -344,6 +364,7 @@ for name, size in expected.items():
     if sips_property(path, "format") != "jpeg" or sips_property(path, "hasAlpha") != "no":
         raise SystemExit(f"{path} must be an opaque JPEG")
     print(f"Verified {path}: {observed[0]} x {observed[1]}, opaque JPEG")
+print(f"Verified {len(expected)} canonical platform JPEGs. Structural checks do not replace the pending full-size visual QA.")
 PY
 fi
 

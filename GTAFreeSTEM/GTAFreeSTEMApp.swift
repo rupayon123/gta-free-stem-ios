@@ -86,9 +86,10 @@ struct GTAFreeSTEMApp: App {
                 await Task.yield()
                 await AppRuntime.pauseForLaunchReview()
 
-                // A visible result set is the definition of launch-ready: the
-                // bundled or saved snapshot is immediately usable, while the
-                // interactive view continues its live refresh in the background.
+                // Prepare the best available local snapshot before handoff. A
+                // bundled or saved snapshot is immediately usable; if both are
+                // unavailable, the interactive view owns its honest loading or
+                // error state while it attempts the live refresh.
                 let context = ModelContext(Self.sharedModelContainer)
                 withAnimation(.easeInOut(duration: 0.24)) {
                     launchProgress = 0.38

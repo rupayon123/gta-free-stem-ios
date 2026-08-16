@@ -198,6 +198,9 @@ final class AppText: @unchecked Sendable {
 
     func languageName(_ language: AppLanguage) -> String {
         guard let info = meta[language.rawValue] else { return language.rawValue }
+        if info.native.compare(info.label, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame {
+            return info.native
+        }
         return "\(info.native) - \(info.label)"
     }
 }

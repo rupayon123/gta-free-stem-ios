@@ -13,6 +13,7 @@ root = Path(sys.argv[1])
 workflow = (root / ".github/workflows/ios-release-readiness.yml").read_text()
 status_script = (root / "docs/scripts/check-testflight-build-status.sh").read_text()
 readiness_script = (root / "docs/scripts/check-release-readiness.sh").read_text()
+ci_readiness_script = (root / "docs/scripts/check-ci-release-readiness.sh").read_text()
 device_install_script = (root / "docs/scripts/install-connected-device.sh").read_text()
 safe_export_options = plistlib.loads(
     (root / "docs/AppStoreExportOptions.plist").read_bytes()
@@ -63,6 +64,11 @@ for fragment in (
         raise SystemExit(f"Release source-commit provenance guard is missing: {fragment}")
 if 'git diff --quiet "$SOURCE_COMMIT"' not in device_install_script:
     raise SystemExit("Connected-device installs must reject source bytes that do not match the embedded commit.")
+
+if 'CHECK_PUBLIC_SUPPORT_CONTACT="${CHECK_PUBLIC_SUPPORT_CONTACT:-1}"' not in readiness_script:
+    raise SystemExit("Public support-contact verification must remain enabled by default.")
+if 'CHECK_PUBLIC_SUPPORT_CONTACT=0' not in ci_readiness_script:
+    raise SystemExit("CI must explicitly defer the release-owner support-contact check.")
 
 if safe_export_options.get("destination") != "export":
     raise SystemExit("The local App Store export options must never upload during verification.")

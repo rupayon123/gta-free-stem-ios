@@ -160,10 +160,11 @@ private final class WatchOpportunityStore: NSObject, ObservableObject, WCSession
         let payload = session.receivedApplicationContext[SyncKey.payload] as? Data
         Task { @MainActor [weak self] in
             guard let self else { return }
+            let shouldRequestSync = self.isSyncing
             if let payload {
                 self.apply(payload: payload)
             }
-            if activationState == .activated, error == nil, self.isSyncing {
+            if activationState == .activated, error == nil, shouldRequestSync {
                 self.isSyncing = true
                 self.sendSyncRequestIfReachable()
             }
@@ -233,6 +234,13 @@ private struct WatchSavedEvent: Codable, Hashable, Identifiable, Sendable {
     var placeLabel: String {
         let place = [organization, city].filter { !$0.isEmpty }.joined(separator: " · ")
         return place.isEmpty ? "Location in event details" : place
+    }
+
+    var compactPlaceLabel: String {
+        [city, region, organization]
+            .lazy
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty } ?? "Event details"
     }
 
     var locationLabel: String {
@@ -324,7 +332,7 @@ private struct WatchContentView: View {
                     .ignoresSafeArea()
 
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 12) {
+                    LazyVStack(alignment: .leading, spacing: 10) {
                         header
 
                         if !store.hasSynced {
@@ -369,39 +377,42 @@ private struct WatchContentView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
+        HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
                 Label("MY STEM PLAN", systemImage: "atom")
                     .font(.system(.caption2, design: .rounded, weight: .black))
                     .foregroundStyle(WatchTheme.sun)
                     .lineLimit(1)
 
-                Spacer(minLength: 0)
-
-                Button(action: store.requestSync) {
-                    if store.isSyncing {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.caption.weight(.black))
-                    }
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.white)
-                .frame(width: 32, height: 32)
-                .background(WatchTheme.lake, in: Circle())
-                .contentShape(Circle())
-                .accessibilityLabel("Sync saved events from iPhone")
+                Text("Saved events")
+                    .font(.title3.weight(.black))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                    .allowsTightening(true)
+                Text(headerSubtitle)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.80)
             }
 
-            Text("Saved events")
-                .font(.title3.weight(.black))
-                .lineLimit(1)
-            Text(headerSubtitle)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+            Spacer(minLength: 0)
+
+            Button(action: store.requestSync) {
+                if store.isSyncing {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.caption.weight(.black))
+                }
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.white)
+            .frame(width: 32, height: 32)
+            .background(WatchTheme.lake, in: Circle())
+            .contentShape(Circle())
+            .accessibilityLabel("Sync saved events from iPhone")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 4)
@@ -416,7 +427,6 @@ private struct WatchContentView: View {
     @ViewBuilder
     private var savedEventContent: some View {
         if let next = store.upcomingEvents.first {
-            WatchSectionHeading(title: "NEXT UP", systemImage: "sparkles")
             NavigationLink(value: WatchRoute.event(next)) {
                 WatchNextEventCard(event: next)
             }
@@ -429,7 +439,7 @@ private struct WatchContentView: View {
                 message: "Your past saved events are still available in the archive.",
                 systemImage: "calendar.badge.checkmark"
             )
-        } else {
+        } else if store.upcomingEvents.count > 1 {
             WatchSectionHeading(title: "UPCOMING", systemImage: "calendar")
             ForEach(store.upcomingEvents.dropFirst()) { event in
                 NavigationLink(value: WatchRoute.event(event)) {
@@ -486,36 +496,36 @@ private struct WatchNextEventCard: View {
     let event: WatchSavedEvent
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 7) {
+            if !event.category.isEmpty {
+                Text(event.category.uppercased())
+                    .font(.caption2.weight(.black))
+                    .foregroundStyle(.white.opacity(0.84))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                    .allowsTightening(true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
             HStack(alignment: .top, spacing: 9) {
                 WatchDateTile(event: event, inverted: true)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    if !event.category.isEmpty {
-                        Text(event.category.uppercased())
-                            .font(.caption2.weight(.black))
-                            .foregroundStyle(.white.opacity(0.82))
-                            .lineLimit(1)
-                    }
-                    Text(event.title)
-                        .font(.headline.weight(.black))
-                        .foregroundStyle(.white)
-                        .lineLimit(3)
-                }
-            }
-
-            if let relative = event.relativeTimingLabel {
-                Label(relative.capitalized, systemImage: "clock.fill")
-                    .font(.caption.weight(.bold))
+                Text(event.title)
+                    .font(.headline.weight(.black))
                     .foregroundStyle(.white)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.84)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            Label(event.placeLabel, systemImage: "mappin.and.ellipse")
-                .font(.caption2.weight(.semibold))
+            Label(timingAndPlace, systemImage: event.relativeTimingLabel == nil ? "mappin.and.ellipse" : "clock.fill")
+                .font(.caption2.weight(.bold))
                 .foregroundStyle(.white.opacity(0.88))
-                .lineLimit(2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+                .allowsTightening(true)
         }
-        .padding(12)
+        .padding(10)
         .background(
             LinearGradient(
                 colors: [WatchTheme.coral, WatchTheme.orange],
@@ -531,6 +541,13 @@ private struct WatchNextEventCard: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Next event. \(event.title). \(event.timingLabel). \(event.placeLabel)")
         .accessibilityHint("Open event details")
+    }
+
+    private var timingAndPlace: String {
+        [event.relativeTimingLabel?.capitalized, event.compactPlaceLabel]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+            .joined(separator: " · ")
     }
 }
 

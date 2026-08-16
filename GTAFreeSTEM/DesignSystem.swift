@@ -5,6 +5,10 @@ import SwiftUI
 /// The logo carries the playful STEM character. Interface chrome stays calm,
 /// legible, and native so the opportunities remain the most prominent content.
 enum Brand {
+    /// A compact, language-neutral brand mark for constrained navigation chrome.
+    /// Product headlines continue to use the localized full name.
+    static let compactName = "GTA FREE STEM"
+
     // MARK: Core brand colours
 
     static let ink = Color(red: 0.05, green: 0.09, blue: 0.11)
@@ -439,6 +443,109 @@ struct SelectionChipStyle: ButtonStyle {
             .opacity(configuration.isPressed ? 0.78 : 1)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
             .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
+    }
+}
+
+/// Places compact controls on complete rows instead of clipping the next item at
+/// a narrow screen edge. The source order remains the VoiceOver reading order.
+struct WrappingHStack: Layout {
+    var horizontalSpacing: CGFloat = 8
+    var verticalSpacing: CGFloat = 8
+    var layoutDirection: LayoutDirection = .leftToRight
+
+    func sizeThatFits(
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) -> CGSize {
+        let rows = makeRows(proposal: proposal, subviews: subviews)
+        let contentWidth = rows.map(\.width).max() ?? 0
+        let contentHeight = rows.reduce(0) { $0 + $1.height }
+            + verticalSpacing * CGFloat(max(0, rows.count - 1))
+        return CGSize(width: proposal.width ?? contentWidth, height: contentHeight)
+    }
+
+    func placeSubviews(
+        in bounds: CGRect,
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) {
+        let rows = makeRows(
+            proposal: ProposedViewSize(width: bounds.width, height: proposal.height),
+            subviews: subviews
+        )
+        var y = bounds.minY
+
+        for row in rows {
+            var x = layoutDirection == .rightToLeft ? bounds.maxX : bounds.minX
+            for item in row.items {
+                if layoutDirection == .rightToLeft {
+                    x -= item.size.width
+                }
+
+                subviews[item.index].place(
+                    at: CGPoint(x: x, y: y + (row.height - item.size.height) / 2),
+                    anchor: .topLeading,
+                    proposal: ProposedViewSize(item.size)
+                )
+
+                if layoutDirection == .rightToLeft {
+                    x -= horizontalSpacing
+                } else {
+                    x += item.size.width + horizontalSpacing
+                }
+            }
+            y += row.height + verticalSpacing
+        }
+    }
+
+    private func makeRows(proposal: ProposedViewSize, subviews: Subviews) -> [Row] {
+        let proposedWidth = proposal.width ?? .infinity
+        var rows = [Row]()
+        var row = Row()
+
+        for index in subviews.indices {
+            let idealSize = subviews[index].sizeThatFits(.unspecified)
+            let itemWidth = proposedWidth.isFinite ? min(idealSize.width, proposedWidth) : idealSize.width
+            let itemSize = subviews[index].sizeThatFits(
+                ProposedViewSize(width: itemWidth, height: nil)
+            )
+            let nextWidth = row.items.isEmpty
+                ? itemSize.width
+                : row.width + horizontalSpacing + itemSize.width
+
+            if !row.items.isEmpty, nextWidth > proposedWidth {
+                rows.append(row)
+                row = Row()
+            }
+            row.append(index: index, size: itemSize, spacing: horizontalSpacing)
+        }
+
+        if !row.items.isEmpty {
+            rows.append(row)
+        }
+        return rows
+    }
+
+    private struct Row {
+        var items = [Item]()
+        var width: CGFloat = 0
+        var height: CGFloat = 0
+
+        mutating func append(index: Int, size: CGSize, spacing: CGFloat) {
+            if !items.isEmpty {
+                width += spacing
+            }
+            items.append(Item(index: index, size: size))
+            width += size.width
+            height = max(height, size.height)
+        }
+    }
+
+    private struct Item {
+        let index: Int
+        let size: CGSize
     }
 }
 

@@ -196,7 +196,7 @@ struct ContentView: View {
     private var sidebarNavigation: some View {
         NavigationSplitView {
             List {
-                Section(session.text("brand")) {
+                Section(Brand.compactName) {
                     ForEach(AppTab.allCases, id: \.self) { tab in
                         Button {
                             selectedTab = tab
@@ -223,7 +223,7 @@ struct ContentView: View {
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
             .background(Brand.canvas(for: session.colorScheme ?? .light))
-            .navigationTitle(session.text("brand"))
+            .navigationTitle(Brand.compactName)
         } detail: {
             tabContent(for: selectedTab)
         }

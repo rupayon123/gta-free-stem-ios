@@ -176,7 +176,7 @@ struct SettingsView: View {
     private var legalCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             StorySectionTitle(text: session.text("termsTitle"), systemImage: "doc.text.fill")
-            Text("\(session.text("profileOnDevice")) \(session.text("localSubmissionSaved"))")
+            Text(session.text("termsBody"))
                 .font(.subheadline)
                 .foregroundStyle(Brand.mutedText(for: colorScheme))
 
