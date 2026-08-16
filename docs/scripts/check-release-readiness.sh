@@ -6,6 +6,7 @@ cd "$ROOT_DIR"
 
 STRICT_TRANSLATION_CHECK="${STRICT_TRANSLATION_CHECK:-0}"
 CHECK_APP_STORE_SCREENSHOTS="${CHECK_APP_STORE_SCREENSHOTS:-1}"
+REQUIRE_DIRECT_SUPPORT_CONTACT="${REQUIRE_DIRECT_SUPPORT_CONTACT:-1}"
 LIVE_FEED_URL="${LIVE_FEED_URL:-https://raw.githubusercontent.com/rupayon123/gta-free-stem-opportunities/main/public/opportunities.json}"
 APP_STRINGS="GTAFreeSTEM/Resources/app_strings.json"
 BUNDLED_FEED="GTAFreeSTEM/Resources/opportunities.json"
@@ -136,19 +137,23 @@ for url in \
   [ "$status" = "200" ] || { echo "$url returned $status"; exit 1; }
   echo "$url returns HTTP 200"
 done
-SUPPORT_PAGE_FILE="$(mktemp "${TMPDIR:-/tmp}/gta-free-stem-support.XXXXXX")"
-if ! curl -fsSL --max-time 15 https://gta-free-stem.vercel.app/support/ -o "$SUPPORT_PAGE_FILE"; then
+if [ "$REQUIRE_DIRECT_SUPPORT_CONTACT" != "0" ]; then
+  SUPPORT_PAGE_FILE="$(mktemp "${TMPDIR:-/tmp}/gta-free-stem-support.XXXXXX")"
+  if ! curl -fsSL --max-time 15 https://gta-free-stem.vercel.app/support/ -o "$SUPPORT_PAGE_FILE"; then
+    rm -f "$SUPPORT_PAGE_FILE"
+    echo "Could not download the production Support page."
+    exit 1
+  fi
+  if ! rg -qi 'href=["'\''`](mailto|tel):' "$SUPPORT_PAGE_FILE"; then
+    rm -f "$SUPPORT_PAGE_FILE"
+    echo "The production Support page must expose a monitored email or telephone contact, not only GitHub Issues."
+    exit 1
+  fi
   rm -f "$SUPPORT_PAGE_FILE"
-  echo "Could not download the production Support page."
-  exit 1
+  echo "Production Support page exposes direct contact information."
+else
+  echo "Direct support contact check skipped for CI; the default release audit still requires it."
 fi
-if ! rg -qi 'href=["'\''`](mailto|tel):' "$SUPPORT_PAGE_FILE"; then
-  rm -f "$SUPPORT_PAGE_FILE"
-  echo "The production Support page must expose a monitored email or telephone contact, not only GitHub Issues."
-  exit 1
-fi
-rm -f "$SUPPORT_PAGE_FILE"
-echo "Production Support page exposes direct contact information."
 
 echo
 echo "=== Release documentation ==="

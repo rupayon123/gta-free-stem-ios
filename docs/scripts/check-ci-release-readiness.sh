@@ -70,7 +70,10 @@ bash docs/scripts/test-app-store-archive-verifier.sh
 
 echo
 echo "=== CI strict release-readiness audit ==="
-CHECK_APP_STORE_SCREENSHOTS=0 STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh
+CHECK_APP_STORE_SCREENSHOTS=0 \
+  STRICT_TRANSLATION_CHECK=1 \
+  REQUIRE_DIRECT_SUPPORT_CONTACT=0 \
+  bash docs/scripts/check-release-readiness.sh
 
 echo
 echo "=== CI public release gate self-test ==="
