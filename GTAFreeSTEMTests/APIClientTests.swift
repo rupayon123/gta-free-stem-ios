@@ -353,7 +353,6 @@ final class APIClientTests: XCTestCase {
         let feedURL = URL(string: "https://example.com/opportunities.json")!
         let client = APIClient(feedURL: feedURL, session: makeURLSessionForStub())
         let store = OpportunityStore(api: client)
-        store.query = "robotics"
 
         let isReady = await store.prepareScreenshotSnapshot()
 
