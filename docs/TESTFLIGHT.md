@@ -68,7 +68,7 @@ Internal testers can test after processing. External testers require beta review
 
 ## What Reaches Your Phone
 
-- Opportunity and source-data updates can appear in the installed app after the public feed is refreshed and the app performs its next online refresh. The app deliberately bypasses HTTP cache when it checks the feed, opens from the latest usable local cache or bundled snapshot, and refreshes the public feed in the background. If neither local source is usable, it waits for the live source instead of pretending that browsing is ready.
+- Opportunity and source-data updates can appear in the installed app after the public feed is refreshed and the app performs its next online refresh. The app deliberately bypasses HTTP cache when it checks the feed, opens from the latest usable local cache or bundled snapshot, and refreshes the public feed in the background. If neither local source is usable, the bounded launch preparation still hands off to the app, which presents its honest loading or error state while attempting the live refresh.
 - Product-code changes—including new UI, bug fixes, bundled data, entitlements, or privacy changes—do **not** reach an installed app from a Git push alone. They require a new signed archive, App Store Connect processing, and a TestFlight **Update** on the phone.
 - TestFlight can notify you about a processed build, but turn on automatic updates in TestFlight if you want eligible updates installed without manually tapping **Update**. Always open the new build once online before testing offline behaviour.
 

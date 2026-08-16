@@ -806,6 +806,8 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(watchSource.contains("session.receivedApplicationContext"))
         XCTAssertTrue(watchSource.contains("lastSyncedAt = envelope.syncedAt"))
         XCTAssertTrue(watchSource.contains("Still showing the latest events saved on this watch."))
+        XCTAssertTrue(watchSource.contains("let shouldRequestSync = self.isSyncing"))
+        XCTAssertTrue(watchSource.contains("error == nil, shouldRequestSync"))
         XCTAssertTrue(watchSource.contains("let archiveBoundary: Date?"))
         XCTAssertTrue(watchSource.contains("if archived == true { return true }"))
         XCTAssertTrue(
@@ -1242,6 +1244,54 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(contents.contains("Your past saved events are still available in the archive."))
         XCTAssertTrue(contents.contains("Showing \\(store.events.count) of \\(store.totalSavedCount) saved events"))
         XCTAssertTrue(contents.contains("Open GTA FREE STEM on your iPhone to refresh saved events."))
+    }
+
+    func testReleaseNavigationAndSupportSurfacesPresentAsFinished() throws {
+        let repoRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let designSystem = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/DesignSystem.swift"))
+        let contentView = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/ContentView.swift"))
+        let settingsView = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/SettingsView.swift"))
+        let supportView = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/SubmitView.swift"))
+
+        XCTAssertTrue(designSystem.contains("static let compactName = \"GTA FREE STEM\""))
+        XCTAssertTrue(contentView.contains(".navigationTitle(Brand.compactName)"))
+        XCTAssertFalse(contentView.contains(".navigationTitle(session.text(\"brand\"))"))
+        XCTAssertFalse(settingsView.contains("session.text(\"localSubmissionSaved\")"))
+        XCTAssertTrue(settingsView.contains("Text(session.text(\"termsBody\"))"))
+        XCTAssertFalse(settingsView.contains("StorySectionTitle(text: session.text(\"termsTitle\"), systemImage: \"doc.text.fill\")\n            Text(session.text(\"profileOnDevice\"))"))
+        XCTAssertFalse(supportView.contains("session.text(\"localSubmissionSaved\")"))
+        XCTAssertTrue(supportView.contains("session.text(\"supportHeading\")"))
+        XCTAssertTrue(supportView.contains("AppLegalLinks.support"))
+        XCTAssertTrue(supportView.contains("AppLegalLinks.privacyPolicy"))
+        XCTAssertTrue(supportView.contains("AppLegalLinks.termsOfUse"))
+    }
+
+    func testLanguageNamesDoNotRepeatIdenticalNativeAndEnglishLabels() {
+        XCTAssertEqual(AppText.shared.languageName(.en), "English")
+        XCTAssertEqual(AppText.shared.languageName(.fr), "Français - French")
+    }
+
+    func testStorefrontCriticalCompactLayoutsAvoidClippedControls() throws {
+        let repoRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let browseView = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/BrowseView.swift"))
+        let designSystem = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/DesignSystem.swift"))
+        let watchView = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEMWatch/GTAFreeSTEMWatchApp.swift"))
+
+        XCTAssertTrue(browseView.contains("WrappingHStack("))
+        XCTAssertTrue(browseView.contains("layoutDirection: layoutDirection"))
+        XCTAssertTrue(browseView.contains(".minimumScaleFactor(0.80)"))
+        XCTAssertTrue(designSystem.contains("struct WrappingHStack: Layout"))
+        XCTAssertTrue(designSystem.contains("layoutDirection == .rightToLeft"))
+        XCTAssertFalse(watchView.contains("WatchSectionHeading(title: \"NEXT UP\""))
+        XCTAssertTrue(watchView.contains("else if store.upcomingEvents.count > 1"))
+        XCTAssertTrue(watchView.contains("Text(event.category.uppercased())"))
+        XCTAssertTrue(watchView.contains(".minimumScaleFactor(0.72)"))
+        XCTAssertTrue(watchView.contains(".lineLimit(2)"))
+        XCTAssertTrue(watchView.contains("$0.trimmingCharacters(in: .whitespacesAndNewlines)"))
     }
 
     func testCompactBrowseLayoutPrioritizesLiveResults() throws {
@@ -2319,6 +2369,11 @@ final class OpportunityStoreTests: XCTestCase {
         let client = APIClient(feedURL: feedURL, session: session)
         let store = OpportunityStore(api: client)
         let context = try makeInMemoryContext()
+        let bundled = try LocalOpportunitySnapshot.loadFull()
+        let bundledDate = try XCTUnwrap(FeedFreshness.date(from: bundled.meta?.lastUpdated))
+        let newerCacheDate = ISO8601DateFormatter().string(
+            from: bundledDate.addingTimeInterval(86_400)
+        )
 
         let cached = OpportunityListResponse(
             data: [
@@ -2330,7 +2385,7 @@ final class OpportunityStoreTests: XCTestCase {
                     city: "Toronto"
                 )
             ],
-            meta: OpportunityListResponse.Metadata(activeCount: 1, lastUpdated: "2026-08-06")
+            meta: OpportunityListResponse.Metadata(activeCount: 1, lastUpdated: newerCacheDate)
         )
         context.insert(OpportunityCacheRecord(cacheKey: "latest-opportunities", payload: try JSONEncoder().encode(cached)))
         try context.save()

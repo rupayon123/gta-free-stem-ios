@@ -12,7 +12,7 @@ struct SubmitView: View {
                 ScrollView {
                     VStack(spacing: AppSpacing.standard) {
                         supportHeader
-                        unavailableCard
+                        supportCard
                     }
                     .frame(maxWidth: 720)
                     .frame(maxWidth: .infinity)
@@ -43,10 +43,10 @@ struct SubmitView: View {
         .cardSurface(padding: AppSpacing.large, cornerRadius: AppRadius.feature)
     }
 
-    private var unavailableCard: some View {
+    private var supportCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             StorySectionTitle(text: session.text("feedback"), systemImage: "bubble.left.and.bubble.right.fill")
-            Text(session.text("localSubmissionSaved"))
+            Text(session.text("supportHeading"))
                 .font(.headline.weight(.semibold))
                 .foregroundStyle(Brand.outline(for: colorScheme))
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -71,6 +71,12 @@ struct SubmitView: View {
 
             Link(destination: AppLegalLinks.privacyPolicy) {
                 Label(session.text("privacyPolicy"), systemImage: "lock.shield.fill")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(StoryButtonStyle(kind: .quiet))
+
+            Link(destination: AppLegalLinks.termsOfUse) {
+                Label(session.text("termsTitle"), systemImage: "checkmark.seal.fill")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(StoryButtonStyle(kind: .quiet))

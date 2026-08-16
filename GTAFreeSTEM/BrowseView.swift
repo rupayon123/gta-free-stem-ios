@@ -33,6 +33,7 @@ enum BrowseSurface {
 struct BrowseView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.layoutDirection) private var layoutDirection
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
@@ -192,23 +193,22 @@ struct BrowseView: View {
     private var searchControls: some View {
         VStack(spacing: 12) {
             if surface.modes.count > 1 {
-                ScrollView(.horizontal, showsIndicators: false) {
+                if horizontalSizeClass == .compact {
+                    WrappingHStack(
+                        horizontalSpacing: 8,
+                        verticalSpacing: 8,
+                        layoutDirection: layoutDirection
+                    ) {
+                        modeButtons
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
                     HStack(spacing: 8) {
-                        ForEach(surface.modes) { mode in
-                            Button {
-                                store.mode = mode
-                                Task { await store.refresh(cache: modelContext) }
-                            } label: {
-                                Text(session.text(mode.textKey))
-                                    .lineLimit(1)
-                            }
-                            .buttonStyle(SelectionChipStyle(isSelected: store.mode == mode))
-                            .accessibilityAddTraits(store.mode == mode ? .isSelected : [])
-                        }
+                        modeButtons
                     }
                     .padding(.horizontal, 2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .accessibilityLabel(session.text("highSchool"))
             }
 
             ViewThatFits(in: .horizontal) {
@@ -231,6 +231,26 @@ struct BrowseView: View {
             .pickerStyle(.segmented)
         }
         .cardSurface(padding: AppSpacing.medium, cornerRadius: AppRadius.card)
+    }
+
+    private var modeButtons: some View {
+        ForEach(surface.modes) { mode in
+            Button {
+                store.mode = mode
+                Task { await store.refresh(cache: modelContext) }
+            } label: {
+                Text(modeTitle(for: mode))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.80)
+            }
+            .buttonStyle(SelectionChipStyle(isSelected: store.mode == mode))
+            .accessibilityLabel("\(session.text(surface.titleKey)): \(modeTitle(for: mode))")
+            .accessibilityAddTraits(store.mode == mode ? .isSelected : [])
+        }
+    }
+
+    private func modeTitle(for mode: SearchMode) -> String {
+        mode == surface.defaultMode ? session.text("all") : session.text(mode.textKey)
     }
 
     private var filterButton: some View {

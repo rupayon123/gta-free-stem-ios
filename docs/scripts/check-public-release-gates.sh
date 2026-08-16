@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 RUN_RELEASE_AUDIT="${RUN_RELEASE_AUDIT:-1}"
+CHECK_APP_STORE_SCREENSHOTS="${CHECK_APP_STORE_SCREENSHOTS:-1}"
 SIGNOFF_PATH="${SIGNOFF_PATH:-docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md}"
 EXPECTED_BUILD="1.0 (12)"
 IOS_ARCHIVE_PATH="${IOS_ARCHIVE_PATH:-}"
@@ -17,6 +18,28 @@ PUBLIC_GATE_TEST_FIXTURE_ONLY="${PUBLIC_GATE_TEST_FIXTURE_ONLY:-0}"
 # This deliberately has no default. The release owner must state which product
 # platforms are actually being enabled for public distribution.
 PUBLIC_RELEASE_PLATFORMS="${PUBLIC_RELEASE_PLATFORMS:-}"
+SCREENSHOT_ROOT="build/app-store-screenshots/final"
+VISUAL_QA_MANIFEST_PATH="$SCREENSHOT_ROOT/FINAL_VISUAL_QA.md"
+CAPTURE_RECEIPT_PATH="$SCREENSHOT_ROOT/CAPTURE_RECEIPT.json"
+
+if [ "$PUBLIC_GATE_TEST_FIXTURE_ONLY" = "1" ]; then
+  if [ "$RUN_RELEASE_AUDIT" != "0" ]; then
+    echo "PUBLIC_GATE_TEST_FIXTURE_ONLY=1 requires RUN_RELEASE_AUDIT=0 and cannot be used for release signoff."
+    exit 1
+  fi
+  SCREENSHOT_ROOT="${PUBLIC_GATE_TEST_SCREENSHOT_ROOT:-$SCREENSHOT_ROOT}"
+  VISUAL_QA_MANIFEST_PATH="${PUBLIC_GATE_TEST_VISUAL_QA_MANIFEST:-$SCREENSHOT_ROOT/FINAL_VISUAL_QA.md}"
+  CAPTURE_RECEIPT_PATH="${PUBLIC_GATE_TEST_CAPTURE_RECEIPT:-$SCREENSHOT_ROOT/CAPTURE_RECEIPT.json}"
+else
+  if [ "$RUN_RELEASE_AUDIT" != "1" ]; then
+    echo "RUN_RELEASE_AUDIT must be 1 for public release signoff; only explicit metadata-fixture mode may disable it."
+    exit 1
+  fi
+  if [ "$CHECK_APP_STORE_SCREENSHOTS" != "1" ]; then
+    echo "CHECK_APP_STORE_SCREENSHOTS must be 1 for public release signoff; only explicit metadata-fixture mode may skip screenshot-file checks."
+    exit 1
+  fi
+fi
 
 NORMALIZED_PUBLIC_PLATFORMS="$(printf '%s' "$PUBLIC_RELEASE_PLATFORMS" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
 MAC_SELECTED=0
@@ -42,10 +65,6 @@ if [ "$MAC_SELECTED" = "1" ] && [ -z "$MAC_PKG_PATH" ]; then
 fi
 
 if [ "$PUBLIC_GATE_TEST_FIXTURE_ONLY" = "1" ]; then
-  if [ "$RUN_RELEASE_AUDIT" != "0" ]; then
-    echo "PUBLIC_GATE_TEST_FIXTURE_ONLY=1 requires RUN_RELEASE_AUDIT=0 and cannot be used for release signoff."
-    exit 1
-  fi
   echo "Skipping binary signing verification in explicit metadata-fixture mode; evidence binding remains active."
 else
   echo
@@ -65,8 +84,17 @@ else
 fi
 
 if [ "$RUN_RELEASE_AUDIT" != "0" ]; then
-  STRICT_TRANSLATION_CHECK=1 bash docs/scripts/check-release-readiness.sh
+  STRICT_TRANSLATION_CHECK=1 CHECK_APP_STORE_SCREENSHOTS=1 bash docs/scripts/check-release-readiness.sh
 fi
+
+SCREENSHOT_PACKAGE_TEST_FIXTURE_ONLY="$PUBLIC_GATE_TEST_FIXTURE_ONLY" \
+  SCREENSHOT_PACKAGE_TEST_SOURCE_COMMIT="${PUBLIC_GATE_TEST_SCREENSHOT_SOURCE_COMMIT:-}" \
+  SCREENSHOT_PACKAGE_TEST_SOURCE_TREE_SHA256="${PUBLIC_GATE_TEST_SCREENSHOT_SOURCE_TREE_SHA256:-}" \
+  SCREENSHOT_ROOT="$SCREENSHOT_ROOT" \
+  VISUAL_QA_MANIFEST_PATH="$VISUAL_QA_MANIFEST_PATH" \
+  CAPTURE_RECEIPT_PATH="$CAPTURE_RECEIPT_PATH" \
+  MAC_CAPTURE_SESSION_PATH="$SCREENSHOT_ROOT/MAC_CAPTURE_SESSION.json" \
+  bash docs/scripts/verify-screenshot-package.sh
 
 /usr/bin/python3 - \
   "$SIGNOFF_PATH" \
@@ -76,7 +104,9 @@ fi
   "$IOS_IPA_PATH" \
   "$MAC_ARCHIVE_PATH" \
   "$MAC_PKG_PATH" \
-  "$PUBLIC_GATE_TEST_FIXTURE_ONLY" <<'PY'
+  "$PUBLIC_GATE_TEST_FIXTURE_ONLY" \
+  "$SCREENSHOT_ROOT" \
+  "$VISUAL_QA_MANIFEST_PATH" <<'PY'
 import datetime as dt
 import hashlib
 import os
@@ -95,18 +125,106 @@ ios_ipa_argument = sys.argv[5]
 mac_archive_argument = sys.argv[6]
 mac_pkg_argument = sys.argv[7]
 fixture_only = sys.argv[8] == "1"
+screenshot_root_argument = sys.argv[9]
+visual_qa_manifest_argument = sys.argv[10]
 if not path.exists():
     raise SystemExit(f"Missing {path}")
 text = path.read_text(encoding="utf-8")
+not_ready = []
 
 def clean(value):
     return value.strip().replace(r"\`", "`").strip(chr(96)).strip()
 
+FIELD_SECTIONS = {
+    "Version/build": "Build Under Test",
+    "iOS Delivery UUID": "Build Under Test",
+    "Mac Delivery UUID": "Build Under Test",
+    "iOS App Store Connect status": "Build Under Test",
+    "iOS BuildBetaDetail.internalBuildState": "Build Under Test",
+    "Mac App Store Connect status": "Build Under Test",
+    "Mac BuildBetaDetail.internalBuildState": "Build Under Test",
+    "Public distribution platforms": "Build Under Test",
+    "Artifact binding status": "Verified Artifact Binding",
+    "Published commit": "Verified Artifact Binding",
+    "Artifact verification date": "Verified Artifact Binding",
+    "iOS archive path": "Verified Artifact Binding",
+    "iOS archive SHA-256": "Verified Artifact Binding",
+    "iOS IPA path": "Verified Artifact Binding",
+    "iOS IPA SHA-256": "Verified Artifact Binding",
+    "Mac archive path": "Verified Artifact Binding",
+    "Mac archive SHA-256": "Verified Artifact Binding",
+    "Mac package path": "Verified Artifact Binding",
+    "Mac package SHA-256": "Verified Artifact Binding",
+    "Tester": "Tester And Device",
+    "Date": "Tester And Device",
+    "Install source": "Tester And Device",
+    "Network conditions tested": "Tester And Device",
+    "Accessibility settings tested": "Tester And Device",
+    "Languages tested": "Tester And Device",
+    "Overall status": "Release Owner Decision",
+    "Accepted risks": "Release Owner Decision",
+    "Must-fix blockers": "Release Owner Decision",
+    "iOS App Store Connect build selected": "Release Owner Decision",
+    "Mac App Store Connect build selected": "Release Owner Decision",
+    "Archive provenance verified": "Release Owner Decision",
+    "Screenshot visual QA": "Release Owner Decision",
+    "Visual QA manifest SHA-256": "Release Owner Decision",
+    "Screenshots uploaded": "Release Owner Decision",
+    "Metadata/privacy/age rating entered": "Release Owner Decision",
+    "Support contact verified": "Release Owner Decision",
+    "Production legal/support truthfulness verified": "Release Owner Decision",
+    "App Review contact verified": "Release Owner Decision",
+    "Copyright entered": "Release Owner Decision",
+    "Platform record decision": "Release Owner Decision",
+    "Primary language verified": "Release Owner Decision",
+    "Availability and DSA verified": "Release Owner Decision",
+    "Submitted for App Review": "Release Owner Decision",
+}
+
+section_cache = {}
+field_cache = {}
+
+
+def section_contents(heading):
+    if heading in section_cache:
+        return section_cache[heading]
+    matches = list(re.finditer(
+        rf"^## {re.escape(heading)}\s*$\n?(.*?)(?=^## |\Z)",
+        text,
+        re.MULTILINE | re.DOTALL,
+    ))
+    if len(matches) != 1:
+        not_ready.append(f"{heading}: expected exactly one section, found {len(matches)}")
+        value = matches[0].group(1) if matches else ""
+    else:
+        value = matches[0].group(1)
+    section_cache[heading] = value
+    return value
+
+
 def field_value(label):
-    # Do not let a blank field consume the next Markdown line. The release
-    # template intentionally leaves several fields blank until portal QA.
-    match = re.search(rf"^- {re.escape(label)}:[ \t]*(.*)$", text, re.MULTILINE)
-    return clean(match.group(1)) if match else ""
+    if label in field_cache:
+        return field_cache[label]
+    heading = FIELD_SECTIONS.get(label)
+    if heading is None:
+        not_ready.append(f"Gate configuration: no owning section declared for field {label}")
+        field_cache[label] = ""
+        return ""
+    section = section_contents(heading)
+    matches = re.findall(
+        rf"^- {re.escape(label)}:[ \t]*(.*)$",
+        section,
+        re.MULTILINE,
+    )
+    if len(matches) != 1:
+        not_ready.append(
+            f"{heading}: expected exactly one '{label}' field, found {len(matches)}"
+        )
+        value = ""
+    else:
+        value = clean(matches[0])
+    field_cache[label] = value
+    return value
 
 def is_pending(value):
     normalized = clean(value).lower()
@@ -224,15 +342,6 @@ def parse_platforms(value, source):
     return platforms, problems
 
 
-def section_contents(heading):
-    match = re.search(
-        rf"^## {re.escape(heading)}\s*$\n?(.*?)(?=^## |\Z)",
-        text,
-        re.MULTILINE | re.DOTALL,
-    )
-    return match.group(1) if match else ""
-
-
 def table_rows(section, expected_columns, header):
     for line in section.splitlines():
         if not line.startswith("|") or "---" in line:
@@ -243,8 +352,7 @@ def table_rows(section, expected_columns, header):
         yield cells[:expected_columns]
 
 
-not_ready = []
-recorded_commit = field_value("Published commit").lower()
+recorded_commit = field_value("Published commit")
 if not re.fullmatch(r"[0-9a-f]{40}", recorded_commit):
     not_ready.append("Published commit: record the full 40-character published source commit")
 
@@ -457,6 +565,12 @@ if "2" in device_families:
     required_platforms.add("ipad")
 if re.search(r"^\s*-\s*target:\s*GTAFreeSTEMWatch\s*$", project_text, re.MULTILINE):
     required_platforms.add("watch")
+if re.search(
+    r"^\s*SUPPORTS_MACCATALYST:\s*(?:true|yes|1)\s*$",
+    project_text,
+    re.MULTILINE | re.IGNORECASE,
+):
+    required_platforms.add("mac")
 
 missing_required_platforms = required_platforms - selected_platforms
 if missing_required_platforms:
@@ -485,13 +599,18 @@ elif selected_platforms:
 
 required_build_facts = {
     "Version/build": expected_build,
-    "App Store Connect status": "VALID",
-    "TestFlight status": "BETA_INTERNAL_TESTING",
+    "iOS App Store Connect status": "VALID",
+    "iOS BuildBetaDetail.internalBuildState": "IN_BETA_TESTING",
 }
+if "mac" in selected_platforms:
+    required_build_facts.update({
+        "Mac App Store Connect status": "VALID",
+        "Mac BuildBetaDetail.internalBuildState": "IN_BETA_TESTING",
+    })
 for label, required in required_build_facts.items():
     value = field_value(label)
-    if required not in value:
-        not_ready.append(f"{label}: expected {required}, got {value or 'blank'}")
+    if value != required:
+        not_ready.append(f"{label}: expected exact value {required}, got {value or 'blank'}")
 
 uuid_pattern = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 ios_delivery = field_value("iOS Delivery UUID")
@@ -512,7 +631,7 @@ elif recorded_verification_date != verification_date:
 def require_artifact_binding(evidence_name, field_prefix):
     evidence = artifact_evidence.get(evidence_name)
     recorded_path = field_value(field_prefix + " path")
-    recorded_hash = field_value(field_prefix + " SHA-256").lower()
+    recorded_hash = field_value(field_prefix + " SHA-256")
     if evidence is None:
         return
     if recorded_path != evidence["path"]:
@@ -546,21 +665,48 @@ if "mac" in selected_platforms:
     elif mac_delivery.lower() == ios_delivery.lower():
         not_ready.append("Mac Delivery UUID: must be separate from the iOS delivery UUID")
 
-for label in [
-    "Tester", "Date", "Install source",
-    "Network conditions tested", "Accessibility settings tested", "Languages tested",
-]:
+for label in ["Tester", "Date"]:
     if is_pending(field_value(label)):
         not_ready.append(f"{label}: blank or pending")
 
 date = field_value("Date")
 if date and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
     not_ready.append("Date: use YYYY-MM-DD")
-if "testflight" not in field_value("Install source").lower():
-    not_ready.append("Install source: expected TestFlight")
+required_test_context = {
+    "Install source": "TestFlight",
+    "Network conditions tested": "WI_FI_AND_OFFLINE_FALLBACK",
+    "Accessibility settings tested": "VOICEOVER_LARGE_TEXT_DARK_MODE",
+    "Languages tested": "ENGLISH_FRENCH_SPANISH_ARABIC_RTL",
+}
+for label, required in required_test_context.items():
+    value = field_value(label)
+    if value != required:
+        not_ready.append(f"{label}: expected exact value {required}, got {value or 'blank'}")
 
 allowed = {"Pass", "Accepted Risk"}
 accepted_rows = []
+REQUIRED_PASS_AREAS = (
+    "Install and launch",
+    "Warm launch experience",
+    "Live feed",
+    "Search keywords",
+    "Search translations",
+    "Filters and sorting",
+    "Map/list consistency",
+    "Details and external links",
+    "Local saves",
+    "Local profile deletion",
+    "Manual refresh",
+    "Cache fallback",
+    "Bundled fallback",
+    "State restore",
+    "Location",
+    "Notifications",
+    "Localization and RTL",
+    "Accessibility",
+    "Support privacy",
+    "App Store URLs",
+)
 
 
 def validate_status(area, status, notes):
@@ -576,8 +722,26 @@ required_passes = section_contents("Required Passes")
 if not required_passes:
     not_ready.append("Required Passes: missing section")
 else:
-    for area, _, status, notes in table_rows(required_passes, 4, "Area"):
+    required_rows = list(table_rows(required_passes, 4, "Area"))
+    if len(required_rows) != len(REQUIRED_PASS_AREAS):
+        not_ready.append(
+            "Required Passes: expected exactly {} canonical rows, found {}".format(
+                len(REQUIRED_PASS_AREAS),
+                len(required_rows),
+            )
+        )
+    observed_areas = set()
+    for area, _, status, notes in required_rows:
+        if area in observed_areas:
+            not_ready.append(f"Required Passes: duplicate area {area or 'blank'}")
+        else:
+            observed_areas.add(area)
+        if area not in REQUIRED_PASS_AREAS:
+            not_ready.append(f"Required Passes: unexpected area {area or 'blank'}")
         validate_status(area, status, notes)
+    for area in REQUIRED_PASS_AREAS:
+        if area not in observed_areas:
+            not_ready.append(f"Required Passes: missing required area {area}")
 
 platform_evidence = {}
 platform_section = section_contents("Platform-Specific Evidence")
@@ -626,13 +790,17 @@ if accepted_rows or overall == "Accepted Risk":
 elif accepted_risks.lower() not in {"none", "no accepted risks"}:
     not_ready.append("Accepted risks: write None when no risk is accepted")
 
-for label in [
-    "App Store Connect build selected", "Archive provenance verified",
-    "Screenshots uploaded", "Metadata/privacy/age rating entered",
+required_owner_fields = [
+    "iOS App Store Connect build selected", "Archive provenance verified",
+    "Screenshot visual QA", "Visual QA manifest SHA-256", "Screenshots uploaded",
+    "Metadata/privacy/age rating entered",
     "Support contact verified", "App Review contact verified",
     "Copyright entered", "Production legal/support truthfulness verified",
     "Primary language verified", "Availability and DSA verified",
-]:
+]
+if "mac" in selected_platforms:
+    required_owner_fields.append("Mac App Store Connect build selected")
+for label in required_owner_fields:
     if is_pending(field_value(label)):
         not_ready.append(f"{label}: blank or pending")
 if "mac" in selected_platforms and is_pending(field_value("Platform record decision")):
@@ -642,86 +810,345 @@ must_fix = field_value("Must-fix blockers").lower()
 if must_fix not in {"none", "no known blockers"}:
     not_ready.append("Must-fix blockers: write None only after all must-fix issues are resolved")
 
-if expected_build not in field_value("App Store Connect build selected"):
-    not_ready.append(f"App Store Connect build selected: expected {expected_build}")
+selected_build_fields = ["iOS App Store Connect build selected"]
+if "mac" in selected_platforms:
+    selected_build_fields.append("Mac App Store Connect build selected")
+for label in selected_build_fields:
+    value = field_value(label)
+    if value != expected_build:
+        not_ready.append(f"{label}: expected exact value {expected_build}, got {value or 'blank'}")
 
-screenshots = field_value("Screenshots uploaded").lower()
-for platform in PLATFORM_ORDER:
-    if platform not in selected_platforms:
-        continue
-    if platform not in screenshots:
-        not_ready.append(f"Screenshots uploaded: missing {platform} evidence")
-
-metadata = field_value("Metadata/privacy/age rating entered").lower()
-for token in ["metadata", "privacy", "age", "kids", "export", "review"]:
-    if token not in metadata:
-        not_ready.append(f"Metadata/privacy/age rating entered: missing {token}")
-
-archive = field_value("Archive provenance verified").lower()
-if not is_pending(archive):
-    archive_tokens = [expected_build.lower()]
-    if selected_platforms & {"iphone", "ipad"}:
-        archive_tokens.append("ios")
-    if "watch" in selected_platforms:
-        archive_tokens.append("watch")
-    if "mac" in selected_platforms:
-        archive_tokens.append("mac")
-    for token in archive_tokens:
-        if token not in archive:
-            not_ready.append(f"Archive provenance verified: missing {token} evidence")
-    if not re.search(r"\bsigned\b", archive):
-        not_ready.append("Archive provenance verified: missing signed evidence")
-
-support = field_value("Support contact verified").lower()
-if not is_pending(support) and (
-    "verified" not in support
-    or "https://gta-free-stem.vercel.app/support/" not in support
-    or "github issues" not in support
-    or not any(token in support for token in ["email", "telephone", "phone"])
-):
+artifact_binding_status = field_value("Artifact binding status")
+if artifact_binding_status != "CURRENT_AND_VERIFIED":
     not_ready.append(
-        "Support contact verified: record the production support URL, GitHub Issues route, and monitored email or telephone contact"
+        "Artifact binding status: expected exact value CURRENT_AND_VERIFIED after the exact source is rebuilt and rebound"
     )
 
+expected_screenshot_count = sum(
+    {"iphone": 4, "ipad": 4, "watch": 1, "mac": 4}[platform]
+    for platform in selected_platforms
+)
+expected_upload_status = "UPLOADED_{}_{}".format(
+    expected_screenshot_count,
+    "_".join(platform.upper() for platform in PLATFORM_ORDER if platform in selected_platforms),
+)
+screenshots = field_value("Screenshots uploaded")
+if screenshots != expected_upload_status:
+    not_ready.append(
+        f"Screenshots uploaded: expected exact value {expected_upload_status}, got {screenshots or 'blank'}"
+    )
+
+screenshot_visual_qa = field_value("Screenshot visual QA")
+if screenshot_visual_qa != "PASS":
+    not_ready.append(
+        f"Screenshot visual QA: expected exact value PASS, got {screenshot_visual_qa or 'blank'}"
+    )
+
+EXPECTED_SCREENSHOT_PATHS = (
+    "iphone-6.9/01-home.jpg",
+    "iphone-6.9/02-opportunities.jpg",
+    "iphone-6.9/03-high-school.jpg",
+    "iphone-6.9/04-profile.jpg",
+    "ipad-13/01-home.jpg",
+    "ipad-13/02-opportunities.jpg",
+    "ipad-13/03-high-school.jpg",
+    "ipad-13/04-profile.jpg",
+    "mac/01-home.jpg",
+    "mac/02-opportunities.jpg",
+    "mac/03-high-school.jpg",
+    "mac/04-profile.jpg",
+    "watch-series-11/01-home.jpg",
+)
+
+
+def validate_visual_qa_manifest():
+    manifest = Path(visual_qa_manifest_argument)
+    screenshot_root = Path(screenshot_root_argument)
+    recorded_manifest_hash = field_value("Visual QA manifest SHA-256")
+    if not re.fullmatch(r"[0-9a-f]{64}", recorded_manifest_hash):
+        not_ready.append("Visual QA manifest SHA-256: record the full lowercase digest")
+
+    if not manifest.exists():
+        not_ready.append(f"Visual QA manifest: missing {manifest}")
+        return
+    if manifest.is_symlink() or not manifest.is_file():
+        not_ready.append(f"Visual QA manifest: expected a regular non-symlink file at {manifest}")
+        return
+    if not screenshot_root.exists() or not screenshot_root.is_dir():
+        not_ready.append(f"Visual QA screenshot root: missing directory {screenshot_root}")
+        return
+
+    try:
+        manifest_bytes = manifest.read_bytes()
+        actual_manifest_hash = hashlib.sha256(manifest_bytes).hexdigest()
+        manifest_text = manifest_bytes.decode("utf-8")
+    except (OSError, UnicodeError) as error:
+        not_ready.append(f"Visual QA manifest: unable to read {manifest}: {error}")
+        return
+    if recorded_manifest_hash != actual_manifest_hash:
+        not_ready.append(
+            "Visual QA manifest SHA-256: verified {} but signoff records {}".format(
+                actual_manifest_hash,
+                recorded_manifest_hash or "blank",
+            )
+        )
+
+    manifest_sections = {}
+
+    def manifest_section(heading):
+        if heading in manifest_sections:
+            return manifest_sections[heading]
+        matches = list(re.finditer(
+            rf"^## {re.escape(heading)}\s*$\n?(.*?)(?=^## |\Z)",
+            manifest_text,
+            re.MULTILINE | re.DOTALL,
+        ))
+        if len(matches) != 1:
+            not_ready.append(
+                f"Visual QA manifest {heading}: expected exactly one section, found {len(matches)}"
+            )
+            value = matches[0].group(1) if matches else ""
+        else:
+            value = matches[0].group(1)
+        manifest_sections[heading] = value
+        return value
+
+    approval = manifest_section("Approval")
+    manifest_field_cache = {}
+
+    def manifest_field(label):
+        if label in manifest_field_cache:
+            return manifest_field_cache[label]
+        matches = re.findall(
+            rf"^- {re.escape(label)}:[ \t]*(.*)$",
+            approval,
+            re.MULTILINE,
+        )
+        if len(matches) != 1:
+            not_ready.append(
+                f"Visual QA manifest Approval: expected exactly one '{label}' field, found {len(matches)}"
+            )
+            value = ""
+        else:
+            value = clean(matches[0])
+        manifest_field_cache[label] = value
+        return value
+
+    exact_manifest_fields = {
+        "Manifest schema": "GTA-FREE-STEM-FINAL-VISUAL-QA-v1",
+        "Approval status": "PASS",
+        "Review scope": "FULL_SIZE_ALL_13_NO_KNOWN_DEFECTS",
+        "Version/build": expected_build,
+        "Published commit": recorded_commit,
+        "Screenshot count": str(len(EXPECTED_SCREENSHOT_PATHS)),
+    }
+    for label, required in exact_manifest_fields.items():
+        value = manifest_field(label)
+        if value != required:
+            not_ready.append(
+                f"Visual QA manifest {label}: expected exact value {required}, got {value or 'blank'}"
+            )
+
+    capture_receipt_hash = manifest_field("Capture receipt SHA-256")
+    if not re.fullmatch(r"[0-9a-f]{64}", capture_receipt_hash):
+        not_ready.append(
+            "Visual QA manifest Capture receipt SHA-256: record a full lowercase digest"
+        )
+
+    reviewer = manifest_field("Reviewer")
+    reviewer_normalized = reviewer.lower()
+    if is_pending(reviewer) or re.match(
+        r"^(?:no|not|none|unreviewed|unknown|nobody)\b",
+        reviewer_normalized,
+    ):
+        not_ready.append("Visual QA manifest Reviewer: blank or pending")
+    reviewed_on = manifest_field("Reviewed on")
+    try:
+        reviewed_date = dt.date.fromisoformat(reviewed_on)
+    except ValueError:
+        not_ready.append("Visual QA manifest Reviewed on: use YYYY-MM-DD")
+    else:
+        if reviewed_date > dt.date.fromisoformat(verification_date):
+            not_ready.append("Visual QA manifest Reviewed on: date cannot be in the future")
+
+    approved_files = manifest_section("Approved Files")
+    rows = list(table_rows(approved_files, 2, "Relative path"))
+    if len(rows) != len(EXPECTED_SCREENSHOT_PATHS):
+        not_ready.append(
+            "Visual QA manifest Approved Files: expected exactly {} rows, found {}".format(
+                len(EXPECTED_SCREENSHOT_PATHS),
+                len(rows),
+            )
+        )
+    observed_paths = set()
+    recorded_hashes = {}
+    for relative_path, recorded_hash in rows:
+        if relative_path in observed_paths:
+            not_ready.append(f"Visual QA manifest Approved Files: duplicate path {relative_path}")
+            continue
+        observed_paths.add(relative_path)
+        recorded_hashes[relative_path] = recorded_hash
+        if relative_path not in EXPECTED_SCREENSHOT_PATHS:
+            not_ready.append(
+                f"Visual QA manifest Approved Files: unexpected path {relative_path or 'blank'}"
+            )
+            continue
+        if not re.fullmatch(r"[0-9a-f]{64}", recorded_hash):
+            not_ready.append(
+                f"Visual QA screenshot {relative_path}: record a full lowercase SHA-256 digest"
+            )
+            continue
+        screenshot = screenshot_root / relative_path
+        if screenshot.is_symlink() or not screenshot.is_file():
+            not_ready.append(
+                f"Visual QA screenshot {relative_path}: missing regular non-symlink file"
+            )
+            continue
+        try:
+            actual_hash = file_sha256(screenshot)
+        except OSError as error:
+            not_ready.append(f"Visual QA screenshot {relative_path}: unable to hash: {error}")
+            continue
+        if actual_hash != recorded_hash:
+            not_ready.append(
+                f"Visual QA screenshot {relative_path}: SHA-256 mismatch; "
+                f"manifest records {recorded_hash}, current file is {actual_hash}"
+            )
+    for relative_path in EXPECTED_SCREENSHOT_PATHS:
+        if relative_path not in observed_paths:
+            not_ready.append(
+                f"Visual QA manifest Approved Files: missing required path {relative_path}"
+            )
+
+    canonical_lines = [
+        "# Final Screenshot Visual QA",
+        "",
+        "## Approval",
+        "",
+        "- Manifest schema: `GTA-FREE-STEM-FINAL-VISUAL-QA-v1`",
+        "- Approval status: `PASS`",
+        "- Review scope: `FULL_SIZE_ALL_13_NO_KNOWN_DEFECTS`",
+        f"- Version/build: `{expected_build}`",
+        f"- Published commit: `{recorded_commit}`",
+        f"- Capture receipt SHA-256: `{capture_receipt_hash}`",
+        f"- Reviewer: `{reviewer}`",
+        f"- Reviewed on: `{reviewed_on}`",
+        f"- Screenshot count: `{len(EXPECTED_SCREENSHOT_PATHS)}`",
+        "",
+        "## Approved Files",
+        "",
+        "| Relative path | SHA-256 |",
+        "| --- | --- |",
+    ]
+    for relative_path in EXPECTED_SCREENSHOT_PATHS:
+        canonical_lines.append(
+            f"| {relative_path} | {recorded_hashes.get(relative_path, '')} |"
+        )
+    canonical_manifest = "\n".join(canonical_lines) + "\n"
+    if manifest_text != canonical_manifest:
+        not_ready.append(
+            "Visual QA manifest: content must match the canonical schema and row order exactly"
+        )
+
+
+validate_visual_qa_manifest()
+
+expected_metadata_status = (
+    "ENTERED_METADATA_PRIVACY_AGE_RATING_KIDS_NO_EXPORT_COMPLIANCE_REVIEW_NOTES"
+)
+metadata = field_value("Metadata/privacy/age rating entered")
+if metadata != expected_metadata_status:
+    not_ready.append(
+        "Metadata/privacy/age rating entered: expected exact value "
+        f"{expected_metadata_status}, got {metadata or 'blank'}"
+    )
+
+build_token = re.sub(r"[^A-Za-z0-9]+", "_", expected_build).strip("_").upper()
+archive_platform_tokens = []
+if selected_platforms & {"iphone", "ipad"}:
+    archive_platform_tokens.append("IOS")
+if "watch" in selected_platforms:
+    archive_platform_tokens.append("WATCH")
+if "mac" in selected_platforms:
+    archive_platform_tokens.append("MAC")
+expected_archive_status = "VERIFIED_SIGNED_BUILD_{}_{}".format(
+    build_token,
+    "_".join(archive_platform_tokens),
+)
+archive = field_value("Archive provenance verified")
+if archive != expected_archive_status:
+    not_ready.append(
+        "Archive provenance verified: expected exact value "
+        f"{expected_archive_status}, got {archive or 'blank'}"
+    )
+
+expected_support_status = (
+    "VERIFIED: https://gta-free-stem.vercel.app/support/ | "
+    "GITHUB_ISSUES | MONITORED_DIRECT_CONTACT"
+)
+support = field_value("Support contact verified")
+if support != expected_support_status:
+    not_ready.append(
+        f"Support contact verified: expected exact value {expected_support_status}, "
+        f"got {support or 'blank'}"
+    )
+
+expected_production_truthfulness = (
+    "VERIFIED_MATCH_BUILD: https://gta-free-stem.vercel.app/support/ | "
+    "https://gta-free-stem.vercel.app/privacy/ | "
+    "https://gta-free-stem.vercel.app/terms/"
+)
 production_support_privacy = field_value("Production legal/support truthfulness verified")
-production_support_privacy_lower = production_support_privacy.lower()
-production_urls = {
-    url.rstrip(".,;:")
-    for url in re.findall(r"https://[^\s`<>()[\]]+", production_support_privacy_lower)
-}
-required_production_urls = {
-    "https://gta-free-stem.vercel.app/support/",
-    "https://gta-free-stem.vercel.app/privacy/",
-    "https://gta-free-stem.vercel.app/terms/",
-}
-if not is_pending(production_support_privacy) and (
-    any(token not in production_support_privacy_lower for token in ["verified", "production", "support", "privacy", "terms"])
-    or not required_production_urls.issubset(production_urls)
-    or "match" not in production_support_privacy_lower
-):
+if production_support_privacy != expected_production_truthfulness:
     not_ready.append(
-        "Production legal/support truthfulness verified: record a verified production review with "
-        "distinct HTTPS support, privacy, and Terms URLs that match the submitted build"
+        "Production legal/support truthfulness verified: expected exact value "
+        f"{expected_production_truthfulness}, got {production_support_privacy or 'blank'}"
     )
 
-review_contact = field_value("App Review contact verified").lower()
-if not is_pending(review_contact) and ("verified" not in review_contact or "app store connect" not in review_contact):
-    not_ready.append("App Review contact verified: record portal verification without committing private contact details")
+expected_portal_verification = f"VERIFIED_APP_STORE_CONNECT_{verification_date}"
+review_contact = field_value("App Review contact verified")
+if review_contact != expected_portal_verification:
+    not_ready.append(
+        f"App Review contact verified: expected exact value {expected_portal_verification}, "
+        f"got {review_contact or 'blank'}"
+    )
 
-for label in ["Primary language verified", "Availability and DSA verified"]:
-    value = field_value(label).lower()
-    if not is_pending(value) and ("verified" not in value or "app store connect" not in value):
-        not_ready.append(f"{label}: record App Store Connect verification without committing private compliance data")
+primary_language = field_value("Primary language verified")
+primary_language_pattern = re.compile(
+    rf"{re.escape(expected_portal_verification)}: primary_language=[a-z]{{2}}(?:-[A-Z]{{2}})?"
+)
+if not primary_language_pattern.fullmatch(primary_language):
+    not_ready.append(
+        "Primary language verified: expected exact format "
+        f"{expected_portal_verification}: primary_language=<locale>, "
+        f"got {primary_language or 'blank'}"
+    )
+
+availability_dsa = field_value("Availability and DSA verified")
+if availability_dsa != expected_portal_verification:
+    not_ready.append(
+        f"Availability and DSA verified: expected exact value {expected_portal_verification}, "
+        f"got {availability_dsa or 'blank'}"
+    )
 
 copyright = field_value("Copyright entered")
-copyright_lower = copyright.lower()
-copyright_placeholders = {"pending", "tbd", "todo", "legal rights owner", "rights holder", "copyright owner"}
-if not is_pending(copyright) and (
-    not re.search(r"\b20\d{2}\b", copyright)
-    or any(placeholder in copyright_lower for placeholder in copyright_placeholders)
-    or len(re.sub(r"[^A-Za-z]", "", copyright)) < 5
+copyright_match = re.fullmatch(
+    r"ENTERED_APP_STORE_CONNECT_(20\d{2}): ([A-Za-z][A-Za-z0-9 .,'&-]{3,})",
+    copyright,
+)
+copyright_holder = copyright_match.group(2).strip().lower() if copyright_match else ""
+copyright_placeholders = {
+    "legal rights owner", "rights holder", "copyright owner", "unknown", "none",
+}
+if (
+    not copyright_match
+    or copyright_holder in copyright_placeholders
+    or re.match(r"^(?:no|not|none|unknown)\b", copyright_holder)
 ):
-    not_ready.append("Copyright entered: record the exact year and confirmed legal-rights holder used in App Store Connect")
+    not_ready.append(
+        "Copyright entered: expected exact format "
+        "ENTERED_APP_STORE_CONNECT_<year>: <confirmed legal-rights holder>"
+    )
 
 ios_bundle_match = re.search(r"^\s*PRODUCT_BUNDLE_IDENTIFIER:\s*([^\s#]+)", project_text, re.MULTILINE)
 mac_bundle_match = re.search(
@@ -732,24 +1159,21 @@ mac_bundle_match = re.search(
 ios_bundle = ios_bundle_match.group(1).strip('"\'') if ios_bundle_match else ""
 mac_bundle = mac_bundle_match.group(1).strip('"\'') if mac_bundle_match else ios_bundle
 platform_decision = field_value("Platform record decision")
-platform_lower = platform_decision.lower()
 if "mac" in selected_platforms:
-    if is_pending(platform_decision):
-        pass
-    elif "universal" in platform_lower:
-        for token in ["verified", "macos", "6779714459", ios_bundle.lower()]:
-            if token and token not in platform_lower:
-                not_ready.append(f"Platform record decision: universal path missing {token} evidence")
-        if not ios_bundle or mac_bundle != ios_bundle:
-            not_ready.append("Platform record decision: universal path requires Catalyst to use the iOS bundle ID")
-    elif "separate" in platform_lower:
-        for token in ["verified", "mac app id", "sku", "com.rupayonhaldar.gtafreestem.maccatalyst"]:
-            if token not in platform_lower:
-                not_ready.append(f"Platform record decision: separate path missing {token} evidence")
-        if mac_bundle != "com.rupayonhaldar.gtafreestem.maccatalyst":
-            not_ready.append("Platform record decision: separate path requires the configured Catalyst bundle ID")
-    else:
-        not_ready.append("Platform record decision: choose verified Universal or Separate Mac record evidence")
+    platform_match = re.fullmatch(
+        r"VERIFIED_SEPARATE_MAC_RECORD: app_id=([0-9]{10}); "
+        r"sku=([A-Za-z0-9._-]+); "
+        r"bundle_id=com\.rupayonhaldar\.gtafreestem\.maccatalyst",
+        platform_decision,
+    )
+    if not platform_match:
+        not_ready.append(
+            "Platform record decision: expected exact format VERIFIED_SEPARATE_MAC_RECORD: "
+            "app_id=<numeric App ID>; sku=<SKU>; "
+            "bundle_id=com.rupayonhaldar.gtafreestem.maccatalyst"
+        )
+    if mac_bundle != "com.rupayonhaldar.gtafreestem.maccatalyst":
+        not_ready.append("Platform record decision: separate path requires the configured Catalyst bundle ID")
 
 submitted = field_value("Submitted for App Review")
 if is_pending(submitted):
@@ -761,5 +1185,8 @@ if not_ready:
         print(f"- {item}")
     raise SystemExit(1)
 
-print(f"Public release gates are complete for build {expected_build}.")
+if fixture_only:
+    print("PUBLIC_GATE_FIXTURE_PASS_NOT_RELEASE_SIGNOFF")
+else:
+    print(f"Public release gates are complete for build {expected_build}.")
 PY

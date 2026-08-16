@@ -44,13 +44,13 @@ Toronto,robotics,coding,science,engineering,math,volunteer,coop,SHSM,mentorship,
 
 ## Supported Platforms
 
-- iPhone and iPad: native SwiftUI app.
-- Mac: the current Mac Catalyst configuration resolves to the distinct \`com.rupayonhaldar.gtafreestem.maccatalyst\` bundle ID. It therefore needs a separate Mac App Store Connect app record, SKU, and Mac upload. Do not treat it as a platform on iOS Apple ID \`6779714459\` unless the owner first chooses the universal-record path and changes the Catalyst bundle ID to match the iOS bundle ID.
-- Apple Watch: companion app for a compact, cached opportunity view.
+- iPhone and iPad: native SwiftUI app distributed through the iOS upload.
+- Mac: Mac Catalyst app distributed as the selected separate Mac App Store product \`com.rupayonhaldar.gtafreestem.maccatalyst\`, with its own Mac App ID, SKU, upload, processed build, and delivery UUID.
+- Apple Watch: companion app embedded in the iOS upload. It shows a capped set of saved opportunities and archive status synced from the iPhone; it does not independently request or cache the public feed.
 
 App Store Connect needs the matching platform enabled and its screenshots uploaded before public submission.
 
-Choose the final public-distribution set deliberately; the release gate accepts only the explicit canonical values \`iphone\`, \`ipad\`, \`watch\`, and \`mac\`. It does not assume that every compiled target will be publicly enabled.
+The build 1.0 (12) public-distribution set is \`iphone,ipad,watch,mac\`. The generic release gate still has no default and requires that exact current-release value to be supplied explicitly.
 
 ## Support, Privacy, Terms, And EULA URLs
 
@@ -95,7 +95,7 @@ The app is intended for families and students. It has no ads, purchases, gamblin
 - Primary live feed: \`https://raw.githubusercontent.com/rupayon123/gta-free-stem-opportunities/main/public/opportunities.json\`.
 - The release gate reports the current entry count and timestamp for both the live feed and bundled fallback. Run \`docs/scripts/sync-bundled-feed.sh\` and \`docs/scripts/check-release-readiness.sh\` immediately before upload; both feeds are rejected when older than 14 days.
 - Every remote source, including the primary feed and jsDelivr CDN mirror, is rejected unless it declares data no more than 14 days old.
-- The app opens from the latest valid local cache or bundled snapshot, refreshes the live feed on each cold launch, revalidates active foreground content after 15 minutes, and waits for a live response only when neither local source is usable.
+- The app opens from the latest valid local cache or bundled snapshot when available, refreshes the live feed on each cold launch, and revalidates active foreground content after 15 minutes. If neither local source is usable, the interactive app—not the branded loader—shows the live loading or error state so launch cannot become trapped behind a network timeout.
 - Seen-listing records are pruned after 120 days and known-ID tracking is capped, avoiding unbounded local growth.
 
 ## Screenshot Notes
@@ -107,19 +107,19 @@ bash docs/scripts/capture-app-store-screenshots.sh
 bash docs/scripts/capture-watch-app-store-screenshot.sh
 \`\`\`
 
-Mac Catalyst screenshots are captured manually from the Release app at an accepted 16:10 Mac size. The exact files and visual-review checklist are in \`docs/APP_STORE_SCREENSHOTS.md\`.
+All 13 upload assets live under \`build/app-store-screenshots/final/\`: four iPhone, four iPad, four Retina-captured 16:10 Mac, and one Watch screenshot. The current local files passed structural checks and full-size visual inspection on August 6, 2026, but they are not release-signoff assets because they lack the clean-source capture receipt and one predates the final Watch edit. Recapture the entire set from the published source, generate `CAPTURE_RECEIPT.json`, repeat visual QA, and bind the receipt plus final image hashes in \`FINAL_VISUAL_QA.md\` before upload. Exact paths and review criteria are in \`docs/APP_STORE_SCREENSHOTS.md\`.
 
 ## App Review Information
 
 - Reviewer contact: enter the release owner’s monitored name, email, and phone in App Store Connect. Do not commit those private details; record \`Verified in App Store Connect on YYYY-MM-DD\` in the real-device signoff.
 - Demo account: not required. Core review requires no login.
-- Mac record: before uploading the Mac build, record the deliberate universal-versus-separate decision in \`docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md\` and ensure it matches the generated Catalyst bundle ID.
+- Mac record: the separate-record strategy is selected. Before upload, verify the real Mac App ID and SKU for \`com.rupayonhaldar.gtafreestem.maccatalyst\` in App Store Connect and record them in \`docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md\`.
 
 ## Before Submission
 
 1. Upload and wait for TestFlight processing of build \`1.0 (12)\`.
 2. Complete the App Privacy, age-rating, Made for Kids = No, availability, export-compliance, copyright, primary-language, DSA-status, and App Review contact forms using this file and the submission packet.
-3. Choose and record the Mac universal-versus-separate app-record strategy only if \`mac\` will be publicly enabled.
-4. Record the final public platform selection in \`docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md\`, then upload the current screenshot sets for that selection.
-5. Record real-device TestFlight QA and the production Support/Privacy/Terms truthfulness check in \`docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md\`.
-6. Submit only after \`IOS_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-1.0-12.xcarchive IOS_IPA_PATH=/absolute/path/to/GTAFreeSTEM-1.0-12.ipa PUBLIC_RELEASE_PLATFORMS=iphone,ipad,watch bash docs/scripts/check-public-release-gates.sh\` passes for the verified archive and its distribution-signed IPA; if the separate Mac product is included, also set \`MAC_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-Mac-1.0-12.xcarchive MAC_PKG_PATH=/absolute/path/to/GTAFreeSTEM.pkg\` and add \`,mac\`.
+3. Create and verify the selected separate Mac App Store record, Mac App ID, and SKU for \`com.rupayonhaldar.gtafreestem.maccatalyst\`.
+4. Recapture all 13 canonical JPEGs from the clean published commit, generate and verify `CAPTURE_RECEIPT.json`, repeat the full-size review, bind the receipt and image hashes in \`FINAL_VISUAL_QA.md\`, then upload those exact iPhone, iPad, Watch, and Mac files.
+5. Record real-device QA on iPhone, iPad, paired Watch, and Mac plus the production Support/Privacy/Terms truthfulness check in \`docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md\`.
+6. Submit only after \`IOS_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-1.0-12.xcarchive IOS_IPA_PATH=/absolute/path/to/GTAFreeSTEM-1.0-12.ipa MAC_ARCHIVE_PATH=/absolute/path/to/GTAFreeSTEM-Mac-1.0-12.xcarchive MAC_PKG_PATH=/absolute/path/to/GTAFreeSTEM.pkg PUBLIC_RELEASE_PLATFORMS=iphone,ipad,watch,mac bash docs/scripts/check-public-release-gates.sh\` passes for the verified iOS and Mac artifacts.
