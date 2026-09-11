@@ -17,7 +17,7 @@ I'm building GTA FREE STEM to make free STEM programs easier to find across the 
 
 Search by location, age, category, and language, or use the High School section for volunteer hours, co-op, and mentorship. Open a program's source page, get directions with Apple Maps, and keep a shortlist on your device.
 
-There's no account to create. Your profile, saved opportunities, searches, and settings stay on the device. Nearby search requests your location only when you ask for it. The app has no ads, purchases, or third-party analytics.
+There's no account to create. Your profile, saved opportunities, searches, and settings stay on-device. Nearby search requests your location only when you ask for it. The app has no ads, purchases, or third-party analytics.
 
 The app reads the public opportunity feed from the web repository and keeps a local cache for offline browsing. The feed pipeline handles source collection and updates; the native app doesn't crawl provider websites.
 

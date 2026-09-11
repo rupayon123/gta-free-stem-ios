@@ -1336,6 +1336,14 @@ final class APIClientTests: XCTestCase {
         let session = makeURLSessionForStub()
         let client = APIClient(feedURL: feedURL, session: session)
 
+        // Exercise translation fallback with a current bundled record. Seasonal
+        // opportunities can disappear when the verified offline feed refreshes.
+        let bundled = try LocalOpportunitySnapshot.loadFull()
+        let translated = try XCTUnwrap(bundled.data.first {
+            $0.translations["fr"]?.summary?.isEmpty == false
+        })
+        let frenchSummary = try XCTUnwrap(translated.translations["fr"]?.summary)
+
         let liveOnly = """
         {
           "lastDataChange": "\(currentFeedTimestamp())",
@@ -1358,7 +1366,7 @@ final class APIClientTests: XCTestCase {
             }
           },
           "opportunities": [{
-            "id": "cvc-conservation-youth-corps-2026",
+            "id": "\(translated.id)",
             "title": "Conservation Volunteer Day",
             "organization": "Credit Valley Conservation",
             "description": "Volunteer in support of conservation projects.",
@@ -1385,15 +1393,15 @@ final class APIClientTests: XCTestCase {
             body: liveOnly.data(using: .utf8)!
         )
 
-        let response = try await client.opportunities(query: "benevolat", mode: .all, filters: OpportunityFilters())
+        let response = try await client.opportunities(query: frenchSummary, mode: .all, filters: OpportunityFilters())
 
         XCTAssertEqual(response.data.count, 1)
-        XCTAssertEqual(response.data.first?.id, "cvc-conservation-youth-corps-2026")
+        XCTAssertEqual(response.data.first?.id, translated.id)
         XCTAssertEqual(
             response.data.first?.localizedSummary(language: .fr),
-            "Occasion gratuite de Heures de benevolat offerte par Credit Valley Conservation a Mississauga. Ages 14-18. Consultez la source pour les details."
+            frenchSummary
         )
-        XCTAssertEqual(response.data.first?.localizedCategory(language: .fr), "Heures de benevolat")
+        XCTAssertEqual(response.data.first?.localizedCategory(language: .fr), translated.localizedCategory(language: .fr))
     }
 
     func testLocalOpportunitySnapshotFiltersByLanguage() throws {
