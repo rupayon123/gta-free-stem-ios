@@ -1,29 +1,22 @@
-# Product screenshot capture notes
+# The iPhone experience - screenshot provenance
 
-Captured on September 11, 2026 on the project owner's Mac. These are unaltered runtime captures, not generated mockups or app-store release screenshots.
+Captured from the existing GTA FREE STEM 1.0 (12) installation in the iOS 26.5 Simulator on the owner's Mac. The app's Theme control was used for light and dark captures. The app reports an offline backup dated August 20, 2026; this remains visible in the screenshots. Existing local build, exact source commit not established. These images show the captured runtime, not current-source rebuild, physical-device, TestFlight, or App Store signoff.
 
-| Asset | Capture source | Observed state |
-| --- | --- | --- |
-| ios-home.png | iOS 26.5 Simulator, installed GTA FREE STEM 1.0 (12) | Home and search; the screen explicitly reports an offline backup dated August 20, 2026. |
-| ios-detail.png | Same iOS app and simulator | Opened Mini-Makers details with a rendered Apple Maps preview. |
-| android-home.png | Android API 36 emulator, GTA FREE STEM 1.1.0 (3), existing local debug APK | Home with a loaded Mini-Makers listing. |
-| web-home.png | https://gta-free-stem.vercel.app/ in the Mac's Codex browser | Live landing page. |
-| web-browse.png | Same live website | Opportunity browser with listing and provider details. |
+Captured September 11, 2026. These are unaltered app/page screenshots with original status bars and source attribution retained. No generated mockups, recolored screens, or fabricated listing data. Theme pairs use the same screen and comparable framing. This gallery contains only this repository's platform.
 
-The Android APK SHA-256 was 1b3cd8345d2ca05efac72ed7d104149b409a2041c23202379529f9f1a8dd25d7. The installed iOS app and Android APK were existing local builds; their exact source commits were not established. These images document the observed interfaces, not a rebuild of the latest source or full functional verification. Listing counts and content can differ between cached native data and the live website.
+The screen captures are product documentation, not comprehensive functional or release evidence. Provider information and map content remain subject to their original owners' rights.
 
-The Android emulator's first boot displayed a System UI startup warning. After an emulator restart, the app opened and loaded the listing shown in the published capture. The warning and loading-state captures were not published.
-
-Screenshots contain only the app or webpage, without the Mac desktop, unrelated windows, or account details. Original pixels and platform status bars are retained. No sample data was inserted or UI labels retouched. Provider content and map attribution remain owned by their respective sources.
-
-This documentation update does not assert App Store or Google Play availability, physical-device signoff, or completion of release gates. See each repository's existing release documentation for distribution status.
-
-## Original image checksums
+## SHA-256
 
 ```text
-d93d35848e1978f7e3f6097252ed2c970287032eef7b11dda0e877577d6b4178  web-home.png
-ea29e08eb847ba0e50630dcd224fe591be88a138772396d1b6234f4f0378c3d8  web-browse.png
-b3a93ba00e1ff575c31df10fb2c9820576ec942c3aea06ee48672134693754db  ios-home.png
-a0be035c4e24349579624ac7691ff727f1327044a3279a01b32c5f04b9ca2be5  ios-detail.png
-2c7e7b8d483c1786eb43b50f3c1a9ed1e1fb0cc5b836bf3b053e88368b07f344  android-home.png
+e287c40b1a5d9b5eece3f97542d88a600d595881d4e8052f5fe6e093a6a0196c  home-light.png
+b1d1461e4c5c84694fe5a5900bf9343752eb9c3c572b7cc5159b99ff956f7692  home-dark.png
+8758cc4b276b034e8967a921a0c4597b590b514ae640e14d0e7c4e8cd73f5d25  browse-light.png
+849e73d449546246595a6ef514ac38441a49839af0c2ffd20cc22e3ac82ce0e2  browse-dark.png
+63269eb4f20c9b79e19215736308c46c7bf8b383099451ed2b0f22ffe4b7147a  filters-light.png
+62338796e309d3c4350479ca11483a96e642892e789746e934718aa013fe96c6  filters-dark.png
+911b6bc1817eb415279112e0a3651288050f3b5531839db4b4e6603bfac71fff  details-light.png
+991a8663148331217838dc2210b6bf8cc8c8ba333ec80d8381f675b6da6b8daf  details-dark.png
+7c6e1ee5c89e8c2c43caf5ec03ba588e02b1b389e9d1daa47b7c402d1673382b  saved-light.png
+3dbc21ebed33f8f13e6cc1bec8c3a7e64be80e4a0d0d5baf9af1d8f181f6ab5a  saved-dark.png
 ```

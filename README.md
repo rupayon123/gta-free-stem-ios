@@ -1,46 +1,72 @@
 # GTA FREE STEM
 
-## Across iOS, Android, and the web
+## The iPhone experience
 
-Find your next free STEM opportunity in the Greater Toronto Area.
+Discover free STEM opportunities through the native SwiftUI app. Explore, filter, inspect a program, and keep a personal shortlist on your device.
 
-[Explore the live website](https://gta-free-stem.vercel.app) &nbsp; · &nbsp; [iOS source](https://github.com/rupayon123/gta-free-stem-ios) &nbsp; · &nbsp; [Android source](https://github.com/rupayon123/gta-free-stem-android) &nbsp; · &nbsp; [Web source](https://github.com/rupayon123/gta-free-stem-opportunities)
+**Light and dark, screen by screen.** Select any screenshot to view the original at full size.
 
-### Discover on the web
+### Start your search
 
-<a href="https://gta-free-stem.vercel.app"><img src="docs/showcase/web-home.png" alt="GTA FREE STEM live website with its illustrated STEM logo, program search, and opportunity discovery actions" width="960"></a>
-
-### Native experiences on your phone
+Open search or the high-school pathway from the home screen.
 
 <table>
+  <tr><th width="50%">Light</th><th width="50%">Dark</th></tr>
   <tr>
-    <th width="50%">iOS · SwiftUI</th>
-    <th width="50%">Android · Jetpack Compose</th>
-  </tr>
-  <tr>
-    <td align="center"><img src="docs/showcase/ios-home.png" alt="GTA FREE STEM iOS home screen with search, high-school discovery, and native bottom navigation" width="280"></td>
-    <td align="center"><img src="docs/showcase/android-home.png" alt="GTA FREE STEM Android home screen with pathway filters and a loaded Mini-Makers opportunity card" width="280"></td>
-  </tr>
-  <tr>
-    <td align="center">Search and explore with a native iPhone interface.</td>
-    <td align="center">Browse opportunities with Android-native navigation.</td>
+    <td align="center"><a href="docs/showcase/home-light.png"><img src="docs/showcase/home-light.png" alt="ios start your search in light mode" width="300"></a></td>
+    <td align="center"><a href="docs/showcase/home-dark.png"><img src="docs/showcase/home-dark.png" alt="ios start your search in dark mode" width="300"></a></td>
   </tr>
 </table>
 
-<details>
-<summary><strong>Take a closer look: program details and web browsing</strong></summary>
+### Browse opportunities
 
-### iOS program details
+Scan program cards, check the feed status, and open a listing.
 
-<img src="docs/showcase/ios-detail.png" alt="iOS Mini-Makers detail screen showing the program's map, provider, category, and description" width="320">
+<table>
+  <tr><th width="50%">Light</th><th width="50%">Dark</th></tr>
+  <tr>
+    <td align="center"><a href="docs/showcase/browse-light.png"><img src="docs/showcase/browse-light.png" alt="ios browse opportunities in light mode" width="300"></a></td>
+    <td align="center"><a href="docs/showcase/browse-dark.png"><img src="docs/showcase/browse-dark.png" alt="ios browse opportunities in dark mode" width="300"></a></td>
+  </tr>
+</table>
 
-### Web opportunity browser
+### Find a better fit
 
-<img src="docs/showcase/web-browse.png" alt="Live web opportunity browser with listings, program details, source links, and map preview" width="960">
+Narrow opportunities by region, city, STEM category, age, and program language.
 
-</details>
+<table>
+  <tr><th width="50%">Light</th><th width="50%">Dark</th></tr>
+  <tr>
+    <td align="center"><a href="docs/showcase/filters-light.png"><img src="docs/showcase/filters-light.png" alt="ios find a better fit in light mode" width="300"></a></td>
+    <td align="center"><a href="docs/showcase/filters-dark.png"><img src="docs/showcase/filters-dark.png" alt="ios find a better fit in dark mode" width="300"></a></td>
+  </tr>
+</table>
 
-<sub>Actual running screens captured on a Mac on September 11, 2026. Phone images show simulator/emulator builds; the web images show the live site. [Capture notes](docs/showcase/README.md).</sub>
+### Inspect a program
+
+Review the provider, description, and map before following a registration link.
+
+<table>
+  <tr><th width="50%">Light</th><th width="50%">Dark</th></tr>
+  <tr>
+    <td align="center"><a href="docs/showcase/details-light.png"><img src="docs/showcase/details-light.png" alt="ios inspect a program in light mode" width="300"></a></td>
+    <td align="center"><a href="docs/showcase/details-dark.png"><img src="docs/showcase/details-dark.png" alt="ios inspect a program in dark mode" width="300"></a></td>
+  </tr>
+</table>
+
+### Keep a shortlist
+
+Revisit saved programs in the on-device opportunity library.
+
+<table>
+  <tr><th width="50%">Light</th><th width="50%">Dark</th></tr>
+  <tr>
+    <td align="center"><a href="docs/showcase/saved-light.png"><img src="docs/showcase/saved-light.png" alt="ios keep a shortlist in light mode" width="300"></a></td>
+    <td align="center"><a href="docs/showcase/saved-dark.png"><img src="docs/showcase/saved-dark.png" alt="ios keep a shortlist in dark mode" width="300"></a></td>
+  </tr>
+</table>
+
+Captured from the running iOS Simulator build on September 11, 2026. [Capture details and original image checksums](docs/showcase/README.md).
 
 ---
 
