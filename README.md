@@ -1,5 +1,49 @@
 # GTA FREE STEM
 
+## Across iOS, Android, and the web
+
+Find your next free STEM opportunity in the Greater Toronto Area.
+
+[Explore the live website](https://gta-free-stem.vercel.app) &nbsp; · &nbsp; [iOS source](https://github.com/rupayon123/gta-free-stem-ios) &nbsp; · &nbsp; [Android source](https://github.com/rupayon123/gta-free-stem-android) &nbsp; · &nbsp; [Web source](https://github.com/rupayon123/gta-free-stem-opportunities)
+
+### Discover on the web
+
+<a href="https://gta-free-stem.vercel.app"><img src="docs/showcase/web-home.png" alt="GTA FREE STEM live website with its illustrated STEM logo, program search, and opportunity discovery actions" width="960"></a>
+
+### Native experiences on your phone
+
+<table>
+  <tr>
+    <th width="50%">iOS · SwiftUI</th>
+    <th width="50%">Android · Jetpack Compose</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/showcase/ios-home.png" alt="GTA FREE STEM iOS home screen with search, high-school discovery, and native bottom navigation" width="280"></td>
+    <td align="center"><img src="docs/showcase/android-home.png" alt="GTA FREE STEM Android home screen with pathway filters and a loaded Mini-Makers opportunity card" width="280"></td>
+  </tr>
+  <tr>
+    <td align="center">Search and explore with a native iPhone interface.</td>
+    <td align="center">Browse opportunities with Android-native navigation.</td>
+  </tr>
+</table>
+
+<details>
+<summary><strong>Take a closer look: program details and web browsing</strong></summary>
+
+### iOS program details
+
+<img src="docs/showcase/ios-detail.png" alt="iOS Mini-Makers detail screen showing the program's map, provider, category, and description" width="320">
+
+### Web opportunity browser
+
+<img src="docs/showcase/web-browse.png" alt="Live web opportunity browser with listings, program details, source links, and map preview" width="960">
+
+</details>
+
+<sub>Actual running screens captured on a Mac on September 11, 2026. Phone images show simulator/emulator builds; the web images show the live site. [Capture notes](docs/showcase/README.md).</sub>
+
+---
+
 [![SwiftUI](https://img.shields.io/badge/SwiftUI-iOS%2017%2B-0A84FF)](https://developer.apple.com/xcode/swiftui/)
 [![TestFlight candidate](https://img.shields.io/badge/TestFlight-candidate%20build%2012-5856D6)](https://developer.apple.com/testflight/)
 
