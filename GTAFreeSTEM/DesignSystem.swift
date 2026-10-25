@@ -751,7 +751,9 @@ struct FrontendLayoutReview: View {
             let prepared = await store.prepareScreenshotSnapshot()
             guard prepared else { return }
             if screen == "saved" {
-                let context = ModelContext(container)
+                // The query and fixture must share the retained main context.
+                // A temporary context resets its registered models on deinit.
+                let context = container.mainContext
                 do {
                     for opportunity in store.opportunities.prefix(3) {
                         context.insert(try SavedOpportunityRecord(opportunity: opportunity))
