@@ -729,16 +729,14 @@ struct FrontendLayoutReview: View {
     }
 
     var body: some View {
-        Group {
-            if ready {
-                if screen == "calendar", let sample = store.opportunities.first {
-                    NavigationStack { OpportunityDetailView(opportunity: sample) }
-                } else {
-                    ContentView()
-                }
-            } else {
-                ProgressView("Preparing app-owned layout samples")
-            }
+        VStack(spacing: 0) {
+            Text(session.text("layoutReviewBanner"))
+                .font(.caption.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(8)
+                .foregroundStyle(Brand.navy)
+                .background(Brand.sun)
+            reviewContent
         }
         .environmentObject(session)
         .environmentObject(store)
@@ -748,14 +746,6 @@ struct FrontendLayoutReview: View {
         .environment(\.layoutDirection, session.language.layoutDirection)
         .environment(\.dynamicTypeSize, largeText ? .accessibility3 : .large)
         .preferredColorScheme(isDark ? .dark : .light)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            Text(session.text("layoutReviewBanner"))
-                .font(.caption.weight(.semibold))
-                .frame(maxWidth: .infinity)
-                .padding(8)
-                .foregroundStyle(Brand.navy)
-                .background(Brand.sun)
-        }
         .task {
             guard !ready else { return }
             let prepared = await store.prepareScreenshotSnapshot()
@@ -777,6 +767,20 @@ struct FrontendLayoutReview: View {
             ready = true
             // This marker proves fixture preparation only; the capture script waits for drawing.
             AppLaunchConfiguration.markScreenshotReady(true)
+        }
+    }
+
+    private var reviewContent: some View {
+        Group {
+            if ready {
+                if screen == "calendar", let sample = store.opportunities.first {
+                    NavigationStack { OpportunityDetailView(opportunity: sample) }
+                } else {
+                    ContentView()
+                }
+            } else {
+                ProgressView("Preparing app-owned layout samples")
+            }
         }
     }
 

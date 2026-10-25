@@ -15,7 +15,9 @@ private func makeAppTestModelContainer() throws -> ModelContainer {
 
 private func bundledSnapshotTestNow() throws -> Date {
     let bundled = try LocalOpportunitySnapshot.loadFull()
-    return try XCTUnwrap(FeedFreshness.date(from: bundled.meta?.lastUpdated)).addingTimeInterval(3_600)
+    let dataTime = try XCTUnwrap(FeedFreshness.date(from: bundled.meta?.lastUpdated)).addingTimeInterval(3_600)
+    let publicationTime = FeedPublicationRevision.date(from: bundled.publicationRevision)?.addingTimeInterval(60) ?? dataTime
+    return max(dataTime, publicationTime)
 }
 
 final class APIClientTests: XCTestCase {
@@ -2026,7 +2028,7 @@ final class APIClientTests: XCTestCase {
         }
     }
 
-    func testOpportunitiesApplyBundledTranslationFallbackToSearch() async throws {
+    func testMissingFullTranslationKeepsOriginalSourceTextSearchable() async throws {
         let defaults = UserDefaults.standard
         let previousLanguage = defaults.string(forKey: "preferredLanguageCode")
         defaults.set("fr", forKey: "preferredLanguageCode")
@@ -2044,10 +2046,9 @@ final class APIClientTests: XCTestCase {
         let bundled = try LocalOpportunitySnapshot.loadFull()
         let now = try bundledSnapshotTestNow()
         let client = APIClient(feedURL: feedURL, session: session, now: { now })
-        let target = try XCTUnwrap(
-            bundled.data.first { $0.translations["fr"]?.summary?.contains("Occasion gratuite") == true }
-        )
-        let expectedSummary = try XCTUnwrap(target.translations["fr"]?.summary)
+        let target = try XCTUnwrap(bundled.data.first)
+        XCTAssertTrue(target.translations.isEmpty)
+        let expectedDescription = target.description
         let bundleURL = try XCTUnwrap(AppResources.url(forResource: "opportunities", withExtension: "json"))
         var liveOnly = try XCTUnwrap(
             JSONSerialization.jsonObject(with: Data(contentsOf: bundleURL)) as? [String: Any]
@@ -2079,11 +2080,11 @@ final class APIClientTests: XCTestCase {
             body: liveOnlyData
         )
 
-        let response = try await client.opportunities(query: "occasion", mode: .all, filters: OpportunityFilters())
+        let response = try await client.opportunities(query: target.title, mode: .all, filters: OpportunityFilters())
 
         XCTAssertEqual(response.data.count, 1)
         XCTAssertEqual(response.data.first?.id, target.id)
-        XCTAssertEqual(response.data.first?.localizedSummary(language: .fr), expectedSummary)
+        XCTAssertEqual(response.data.first?.localizedDescription(language: .fr), expectedDescription)
     }
 
     func testLocalOpportunitySnapshotFiltersByLanguage() throws {
@@ -2111,7 +2112,7 @@ final class APIClientTests: XCTestCase {
 
     func testContentRightsRejectsSelfDeclaredProviderAndUnreviewedDigest() throws {
         let bundled = try LocalOpportunitySnapshot.loadFull()
-        let rights = try XCTUnwrap(bundled.contentRights)
+        let rights = try legacyRights(for: bundled)
         let source = try XCTUnwrap(rights.sources.first)
         let feedDate = try XCTUnwrap(FeedFreshness.date(from: bundled.meta?.lastUpdated))
 
@@ -2128,6 +2129,7 @@ final class APIClientTests: XCTestCase {
             )
         }
 
+        XCTAssertTrue(response(with: source).hasReleaseReadyContentRights(now: feedDate.addingTimeInterval(3_600)))
         let unapprovedProvider = OpportunityListResponse.ContentRights.Source(
             organization: "Unapproved Library",
             sourceHost: source.sourceHost,
@@ -2441,11 +2443,9 @@ final class APIClientTests: XCTestCase {
 
     func testExactBundledFeedHasNoPromotedHomePathwayInventory() throws {
         let bundled = try LocalOpportunitySnapshot.loadFull()
-        let currentFeedMoment = try XCTUnwrap(
-            ISO8601DateFormatter().date(from: "2026-08-20T12:00:00Z")
-        )
+        let currentFeedMoment = try bundledSnapshotTestNow()
 
-        XCTAssertEqual(bundled.data.count, 97)
+        XCTAssertEqual(bundled.data.count, 1882)
         XCTAssertEqual(
             HomePathwayInventory.availableModes(in: bundled.data, now: currentFeedMoment),
             []
@@ -2949,6 +2949,113 @@ final class APIClientTests: XCTestCase {
         )
     }
 
+    func testPublicationRevisionRoundTripsAndRejectsInvalidRepresentations() throws {
+        let raw = try encodedFeed(id: "versioned", lastUpdated: "2026-08-20")
+        let base = try XCTUnwrap(JSONSerialization.jsonObject(with: raw) as? [String: Any])
+        for invalid in ["", "2026-08-20", "2026-08-20T20:00:00Z", 17, true, NSNull()] as [Any] {
+            var json = base
+            json["publicationRevision"] = invalid
+            XCTAssertThrowsError(try JSONDecoder().decode(OpportunityListResponse.self, from: JSONSerialization.data(withJSONObject: json)))
+        }
+        var json = base
+        json["publicationRevision"] = "2026-08-20T20:00:00.000Z"
+        let decoded = try JSONDecoder().decode(OpportunityListResponse.self, from: JSONSerialization.data(withJSONObject: json))
+        let encoded = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(decoded)) as? [String: Any])
+        XCTAssertEqual(encoded["publicationRevision"] as? String, "2026-08-20T20:00:00.000Z")
+        let clock = FeedFreshness.date(from: "2026-08-20T19:55:00Z")!
+        XCTAssertTrue(decoded.hasValidPublicationRevision(now: clock))
+        XCTAssertFalse(decoded.hasValidPublicationRevision(now: clock.addingTimeInterval(-0.001)))
+    }
+
+    func testRevisionMigrationKeepsImmutableTiesAndRejectsLegacyRollback() throws {
+        func response(_ revision: String?) throws -> OpportunityListResponse {
+            var json = try XCTUnwrap(JSONSerialization.jsonObject(with: encodedFeed(id: UUID().uuidString, lastUpdated: "2026-08-20")) as? [String: Any])
+            json["publicationRevision"] = revision
+            return try JSONDecoder().decode(OpportunityListResponse.self, from: JSONSerialization.data(withJSONObject: json))
+        }
+        let legacy = try response(nil)
+        let current = try response("2026-08-20T20:00:00.000Z")
+        let conflict = try response("2026-08-20T20:00:00.000Z")
+        XCTAssertTrue(OpportunityFeedSelection.isOlder(legacy, than: current))
+        XCTAssertTrue(OpportunityFeedSelection.isOlder(conflict, than: current))
+        XCTAssertFalse(OpportunityFeedSelection.isOlder(current, than: legacy))
+        XCTAssertTrue(OpportunityFeedSelection.shouldPrefer(current, over: legacy))
+        XCTAssertFalse(OpportunityFeedSelection.shouldPrefer(conflict, over: current))
+        XCTAssertFalse(OpportunityFeedSelection.isOlder(legacy, than: try response(nil)))
+    }
+
+    func testOwnerPermissionPinsConfirmationAndScope() throws {
+        let bundleURL = try XCTUnwrap(AppResources.url(forResource: "opportunities", withExtension: "json"))
+        let base = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: bundleURL)) as? [String: Any])
+        let clock = try bundledSnapshotTestNow()
+        for (key, value) in [("confirmationID", "invented" as Any), ("confirmedAt", "2026-10-26" as Any), ("scope", ["display-event-listings"] as Any)] {
+            var json = base
+            var rights = try XCTUnwrap(json["contentRights"] as? [String: Any])
+            var sources = try XCTUnwrap(rights["sources"] as? [[String: Any]])
+            var permission = try XCTUnwrap(sources[0]["ownerPermission"] as? [String: Any])
+            permission[key] = value
+            sources[0]["ownerPermission"] = permission
+            rights["sources"] = sources
+            json["contentRights"] = rights
+            let response = try JSONDecoder().decode(OpportunityListResponse.self, from: JSONSerialization.data(withJSONObject: json))
+            XCTAssertFalse(response.hasReleaseReadyContentRights(now: clock))
+        }
+    }
+
+    func testActualFullDescriptionTranslationSurvivesFeedSearchAndProjection() async throws {
+        URLProtocolStub.reset()
+        defer { URLProtocolStub.reset() }
+        let url = URL(string: "https://primary.example/full-translation.json")!
+        let english = "Build a robot, program its motors, and test it on a maze."
+        let french = "Construisez un robot, programmez ses moteurs et testez-le dans un labyrinthe."
+        let complete = OpportunityTranslation(title: "Atelier de robotique", description: french)
+        let merged = OpportunityTranslation(summary: "Programmez un robot.").merged(with: complete)
+        XCTAssertEqual(merged.description, french)
+        XCTAssertEqual(merged.title, "Atelier de robotique")
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: encodedFeed(id: "actual-full-translation", lastUpdated: "2026-08-20")) as? [String: Any])
+        var rows = try XCTUnwrap(json["data"] as? [[String: Any]])
+        rows[0]["description"] = english
+        rows[0]["translations"] = ["fr": ["title": "Atelier de robotique", "summary": "Programmez un robot.", "description": french]]
+        json["data"] = rows
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: try JSONSerialization.data(withJSONObject: json))
+        let client = APIClient(feedURL: url, session: makeURLSessionForStub(), now: { FeedFreshness.date(from: "2026-08-20T12:00:00Z")! })
+        let response = try await client.opportunityFeed()
+        let filtered = LocalOpportunitySnapshot.filter(response.data, query: "labyrinthe", mode: .all, filters: OpportunityFilters(), displayLanguage: .fr, now: FeedFreshness.date(from: "2026-08-20T12:00:00Z")!)
+        XCTAssertEqual(filtered.map(\.id), ["actual-full-translation"])
+        XCTAssertEqual(filtered.first?.localizedDescription(language: .fr), french)
+        XCTAssertEqual(filtered.first?.description, english)
+    }
+
+    func testFuturePublicationRevisionUsesValidFallback() async throws {
+        URLProtocolStub.reset()
+        defer { URLProtocolStub.reset() }
+        let primary = URL(string: "https://primary.example/future-revision.json")!
+        let mirror = URL(string: "https://mirror.example/future-revision.json")!
+        let clock = FeedFreshness.date(from: "2026-08-20T12:00:00Z")!
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: encodedFeed(id: "future", lastUpdated: "2026-08-20")) as? [String: Any])
+        json["publicationRevision"] = "2026-08-20T12:05:00.001Z"
+        URLProtocolStub.register(responseFor: primary, statusCode: 200, body: try JSONSerialization.data(withJSONObject: json))
+        URLProtocolStub.register(responseFor: mirror, statusCode: 200, body: try encodedFeed(id: "safe-fallback", lastUpdated: "2026-08-20"))
+        let response = try await APIClient(feedURL: primary, fallbackFeedURLs: [mirror], session: makeURLSessionForStub(), now: { clock }).opportunityFeed()
+        XCTAssertEqual(response.data.map(\.id), ["safe-fallback"])
+    }
+
+    private func legacyRights(for response: OpportunityListResponse) throws -> OpportunityListResponse.ContentRights {
+        let rights = try XCTUnwrap(response.contentRights)
+        let conditions = ["Automated access uses the provider's RSS/XML event feed.", "Every displayed extract links to its original BiblioCommons event page.", "GTA FREE STEM is free and does not monetize provider content."]
+        let sources = rights.sources.map { source in
+            OpportunityListResponse.ContentRights.Source(
+                organization: source.organization, sourceHost: source.sourceHost, records: source.records,
+                status: "terms-permitted", basisUrl: "https://\(source.sourceHost)/info/terms/", conditions: conditions,
+                termsVerifiedAt: rights.termsVerifiedAt, termsVersion: "2018-09-19", termsDigestVersion: "bibliocommons-relevant-sections-v1",
+                termsSectionDigest: source.sourceHost == "tpl.bibliocommons.com"
+                    ? "sha256:c9b14cbd531afa09533e844274bb9f07f8042883e12b5a3990be3100ca5d4b43"
+                    : "sha256:451e63466c801166653f47336e236d05f9a50a3df45a917fa603e92bcd11c8a0"
+            )
+        }
+        return OpportunityListResponse.ContentRights(termsVerifiedAt: rights.termsVerifiedAt, sources: sources, restrictedOpportunityIDs: rights.restrictedOpportunityIDs)
+    }
+
     private func encodedFeed(id: String, lastUpdated: String?) throws -> Data {
         try encodedFeed(ids: [id], lastUpdated: lastUpdated)
     }
@@ -3062,7 +3169,7 @@ final class OpportunityStoreTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let bundled = try LocalOpportunitySnapshot.loadFull()
-        let now = try XCTUnwrap(FeedFreshness.date(from: bundled.meta?.lastUpdated)).addingTimeInterval(3_600)
+        let now = try bundledSnapshotTestNow()
         let feedURL = URL(string: "https://example.com/forced-refresh.json")!
         let store = OpportunityStore(
             api: APIClient(feedURL: feedURL, session: makeURLSessionForStub(), now: { now }),
@@ -3517,6 +3624,67 @@ final class OpportunityStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testIdenticalPublicationRefreshRecordsOnlineSuccessWithoutRewritingFeed() async throws {
+        let context = try makeInMemoryContext()
+        let clock = try bundledSnapshotTestNow()
+        let url = URL(string: "https://primary.example/identical.json")!
+        let bundleURL = try XCTUnwrap(AppResources.url(forResource: "opportunities", withExtension: "json"))
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: try Data(contentsOf: bundleURL))
+        let store = OpportunityStore(api: APIClient(feedURL: url, session: makeURLSessionForStub(), now: { clock }), now: { clock })
+        _ = await store.prepareInitialSnapshot(cache: context)
+        let accepted = store.opportunities
+        XCTAssertNil(store.lastSuccessfulHuntAt)
+        await store.refresh(cache: context, force: true)
+        XCTAssertEqual(store.opportunities, accepted)
+        XCTAssertEqual(store.lastSuccessfulHuntAt, clock)
+        XCTAssertEqual(store.dataSourceLabel, .publicLiveFeed)
+        XCTAssertEqual(store.huntPhase, .fresh)
+        XCTAssertNil(store.errorMessage)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<OpportunityCacheRecord>()).isEmpty)
+    }
+
+    @MainActor
+    func testConflictingEqualPublicationNeverClaimsIdenticalOnlineSuccess() async throws {
+        let context = try makeInMemoryContext()
+        let clock = try bundledSnapshotTestNow()
+        let url = URL(string: "https://primary.example/conflicting.json")!
+        let bundleURL = try XCTUnwrap(AppResources.url(forResource: "opportunities", withExtension: "json"))
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: bundleURL)) as? [String: Any])
+        var rows = try XCTUnwrap(json["opportunities"] as? [[String: Any]])
+        rows[0]["title"] = "Conflicting equal revision body"
+        json["opportunities"] = rows
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: try JSONSerialization.data(withJSONObject: json))
+        let store = OpportunityStore(api: APIClient(feedURL: url, session: makeURLSessionForStub(), now: { clock }), now: { clock })
+        _ = await store.prepareInitialSnapshot(cache: context)
+        let accepted = store.opportunities
+        await store.refresh(cache: context, force: true)
+        XCTAssertEqual(store.opportunities, accepted)
+        XCTAssertNil(store.lastSuccessfulHuntAt)
+        XCTAssertEqual(store.dataSourceLabel, .previewDatabase)
+        XCTAssertEqual(store.huntPhase, .cached)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<OpportunityCacheRecord>()).isEmpty)
+    }
+
+    @MainActor
+    func testFuturePublicationInPersistedCacheCannotPinTheStore() async throws {
+        let context = try makeInMemoryContext()
+        let clock = try bundledSnapshotTestNow()
+        let row = opportunity(id: "poisoned-future", title: "Future cache", organization: "Markham Public Library", category: "STEM", city: "Markham")
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(makeOpportunitiesJSON([row], lastUpdated: clock).utf8)) as? [String: Any])
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        json["publicationRevision"] = formatter.string(from: clock.addingTimeInterval(86400))
+        context.insert(OpportunityCacheRecord(cacheKey: "latest-opportunities", payload: try JSONSerialization.data(withJSONObject: json)))
+        try context.save()
+        let store = OpportunityStore(api: APIClient(), now: { clock })
+        let prepared = await store.prepareInitialSnapshot(cache: context)
+        XCTAssertTrue(prepared)
+        XCTAssertFalse(store.opportunities.contains { $0.id == "poisoned-future" })
+        XCTAssertFalse(store.opportunities.isEmpty)
+        XCTAssertEqual(store.dataSourceLabel, .previewDatabase)
+    }
+
+    @MainActor
     func testOlderLiveFeedCannotReplaceNewerRetainedFeedOrRemoveSavedEvents() async throws {
         let context = try makeInMemoryContext()
         let retainedSaved = opportunity(
@@ -3531,7 +3699,7 @@ final class OpportunityStoreTests: XCTestCase {
 
         let bundled = try LocalOpportunitySnapshot.loadFull()
         let bundledDate = try XCTUnwrap(FeedFreshness.date(from: bundled.meta?.lastUpdated))
-        let now = bundledDate.addingTimeInterval(3_600)
+        let now = try bundledSnapshotTestNow()
         let expectedBundledID = try XCTUnwrap(bundled.data.first?.id)
         let olderLive = opportunity(
             id: "older-live-only",
@@ -4529,7 +4697,12 @@ final class OpportunityStoreTests: XCTestCase {
                 termsVerifiedAt: verifiedAt,
                 sources: rightsSources,
                 restrictedOpportunityIDs: []
-            )
+            ),
+            publicationRevision: {
+                let formatter = ISO8601DateFormatter()
+                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                return formatter.string(from: lastUpdated)
+            }()
         )
         let encoder = JSONEncoder()
         let data = try! encoder.encode(response)

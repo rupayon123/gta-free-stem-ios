@@ -1,5 +1,5 @@
 # Availability evidence: actions/runner-images@4f94a804ccf6254bfc5c7fd90a213db4b21794cd
-name: iOS ordering regression reproduction and screen review
+name: iOS native reliability and screen review
 
 on:
   pull_request:
@@ -50,10 +50,13 @@ jobs:
           test -z "$(git status --porcelain)"
           shasum -a 256 -c .github/native-ci-source.sha256
           shasum -a 256 -c <<'HASHES'
-          f3970f09786edc29c469ab09d65b267accc7b5dd98fed842bb7e9f0ddbbc73d2  GTAFreeSTEM/Models.swift
-          502ab3c6245a445b98203840d45998c8717eaf68fc5309e61d47f48bfefcc297  GTAFreeSTEM/OpportunityStore.swift
-          5acaae5085d97ef8ed5f13a6a3705a4764a2a823bea1cc85c83888b2bfcd3aa9  GTAFreeSTEMTests/APIClientTests.swift
-          be242e9353e50ec682e63b11be69d1ecae625be04513cdb5347b08ed2f55d725  GTAFreeSTEM/APIClient.swift
+          d7c7f6a569336ab94ded4d8177228d6e375d3a5c71b195c8116a70d1075850ff  GTAFreeSTEM/APIClient.swift
+          51514df690e9df97f1e710ad8a61c805d21362382f20300768f6b45482ea5b41  GTAFreeSTEM/Models.swift
+          ead07cba24fe454417c1d0b49fbd2bed1e0fe75a0e0834227751658f12f528ca  GTAFreeSTEM/OpportunityStore.swift
+          f3a9d5b68dda29db7adbc23ce09135fd2bb31089993500dfc620e80ef1690fb1  GTAFreeSTEM/LocalOpportunitySnapshot.swift
+          72e27a6b905a24518866f3eb19e974edc4cc92c4a04f727387e0e7e038a70d07  GTAFreeSTEMTests/APIClientTests.swift
+          66263a59a5f2fdf9d217593d8b13db0fc214a0ae1e13db171740f388b1aef4fc  GTAFreeSTEM/Resources/opportunities.json
+          06181e9494ed5cf7b5bcd672fba62f674dbed03320de8455c48aa57e92b79da3  docs/scripts/validate-feed-content-rights.py
           HASHES
           printf 'Reviewed source: `%s`\n' "$EXPECTED_SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"
 
@@ -87,7 +90,7 @@ jobs:
           print(destination)
           PY
 
-      - name: Run the iOS publication ordering RED regression
+      - name: Run the full iOS reliability target
         id: tests
         timeout-minutes: 25
         env:
@@ -105,12 +108,11 @@ jobs:
             -maximum-concurrent-test-simulator-destinations 1 \
             -derivedDataPath "$RUNNER_TEMP/GTAFreeSTEM-derived-data" \
             -resultBundlePath "$RUNNER_TEMP/GTAFreeSTEM-reliability.xcresult" \
-            -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testSameDayPublicationOrderRejectsLaggingMirrorAndAcceptsCorrection \
             CODE_SIGNING_ALLOWED=NO \
             GTA_RELEASE_SOURCE_COMMIT="$CANDIDATE_SOURCE_SHA" \
             2>&1 | tee "$RUNNER_TEMP/xcodebuild-reliability.log"
 
-      - name: Verify the observed RED regression and retain its failure
+      - name: Verify all iOS reliability tests passed
         if: always() && steps.tests.outcome != 'skipped'
         timeout-minutes: 2
         run: |
@@ -124,22 +126,19 @@ jobs:
           import json, os
           from pathlib import Path
           summary = json.loads((Path(os.environ['RUNNER_TEMP']) / 'reliability-summary.json').read_text())
-          expected = {'result': 'Failed', 'totalTestCount': 1, 'passedTests': 0,
-                      'failedTests': 1, 'skippedTests': 0, 'expectedFailures': 0}
+          expected = {'result': 'Passed', 'totalTestCount': 167, 'passedTests': 167,
+                      'failedTests': 0, 'skippedTests': 0, 'expectedFailures': 0}
           for key, value in expected.items():
               if summary.get(key) != value:
-                  raise SystemExit('RED regression receipt differs: ' + key + ' = ' + repr(summary.get(key)))
-          failures = summary.get('testFailures', [])
-          if not failures or any('testSameDayPublicationOrderRejectsLaggingMirrorAndAcceptsCorrection' not in item.get('testIdentifierString', '') or 'XCTAssert' not in item.get('failureText', '') for item in failures):
-              raise SystemExit('The selected test failed for an unexpected reason')
+                  raise SystemExit('Full reliability receipt differs: ' + key + ' = ' + repr(summary.get(key)))
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
-              output.write('Expected pre-fix ordering regression observed: 1 executed, 1 failed, 0 skipped. The test step and job remain red.\n')
+              output.write('Full iOS reliability target passed: 167 executed, 167 passed, 0 failed, 0 skipped.\n')
               output.write('This is Debug iPhone simulator evidence only; full release gates remain separate.\n')
           PY
 
       - name: Capture bounded native screen review in ordinary job logs
         if: always() && steps.simulator.outcome == 'success' && steps.tests.outcome != 'skipped'
-        timeout-minutes: 7
+        timeout-minutes: 9
         env:
           TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}
           CANDIDATE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}

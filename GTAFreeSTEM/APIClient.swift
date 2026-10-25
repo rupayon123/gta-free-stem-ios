@@ -94,7 +94,8 @@ final class APIClient: @unchecked Sendable {
             meta: OpportunityListResponse.Metadata(
                 activeCount: filtered.count,
                 lastUpdated: response.meta?.lastUpdated
-            )
+            ),
+            publicationRevision: response.publicationRevision
         )
     }
 
@@ -115,7 +116,8 @@ final class APIClient: @unchecked Sendable {
                 guard !response.data.isEmpty else {
                     throw APIError.invalidResponse
                 }
-                guard response.hasValidUniqueIDs, response.hasHealthyDeclaredSources else {
+                guard response.hasValidUniqueIDs, response.hasHealthyDeclaredSources,
+                      response.hasValidPublicationRevision(now: now()) else {
                     throw APIError.invalidResponse
                 }
                 guard response.hasReleaseReadyContentRights(now: now()) else {
@@ -140,7 +142,8 @@ final class APIClient: @unchecked Sendable {
             data: mergedData,
             meta: response.meta,
             sourceHealth: response.sourceHealth,
-            contentRights: response.contentRights
+            contentRights: response.contentRights,
+            publicationRevision: response.publicationRevision
         )
     }
 

@@ -34,6 +34,7 @@ struct BrowseView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.openURL) private var openURL
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.layoutDirection) private var layoutDirection
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appStorageAccess) private var storageAccess
@@ -56,7 +57,13 @@ struct BrowseView: View {
 
                 ScrollView {
                     VStack(spacing: AppSpacing.standard) {
-                        hero
+                        if dynamicTypeSize.isAccessibilitySize {
+                            Text("\(store.activeCount) \(session.text("visible")) · \(session.text("freeShort"))")
+                                .font(.footnote.weight(.semibold))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        } else {
+                            hero
+                        }
                         searchControls
 
                         // A phone's first viewport should answer the question the user came
@@ -66,6 +73,7 @@ struct BrowseView: View {
                         if prioritizesResultsOnCompactLayout {
                             resultsContent
                             huntPanel
+                            if dynamicTypeSize.isAccessibilitySize { hero }
                         } else {
                             huntPanel
                             resultsContent
@@ -153,7 +161,7 @@ struct BrowseView: View {
                 VStack(alignment: .leading, spacing: 7) {
                     HStack(alignment: .top, spacing: 8) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(surface == .highSchool ? session.text("highSchool") : session.text("brand"))
+                            Text(surface == .highSchool ? session.text("highSchool") : Brand.compactName)
                                 .font(.title2.weight(.semibold))
                                 .foregroundStyle(Brand.outline(for: colorScheme))
                                 .fixedSize(horizontal: false, vertical: true)
@@ -161,7 +169,6 @@ struct BrowseView: View {
                             Text(surface == .highSchool ? highSchoolSummary : session.text("mission"))
                                 .font(.footnote)
                                 .foregroundStyle(Brand.mutedText(for: colorScheme))
-                                .lineLimit(3)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
 

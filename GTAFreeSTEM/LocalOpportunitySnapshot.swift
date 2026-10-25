@@ -4,7 +4,7 @@ enum LocalOpportunitySnapshot {
     /// Decodes the retained feed without applying a hunt. Keeping this separate
     /// lets the store do disk I/O and JSON decoding off the main actor, then
     /// instantly re-filter the same complete set when a user edits a search.
-    static func loadFull() throws -> OpportunityListResponse {
+    static func loadFull(now: Date = .now) throws -> OpportunityListResponse {
         guard let url = AppResources.url(forResource: "opportunities", withExtension: "json") else {
             throw APIError.invalidResponse
         }
@@ -13,7 +13,8 @@ enum LocalOpportunitySnapshot {
         let response = try JSONDecoder().decode(OpportunityListResponse.self, from: data)
         guard !response.data.isEmpty,
               response.hasValidUniqueIDs,
-              response.hasHealthyDeclaredSources
+              response.hasHealthyDeclaredSources,
+              response.hasValidPublicationRevision(now: now)
         else {
             throw APIError.invalidResponse
         }
@@ -28,7 +29,8 @@ enum LocalOpportunitySnapshot {
             meta: OpportunityListResponse.Metadata(
                 activeCount: filtered.count,
                 lastUpdated: response.meta?.lastUpdated
-            )
+            ),
+            publicationRevision: response.publicationRevision
         )
     }
 

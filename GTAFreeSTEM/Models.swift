@@ -100,6 +100,17 @@ enum OpportunityCostEligibility {
     }
 }
 
+enum FeedPublicationRevision {
+    static func date(from raw: String?) -> Date? {
+        guard let raw, raw.range(of: #"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$"#, options: .regularExpression) != nil else { return nil }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let value = formatter.date(from: raw), value.timeIntervalSince1970 > 0,
+              formatter.string(from: value) == raw else { return nil }
+        return value
+    }
+}
+
 struct OpportunityTranslation: Codable, Hashable, Sendable {
     let title: String?
     let organization: String?
@@ -783,6 +794,12 @@ struct OpportunityListResponse: Codable, Sendable {
     }
 
     struct ContentRights: Codable, Sendable {
+        struct OwnerPermission: Codable, Sendable {
+            let confirmationID: String
+            let confirmedAt: String
+            let scope: [String]
+        }
+
         struct Source: Codable, Sendable {
             let organization: String
             let sourceHost: String
@@ -794,6 +811,44 @@ struct OpportunityListResponse: Codable, Sendable {
             let termsVersion: String
             let termsDigestVersion: String
             let termsSectionDigest: String
+            let ownerPermission: OwnerPermission?
+
+            private enum CodingKeys: String, CodingKey {
+                case organization, sourceHost, records, status, basisUrl, conditions
+                case termsVerifiedAt, termsVersion, termsDigestVersion, termsSectionDigest, ownerPermission
+            }
+
+            init(organization: String, sourceHost: String, records: Int, status: String,
+                 basisUrl: String = "", conditions: [String] = [], termsVerifiedAt: String = "",
+                 termsVersion: String = "", termsDigestVersion: String = "", termsSectionDigest: String = "",
+                 ownerPermission: OwnerPermission? = nil) {
+                self.organization = organization
+                self.sourceHost = sourceHost
+                self.records = records
+                self.status = status
+                self.basisUrl = basisUrl
+                self.conditions = conditions
+                self.termsVerifiedAt = termsVerifiedAt
+                self.termsVersion = termsVersion
+                self.termsDigestVersion = termsDigestVersion
+                self.termsSectionDigest = termsSectionDigest
+                self.ownerPermission = ownerPermission
+            }
+
+            init(from decoder: Decoder) throws {
+                let c = try decoder.container(keyedBy: CodingKeys.self)
+                organization = try c.decode(String.self, forKey: .organization)
+                sourceHost = try c.decode(String.self, forKey: .sourceHost)
+                records = try c.decode(Int.self, forKey: .records)
+                status = try c.decode(String.self, forKey: .status)
+                basisUrl = try c.decodeIfPresent(String.self, forKey: .basisUrl) ?? ""
+                conditions = try c.decodeIfPresent([String].self, forKey: .conditions) ?? []
+                termsVerifiedAt = try c.decodeIfPresent(String.self, forKey: .termsVerifiedAt) ?? ""
+                termsVersion = try c.decodeIfPresent(String.self, forKey: .termsVersion) ?? ""
+                termsDigestVersion = try c.decodeIfPresent(String.self, forKey: .termsDigestVersion) ?? ""
+                termsSectionDigest = try c.decodeIfPresent(String.self, forKey: .termsSectionDigest) ?? ""
+                ownerPermission = try c.decodeIfPresent(OwnerPermission.self, forKey: .ownerPermission)
+            }
         }
 
         let termsVerifiedAt: String
@@ -889,24 +944,36 @@ struct OpportunityListResponse: Codable, Sendable {
                 let organization = source.organization.trimmingCharacters(in: .whitespacesAndNewlines)
                 let declaredHost = source.sourceHost.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 let key = "\(organization)\u{001F}\(declaredHost)"
-                guard !organization.isEmpty,
-                      !declaredHost.isEmpty,
-                      source.records > 0,
-                      source.status == "terms-permitted",
-                      let approved = Self.approvedTermsEvidence(for: key, source: source),
-                      source.basisUrl == approved.basisURL,
-                      source.termsVersion == approved.termsVersion,
-                      source.termsDigestVersion == Self.termsDigestVersion,
-                      source.termsSectionDigest == approved.termsSectionDigest,
-                      source.conditions == Self.termsConditions,
-                      let basisURL = URL(string: source.basisUrl),
-                      basisURL.scheme?.lowercased() == "https",
-                      basisURL.host?.lowercased() == declaredHost,
-                      let sourceVerifiedDate = FeedFreshness.date(from: source.termsVerifiedAt),
-                      calendar.startOfDay(for: sourceVerifiedDate) >= feedDay,
-                      calendar.startOfDay(for: sourceVerifiedDate) == verifiedDay
-                else {
-                    return false
+                if source.status == "owner-confirmed-permission" {
+                    // Owner confirmation is a distinct basis, not an assertion
+                    // that a written agreement or new terms digest was received.
+                    guard !organization.isEmpty, !declaredHost.isEmpty, source.records > 0,
+                          Self.approvedTermsEvidence[key] != nil,
+                          let permission = source.ownerPermission,
+                          permission.confirmationID == "gta-library-content-2026-10-25",
+                          permission.confirmedAt == "2026-10-25",
+                          permission.scope == ["display-event-listings", "translate-event-listings"]
+                    else { return false }
+                } else {
+                    guard !organization.isEmpty,
+                          !declaredHost.isEmpty,
+                          source.records > 0,
+                          source.status == "terms-permitted",
+                          let approved = Self.approvedTermsEvidence(for: key, source: source),
+                          source.basisUrl == approved.basisURL,
+                          source.termsVersion == approved.termsVersion,
+                          source.termsDigestVersion == Self.termsDigestVersion,
+                          source.termsSectionDigest == approved.termsSectionDigest,
+                          source.conditions == Self.termsConditions,
+                          let basisURL = URL(string: source.basisUrl),
+                          basisURL.scheme?.lowercased() == "https",
+                          basisURL.host?.lowercased() == declaredHost,
+                          let sourceVerifiedDate = FeedFreshness.date(from: source.termsVerifiedAt),
+                          calendar.startOfDay(for: sourceVerifiedDate) >= feedDay,
+                          calendar.startOfDay(for: sourceVerifiedDate) == verifiedDay
+                    else {
+                        return false
+                    }
                 }
                 guard declaredCounts[key] == nil else { return false }
                 declaredCounts[key] = source.records
@@ -933,6 +1000,7 @@ struct OpportunityListResponse: Codable, Sendable {
     let meta: Metadata?
     let sourceHealth: SourceHealth?
     let contentRights: ContentRights?
+    let publicationRevision: String?
 
     private enum CodingKeys: String, CodingKey {
         case data
@@ -942,13 +1010,15 @@ struct OpportunityListResponse: Codable, Sendable {
         case lastDataChange
         case sourceHealth
         case contentRights
+        case publicationRevision
     }
 
     init(
         data: [Opportunity],
         meta: Metadata?,
         sourceHealth: SourceHealth? = nil,
-        contentRights: ContentRights? = nil
+        contentRights: ContentRights? = nil,
+        publicationRevision: String? = nil
     ) {
         let eligibleData = data.filter(\.isExplicitlyFree)
         self.data = eligibleData
@@ -957,6 +1027,7 @@ struct OpportunityListResponse: Codable, Sendable {
         }
         self.sourceHealth = sourceHealth
         self.contentRights = contentRights
+        self.publicationRevision = publicationRevision
     }
 
     init(from decoder: Decoder) throws {
@@ -995,6 +1066,15 @@ struct OpportunityListResponse: Codable, Sendable {
         )
         sourceHealth = decodedSourceHealth
         contentRights = decodedContentRights
+        if container.contains(.publicationRevision) {
+            let raw = try container.decode(String.self, forKey: .publicationRevision)
+            guard FeedPublicationRevision.date(from: raw) != nil else {
+                throw DecodingError.dataCorruptedError(forKey: .publicationRevision, in: container, debugDescription: "Invalid publication revision")
+            }
+            publicationRevision = raw
+        } else {
+            publicationRevision = nil
+        }
     }
 
     func encode(to encoder: Encoder) throws {
@@ -1003,6 +1083,13 @@ struct OpportunityListResponse: Codable, Sendable {
         try container.encodeIfPresent(meta, forKey: .meta)
         try container.encodeIfPresent(sourceHealth, forKey: .sourceHealth)
         try container.encodeIfPresent(contentRights, forKey: .contentRights)
+        try container.encodeIfPresent(publicationRevision, forKey: .publicationRevision)
+    }
+
+    func hasValidPublicationRevision(now: Date) -> Bool {
+        guard let publicationRevision else { return true }
+        guard let revision = FeedPublicationRevision.date(from: publicationRevision) else { return false }
+        return revision <= now.addingTimeInterval(300)
     }
 
     var hasValidUniqueIDs: Bool {

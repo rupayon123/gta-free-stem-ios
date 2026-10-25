@@ -71,6 +71,20 @@ struct SavedView: View {
                     .tint(Brand.lake)
                 }
             }
+            .task {
+#if DEBUG
+                if AppRuntime.isFrontendSavedLayoutReview {
+                    // A saved-screen marker follows a real query and a rendered turn,
+                    // rather than merely acknowledging fixture preparation.
+                    guard savedRecords.count == 3 else { return }
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    let args = ProcessInfo.processInfo.arguments
+                    if let index = args.firstIndex(of: "-screenshot-ready-nonce"), args.indices.contains(index + 1) {
+                        FileHandle.standardOutput.write(Data(("GTA_SAVED_REVIEW_READY " + args[index + 1] + "\n").utf8))
+                    }
+                }
+#endif
+            }
             .navigationTitle(session.text("saved"))
             .navigationDestination(for: Opportunity.self) { opportunity in
                 OpportunityDetailView(opportunity: opportunity)

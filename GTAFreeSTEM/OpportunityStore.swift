@@ -34,9 +34,14 @@ enum HuntPhase: Equatable {
 enum OpportunityFeedSelection {
     /// A live response must never move retained data backwards. A missing
     /// candidate date is also older than a retained feed with a declared date;
-    /// equal dates remain eligible so a publisher can correct same-day data.
-    static func isOlder(_ candidate: OpportunityListResponse, than retained: OpportunityListResponse?) -> Bool {
-        guard let retained else { return false }
+    /// legacy equal dates allow corrections; known revisions must advance.
+    static func isOlder(_ candidate: OpportunityListResponse, than retained: OpportunityListResponse?, now: Date = .now) -> Bool {
+        guard candidate.hasValidPublicationRevision(now: now) else { return true }
+        guard let retained, retained.hasValidPublicationRevision(now: now) else { return false }
+        if let retainedRevision = FeedPublicationRevision.date(from: retained.publicationRevision) {
+            guard let candidateRevision = FeedPublicationRevision.date(from: candidate.publicationRevision),
+                  candidateRevision > retainedRevision else { return true }
+        }
         let candidateDate = FeedFreshness.date(from: candidate.meta?.lastUpdated)
         let retainedDate = FeedFreshness.date(from: retained.meta?.lastUpdated)
         switch (candidateDate, retainedDate) {
@@ -52,10 +57,16 @@ enum OpportunityFeedSelection {
     /// Returns true when a candidate retained feed is more useful or newer than
     /// the currently selected one. Equal dates keep the existing source so a
     /// validated live cache is not replaced unnecessarily by bundled data.
-    static func shouldPrefer(_ candidate: OpportunityListResponse, over retained: OpportunityListResponse?) -> Bool {
+    static func shouldPrefer(_ candidate: OpportunityListResponse, over retained: OpportunityListResponse?, now: Date = .now) -> Bool {
+        guard candidate.hasValidPublicationRevision(now: now) else { return false }
         let candidateIsUsable = !candidate.data.isEmpty || candidate.meta?.lastUpdated != nil
         guard candidateIsUsable else { return false }
-        guard let retained else { return true }
+        guard let retained, retained.hasValidPublicationRevision(now: now) else { return true }
+        let candidateRevision = FeedPublicationRevision.date(from: candidate.publicationRevision)
+        let retainedRevision = FeedPublicationRevision.date(from: retained.publicationRevision)
+        if let retainedRevision {
+            guard let candidateRevision, candidateRevision > retainedRevision else { return false }
+        }
 
         let retainedIsUsable = !retained.data.isEmpty || retained.meta?.lastUpdated != nil
         guard retainedIsUsable else { return true }
@@ -64,7 +75,7 @@ enum OpportunityFeedSelection {
         let retainedDate = FeedFreshness.date(from: retained.meta?.lastUpdated)
         switch (candidateDate, retainedDate) {
         case let (.some(candidateDate), .some(retainedDate)):
-            return candidateDate > retainedDate
+            return candidateDate > retainedDate || (candidateDate == retainedDate && candidateRevision != nil)
         case (.some, .none):
             return true
         case (.none, .some):
@@ -200,7 +211,7 @@ final class OpportunityStore: ObservableObject {
     private var inMemoryFeed: OpportunityListResponse? {
         didSet {
             availableHomePathwayModes = inMemoryFeed.map {
-                HomePathwayInventory.availableModes(in: $0.data, now: now())
+                HomePathwayInventory.availableModes(in: $0.data, now: self.now())
             } ?? []
         }
     }
@@ -260,7 +271,21 @@ final class OpportunityStore: ObservableObject {
         huntPhase = .hunting
         do {
             let fullFeed = try await api.opportunityFeed()
-            if OpportunityFeedSelection.isOlder(fullFeed, than: inMemoryFeed) {
+            if let retained = inMemoryFeed,
+               let revision = retained.publicationRevision,
+               fullFeed.publicationRevision == revision,
+               fullFeed.meta?.lastUpdated == retained.meta?.lastUpdated,
+               fullFeed.data == retained.data {
+                // Verify an unchanged publication without rewriting immutable
+                // accepted bytes or reconciling saved events a second time.
+                apply(responseForCurrentHunt(from: retained), source: .publicLiveFeed)
+                persistCurrentHunt(in: context)
+                lastSuccessfulHuntAt = self.now()
+                huntPhase = .fresh
+                errorMessage = nil
+                return
+            }
+            if OpportunityFeedSelection.isOlder(fullFeed, than: inMemoryFeed, now: self.now()) {
                 // A still-current production response can nevertheless predate
                 // the app's bundled or cached feed. Preserve the newer retained
                 // catalog and, critically, do not persist the older payload or
@@ -442,7 +467,7 @@ final class OpportunityStore: ObservableObject {
     func clearPersonalHistory(in context: ModelContext) async throws {
         var retainedFeed = inMemoryFeed
         if retainedFeed == nil, let payload = cachedPayload(from: context) {
-            retainedFeed = await Self.decodeCachedFullResponse(payload)
+            retainedFeed = await Self.decodeCachedFullResponse(payload, now: self.now())
         }
 
         for record in try context.fetch(FetchDescriptor<SavedHuntRecord>()) {
@@ -516,7 +541,7 @@ final class OpportunityStore: ObservableObject {
     }
 
     private func applyBundledSnapshotIfNeeded() async {
-        guard let fullFeed = await Self.loadBundledFullFeed() else {
+        guard let fullFeed = await Self.loadBundledFullFeed(now: self.now()) else {
             // The live refresh remains the authoritative path. If the packaged
             // snapshot is unavailable or corrupt, preserve the existing empty
             // state and let the interactive shell report the live refresh state.
@@ -526,7 +551,7 @@ final class OpportunityStore: ObservableObject {
         // A persisted cache can survive an App Store/TestFlight update. Prefer
         // whichever full feed declares the newer data change so an offline
         // updated app does not remain pinned to an older pre-update cache.
-        guard OpportunityFeedSelection.shouldPrefer(fullFeed, over: inMemoryFeed) else { return }
+        guard OpportunityFeedSelection.shouldPrefer(fullFeed, over: inMemoryFeed, now: self.now()) else { return }
 
         inMemoryFeed = fullFeed
         apply(responseForCurrentHunt(from: fullFeed), source: .previewDatabase)
@@ -534,9 +559,9 @@ final class OpportunityStore: ObservableObject {
         errorMessage = nil
     }
 
-    nonisolated private static func loadBundledFullFeed() async -> OpportunityListResponse? {
+    nonisolated private static func loadBundledFullFeed(now: Date) async -> OpportunityListResponse? {
         await Task.detached(priority: .userInitiated) {
-            try? LocalOpportunitySnapshot.loadFull()
+            try? LocalOpportunitySnapshot.loadFull(now: now)
         }.value
     }
 
@@ -575,9 +600,11 @@ final class OpportunityStore: ObservableObject {
         }
     }
 
-    nonisolated private static func decodeCachedFullResponse(_ payload: Data) async -> OpportunityListResponse? {
-        await Task.detached(priority: .userInitiated) {
-            try? JSONDecoder().decode(OpportunityListResponse.self, from: payload)
+    nonisolated private static func decodeCachedFullResponse(_ payload: Data, now: Date) async -> OpportunityListResponse? {
+        await Task.detached(priority: .userInitiated) { () -> OpportunityListResponse? in
+            guard let response = try? JSONDecoder().decode(OpportunityListResponse.self, from: payload),
+                  response.hasValidPublicationRevision(now: now) else { return nil }
+            return response
         }.value
     }
 
@@ -626,10 +653,10 @@ final class OpportunityStore: ObservableObject {
     @discardableResult
     private func applyCachedResultsIfAvailableOffMain(in context: ModelContext) async -> Bool {
         guard let payload = cachedPayload(from: context) else { return false }
-        guard let cached = await Self.decodeCachedFullResponse(payload) else { return false }
+        guard let cached = await Self.decodeCachedFullResponse(payload, now: self.now()) else { return false }
         // Decode can suspend while a newer live refresh completes. Select again
         // after that suspension, and never roll retained data backwards on failure.
-        guard OpportunityFeedSelection.shouldPrefer(cached, over: inMemoryFeed) else {
+        guard OpportunityFeedSelection.shouldPrefer(cached, over: inMemoryFeed, now: self.now()) else {
             if let inMemoryFeed {
                 apply(responseForCurrentHunt(from: inMemoryFeed), source: dataSourceLabel)
             }
@@ -721,10 +748,11 @@ final class OpportunityStore: ObservableObject {
     }
 
     private func responseForCurrentHunt(from response: OpportunityListResponse) -> OpportunityListResponse {
-        let filtered = LocalOpportunitySnapshot.filter(response.data, query: query, mode: mode, filters: filters, now: now())
+        let filtered = LocalOpportunitySnapshot.filter(response.data, query: query, mode: mode, filters: filters, now: self.now())
         return OpportunityListResponse(
             data: filtered,
-            meta: OpportunityListResponse.Metadata(activeCount: filtered.count, lastUpdated: response.meta?.lastUpdated)
+            meta: OpportunityListResponse.Metadata(activeCount: filtered.count, lastUpdated: response.meta?.lastUpdated),
+            publicationRevision: response.publicationRevision
         )
     }
 

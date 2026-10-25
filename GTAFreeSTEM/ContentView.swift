@@ -453,8 +453,9 @@ struct HomeView: View {
             HStack(alignment: .top, spacing: AppSpacing.medium) {
                 BrandLogoImage(size: 64)
                     .accessibilityHidden(true)
-                Text(session.text("brand"))
-                    .font(.title.weight(.bold))
+                Text(Brand.compactName)
+                    .font(.title2.weight(.bold))
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .foregroundStyle(Brand.outline(for: colorScheme))
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)

@@ -23,6 +23,8 @@ if not app.is_dir():
 output = root / "GTAFreeSTEM-ui-review"
 output.mkdir(exist_ok=True)
 bundle = "com.rupayonhaldar.gtafreestem"
+frameVerifier = root / "verify-native-frame"
+activePid = None
 
 def run(*args, timeout=30, check=True):
     try:
@@ -32,11 +34,27 @@ def run(*args, timeout=30, check=True):
     except subprocess.CalledProcessError as error:
         raise SystemExit("Native capture command failed: " + repr(args) + "\n" + (error.stdout or "")[-4000:]) from error
 
+def require_alive():
+    if activePid is not None:
+        try:
+            os.kill(activePid, 0)
+        except ProcessLookupError as error:
+            raise SystemExit("The app exited before native screen capture; PID " + str(activePid)) from error
+
 def export(name, mode, **details):
     png = output / (name + ".png")
     jpg = output / (name + ".jpg")
-    # Attach the standard Simulator display before reading its real framebuffer.
-    run("xcrun", "simctl", "io", device, "screenshot", "--type=png", str(png), timeout=90)
+    require_alive()
+    # Retry a transient blank framebuffer only while the actual app process survives.
+    for attempt in range(3):
+        run("xcrun", "simctl", "io", device, "screenshot", "--type=png", str(png), timeout=90)
+        result = subprocess.run([str(frameVerifier), str(png)], text=True, capture_output=True, timeout=10)
+        require_alive()
+        if result.returncode == 0:
+            break
+        if attempt == 2:
+            raise SystemExit(result.stderr)
+        time.sleep(1)
     # A bounded downsample of the native screenshot for log transport, never a re-created image.
     run("/usr/bin/sips", "-s", "format", "jpeg", "-s", "formatOptions", "76", "-Z", "1100", str(png), "--out", str(jpg))
     data = jpg.read_bytes()
@@ -52,6 +70,8 @@ def export(name, mode, **details):
     for start in range(0, len(encoded), 100):
         print("NATIVE_UI_CAPTURE_DATA " + encoded[start:start + 100])
     print("NATIVE_UI_CAPTURE_END " + name, flush=True)
+
+run("xcrun", "swiftc", ".github/scripts/verify-native-frame.swift", "-o", str(frameVerifier), timeout=60)
 
 # xcodebuild may run tests on its own clone, leaving the reviewed destination shut down.
 # Boot this exact preflight-selected device instead of selecting an unrelated booted simulator.
@@ -92,10 +112,14 @@ for screen, dark, large, language in cases:
     stderrLog = output / (nonce + ".stderr")
     redirects = ["--stdout=" + str(stdoutLog), "--stderr=" + str(stderrLog)]
     if screen == "home" and not dark and not large and language == "en":
-        run("xcrun", "simctl", "launch", *redirects, device, bundle, *args, timeout=90)
+        launched = run("xcrun", "simctl", "launch", *redirects, device, bundle, *args, timeout=90)
     else:
-        run("xcrun", "simctl", "launch", "--terminate-running-process", *redirects, device, bundle, *args, timeout=45)
-    readyTag = "GTA_CALENDAR_REVIEW_READY" if screen == "calendar" else "GTA_LAYOUT_REVIEW_READY"
+        launched = run("xcrun", "simctl", "launch", "--terminate-running-process", *redirects, device, bundle, *args, timeout=45)
+    match = re.search(r": (\d+)$", launched)
+    if not match:
+        raise SystemExit("Launch did not return an app PID: " + launched)
+    activePid = int(match.group(1))
+    readyTag = "GTA_CALENDAR_REVIEW_READY" if screen == "calendar" else "GTA_SAVED_REVIEW_READY" if screen == "saved" else "GTA_LAYOUT_REVIEW_READY"
     deadline = time.monotonic() + (30 if screen == "calendar" else 15)
     while time.monotonic() < deadline:
         if stdoutLog.is_file() and readyTag + " " + nonce in stdoutLog.read_text(errors="replace").splitlines():
@@ -103,7 +127,11 @@ for screen, dark, large, language in cases:
         time.sleep(0.25)
     else:
         diagnostics = stderrLog.read_text(errors="replace")[-4000:] if stderrLog.is_file() else "No app stderr output"
-        raise SystemExit("Layout fixture did not signal readiness: " + screen + "\n" + diagnostics)
+        print("NATIVE_UI_LAUNCH_DIAGNOSTICS " + screen + "\n" + diagnostics, flush=True)
+        crashes = sorted((Path.home() / "Library/Logs/DiagnosticReports").glob("GTAFreeSTEM*.ips"), key=lambda p: p.stat().st_mtime, reverse=True)
+        for crash in crashes[:1]:
+            print("NATIVE_UI_CRASH_DIAGNOSTICS " + crash.name + "\n" + crash.read_text(errors="replace")[:20000], flush=True)
+        raise SystemExit("Layout fixture did not signal readiness: " + screen)
     time.sleep(2 if screen == "calendar" else 0.75)
     name = "fixture-" + screen + ("-dark" if dark else "-light") + ("-large" if large else "") + ("-" + language if language != "en" else "")
     export(name, "app-owned-layout-fixture", screen=screen, language=language,
@@ -113,10 +141,12 @@ for screen, dark, large, language in cases:
            sampleTitleVisible=screen == "calendar")
 # Normal runtime after simulator/framework warmup: actual source/rights/error state.
 # This is a new process, but is not a first-install cold-start performance claim.
-run("xcrun", "simctl", "launch", "--terminate-running-process", device, bundle, timeout=90)
+launched = run("xcrun", "simctl", "launch", "--terminate-running-process", device, bundle, timeout=90)
+activePid = int(launched.rsplit(": ", 1)[1])
 time.sleep(20)
 export("normal-home", "normal-runtime", waitSeconds=20, dataAcceptance=False)
-run("xcrun", "simctl", "launch", "--terminate-running-process", device, bundle, "-start-opportunities")
+launched = run("xcrun", "simctl", "launch", "--terminate-running-process", device, bundle, "-start-opportunities")
+activePid = int(launched.rsplit(": ", 1)[1])
 time.sleep(8)
 export("normal-browse", "normal-runtime", waitSeconds=8, dataAcceptance=False)
 
