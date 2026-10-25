@@ -11,3 +11,5 @@ Capture can run after a reliability-test failure to retain independent UI eviden
 The additional app-owned calendar frame waits until the real EventKitUI controller has a displayed window. Its visible event title begins with Sample, since the system modal may cover the fixture banner. It proves presentation only: no Calendar read/write permission is requested, no Save action is automated, and no persisted event is claimed.
 
 Labelled layouts run before normal launches so a normal-startup/platform timeout cannot discard independent UI evidence. Normal frames still use a new process with real disk/source/rights behavior, after simulator/framework warmup; they do not establish first-install cold-start performance. Command and step deadlines remain bounded.
+
+Readiness is an exact per-launch nonce written to an official simctl stdout redirection on the host, after fixture preparation or the displayed system-editor window. It avoids querying the app data-container service during startup. Existing app-store screenshot cache markers remain available; no personal-data path scan is used.

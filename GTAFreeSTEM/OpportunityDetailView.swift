@@ -390,6 +390,7 @@ private func markCalendarReviewPresented() {
     else { return }
     let nonce = args[index + 1]
     guard !nonce.isEmpty, nonce.count <= 200 else { return }
+    FileHandle.standardOutput.write(Data(("GTA_CALENDAR_REVIEW_READY " + nonce + "\n").utf8))
     try? Data(nonce.utf8).write(to: cache.appendingPathComponent("gta-free-stem-calendar-review-ready"), options: .atomic)
 }
 #endif

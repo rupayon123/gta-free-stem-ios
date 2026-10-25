@@ -127,6 +127,11 @@ enum AppLaunchConfiguration {
             return
         }
 
+#if DEBUG
+        if AppRuntime.isFrontendLayoutReview {
+            FileHandle.standardOutput.write(Data(("GTA_LAYOUT_REVIEW_READY " + nonce + "\n").utf8))
+        }
+#endif
         let marker = cachesDirectory.appendingPathComponent(screenshotReadyMarkerFilename, isDirectory: false)
         try? Data(nonce.utf8).write(to: marker, options: .atomic)
     }

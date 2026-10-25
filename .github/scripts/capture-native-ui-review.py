@@ -82,20 +82,22 @@ for screen, dark, large, language in cases:
         args += ["-review-dark"]
     if large:
         args += ["-review-large-text"]
+    stdoutLog = output / (nonce + ".stdout")
+    stderrLog = output / (nonce + ".stderr")
+    redirects = ["--stdout=" + str(stdoutLog), "--stderr=" + str(stderrLog)]
     if screen == "home" and not dark and not large and language == "en":
-        run("xcrun", "simctl", "launch", device, bundle, *args, timeout=90)
+        run("xcrun", "simctl", "launch", *redirects, device, bundle, *args, timeout=90)
     else:
-        run("xcrun", "simctl", "launch", "--terminate-running-process", device, bundle, *args, timeout=45)
-    container = Path(run("xcrun", "simctl", "get_app_container", device, bundle, "data"))
-    markerName = "gta-free-stem-calendar-review-ready" if screen == "calendar" else "gta-free-stem-screenshot-ready"
-    marker = container / ("Library/Caches/" + markerName)
+        run("xcrun", "simctl", "launch", "--terminate-running-process", *redirects, device, bundle, *args, timeout=45)
+    readyTag = "GTA_CALENDAR_REVIEW_READY" if screen == "calendar" else "GTA_LAYOUT_REVIEW_READY"
     deadline = time.monotonic() + (30 if screen == "calendar" else 15)
     while time.monotonic() < deadline:
-        if marker.is_file() and marker.read_text() == nonce:
+        if stdoutLog.is_file() and readyTag + " " + nonce in stdoutLog.read_text(errors="replace").splitlines():
             break
         time.sleep(0.25)
     else:
-        raise SystemExit("Layout fixture did not signal readiness: " + screen)
+        diagnostics = stderrLog.read_text(errors="replace")[-4000:] if stderrLog.is_file() else "No app stderr output"
+        raise SystemExit("Layout fixture did not signal readiness: " + screen + "\n" + diagnostics)
     time.sleep(2 if screen == "calendar" else 0.75)
     name = "fixture-" + screen + ("-dark" if dark else "-light") + ("-large" if large else "") + ("-" + language if language != "en" else "")
     export(name, "app-owned-layout-fixture", screen=screen, language=language,
