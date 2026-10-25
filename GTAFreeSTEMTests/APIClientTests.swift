@@ -3502,7 +3502,8 @@ final class OpportunityStoreTests: XCTestCase {
 
     func testSameDayPublicationOrderRejectsLaggingMirrorAndAcceptsCorrection() throws {
         func revised(_ id: String, _ revision: String) throws -> OpportunityListResponse {
-            let data = try encodedFeed(id: id, lastUpdated: "2026-08-20")
+            let row = opportunity(id: id, title: id, organization: "Markham Public Library", category: "STEM", city: "Markham")
+            let data = Data(makeOpportunitiesJSON([row], lastUpdated: FeedFreshness.date(from: "2026-08-20")!).utf8)
             var json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
             json["publicationRevision"] = revision
             return try JSONDecoder().decode(OpportunityListResponse.self, from: JSONSerialization.data(withJSONObject: json))
