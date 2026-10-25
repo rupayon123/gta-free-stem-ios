@@ -142,7 +142,7 @@
     "view": "View",
     "opportunities": "Opportunities",
     "brand": "GTA FREE STEM Opportunities",
-    "mission": "Find free library events, creative workshops and STEM activities across the GTA for children, families and adults.",
+    "mission": "Find free STEM programs and library events for children, families and adults in Toronto and Markham.",
     "search": "Search",
     "searchPlaceholder": "Search STEM opportunities...",
     "filters": "Filters",
@@ -285,7 +285,8 @@
     "opensWebsite": "Opens website",
     "websiteUnavailable": "The website could not be opened on this device.",
     "openProgramPage": "Open program page",
-    "addToCalendar": "Add to calendar"
+    "addToCalendar": "Add to calendar",
+    "layoutReviewBanner": "Layout preview · app-owned sample listings"
   },
   "fr": {
     "browse": "Parcourir",
@@ -338,7 +339,7 @@
     "view": "Vue",
     "opportunities": "Occasions",
     "brand": "Occasions GTA FREE STEM",
-    "mission": "Découvrez des événements gratuits en bibliothèque, des ateliers créatifs et des activités STIM dans le Grand Toronto, pour les enfants, les familles et les adultes.",
+    "mission": "Trouvez des programmes STIM et des activités en bibliothèque gratuits pour les enfants, les familles et les adultes à Toronto et Markham.",
     "search": "Rechercher",
     "searchPlaceholder": "Rechercher des occasions STEM...",
     "filters": "Filtres",
@@ -481,7 +482,8 @@
     "opensWebsite": "Ouvre le site Web",
     "websiteUnavailable": "Impossible d’ouvrir le site Web sur cet appareil.",
     "openProgramPage": "Ouvrir la page du programme",
-    "addToCalendar": "Ajouter au calendrier"
+    "addToCalendar": "Ajouter au calendrier",
+    "layoutReviewBanner": "Aperçu · exemples créés par l’application"
   },
   "zh": {
     "browse": "浏览",
@@ -534,7 +536,7 @@
     "view": "视图",
     "opportunities": "机会",
     "brand": "GTA 免费 STEM 机会",
-    "mission": "探索大多伦多地区的免费图书馆活动、创意工作坊和 STEM 活动，适合儿童、家庭和成人。",
+    "mission": "寻找多伦多和万锦市适合儿童、家庭和成人的免费 STEM 项目和图书馆活动。",
     "search": "搜索",
     "searchPlaceholder": "搜索 STEM 机会...",
     "filters": "筛选",
@@ -677,7 +679,8 @@
     "opensWebsite": "打开网站",
     "websiteUnavailable": "无法在此设备上打开网站。",
     "openProgramPage": "打开活动页面",
-    "addToCalendar": "添加到日历"
+    "addToCalendar": "添加到日历",
+    "layoutReviewBanner": "布局预览 · 应用自有示例活动"
   },
   "yue": {
     "browse": "瀏覽",
@@ -730,7 +733,7 @@
     "view": "視圖",
     "opportunities": "機會",
     "brand": "GTA 免費 STEM 機會",
-    "mission": "喺大多倫多地區搵免費圖書館活動、創意工作坊同 STEM 活動，畀小朋友、家庭同成人探索學習。",
+    "mission": "尋找多倫多同萬錦市適合兒童、家庭同成人嘅免費 STEM 課程同圖書館活動。",
     "search": "搜尋",
     "searchPlaceholder": "搜尋 STEM 機會...",
     "filters": "篩選",
@@ -873,7 +876,8 @@
     "opensWebsite": "開啟網站",
     "websiteUnavailable": "無法喺呢部裝置開啟網站。",
     "openProgramPage": "開啟活動頁面",
-    "addToCalendar": "加入行事曆"
+    "addToCalendar": "加入行事曆",
+    "layoutReviewBanner": "版面預覽 · 應用程式自有示例活動"
   },
   "pa": {
     "browse": "ਬ੍ਰਾਊਜ਼",
@@ -926,7 +930,7 @@
     "view": "ਵੇਖੋ",
     "opportunities": "ਮੌਕੇ",
     "brand": "GTA FREE STEM ਮੌਕੇ",
-    "mission": "GTA ਵਿੱਚ ਬੱਚਿਆਂ, ਪਰਿਵਾਰਾਂ ਅਤੇ ਬਾਲਗਾਂ ਲਈ ਮੁਫ਼ਤ ਲਾਇਬ੍ਰੇਰੀ ਸਮਾਗਮ, ਰਚਨਾਤਮਕ ਵਰਕਸ਼ਾਪਾਂ ਅਤੇ STEM ਗਤੀਵਿਧੀਆਂ ਲੱਭੋ।",
+    "mission": "ਟੋਰਾਂਟੋ ਅਤੇ ਮਾਰਖਮ ਵਿੱਚ ਬੱਚਿਆਂ, ਪਰਿਵਾਰਾਂ ਅਤੇ ਬਾਲਗਾਂ ਲਈ ਮੁਫ਼ਤ STEM ਪ੍ਰੋਗਰਾਮ ਅਤੇ ਲਾਇਬ੍ਰੇਰੀ ਸਮਾਗਮ ਲੱਭੋ।",
     "search": "ਖੋਜ",
     "searchPlaceholder": "STEM ਮੌਕੇ ਲੱਭੋ...",
     "filters": "ਫਿਲਟਰ",
@@ -1069,7 +1073,8 @@
     "opensWebsite": "ਵੈੱਬਸਾਈਟ ਖੁੱਲ੍ਹੇਗੀ",
     "websiteUnavailable": "ਇਸ ਡਿਵਾਈਸ ਉੱਤੇ ਵੈੱਬਸਾਈਟ ਨਹੀਂ ਖੁੱਲ੍ਹ ਸਕੀ।",
     "openProgramPage": "ਪ੍ਰੋਗਰਾਮ ਪੰਨਾ ਖੋਲ੍ਹੋ",
-    "addToCalendar": "ਕੈਲੰਡਰ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ"
+    "addToCalendar": "ਕੈਲੰਡਰ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ",
+    "layoutReviewBanner": "ਲੇਆਉਟ ਝਲਕ · ਐਪ ਦੇ ਆਪਣੇ ਨਮੂਨੇ"
   },
   "ur": {
     "browse": "دیکھیں",
@@ -1122,7 +1127,7 @@
     "view": "منظر",
     "opportunities": "مواقع",
     "brand": "GTA FREE STEM مواقع",
-    "mission": "GTA میں بچوں، خاندانوں اور بالغوں کے لیے مفت لائبریری تقریبات، تخلیقی ورکشاپس اور STEM سرگرمیاں تلاش کریں۔",
+    "mission": "ٹورنٹو اور مارکھم میں بچوں، خاندانوں اور بڑوں کے لیے مفت STEM پروگرام اور لائبریری کی سرگرمیاں تلاش کریں۔",
     "search": "تلاش",
     "searchPlaceholder": "STEM مواقع تلاش کریں...",
     "filters": "فلٹرز",
@@ -1265,7 +1270,8 @@
     "opensWebsite": "ویب سائٹ کھلے گی",
     "websiteUnavailable": "اس آلے پر ویب سائٹ نہیں کھل سکی۔",
     "openProgramPage": "پروگرام کا صفحہ کھولیں",
-    "addToCalendar": "کیلنڈر میں شامل کریں"
+    "addToCalendar": "کیلنڈر میں شامل کریں",
+    "layoutReviewBanner": "لے آؤٹ کا پیش منظر · ایپ کی اپنی نمونہ فہرستیں"
   },
   "ta": {
     "browse": "உலாவு",
@@ -1318,7 +1324,7 @@
     "view": "பார்வை",
     "opportunities": "வாய்ப்புகள்",
     "brand": "GTA FREE STEM வாய்ப்புகள்",
-    "mission": "GTA முழுவதும் குழந்தைகள், குடும்பங்கள் மற்றும் பெரியவர்களுக்கான இலவச நூலக நிகழ்வுகள், படைப்புப் பயிற்சிகள் மற்றும் STEM செயல்பாடுகளைக் கண்டறியுங்கள்.",
+    "mission": "டொரொன்டோ மற்றும் மார்க்கமில் குழந்தைகள், குடும்பங்கள் மற்றும் பெரியவர்களுக்கான இலவச STEM நிகழ்ச்சிகளையும் நூலக நிகழ்வுகளையும் கண்டறியுங்கள்.",
     "search": "தேடல்",
     "searchPlaceholder": "STEM வாய்ப்புகளை தேடுங்கள்...",
     "filters": "வடிகள்",
@@ -1461,7 +1467,8 @@
     "opensWebsite": "இணையதளத்தைத் திறக்கும்",
     "websiteUnavailable": "இந்தச் சாதனத்தில் இணையதளத்தைத் திறக்க முடியவில்லை.",
     "openProgramPage": "நிகழ்ச்சிப் பக்கத்தைத் திறக்கவும்",
-    "addToCalendar": "நாள்காட்டியில் சேர்க்கவும்"
+    "addToCalendar": "நாள்காட்டியில் சேர்க்கவும்",
+    "layoutReviewBanner": "தளவமைப்பு முன்னோட்டம் · செயலியின் மாதிரிப் பட்டியல்கள்"
   },
   "tl": {
     "browse": "Mag-browse",
@@ -1514,7 +1521,7 @@
     "view": "Tingnan",
     "opportunities": "Mga oportunidad",
     "brand": "Mga oportunidad sa GTA FREE STEM",
-    "mission": "Tuklasin ang mga libreng aktibidad sa aklatan, malikhaing workshop, at STEM sa GTA para sa mga bata, pamilya, at mga nasa hustong gulang.",
+    "mission": "Humanap ng libreng STEM program at mga aktibidad sa library para sa mga bata, pamilya at matatanda sa Toronto at Markham.",
     "search": "Hanap",
     "searchPlaceholder": "Maghanap ng STEM opportunities...",
     "filters": "Mga filter",
@@ -1657,7 +1664,8 @@
     "opensWebsite": "Bubuksan ang website",
     "websiteUnavailable": "Hindi mabuksan ang website sa device na ito.",
     "openProgramPage": "Buksan ang pahina ng programa",
-    "addToCalendar": "Idagdag sa kalendaryo"
+    "addToCalendar": "Idagdag sa kalendaryo",
+    "layoutReviewBanner": "Preview ng layout · sariling mga halimbawa ng app"
   },
   "es": {
     "browse": "Explorar",
@@ -1710,7 +1718,7 @@
     "view": "Vista",
     "opportunities": "Oportunidades",
     "brand": "Oportunidades GTA FREE STEM",
-    "mission": "Encuentra actividades gratuitas en bibliotecas, talleres creativos y actividades STEM en el GTA para niños, familias y adultos.",
+    "mission": "Encuentra programas STEM y actividades de biblioteca gratuitos para niños, familias y adultos en Toronto y Markham.",
     "search": "Buscar",
     "searchPlaceholder": "Busca oportunidades STEM...",
     "filters": "Filtros",
@@ -1853,7 +1861,8 @@
     "opensWebsite": "Abre el sitio web",
     "websiteUnavailable": "No se pudo abrir el sitio web en este dispositivo.",
     "openProgramPage": "Abrir la página del programa",
-    "addToCalendar": "Añadir al calendario"
+    "addToCalendar": "Añadir al calendario",
+    "layoutReviewBanner": "Vista previa · ejemplos propios de la aplicación"
   },
   "ar": {
     "browse": "تصفح",
@@ -1906,7 +1915,7 @@
     "view": "العرض",
     "opportunities": "فرص",
     "brand": "فرص GTA FREE STEM",
-    "mission": "اكتشف فعاليات المكتبات وورش الإبداع وأنشطة STEM المجانية في منطقة تورونتو الكبرى للأطفال والعائلات والكبار.",
+    "mission": "اعثر على برامج STEM وفعاليات مكتبية مجانية للأطفال والعائلات والبالغين في تورونتو وماركهام.",
     "search": "بحث",
     "searchPlaceholder": "ابحث عن فرص STEM...",
     "filters": "فلاتر",
@@ -2049,7 +2058,8 @@
     "opensWebsite": "يفتح الموقع الإلكتروني",
     "websiteUnavailable": "تعذّر فتح الموقع الإلكتروني على هذا الجهاز.",
     "openProgramPage": "افتح صفحة البرنامج",
-    "addToCalendar": "أضف إلى التقويم"
+    "addToCalendar": "أضف إلى التقويم",
+    "layoutReviewBanner": "معاينة التخطيط · قوائم نموذجية خاصة بالتطبيق"
   },
   "fa": {
     "browse": "مرور",
@@ -2102,7 +2112,7 @@
     "view": "نما",
     "opportunities": "فرصت ها",
     "brand": "فرصت‌های GTA FREE STEM",
-    "mission": "رویدادهای رایگان کتابخانه، کارگاه‌های خلاقانه و فعالیت‌های STEM را در تورنتوی بزرگ برای کودکان، خانواده‌ها و بزرگسالان پیدا کنید.",
+    "mission": "برنامه‌های رایگان STEM و رویدادهای کتابخانه‌ای برای کودکان، خانواده‌ها و بزرگسالان در تورنتو و مارکهام پیدا کنید.",
     "search": "جستجو",
     "searchPlaceholder": "جستجوی فرصت های STEM...",
     "filters": "فیلترها",
@@ -2245,7 +2255,8 @@
     "opensWebsite": "وب‌سایت باز می‌شود",
     "websiteUnavailable": "وب‌سایت در این دستگاه باز نشد.",
     "openProgramPage": "باز کردن صفحه برنامه",
-    "addToCalendar": "افزودن به تقویم"
+    "addToCalendar": "افزودن به تقویم",
+    "layoutReviewBanner": "پیش‌نمایش چیدمان · نمونه‌های متعلق به برنامه"
   },
   "hi": {
     "browse": "ब्राउज़",
@@ -2298,7 +2309,7 @@
     "view": "दृश्य",
     "opportunities": "अवसर",
     "brand": "GTA FREE STEM अवसर",
-    "mission": "GTA में बच्चों, परिवारों और वयस्कों के लिए मुफ़्त लाइब्रेरी कार्यक्रम, रचनात्मक कार्यशालाएँ और STEM गतिविधियाँ खोजें।",
+    "mission": "टोरंटो और मार्कहम में बच्चों, परिवारों और वयस्कों के लिए मुफ़्त STEM कार्यक्रम और पुस्तकालय गतिविधियाँ खोजें।",
     "search": "खोज",
     "searchPlaceholder": "STEM opportunities खोजें...",
     "filters": "फिल्टर",
@@ -2441,7 +2452,8 @@
     "opensWebsite": "वेबसाइट खुलेगी",
     "websiteUnavailable": "इस डिवाइस पर वेबसाइट नहीं खुल सकी।",
     "openProgramPage": "कार्यक्रम का पेज खोलें",
-    "addToCalendar": "कैलेंडर में जोड़ें"
+    "addToCalendar": "कैलेंडर में जोड़ें",
+    "layoutReviewBanner": "लेआउट पूर्वावलोकन · ऐप की अपनी नमूना सूचियाँ"
   },
   "pt": {
     "browse": "Explorar",
@@ -2494,7 +2506,7 @@
     "view": "Vista",
     "opportunities": "Oportunidades",
     "brand": "Oportunidades GTA FREE STEM",
-    "mission": "Encontre eventos gratuitos em bibliotecas, oficinas criativas e atividades STEM no GTA para crianças, famílias e adultos.",
+    "mission": "Encontre programas STEM e eventos de biblioteca gratuitos para crianças, famílias e adultos em Toronto e Markham.",
     "search": "Pesquisar",
     "searchPlaceholder": "Pesquisar oportunidades STEM...",
     "filters": "Filtros",
@@ -2637,7 +2649,8 @@
     "opensWebsite": "Abre o site",
     "websiteUnavailable": "Não foi possível abrir o site neste dispositivo.",
     "openProgramPage": "Abrir a página do programa",
-    "addToCalendar": "Adicionar ao calendário"
+    "addToCalendar": "Adicionar ao calendário",
+    "layoutReviewBanner": "Prévia · exemplos próprios do aplicativo"
   },
   "gu": {
     "browse": "બ્રાઉઝ",
@@ -2690,7 +2703,7 @@
     "view": "જુઓ",
     "opportunities": "તકો",
     "brand": "GTA FREE STEM તકો",
-    "mission": "GTAમાં બાળકો, પરિવારો અને પુખ્ત વયના લોકો માટે મફત લાઇબ્રેરી કાર્યક્રમો, સર્જનાત્મક વર્કશોપ અને STEM પ્રવૃત્તિઓ શોધો.",
+    "mission": "ટોરોન્ટો અને માર્કહમમાં બાળકો, પરિવારો અને પુખ્ત વયના લોકો માટે મફત STEM કાર્યક્રમો અને પુસ્તકાલયની પ્રવૃત્તિઓ શોધો.",
     "search": "શોધ",
     "searchPlaceholder": "STEM તકો શોધો...",
     "filters": "ફિલ્ટર્સ",
@@ -2833,7 +2846,8 @@
     "opensWebsite": "વેબસાઇટ ખોલે છે",
     "websiteUnavailable": "આ ઉપકરણ પર વેબસાઇટ ખોલી શકાઈ નથી.",
     "openProgramPage": "કાર્યક્રમનું પૃષ્ઠ ખોલો",
-    "addToCalendar": "કૅલેન્ડરમાં ઉમેરો"
+    "addToCalendar": "કૅલેન્ડરમાં ઉમેરો",
+    "layoutReviewBanner": "લેઆઉટ પૂર્વાવલોકન · ઍપના પોતાના નમૂનાઓ"
   },
   "bn": {
     "browse": "ব্রাউজ",
@@ -2886,7 +2900,7 @@
     "view": "দেখুন",
     "opportunities": "সুযোগ",
     "brand": "GTA FREE STEM সুযোগ",
-    "mission": "GTA জুড়ে শিশু, পরিবার ও প্রাপ্তবয়স্কদের জন্য বিনামূল্যের লাইব্রেরি অনুষ্ঠান, সৃজনশীল কর্মশালা ও STEM কার্যক্রম খুঁজুন।",
+    "mission": "টরন্টো ও মার্কহ্যামে শিশু, পরিবার এবং প্রাপ্তবয়স্কদের জন্য বিনামূল্যে STEM কর্মসূচি ও লাইব্রেরির অনুষ্ঠান খুঁজুন।",
     "search": "খুঁজুন",
     "searchPlaceholder": "robotics, Python, volunteer hours, co-op খুঁজুন...",
     "filters": "ফিল্টার",
@@ -3029,7 +3043,8 @@
     "opensWebsite": "ওয়েবসাইট খুলবে",
     "websiteUnavailable": "এই ডিভাইসে ওয়েবসাইট খোলা যায়নি।",
     "openProgramPage": "কর্মসূচির পৃষ্ঠা খুলুন",
-    "addToCalendar": "ক্যালেন্ডারে যোগ করুন"
+    "addToCalendar": "ক্যালেন্ডারে যোগ করুন",
+    "layoutReviewBanner": "লেআউট প্রিভিউ · অ্যাপের নিজস্ব নমুনা তালিকা"
   },
   "ja": {
     "browse": "探す",
@@ -3082,7 +3097,7 @@
     "view": "表示",
     "opportunities": "機会",
     "brand": "GTA FREE STEM の機会",
-    "mission": "子ども、家族、大人向けの無料の図書館イベントや創作ワークショップ、STEMの活動をGTAで探せます。",
+    "mission": "トロントとマーカムで、子ども、家族、大人向けの無料STEMプログラムや図書館イベントを探しましょう。",
     "search": "検索",
     "searchPlaceholder": "ロボット、Python、ボランティア時間、co-opを検索...",
     "filters": "フィルター",
@@ -3225,7 +3240,8 @@
     "opensWebsite": "ウェブサイトを開きます",
     "websiteUnavailable": "このデバイスではウェブサイトを開けませんでした。",
     "openProgramPage": "プログラムのページを開く",
-    "addToCalendar": "カレンダーに追加"
+    "addToCalendar": "カレンダーに追加",
+    "layoutReviewBanner": "レイアウト確認 · アプリ独自のサンプル一覧"
   },
   "ko": {
     "browse": "둘러보기",
@@ -3278,7 +3294,7 @@
     "view": "보기",
     "opportunities": "기회",
     "brand": "GTA FREE STEM 기회",
-    "mission": "GTA에서 어린이, 가족, 성인을 위한 무료 도서관 행사, 창작 워크숍, STEM 활동을 찾아보세요.",
+    "mission": "토론토와 마컴에서 어린이, 가족, 성인을 위한 무료 STEM 프로그램과 도서관 행사를 찾아보세요.",
     "search": "검색",
     "searchPlaceholder": "로봇, Python, 봉사 시간, co-op 검색...",
     "filters": "필터",
@@ -3421,7 +3437,8 @@
     "opensWebsite": "웹사이트 열기",
     "websiteUnavailable": "이 기기에서 웹사이트를 열 수 없습니다.",
     "openProgramPage": "프로그램 페이지 열기",
-    "addToCalendar": "캘린더에 추가"
+    "addToCalendar": "캘린더에 추가",
+    "layoutReviewBanner": "레이아웃 미리보기 · 앱 자체 샘플 목록"
   },
   "hu": {
     "browse": "Bongeszés",
@@ -3474,7 +3491,7 @@
     "view": "Nézet",
     "opportunities": "Lehetőségek",
     "brand": "GTA FREE STEM lehetőségek",
-    "mission": "Keress ingyenes könyvtári programokat, kreatív műhelyeket és STEM-foglalkozásokat a GTA területén gyerekeknek, családoknak és felnőtteknek.",
+    "mission": "Keressen ingyenes STEM-programokat és könyvtári eseményeket gyermekeknek, családoknak és felnőtteknek Torontóban és Markhamben.",
     "search": "Keresés",
     "searchPlaceholder": "Keress STEM lehetőségeket...",
     "filters": "Szűrők",
@@ -3617,6 +3634,7 @@
     "opensWebsite": "Megnyitja a weboldalt",
     "websiteUnavailable": "A weboldal nem nyitható meg ezen az eszközön.",
     "openProgramPage": "Programoldal megnyitása",
-    "addToCalendar": "Hozzáadás a naptárhoz"
+    "addToCalendar": "Hozzáadás a naptárhoz",
+    "layoutReviewBanner": "Elrendezési előnézet · az alkalmazás saját mintái"
   }
 }

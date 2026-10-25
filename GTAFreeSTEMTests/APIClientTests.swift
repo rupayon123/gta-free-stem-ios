@@ -1133,7 +1133,7 @@ final class APIClientTests: XCTestCase {
 
         XCTAssertEqual(
             mission,
-            "Find source-backed free STEM programs and library events currently published in Toronto and Markham."
+            "Find free STEM programs and library events for children, families and adults in Toronto and Markham."
         )
 
         let feedURL = try XCTUnwrap(

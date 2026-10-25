@@ -27,6 +27,8 @@ bundle = "com.rupayonhaldar.gtafreestem"
 def run(*args, timeout=30, check=True):
     try:
         return subprocess.run(args, check=check, timeout=timeout, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.strip()
+    except subprocess.TimeoutExpired as error:
+        raise SystemExit("Native capture command timed out after " + str(timeout) + "s: " + repr(args)) from error
     except subprocess.CalledProcessError as error:
         raise SystemExit("Native capture command failed: " + repr(args) + "\n" + (error.stdout or "")[-4000:]) from error
 
@@ -61,18 +63,11 @@ if matched[0]["state"] == "Shutdown":
 run("xcrun", "simctl", "bootstatus", device, "-b", timeout=120)
 run("xcrun", "simctl", "install", device, str(app), timeout=60)
 run("xcrun", "simctl", "ui", device, "appearance", "light")
-# Normal app launch: actual source/rights/error state, not a fixture or data acceptance claim.
-run("xcrun", "simctl", "launch", "--terminate-running-process", device, bundle)
-time.sleep(20)
-export("normal-home", "normal-runtime", waitSeconds=20, dataAcceptance=False)
-run("xcrun", "simctl", "launch", "--terminate-running-process", device, bundle, "-start-opportunities")
-time.sleep(8)
-export("normal-browse", "normal-runtime", waitSeconds=8, dataAcceptance=False)
-
 cases = [(screen, False, False, "en") for screen in ("home", "browse", "saved", "settings")]
 cases += [(screen, True, False, "en") for screen in ("home", "browse")]
 cases += [(screen, False, True, "en") for screen in ("home", "browse", "saved", "settings")]
 cases += [("browse", False, False, "ar")]
+cases += [("calendar", False, False, "en")]
 for screen, dark, large, language in cases:
     nonce = uuid.uuid4().hex
     args = ["-frontend-layout-review", "-screenshot-mode", "-review-screen", screen,
@@ -81,25 +76,43 @@ for screen, dark, large, language in cases:
         args += ["-start-opportunities"]
     elif screen in ("saved", "settings"):
         args += ["-start-account"]
+    if screen == "calendar":
+        args += ["-review-present-calendar"]
     if dark:
         args += ["-review-dark"]
     if large:
         args += ["-review-large-text"]
-    run("xcrun", "simctl", "launch", "--terminate-running-process", device, bundle, *args)
+    if screen == "home" and not dark and not large and language == "en":
+        run("xcrun", "simctl", "launch", device, bundle, *args, timeout=90)
+    else:
+        run("xcrun", "simctl", "launch", "--terminate-running-process", device, bundle, *args, timeout=45)
     container = Path(run("xcrun", "simctl", "get_app_container", device, bundle, "data"))
-    marker = container / "Library/Caches/gta-free-stem-screenshot-ready"
-    deadline = time.monotonic() + 15
+    markerName = "gta-free-stem-calendar-review-ready" if screen == "calendar" else "gta-free-stem-screenshot-ready"
+    marker = container / ("Library/Caches/" + markerName)
+    deadline = time.monotonic() + (30 if screen == "calendar" else 15)
     while time.monotonic() < deadline:
         if marker.is_file() and marker.read_text() == nonce:
             break
         time.sleep(0.25)
     else:
         raise SystemExit("Layout fixture did not signal readiness: " + screen)
-    time.sleep(0.75)
+    time.sleep(2 if screen == "calendar" else 0.75)
     name = "fixture-" + screen + ("-dark" if dark else "-light") + ("-large" if large else "") + ("-" + language if language != "en" else "")
     export(name, "app-owned-layout-fixture", screen=screen, language=language,
            dark=dark, dynamicType="accessibility3" if large else "large",
-           productionData=False, isolatedMemoryStore=True, visibleFixtureBanner=True)
+           productionData=False, isolatedMemoryStore=True, visibleFixtureBanner=screen != "calendar",
+           systemCalendarPresentationOnly=screen == "calendar", calendarSaved=False,
+           sampleTitleVisible=screen == "calendar")
+# Normal runtime after simulator/framework warmup: actual source/rights/error state.
+# This is a new process, but is not a first-install cold-start performance claim.
+run("xcrun", "simctl", "launch", "--terminate-running-process", device, bundle, timeout=90)
+time.sleep(20)
+export("normal-home", "normal-runtime", waitSeconds=20, dataAcceptance=False)
+run("xcrun", "simctl", "launch", "--terminate-running-process", device, bundle, "-start-opportunities")
+time.sleep(8)
+export("normal-browse", "normal-runtime", waitSeconds=8, dataAcceptance=False)
+
+
 run("xcrun", "simctl", "terminate", device, bundle, check=False)
 print("NATIVE_UI_CAPTURE_COMPLETE " + json.dumps(dict(normalFrames=2, fixtureFrames=len(cases),
       releaseAcceptance=False, physicalDeviceAcceptance=False)), flush=True)

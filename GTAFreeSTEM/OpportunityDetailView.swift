@@ -77,6 +77,13 @@ struct OpportunityDetailView: View {
         .navigationTitle(session.text("details"))
         .navigationBarTitleDisplayMode(.inline)
 #if canImport(EventKitUI)
+#if DEBUG
+        .task {
+            if AppRuntime.isFrontendLayoutReview && ProcessInfo.processInfo.arguments.contains("-review-present-calendar") {
+                calendarPresented = true
+            }
+        }
+#endif
         .sheet(isPresented: $calendarPresented) {
             OpportunityCalendarEditor(
                 opportunity: opportunity,
@@ -350,6 +357,19 @@ private struct OpportunityCalendarEditor: UIViewControllerRepresentable {
         if let end = draft.end { event.endDate = end }
         controller.event = event
         controller.editViewDelegate = context.coordinator
+#if DEBUG
+        if AppRuntime.isFrontendLayoutReview && ProcessInfo.processInfo.arguments.contains("-review-present-calendar") {
+            Task { @MainActor in
+                for _ in 0..<20 {
+                    try? await Task.sleep(nanoseconds: 250_000_000)
+                    if controller.viewIfLoaded?.window != nil {
+                        markCalendarReviewPresented()
+                        break
+                    }
+                }
+            }
+        }
+#endif
         return controller
     }
     func updateUIViewController(_ controller: EKEventEditViewController, context: Context) {}
@@ -359,4 +379,18 @@ private struct OpportunityCalendarEditor: UIViewControllerRepresentable {
         func eventEditViewController(_ controller: EKEventEditViewController, didCompleteWith action: EKEventEditViewAction) { finish() }
     }
 }
+#if DEBUG
+/// Records a displayed system-controller window only for the bounded CI sample smoke.
+@MainActor
+private func markCalendarReviewPresented() {
+    let args = ProcessInfo.processInfo.arguments
+    guard AppRuntime.isFrontendLayoutReview,
+          let index = args.firstIndex(of: "-screenshot-ready-nonce"), args.indices.contains(index + 1),
+          let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+    else { return }
+    let nonce = args[index + 1]
+    guard !nonce.isEmpty, nonce.count <= 200 else { return }
+    try? Data(nonce.utf8).write(to: cache.appendingPathComponent("gta-free-stem-calendar-review-ready"), options: .atomic)
+}
+#endif
 #endif

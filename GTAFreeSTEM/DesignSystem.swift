@@ -731,7 +731,11 @@ struct FrontendLayoutReview: View {
     var body: some View {
         Group {
             if ready {
-                ContentView()
+                if screen == "calendar", let sample = store.opportunities.first {
+                    NavigationStack { OpportunityDetailView(opportunity: sample) }
+                } else {
+                    ContentView()
+                }
             } else {
                 ProgressView("Preparing app-owned layout samples")
             }
@@ -745,7 +749,7 @@ struct FrontendLayoutReview: View {
         .environment(\.dynamicTypeSize, largeText ? .accessibility3 : .large)
         .preferredColorScheme(isDark ? .dark : .light)
         .safeAreaInset(edge: .top, spacing: 0) {
-            Text("Layout preview · app-owned sample listings")
+            Text(session.text("layoutReviewBanner"))
                 .font(.caption.weight(.semibold))
                 .frame(maxWidth: .infinity)
                 .padding(8)

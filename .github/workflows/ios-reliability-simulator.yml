@@ -52,7 +52,7 @@ jobs:
           shasum -a 256 -c <<'HASHES'
           f3970f09786edc29c469ab09d65b267accc7b5dd98fed842bb7e9f0ddbbc73d2  GTAFreeSTEM/Models.swift
           502ab3c6245a445b98203840d45998c8717eaf68fc5309e61d47f48bfefcc297  GTAFreeSTEM/OpportunityStore.swift
-          2e8c6a990e05e77ce84fd59c919ae9ab6c1f99c62442b1c39e2fb3e5aeef5953  GTAFreeSTEMTests/APIClientTests.swift
+          2e7f12f152165e12b21f81ca925d9917dd06967aed0f0e4672e32a7170e9d902  GTAFreeSTEMTests/APIClientTests.swift
           be242e9353e50ec682e63b11be69d1ecae625be04513cdb5347b08ed2f55d725  GTAFreeSTEM/APIClient.swift
           HASHES
           printf 'Reviewed source: `%s`\n' "$EXPECTED_SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"
