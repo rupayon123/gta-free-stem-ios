@@ -17,12 +17,62 @@ enum AppRuntime {
     }
 }
 
+struct AppModelContainerResolution {
+    let container: ModelContainer
+    let usesEphemeralFallback: Bool
+    let persistentInitializationErrorDescription: String?
+
+    var storageAccess: AppStorageAccess {
+        usesEphemeralFallback ? .readOnlyRecovery : .persistent
+    }
+
+    static func resolve(
+        persistent: () throws -> ModelContainer,
+        ephemeralFallback: () throws -> ModelContainer
+    ) throws -> AppModelContainerResolution {
+        do {
+            return AppModelContainerResolution(
+                container: try persistent(),
+                usesEphemeralFallback: false,
+                persistentInitializationErrorDescription: nil
+            )
+        } catch {
+            let persistentErrorDescription = String(describing: error)
+            return AppModelContainerResolution(
+                container: try ephemeralFallback(),
+                usesEphemeralFallback: true,
+                persistentInitializationErrorDescription: persistentErrorDescription
+            )
+        }
+    }
+}
+
+enum AppStorageAccess: Equatable, Sendable {
+    case persistent
+    case readOnlyRecovery
+
+    var allowsPersistentChanges: Bool {
+        self == .persistent
+    }
+}
+
+private struct AppStorageAccessEnvironmentKey: EnvironmentKey {
+    static let defaultValue = AppStorageAccess.persistent
+}
+
+extension EnvironmentValues {
+    var appStorageAccess: AppStorageAccess {
+        get { self[AppStorageAccessEnvironmentKey.self] }
+        set { self[AppStorageAccessEnvironmentKey.self] = newValue }
+    }
+}
+
 @main
 struct GTAFreeSTEMApp: App {
     nonisolated private static let appRefreshIdentifier = "com.rupayonhaldar.gtafreestem.hunt.refresh"
     nonisolated private static let refreshMinInterval: TimeInterval = 60 * 60 * 3
     nonisolated private static let scheduleMinInterval: TimeInterval = 60 * 15
-    nonisolated private static let sharedModelContainer: ModelContainer = {
+    nonisolated private static let modelContainerResolution: AppModelContainerResolution = {
         let schema = Schema([
             OpportunityCacheRecord.self,
             SavedHuntRecord.self,
@@ -30,11 +80,26 @@ struct GTAFreeSTEMApp: App {
             SavedOpportunityRecord.self
         ])
         do {
-            return try ModelContainer(for: schema)
+            let resolution = try AppModelContainerResolution.resolve(
+                persistent: {
+                    try ModelContainer(for: schema)
+                },
+                ephemeralFallback: {
+                    let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+                    return try ModelContainer(for: schema, configurations: configuration)
+                }
+            )
+            if let errorDescription = resolution.persistentInitializationErrorDescription {
+                NSLog("GTA FREE STEM persistent storage unavailable; using an in-memory fallback: %@", errorDescription)
+            }
+            return resolution
         } catch {
-            fatalError("Failed to initialize shared model container: \(error)")
+            fatalError("Failed to initialize persistent and fallback model containers: \(error)")
         }
     }()
+    nonisolated private static var sharedModelContainer: ModelContainer {
+        modelContainerResolution.container
+    }
     private static let scheduleState = AppRefreshScheduleState()
 
     @Environment(\.scenePhase) private var scenePhase
@@ -42,11 +107,15 @@ struct GTAFreeSTEMApp: App {
     @StateObject private var session = SessionStore()
     @StateObject private var opportunities = OpportunityStore(api: APIClient())
     @State private var isShowingLaunchExperience = !AppRuntime.isRunningTests
+    @State private var isShowingStorageWarning: Bool
     @State private var launchProgress = 0.0
 
     init() {
+        _isShowingStorageWarning = State(initialValue: Self.modelContainerResolution.usesEphemeralFallback)
 #if os(iOS) && !targetEnvironment(macCatalyst)
-        WatchSavedOpportunitySync.shared.configure(container: Self.sharedModelContainer)
+        if Self.modelContainerResolution.storageAccess.allowsPersistentChanges {
+            WatchSavedOpportunitySync.shared.configure(container: Self.sharedModelContainer)
+        }
 #endif
     }
 
@@ -72,15 +141,23 @@ struct GTAFreeSTEMApp: App {
                     ContentView()
                         .environmentObject(session)
                         .environmentObject(opportunities)
-                        .environment(\.locale, Locale(identifier: session.language.localeIdentifier))
-                        .environment(\.layoutDirection, session.language.layoutDirection)
                         .preferredColorScheme(session.colorScheme)
                         .modelContainer(Self.sharedModelContainer)
                 }
             }
+            // The stored language belongs to the complete window, including the
+            // launch experience, so RTL users never see an LTR-first handoff.
+            .environment(\.locale, Locale(identifier: session.language.localeIdentifier))
+            .environment(\.layoutDirection, session.language.layoutDirection)
+            .environment(\.appStorageAccess, Self.modelContainerResolution.storageAccess)
+            .alert(session.text("localStorageUnavailableTitle"), isPresented: $isShowingStorageWarning) {
+                Button(session.text("ok"), role: .cancel) {}
+            } message: {
+                Text(session.text("localStorageUnavailableMessage"))
+            }
             .task {
                 guard isShowingLaunchExperience else { return }
-                withAnimation(.easeOut(duration: 0.24)) {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.24)) {
                     launchProgress = 0.16
                 }
                 await Task.yield()
@@ -90,21 +167,25 @@ struct GTAFreeSTEMApp: App {
                 // bundled or saved snapshot is immediately usable; if both are
                 // unavailable, the interactive view owns its honest loading or
                 // error state while it attempts the live refresh.
-                let context = ModelContext(Self.sharedModelContainer)
-                withAnimation(.easeInOut(duration: 0.24)) {
+                let context = Self.modelContainerResolution.storageAccess.allowsPersistentChanges
+                    ? ModelContext(Self.sharedModelContainer)
+                    : nil
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.24)) {
                     launchProgress = 0.38
                 }
                 await AppRuntime.pauseForLaunchReview()
                 let initialSnapshotIsReady = await opportunities.prepareInitialSnapshot(cache: context)
 #if os(iOS) && !targetEnvironment(macCatalyst)
-                WatchSavedOpportunitySync.shared.sync(in: context)
+                if let context {
+                    WatchSavedOpportunitySync.shared.sync(in: context)
+                }
 #endif
                 guard !Task.isCancelled else { return }
 
                 // A damaged or missing bundled file must not trap the launch
                 // screen behind network timeouts. The interactive shell owns its
                 // normal live refresh and presents its honest empty/error state.
-                withAnimation(.easeInOut(duration: 0.32)) {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.32)) {
                     launchProgress = initialSnapshotIsReady ? 0.90 : 0.84
                 }
                 await Task.yield()
@@ -113,7 +194,7 @@ struct GTAFreeSTEMApp: App {
 
                 // Completion is tied to the real readiness checkpoint above; the
                 // bar never loops or restarts independently of app work.
-                withAnimation(.easeOut(duration: 0.26)) {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.26)) {
                     launchProgress = 1
                 }
                 // Let the completed state register before the prepared app takes
@@ -127,13 +208,17 @@ struct GTAFreeSTEMApp: App {
                     Self.scheduleAppRefresh()
                 } else if phase == .active {
 #if os(iOS) && !targetEnvironment(macCatalyst)
-                    WatchSavedOpportunitySync.shared.sync(in: ModelContext(Self.sharedModelContainer))
+                    if Self.modelContainerResolution.storageAccess.allowsPersistentChanges {
+                        WatchSavedOpportunitySync.shared.sync(in: ModelContext(Self.sharedModelContainer))
+                    }
 #endif
                 }
             }
         }
         .backgroundTask(.appRefresh(Self.appRefreshIdentifier)) {
-            let context = ModelContext(Self.sharedModelContainer)
+            let context = Self.modelContainerResolution.storageAccess.allowsPersistentChanges
+                ? ModelContext(Self.sharedModelContainer)
+                : nil
             await opportunities.refresh(cache: context, notifyOnNewMatches: true)
             Self.scheduleAppRefresh()
         }

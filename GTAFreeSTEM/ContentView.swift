@@ -1,3 +1,5 @@
+import Accessibility
+import SwiftData
 import SwiftUI
 
 enum AppTab: Hashable, CaseIterable {
@@ -72,6 +74,8 @@ enum AppLaunchConfiguration {
     static let screenshotModeEnvironmentKey = "GTA_FREE_STEM_SCREENSHOT_MODE"
     static let screenshotReadyNonceEnvironmentKey = "GTA_FREE_STEM_SCREENSHOT_READY_NONCE"
     static let screenshotReadyMarkerFilename = "gta-free-stem-screenshot-ready"
+    static let screenshotModeArgument = "-screenshot-mode"
+    static let screenshotReadyNonceArgument = "-screenshot-ready-nonce"
 
     static func screenshotQuery(arguments: [String], environment: [String: String] = [:]) -> String? {
         if let optionIndex = arguments.firstIndex(where: { $0.caseInsensitiveCompare("-screenshot-query") == .orderedSame }),
@@ -87,7 +91,13 @@ enum AppLaunchConfiguration {
         screenshotQuery(arguments: ProcessInfo.processInfo.arguments, environment: ProcessInfo.processInfo.environment)
     }
 
-    static func isScreenshotCapture(environment: [String: String] = [:]) -> Bool {
+    static func isScreenshotCapture(
+        arguments: [String] = [],
+        environment: [String: String] = [:]
+    ) -> Bool {
+        if arguments.contains(where: { $0.caseInsensitiveCompare(screenshotModeArgument) == .orderedSame }) {
+            return true
+        }
         guard let value = environment[screenshotModeEnvironmentKey]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
@@ -98,16 +108,20 @@ enum AppLaunchConfiguration {
     }
 
     static var isScreenshotCapture: Bool {
-        isScreenshotCapture(environment: ProcessInfo.processInfo.environment)
+        isScreenshotCapture(
+            arguments: ProcessInfo.processInfo.arguments,
+            environment: ProcessInfo.processInfo.environment
+        )
     }
 
     static func markScreenshotReady(
         _ isReady: Bool,
+        arguments: [String] = ProcessInfo.processInfo.arguments,
         environment: [String: String] = ProcessInfo.processInfo.environment,
         fileManager: FileManager = .default
     ) {
         guard isReady,
-              let nonce = normalizedScreenshotNonce(environment[screenshotReadyNonceEnvironmentKey]),
+              let nonce = screenshotReadyNonce(arguments: arguments, environment: environment),
               let cachesDirectory = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first
         else {
             return
@@ -129,10 +143,26 @@ enum AppLaunchConfiguration {
         guard !nonce.isEmpty, nonce.count <= 200 else { return nil }
         return nonce
     }
+
+    private static func screenshotReadyNonce(
+        arguments: [String],
+        environment: [String: String]
+    ) -> String? {
+        if let optionIndex = arguments.firstIndex(where: {
+            $0.caseInsensitiveCompare(screenshotReadyNonceArgument) == .orderedSame
+        }), arguments.indices.contains(optionIndex + 1),
+           let nonce = normalizedScreenshotNonce(arguments[optionIndex + 1]) {
+            return nonce
+        }
+        return normalizedScreenshotNonce(environment[screenshotReadyNonceEnvironmentKey])
+    }
 }
 
 struct ContentView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appStorageAccess) private var storageAccess
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var session: SessionStore
@@ -149,7 +179,22 @@ struct ContentView: View {
         }
         .tint(Brand.lake)
         .accessibilityIdentifier("app-root")
-        .animation(.easeInOut(duration: 0.20), value: selectedTab)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if !storageAccess.allowsPersistentChanges {
+                StorageRecoveryBanner()
+            }
+        }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.20), value: selectedTab)
+        .onChange(of: accessibilityStatus) { oldStatus, newStatus in
+            guard voiceOverEnabled,
+                  oldStatus != newStatus,
+                  let message = accessibilityAnnouncement(for: newStatus)
+            else { return }
+
+            // Announcements describe asynchronous updates without moving the
+            // VoiceOver cursor away from the control the person is using.
+            AccessibilityNotification.Announcement(message).post()
+        }
         .onChange(of: selectedTab) { _, newTab in
             configureStore(for: newTab)
         }
@@ -162,8 +207,9 @@ struct ContentView: View {
             guard !AppRuntime.isRunningTests else { return }
             applyScreenshotConfigurationIfNeeded()
             if AppLaunchConfiguration.isScreenshotCapture {
-                // App Store capture must render the exact bundled release data,
-                // not race a public request whose timing can vary by machine.
+                // App Store capture uses the exact release UI with app-owned,
+                // clearly labelled sample content. Static marketing images
+                // cannot carry third-party providers' required clickable links.
                 // Browse destinations own their readiness signal because their
                 // surface mode and query must be applied before capture.
                 if selectedTab != .opportunities && selectedTab != .highSchool {
@@ -171,7 +217,7 @@ struct ContentView: View {
                     AppLaunchConfiguration.markScreenshotReady(isReady)
                 }
             } else {
-                await store.bootstrap(cache: modelContext)
+                await store.bootstrap(cache: persistenceContext)
             }
         }
         .onChange(of: scenePhase) { _, phase in
@@ -179,7 +225,7 @@ struct ContentView: View {
                   !AppRuntime.isRunningTests,
                   !AppLaunchConfiguration.isScreenshotCapture
             else { return }
-            Task { await store.refreshIfStale(cache: modelContext) }
+            Task { await store.refreshIfStale(cache: persistenceContext) }
         }
     }
 
@@ -254,14 +300,53 @@ struct ContentView: View {
         #endif
     }
 
+    private var accessibilityStatus: OpportunityAccessibilityStatus {
+        guard selectedTab == .home || selectedTab == .opportunities || selectedTab == .highSchool else {
+            return .inactive
+        }
+        if store.isLoading {
+            return .loading
+        }
+        if let errorMessage = store.errorMessage {
+            return .error(errorMessage)
+        }
+        if store.huntPhase == .offline {
+            return .offline(resultCount: store.opportunities.count)
+        }
+        return .results(count: store.opportunities.count)
+    }
+
+    private func accessibilityAnnouncement(for status: OpportunityAccessibilityStatus) -> String? {
+        switch status {
+        case .inactive:
+            nil
+        case .loading:
+            session.text("huntingNow")
+        case let .error(message):
+            message
+        case let .offline(resultCount):
+            "\(session.text("offlinePreview")). \(localizedResultCount(resultCount))"
+        case let .results(count):
+            localizedResultCount(count)
+        }
+    }
+
+    private var persistenceContext: ModelContext? {
+        storageAccess.allowsPersistentChanges ? modelContext : nil
+    }
+
+    private func localizedResultCount(_ count: Int) -> String {
+        OpportunityResultCountText.string(count, language: session.language)
+    }
+
     private func configureStore(for tab: AppTab) {
         store.mode = AppNavigationModePolicy.mode(for: tab, currentMode: store.mode)
         guard !AppLaunchConfiguration.isScreenshotCapture else { return }
         switch tab {
         case .opportunities:
-            Task { await store.refreshIfStale(cache: modelContext) }
+            Task { await store.refreshIfStale(cache: persistenceContext) }
         case .highSchool:
-            Task { await store.refreshIfStale(cache: modelContext) }
+            Task { await store.refreshIfStale(cache: persistenceContext) }
         case .home, .support, .account:
             break
         }
@@ -272,6 +357,38 @@ struct ContentView: View {
 
         store.query = screenshotQuery
         store.mode = selectedTab == .highSchool ? .highSchool : .all
+    }
+}
+
+private struct StorageRecoveryBanner: View {
+    @EnvironmentObject private var session: SessionStore
+
+    var body: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(session.text("localStorageUnavailableTitle"))
+                    .font(.footnote.weight(.bold))
+                Text(session.text("localStorageUnavailableMessage"))
+                    .font(.caption)
+            }
+        } icon: {
+            Image(systemName: "externaldrive.badge.exclamationmark")
+                .foregroundStyle(Brand.coral)
+        }
+        // This banner deliberately keeps a fixed paper surface in both schemes;
+        // fixed dark ink preserves critical recovery-copy contrast in dark mode.
+        .foregroundStyle(Brand.ink)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, AppSpacing.standard)
+        .padding(.vertical, AppSpacing.small)
+        .background(Brand.cream)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Brand.coral)
+                .frame(height: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("storage-read-only-notice")
     }
 }
 
@@ -289,8 +406,10 @@ enum AppNavigationModePolicy {
 }
 
 struct HomeView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appStorageAccess) private var storageAccess
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
     @Binding var selectedTab: AppTab
@@ -321,35 +440,36 @@ struct HomeView: View {
     }
 
     private var heroCard: some View {
-        ZStack(alignment: .topTrailing) {
-            VStack(spacing: AppSpacing.medium) {
-                BrandLogoImage(size: 158)
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            HStack(alignment: .top, spacing: AppSpacing.medium) {
+                BrandLogoImage(size: 64)
                     .accessibilityHidden(true)
-
                 Text(session.text("brand"))
                     .font(.title.weight(.bold))
                     .foregroundStyle(Brand.outline(for: colorScheme))
-                    .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
-
-                Text(session.text("mission"))
-                    .font(.body)
-                    .foregroundStyle(Brand.mutedText(for: colorScheme))
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 560)
-
-                StickerBadge(text: session.text("freeOnly"), color: Brand.sun, systemImage: "heart.fill")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                ThemeToolbarButton(showLabel: false)
             }
-            .frame(maxWidth: .infinity)
 
-            ThemeToolbarButton(showLabel: false)
+            Text(session.text("mission"))
+                .font(.body)
+                .foregroundStyle(Brand.mutedText(for: colorScheme))
+                .fixedSize(horizontal: false, vertical: true)
+
+            StickerBadge(text: session.text("freeOnly"), color: Brand.sun, systemImage: "heart.fill")
         }
-        .cardSurface(padding: AppSpacing.large, cornerRadius: AppRadius.feature)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(AppSpacing.large)
+        .background(Brand.raisedFill(for: colorScheme), in: RoundedRectangle(cornerRadius: AppRadius.feature))
     }
 
     private var searchEntryCard: some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
             StorySectionTitle(text: session.text("search"), systemImage: "sparkle.magnifyingglass")
+
+            DiscoveryLoupeScene(progress: min(CGFloat(store.query.count) / 16, 1))
+                .animation(reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.84), value: store.query)
 
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass")
@@ -361,7 +481,7 @@ struct HomeView: View {
                     .onSubmit {
                         store.mode = .all
                         selectedTab = .opportunities
-                        Task { await store.refresh(cache: modelContext) }
+                        Task { await store.refresh(cache: persistenceContext) }
                     }
             }
             .storyField()
@@ -377,7 +497,7 @@ struct HomeView: View {
                 Image(systemName: store.isLoading ? "arrow.triangle.2.circlepath.circle.fill" : "checkmark.seal.fill")
                     .font(.system(size: 28, weight: .semibold))
                     .foregroundStyle(store.isLoading ? Brand.lake : Brand.moss)
-                    .symbolEffect(.pulse, value: store.isLoading)
+                    .symbolEffect(.pulse, options: .repeating, isActive: store.isLoading && !reduceMotion)
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 5) {
@@ -398,7 +518,7 @@ struct HomeView: View {
                 Spacer()
 
                 Button {
-                    Task { await store.refresh(cache: modelContext) }
+                    Task { await store.refresh(cache: persistenceContext) }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                         .font(.headline.weight(.semibold))
@@ -423,21 +543,36 @@ struct HomeView: View {
             columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())],
             spacing: 12
         ) {
-            HomeActionTile(title: session.text("volunteerHours"), icon: "checkmark.seal.fill", color: Brand.moss) {
-                store.mode = .volunteer
-                selectedTab = .highSchool
-                Task { await store.refresh(cache: modelContext) }
+            HomeActionTile(title: session.text("browse"), icon: "rectangle.grid.2x2.fill", color: Brand.lake) {
+                store.mode = .all
+                selectedTab = .opportunities
+                Task { await store.refresh(cache: persistenceContext) }
             }
-            HomeActionTile(title: session.text("coop"), icon: "briefcase.fill", color: Brand.lavender) {
-                store.mode = .coop
-                selectedTab = .highSchool
-                Task { await store.refresh(cache: modelContext) }
+
+            if store.availableHomePathwayModes.contains(.volunteer) {
+                HomeActionTile(title: session.text("volunteerHours"), icon: "checkmark.seal.fill", color: Brand.moss) {
+                    store.mode = .volunteer
+                    selectedTab = .highSchool
+                    Task { await store.refresh(cache: persistenceContext) }
+                }
             }
-            HomeActionTile(title: session.text("mentorship"), icon: "person.2.wave.2.fill", color: Brand.sky) {
-                store.mode = .mentorship
-                selectedTab = .highSchool
-                Task { await store.refresh(cache: modelContext) }
+
+            if store.availableHomePathwayModes.contains(.coop) {
+                HomeActionTile(title: session.text("coop"), icon: "briefcase.fill", color: Brand.lavender) {
+                    store.mode = .coop
+                    selectedTab = .highSchool
+                    Task { await store.refresh(cache: persistenceContext) }
+                }
             }
+
+            if store.availableHomePathwayModes.contains(.mentorship) {
+                HomeActionTile(title: session.text("mentorship"), icon: "person.2.wave.2.fill", color: Brand.sky) {
+                    store.mode = .mentorship
+                    selectedTab = .highSchool
+                    Task { await store.refresh(cache: persistenceContext) }
+                }
+            }
+
             HomeActionTile(title: session.text("feedback"), icon: "bubble.left.and.bubble.right.fill", color: Brand.coral) {
                 selectedTab = .support
             }
@@ -462,7 +597,7 @@ struct HomeView: View {
         Button {
             store.mode = .all
             selectedTab = .opportunities
-            Task { await store.refresh(cache: modelContext) }
+            Task { await store.refresh(cache: persistenceContext) }
         } label: {
             Label(session.text("search"), systemImage: "magnifyingglass")
                 .lineLimit(1)
@@ -475,7 +610,7 @@ struct HomeView: View {
         Button {
             store.mode = .highSchool
             selectedTab = .highSchool
-            Task { await store.refresh(cache: modelContext) }
+            Task { await store.refresh(cache: persistenceContext) }
         } label: {
             Label(session.text("highSchool"), systemImage: "graduationcap.fill")
                 .lineLimit(1)
@@ -493,6 +628,30 @@ struct HomeView: View {
         case DataSource.savedAppCache:
             session.text("savedAppCache")
         }
+    }
+
+    private var persistenceContext: ModelContext? {
+        storageAccess.allowsPersistentChanges ? modelContext : nil
+    }
+}
+
+private enum OpportunityAccessibilityStatus: Equatable {
+    case inactive
+    case loading
+    case error(String)
+    case offline(resultCount: Int)
+    case results(count: Int)
+}
+
+enum OpportunityResultCountText {
+    static func string(_ count: Int, language: AppLanguage) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = Locale(identifier: language.localeIdentifier)
+        let formattedCount = formatter.string(from: NSNumber(value: count)) ?? String(count)
+        let key = count == 1 ? "resultCountOne" : "resultCountMany"
+        return AppText.shared.string(key, language: language)
+            .replacingOccurrences(of: "{count}", with: formattedCount)
     }
 }
 
@@ -518,8 +677,8 @@ private struct HomeActionTile: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxWidth: .infinity, minHeight: 108, alignment: .topLeading)
+            .cardSurface(padding: 14, cornerRadius: AppRadius.card)
         }
-        .buttonStyle(.plain)
-        .cardSurface(padding: 14, cornerRadius: AppRadius.card)
+        .buttonStyle(SpringPressButtonStyle())
     }
 }

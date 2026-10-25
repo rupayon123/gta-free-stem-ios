@@ -4,6 +4,7 @@ import SwiftUI
 struct SavedView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appStorageAccess) private var storageAccess
     @EnvironmentObject private var session: SessionStore
     @Query(sort: \SavedOpportunityRecord.savedAt, order: .reverse) private var savedRecords: [SavedOpportunityRecord]
     @State private var saveErrorMessage: String?
@@ -27,16 +28,16 @@ struct SavedView: View {
             ZStack {
                 StorybookBackground()
 
-                if savedEntries.isEmpty {
+                if !storageAccess.allowsPersistentChanges {
+                    storageRecoveryState
+                } else if savedEntries.isEmpty {
                     emptyState
                 } else {
                     List {
                         if !currentEntries.isEmpty {
                             Section {
                                 ForEach(currentEntries) { entry in
-                                    NavigationLink(value: entry.opportunity) {
-                                        SavedOpportunityRow(opportunity: entry.opportunity)
-                                    }
+                                    SavedOpportunityListItem(opportunity: entry.opportunity)
                                 }
                                 .onDelete { remove(at: $0, from: currentEntries) }
                             } header: {
@@ -47,9 +48,7 @@ struct SavedView: View {
                         if !archivedEntries.isEmpty {
                             Section {
                                 ForEach(archivedEntries) { entry in
-                                    NavigationLink(value: entry.opportunity) {
-                                        SavedOpportunityRow(opportunity: entry.opportunity)
-                                    }
+                                    SavedOpportunityListItem(opportunity: entry.opportunity)
                                 }
                                 .onDelete { remove(at: $0, from: archivedEntries) }
                             } header: {
@@ -103,7 +102,19 @@ struct SavedView: View {
         .padding(AppSpacing.standard)
     }
 
+    private var storageRecoveryState: some View {
+        ContentUnavailableView(
+            session.text("localStorageUnavailableTitle"),
+            systemImage: "externaldrive.badge.exclamationmark",
+            description: Text(session.text("localStorageUnavailableMessage"))
+        )
+        .cardSurface(padding: AppSpacing.large, cornerRadius: AppRadius.feature)
+        .frame(maxWidth: 560)
+        .padding(AppSpacing.standard)
+    }
+
     private func remove(at offsets: IndexSet, from entries: [SavedOpportunityEntry]) {
+        guard storageAccess.allowsPersistentChanges else { return }
         for index in offsets {
             modelContext.delete(entries[index].record)
         }
@@ -122,6 +133,32 @@ private struct SavedOpportunityEntry: Identifiable {
     let opportunity: Opportunity
 
     var id: String { record.opportunityID }
+}
+
+private struct SavedOpportunityListItem: View {
+    @EnvironmentObject private var session: SessionStore
+    let opportunity: Opportunity
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            NavigationLink(value: opportunity) {
+                SavedOpportunityRow(opportunity: opportunity)
+            }
+
+            if let sourceURL = ExternalOpportunityURL.make(from: opportunity.sourceUrl) {
+                Link(destination: sourceURL) {
+                    Label(session.text("source"), systemImage: "arrow.up.right.square")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Brand.lake)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(session.text("source")): \(session.title(for: opportunity))")
+                .accessibilityHint(session.text("sourceDetails"))
+            }
+        }
+    }
 }
 
 private struct SavedOpportunityRow: View {

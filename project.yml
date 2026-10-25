@@ -90,11 +90,38 @@ targets:
     platform: iOS
     sources:
       - GTAFreeSTEMTests
+    postBuildScripts:
+      - name: Stage source contract fixtures
+        basedOnDependencyAnalysis: false
+        script: |
+          set -euo pipefail
+          fixture_root="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/SourceFixtures"
+          case "${fixture_root}" in
+            "${TARGET_BUILD_DIR}"/*/SourceFixtures) ;;
+            *) echo "Refusing unsafe source-fixture path: ${fixture_root}" >&2; exit 1 ;;
+          esac
+          /bin/rm -rf "${fixture_root}"
+          /bin/mkdir -p "${fixture_root}/GTAFreeSTEM.xcodeproj"
+          /usr/bin/ditto "${SRCROOT}/GTAFreeSTEM" "${fixture_root}/GTAFreeSTEM"
+          /usr/bin/ditto "${SRCROOT}/GTAFreeSTEMWatch" "${fixture_root}/GTAFreeSTEMWatch"
+          /bin/cp "${SRCROOT}/project.yml" "${fixture_root}/project.yml"
+          /bin/cp "${SRCROOT}/GTAFreeSTEM.xcodeproj/project.pbxproj" "${fixture_root}/GTAFreeSTEM.xcodeproj/project.pbxproj"
+          /usr/bin/touch "${fixture_root}/.complete"
+        inputFiles:
+          - "$(SRCROOT)/GTAFreeSTEM"
+          - "$(SRCROOT)/GTAFreeSTEMWatch"
+          - "$(SRCROOT)/project.yml"
+          - "$(SRCROOT)/GTAFreeSTEM.xcodeproj/project.pbxproj"
+        outputFiles:
+          - "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/SourceFixtures"
     settings:
       base:
         BUNDLE_LOADER: "$(TEST_HOST)"
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: FE33NM88XX
+        # This fixed script only copies declared project inputs into the test
+        # bundle; disabling script sandboxing here avoids nested-output denial.
+        ENABLE_USER_SCRIPT_SANDBOXING: "NO"
         LD_RUNPATH_SEARCH_PATHS:
           - "$(inherited)"
           - "@executable_path/Frameworks"
@@ -114,6 +141,8 @@ targets:
       - GTAFreeSTEMWatch
       - GTAFreeSTEMWatch/Assets.xcassets
       - GTAFreeSTEMWatch/PrivacyInfo.xcprivacy
+    resources:
+      - GTAFreeSTEMWatch/WatchStrings.json
     info:
       path: GTAFreeSTEMWatch/Info.plist
       properties:

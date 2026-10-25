@@ -35,6 +35,7 @@ struct BrowseView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.layoutDirection) private var layoutDirection
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appStorageAccess) private var storageAccess
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
     let surface: BrowseSurface
@@ -79,7 +80,7 @@ struct BrowseView: View {
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $store.query, prompt: session.text("searchPlaceholder"))
             .onSubmit(of: .search) {
-                Task { await store.refresh(cache: modelContext) }
+                Task { await store.refresh(cache: persistenceContext) }
             }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
@@ -90,7 +91,7 @@ struct BrowseView: View {
                     }
 
                     Button {
-                        Task { await store.refresh(cache: modelContext) }
+                        Task { await store.refresh(cache: persistenceContext) }
                     } label: {
                         Label(session.text("refreshResearch"), systemImage: "arrow.clockwise")
                     }
@@ -104,11 +105,11 @@ struct BrowseView: View {
                     filters: $store.filters,
                     apply: {
                         filtersPresented = false
-                        Task { await store.refresh(cache: modelContext) }
+                        Task { await store.refresh(cache: persistenceContext) }
                     },
                     reset: {
                         store.resetFilters()
-                        Task { await store.refresh(cache: modelContext) }
+                        Task { await store.refresh(cache: persistenceContext) }
                     }
                 )
                 .environmentObject(session)
@@ -121,7 +122,7 @@ struct BrowseView: View {
             }
             .onReceive(locationManager.$coordinate.compactMap { $0 }) { coordinate in
                 store.useCurrentLocation(coordinate)
-                Task { await store.refresh(cache: modelContext) }
+                Task { await store.refresh(cache: persistenceContext) }
             }
         }
     }
@@ -132,7 +133,9 @@ struct BrowseView: View {
 
     @ViewBuilder
     private var resultsContent: some View {
-        if displayMode == .map {
+        if store.opportunities.isEmpty {
+            emptyOpportunityState
+        } else if displayMode == .map {
             opportunityMap
         } else {
             opportunityList
@@ -237,7 +240,7 @@ struct BrowseView: View {
         ForEach(surface.modes) { mode in
             Button {
                 store.mode = mode
-                Task { await store.refresh(cache: modelContext) }
+                Task { await store.refresh(cache: persistenceContext) }
             } label: {
                 Text(modeTitle(for: mode))
                     .lineLimit(1)
@@ -265,7 +268,7 @@ struct BrowseView: View {
 
     private var huntButton: some View {
         Button {
-            Task { await store.refresh(cache: modelContext) }
+            Task { await store.refresh(cache: persistenceContext) }
         } label: {
             Label(session.text("hunt"), systemImage: "sparkle.magnifyingglass")
                 .frame(maxWidth: .infinity)
@@ -292,7 +295,7 @@ struct BrowseView: View {
             }
 
             HuntRefreshButton(isLoading: store.isLoading, title: session.text("refreshResearch")) {
-                Task { await store.refresh(cache: modelContext) }
+                Task { await store.refresh(cache: persistenceContext) }
             }
 
             ViewThatFits(in: .horizontal) {
@@ -356,22 +359,79 @@ struct BrowseView: View {
 
     private var opportunityList: some View {
         LazyVStack(spacing: 10) {
-            if store.opportunities.isEmpty {
-                ContentUnavailableView(
-                    session.text("noOpportunities"),
-                    systemImage: "magnifyingglass",
-                    description: Text(session.text("reset"))
-                )
-                .cardSurface()
-            }
-
             ForEach(store.opportunities) { opportunity in
-                NavigationLink(value: opportunity) {
-                    OpportunityRow(opportunity: opportunity)
+                VStack(alignment: .leading, spacing: 8) {
+                    NavigationLink(value: opportunity) {
+                        OpportunityRow(opportunity: opportunity)
+                    }
+                    .buttonStyle(.plain)
+
+                    if let sourceURL = ExternalOpportunityURL.make(from: opportunity.sourceUrl) {
+                        Divider()
+                            .overlay(Brand.surfaceStroke(for: colorScheme))
+
+                        Link(destination: sourceURL) {
+                            Label(session.text("source"), systemImage: "arrow.up.right.square")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Brand.lake)
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("\(session.text("source")): \(session.title(for: opportunity))")
+                        .accessibilityHint(session.text("sourceDetails"))
+                    }
                 }
-                .buttonStyle(.plain)
+                .cardSurface(padding: AppSpacing.standard, cornerRadius: AppRadius.card)
             }
         }
+    }
+
+    @ViewBuilder
+    private var emptyOpportunityState: some View {
+        if store.isLoading {
+            ContentUnavailableView(session.text("huntingNow"), systemImage: "hourglass")
+                .cardSurface()
+        } else {
+            ContentUnavailableView {
+                Label(
+                    store.errorMessage ?? session.text("noOpportunities"),
+                    systemImage: store.errorMessage == nil ? "magnifyingglass" : "wifi.exclamationmark"
+                )
+            } actions: {
+                if hasResettableSearch {
+                    Button(session.text("reset"), action: resetEmptySearch)
+                        .buttonStyle(.bordered)
+                }
+
+                if store.errorMessage != nil || !hasResettableSearch {
+                    Button(session.text("retry"), action: retryEmptySearch)
+                        .buttonStyle(.borderedProminent)
+                }
+            }
+            .cardSurface()
+        }
+    }
+
+    private var hasResettableSearch: Bool {
+        !store.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            store.filters.hasActiveFilters ||
+            store.mode != surface.defaultMode
+    }
+
+    private func resetEmptySearch() {
+        // Reset every constraint that can hide an otherwise valid listing,
+        // including a one-shot nearby coordinate retained inside the filters.
+        store.query = ""
+        store.resetFilters()
+        store.mode = surface.defaultMode
+        Task { await store.refresh(cache: persistenceContext) }
+    }
+
+    private func retryEmptySearch() {
+        // A retry is an explicit user request and should bypass only the short
+        // anti-thrashing window; OpportunityStore still prevents concurrency.
+        Task { await store.refresh(cache: persistenceContext, force: true) }
     }
 
     private var opportunityMap: some View {
@@ -380,7 +440,7 @@ struct BrowseView: View {
             Map {
                 ForEach(OpportunityMapProjection.pins(from: store.opportunities)) { opportunity in
                     Marker(
-                        "\(session.title(for: opportunity)) · \(session.city(for: opportunity))",
+                        "\(session.text("navOpportunities")) · \(session.city(for: opportunity))",
                         coordinate: CLLocationCoordinate2D(latitude: opportunity.latitude ?? 0, longitude: opportunity.longitude ?? 0)
                     )
                     .tint(Brand.lake)
@@ -464,7 +524,11 @@ struct BrowseView: View {
         }
 
         _ = prepareSurface()
-        await store.refreshIfStale(cache: modelContext)
+        await store.refreshIfStale(cache: persistenceContext)
+    }
+
+    private var persistenceContext: ModelContext? {
+        storageAccess.allowsPersistentChanges ? modelContext : nil
     }
 }
 
@@ -520,7 +584,6 @@ struct OpportunityRow: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .cardSurface(padding: AppSpacing.standard, cornerRadius: AppRadius.card)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint(session.text("openDetailsHint"))
@@ -693,6 +756,7 @@ struct OpportunityFilterSheet: View {
 }
 
 private struct HuntRefreshButton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let isLoading: Bool
     let title: String
     let action: () -> Void
@@ -702,7 +766,7 @@ private struct HuntRefreshButton: View {
             HStack(spacing: 7) {
                 Image(systemName: isLoading ? "arrow.triangle.2.circlepath" : "arrow.clockwise")
                     .font(.system(size: 15, weight: .semibold))
-                    .symbolEffect(.pulse, value: isLoading)
+                    .symbolEffect(.pulse, options: .repeating, isActive: isLoading && !reduceMotion)
                     .accessibilityHidden(true)
                 Text(title)
                     .lineLimit(1)

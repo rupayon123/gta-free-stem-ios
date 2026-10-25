@@ -32,6 +32,23 @@ enum HuntPhase: Equatable {
 }
 
 enum OpportunityFeedSelection {
+    /// A live response must never move retained data backwards. A missing
+    /// candidate date is also older than a retained feed with a declared date;
+    /// equal dates remain eligible so a publisher can correct same-day data.
+    static func isOlder(_ candidate: OpportunityListResponse, than retained: OpportunityListResponse?) -> Bool {
+        guard let retained else { return false }
+        let candidateDate = FeedFreshness.date(from: candidate.meta?.lastUpdated)
+        let retainedDate = FeedFreshness.date(from: retained.meta?.lastUpdated)
+        switch (candidateDate, retainedDate) {
+        case let (.some(candidateDate), .some(retainedDate)):
+            return candidateDate < retainedDate
+        case (.none, .some):
+            return true
+        case (.some, .none), (.none, .none):
+            return false
+        }
+    }
+
     /// Returns true when a candidate retained feed is more useful or newer than
     /// the currently selected one. Equal dates keep the existing source so a
     /// validated live cache is not replaced unnecessarily by bundled data.
@@ -64,13 +81,16 @@ enum KnownOpportunityHistory {
     static func merging(
         currentIDs: [String],
         previousIDs: [String],
+        countingIDs: [String]? = nil,
         limit: Int = maximumCount
     ) -> (retainedIDs: [String], newCount: Int) {
         let normalizedLimit = max(0, limit)
         let current = unique(currentIDs)
+        let currentSet = Set(current)
         let previous = unique(previousIDs)
         let previousSet = Set(previous)
-        let newCount = current.reduce(into: 0) { count, id in
+        let idsToCount = unique(countingIDs ?? current).filter(currentSet.contains)
+        let newCount = idsToCount.reduce(into: 0) { count, id in
             if !previousSet.contains(id) { count += 1 }
         }
 
@@ -87,6 +107,59 @@ enum KnownOpportunityHistory {
     private static func unique(_ ids: [String]) -> [String] {
         var seen = Set<String>()
         return ids.filter { !$0.isEmpty && seen.insert($0).inserted }
+    }
+}
+
+enum HomePathwayInventory {
+    static let promotedModes: [SearchMode] = [.volunteer, .coop, .mentorship]
+
+    /// Uses the same filtering path as Browse so a Home promotion can never
+    /// promise a pathway that opens to zero current, eligible records.
+    static func availableModes(
+        in opportunities: [Opportunity],
+        now: Date = .now
+    ) -> [SearchMode] {
+        promotedModes.filter { mode in
+            !LocalOpportunitySnapshot.filter(
+                opportunities,
+                query: "",
+                mode: mode,
+                filters: OpportunityFilters(),
+                now: now
+            ).isEmpty
+        }
+    }
+}
+
+protocol NewMatchNotificationDelivering: Sendable {
+    /// Returns true only after the system accepts an authorized notification request.
+    func deliverNewMatchNotification(title: String, body: String) async -> Bool
+}
+
+struct SystemNewMatchNotificationDelivery: NewMatchNotificationDelivering {
+    func deliverNewMatchNotification(title: String, body: String) async -> Bool {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
+            return false
+        }
+
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        let request = UNNotificationRequest(
+            identifier: "new-opportunities-\(Date().timeIntervalSince1970)",
+            content: content,
+            trigger: nil
+        )
+
+        do {
+            try await center.add(request)
+            return true
+        } catch {
+            return false
+        }
     }
 }
 
@@ -107,8 +180,12 @@ final class OpportunityStore: ObservableObject {
     @Published var newMatchesCount = 0
     @Published var notificationStatusMessage: String?
     @Published var didRestoreLastHunt = false
+    @Published private(set) var availableHomePathwayModes: [SearchMode] = []
 
     private let api: APIClient
+    private let defaults: UserDefaults
+    private let now: () -> Date
+    private let notificationDelivery: any NewMatchNotificationDelivering
     private let cacheKey = "latest-opportunities"
     private let huntKey = "last-hunt"
     private let knownIDsKey = "knownOpportunityIDs"
@@ -120,12 +197,26 @@ final class OpportunityStore: ObservableObject {
     private let maximumCachePayloadBytes = 10_000_000
     private var lastNotificationSentAt: Date?
     private var lastRefreshStartedAt: Date?
-    private var inMemoryFeed: OpportunityListResponse?
+    private var inMemoryFeed: OpportunityListResponse? {
+        didSet {
+            availableHomePathwayModes = inMemoryFeed.map {
+                HomePathwayInventory.availableModes(in: $0.data, now: now())
+            } ?? []
+        }
+    }
 
-    init(api: APIClient) {
+    init(
+        api: APIClient,
+        defaults: UserDefaults = .standard,
+        notificationDelivery: any NewMatchNotificationDelivering = SystemNewMatchNotificationDelivery(),
+        now: @escaping () -> Date = { .now }
+    ) {
         self.api = api
+        self.defaults = defaults
+        self.now = now
+        self.notificationDelivery = notificationDelivery
 
-        if let value = UserDefaults.standard.object(forKey: lastNotificationKey) as? TimeInterval {
+        if let value = defaults.object(forKey: lastNotificationKey) as? TimeInterval {
             lastNotificationSentAt = Date(timeIntervalSince1970: value)
         }
     }
@@ -147,36 +238,66 @@ final class OpportunityStore: ObservableObject {
             persistCurrentHunt(in: context)
             return
         }
-        let now = Date()
+        // Claim the refresh before the first suspension point. Forced refreshes
+        // bypass the time throttle, so the loading flag is the concurrency gate.
+        isLoading = true
+        defer { isLoading = false }
+        let now = self.now()
         lastHuntStartedAt = now
         lastRefreshStartedAt = now
         newMatchesCount = 0
+
+        // Background refresh can be the first code path the system launches.
+        // Establish a trusted cache/bundle baseline before comparing the live
+        // feed so an existing catalog is not announced as entirely new. If no
+        // trusted baseline exists, this run still records the live IDs but does
+        // not send a misleading first-run notification.
+        let notificationBaselineIsReady = await prepareNotificationBaselineIfNeeded(
+            cache: context,
+            notifyOnNewMatches: notifyOnNewMatches
+        )
         await restoreLastHuntIfNeeded(in: context)
         huntPhase = .hunting
-        isLoading = true
-        defer { isLoading = false }
         do {
             let fullFeed = try await api.opportunityFeed()
+            if OpportunityFeedSelection.isOlder(fullFeed, than: inMemoryFeed) {
+                // A still-current production response can nevertheless predate
+                // the app's bundled or cached feed. Preserve the newer retained
+                // catalog and, critically, do not persist the older payload or
+                // use it to mark saved events unavailable.
+                await applyAvailableLocalResults(cache: context)
+                persistCurrentHunt(in: context)
+                huntPhase = dataSourceLabel == .publicLiveFeed ? .fresh : .cached
+                errorMessage = nil
+                return
+            }
             inMemoryFeed = fullFeed
             let response = responseForCurrentHunt(from: fullFeed)
-            let newCount = updateKnownIDs(with: response.data)
+            let newCount = updateKnownIDs(in: fullFeed.data, matching: response.data)
             apply(response, source: DataSource.publicLiveFeed)
             persist(fullFeed, in: context)
             if let context {
                 _ = try? SavedOpportunityLibrary.reconcile(
                     with: fullFeed.data,
                     in: context,
-                    markMissingAsUnavailable: fullFeed.permitsDestructiveSavedReconciliation
+                    markMissingAsUnavailable: fullFeed.permitsDestructiveSavedReconciliation,
+                    restrictedOpportunityIDs: Set(
+                        fullFeed.contentRights?.restrictedOpportunityIDs ?? []
+                    )
                 )
             }
             persistCurrentHunt(in: context)
             markSeen(response.data, in: context)
             newMatchesCount = newCount
-            lastSuccessfulHuntAt = .now
+            lastSuccessfulHuntAt = self.now()
             huntPhase = .fresh
             errorMessage = nil
-            if shouldNotifyOnBackgroundMatch(count: newCount, notifyOnNewMatches: notifyOnNewMatches) {
-                await sendNewMatchNotification(count: newCount)
+            if notificationBaselineIsReady,
+               shouldNotifyOnBackgroundMatch(count: newCount, notifyOnNewMatches: notifyOnNewMatches) {
+                let delivered = await sendNewMatchNotification(count: newCount)
+                if delivered {
+                    recordNotificationSent()
+                }
             }
         } catch {
             if let context {
@@ -216,11 +337,17 @@ final class OpportunityStore: ObservableObject {
         // Always reapply the current query and filters before declaring the
         // interactive snapshot ready.
         await applyAvailableLocalResults(cache: context)
+        if let inMemoryFeed {
+            seedKnownIDsIfNeeded(with: inMemoryFeed.data)
+        }
         if let context, let inMemoryFeed {
             _ = try? SavedOpportunityLibrary.reconcile(
                 with: inMemoryFeed.data,
                 in: context,
-                markMissingAsUnavailable: false
+                markMissingAsUnavailable: false,
+                restrictedOpportunityIDs: Set(
+                    inMemoryFeed.contentRights?.restrictedOpportunityIDs ?? []
+                )
             )
         }
 
@@ -230,12 +357,13 @@ final class OpportunityStore: ObservableObject {
     }
 
     /// Prepares the deterministic App Store capture surface from the exact
-    /// bundled release feed. This intentionally ignores disk cache and never
-    /// starts a network request, so capture readiness cannot race a stale or
-    /// changing public response.
+    /// release build. Static marketing images cannot carry the provider terms'
+    /// required clickable source links, so they use clearly labelled,
+    /// app-authored sample listings instead of third-party feed excerpts. This
+    /// intentionally ignores disk cache and never starts a network request.
     @discardableResult
     func prepareScreenshotSnapshot() async -> Bool {
-        guard let fullFeed = await Self.loadBundledFullFeed() else { return false }
+        let fullFeed = ScreenshotOpportunityFixtures.fullFeed
 
         inMemoryFeed = fullFeed
         apply(responseForCurrentHunt(from: fullFeed), source: .previewDatabase)
@@ -325,8 +453,8 @@ final class OpportunityStore: ObservableObject {
         }
         try context.save()
 
-        UserDefaults.standard.removeObject(forKey: knownIDsKey)
-        UserDefaults.standard.removeObject(forKey: lastNotificationKey)
+        defaults.removeObject(forKey: knownIDsKey)
+        defaults.removeObject(forKey: lastNotificationKey)
         lastNotificationSentAt = nil
         didRestoreLastHunt = true
         lastHuntStartedAt = nil
@@ -422,9 +550,9 @@ final class OpportunityStore: ObservableObject {
             )
             if let record = try context.fetch(descriptor).first {
                 record.payload = payload
-                record.updatedAt = .now
+                record.updatedAt = now()
             } else {
-                context.insert(OpportunityCacheRecord(cacheKey: cacheKey, payload: payload))
+                context.insert(OpportunityCacheRecord(cacheKey: cacheKey, payload: payload, updatedAt: now()))
             }
             try context.save()
         } catch {
@@ -480,9 +608,9 @@ final class OpportunityStore: ObservableObject {
                 record.girlsFocused = filters.girlsFocused
                 record.indigenousFocused = filters.indigenousFocused
                 record.leadership = filters.leadership
-                record.updatedAt = .now
+                record.updatedAt = now()
             } else {
-                context.insert(SavedHuntRecord(cacheKey: huntKey, query: query, mode: mode, filters: filters))
+                context.insert(SavedHuntRecord(cacheKey: huntKey, query: query, mode: mode, filters: filters, updatedAt: now()))
             }
             try context.save()
         } catch {
@@ -499,6 +627,14 @@ final class OpportunityStore: ObservableObject {
     private func applyCachedResultsIfAvailableOffMain(in context: ModelContext) async -> Bool {
         guard let payload = cachedPayload(from: context) else { return false }
         guard let cached = await Self.decodeCachedFullResponse(payload) else { return false }
+        // Decode can suspend while a newer live refresh completes. Select again
+        // after that suspension, and never roll retained data backwards on failure.
+        guard OpportunityFeedSelection.shouldPrefer(cached, over: inMemoryFeed) else {
+            if let inMemoryFeed {
+                apply(responseForCurrentHunt(from: inMemoryFeed), source: dataSourceLabel)
+            }
+            return false
+        }
         inMemoryFeed = cached
         apply(responseForCurrentHunt(from: cached), source: DataSource.savedAppCache)
         huntPhase = .cached
@@ -509,7 +645,7 @@ final class OpportunityStore: ObservableObject {
         guard let context else { return }
         do {
             let records = try context.fetch(FetchDescriptor<SeenOpportunityRecord>())
-            let staleDate = Date().addingTimeInterval(-seenRecordRetentionInterval)
+            let staleDate = now().addingTimeInterval(-seenRecordRetentionInterval)
             for record in records where record.lastSeenAt < staleDate {
                 context.delete(record)
             }
@@ -519,9 +655,10 @@ final class OpportunityStore: ObservableObject {
             )
             for opportunity in opportunities {
                 if let record = existing[opportunity.id] {
-                    record.lastSeenAt = .now
+                    record.lastSeenAt = now()
                 } else {
-                    context.insert(SeenOpportunityRecord(opportunityID: opportunity.id))
+                    let seenAt = now()
+                    context.insert(SeenOpportunityRecord(opportunityID: opportunity.id, firstSeenAt: seenAt, lastSeenAt: seenAt))
                 }
             }
             try context.save()
@@ -530,13 +667,45 @@ final class OpportunityStore: ObservableObject {
         }
     }
 
-    private func updateKnownIDs(with opportunities: [Opportunity]) -> Int {
+    private func updateKnownIDs(in fullFeed: [Opportunity], matching filteredResults: [Opportunity]) -> Int {
+        let result = KnownOpportunityHistory.merging(
+            currentIDs: fullFeed.map(\.id),
+            previousIDs: defaults.stringArray(forKey: knownIDsKey) ?? [],
+            countingIDs: filteredResults.map(\.id)
+        )
+        defaults.set(result.retainedIDs, forKey: knownIDsKey)
+        return result.newCount
+    }
+
+    private func seedKnownIDsIfNeeded(with opportunities: [Opportunity]) {
+        guard !opportunities.isEmpty else { return }
+        guard defaults.stringArray(forKey: knownIDsKey)?.isEmpty != false else { return }
+
         let result = KnownOpportunityHistory.merging(
             currentIDs: opportunities.map(\.id),
-            previousIDs: UserDefaults.standard.stringArray(forKey: knownIDsKey) ?? []
+            previousIDs: []
         )
-        UserDefaults.standard.set(result.retainedIDs, forKey: knownIDsKey)
-        return result.newCount
+        defaults.set(result.retainedIDs, forKey: knownIDsKey)
+    }
+
+    private func prepareNotificationBaselineIfNeeded(
+        cache context: ModelContext?,
+        notifyOnNewMatches: Bool
+    ) async -> Bool {
+        guard notifyOnNewMatches else { return true }
+        if defaults.stringArray(forKey: knownIDsKey)?.isEmpty == false {
+            return true
+        }
+
+        if inMemoryFeed == nil, let context {
+            await restoreCachedResultsIfAvailable(in: context)
+        }
+        await applyBundledSnapshotIfNeeded()
+        if let inMemoryFeed {
+            seedKnownIDsIfNeeded(with: inMemoryFeed.data)
+        }
+
+        return defaults.stringArray(forKey: knownIDsKey)?.isEmpty == false
     }
 
     private func shouldStartRefresh() -> Bool {
@@ -544,7 +713,7 @@ final class OpportunityStore: ObservableObject {
             return false
         }
 
-        if let lastRefreshStartedAt, Date().timeIntervalSince(lastRefreshStartedAt) < minimumRefreshInterval {
+        if let lastRefreshStartedAt, now().timeIntervalSince(lastRefreshStartedAt) < minimumRefreshInterval {
             return false
         }
 
@@ -552,7 +721,7 @@ final class OpportunityStore: ObservableObject {
     }
 
     private func responseForCurrentHunt(from response: OpportunityListResponse) -> OpportunityListResponse {
-        let filtered = LocalOpportunitySnapshot.filter(response.data, query: query, mode: mode, filters: filters)
+        let filtered = LocalOpportunitySnapshot.filter(response.data, query: query, mode: mode, filters: filters, now: now())
         return OpportunityListResponse(
             data: filtered,
             meta: OpportunityListResponse.Metadata(activeCount: filtered.count, lastUpdated: response.meta?.lastUpdated)
@@ -567,7 +736,7 @@ final class OpportunityStore: ObservableObject {
                 sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
             )
             guard let record = try context.fetch(descriptor).first else { return true }
-            return Date().timeIntervalSince(record.updatedAt) >= foregroundRefreshInterval
+            return now().timeIntervalSince(record.updatedAt) >= foregroundRefreshInterval
         } catch {
             return true
         }
@@ -582,25 +751,23 @@ final class OpportunityStore: ObservableObject {
     private func shouldNotifyOnBackgroundMatch(count: Int, notifyOnNewMatches: Bool) -> Bool {
         guard notifyOnNewMatches else { return false }
         guard count > 0 else { return false }
-        if let sentAt = lastNotificationSentAt, Date().timeIntervalSince(sentAt) < minimumNotificationInterval {
+        if let sentAt = lastNotificationSentAt, now().timeIntervalSince(sentAt) < minimumNotificationInterval {
             return false
         }
-        lastNotificationSentAt = .now
-        UserDefaults.standard.set(lastNotificationSentAt?.timeIntervalSince1970, forKey: lastNotificationKey)
         return true
     }
 
-    private func sendNewMatchNotification(count: Int) async {
-        let settings = await UNUserNotificationCenter.current().notificationSettings()
-        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
-
-        let content = UNMutableNotificationContent()
-        content.title = Self.localized("newOpportunitiesNotificationTitle")
-        content.body = Self.localized("newOpportunitiesNotificationBody")
+    private func sendNewMatchNotification(count: Int) async -> Bool {
+        let title = Self.localized("newOpportunitiesNotificationTitle")
+        let body = Self.localized("newOpportunitiesNotificationBody")
             .replacingOccurrences(of: "{count}", with: "\(count)")
-        content.sound = .default
-        let request = UNNotificationRequest(identifier: "new-opportunities-\(Date().timeIntervalSince1970)", content: content, trigger: nil)
-        try? await UNUserNotificationCenter.current().add(request)
+        return await notificationDelivery.deliverNewMatchNotification(title: title, body: body)
+    }
+
+    private func recordNotificationSent(at date: Date? = nil) {
+        let sentAt = date ?? now()
+        lastNotificationSentAt = sentAt
+        defaults.set(sentAt.timeIntervalSince1970, forKey: lastNotificationKey)
     }
 
     private static func localized(_ key: String) -> String {
@@ -616,6 +783,101 @@ final class OpportunityStore: ObservableObject {
         }
 
         return localized("serverResponseInvalid")
+    }
+}
+
+private enum ScreenshotOpportunityFixtures {
+    static let fixtureIdentifier = "gta-free-stem-owned-samples-v1"
+    private static let sourceURL = "https://gta-free-stem.vercel.app/support/"
+
+    static let fullFeed = OpportunityListResponse(
+        data: [
+            sample(
+                id: "sample-solar-robot",
+                title: "Sample: Build a Solar Robot",
+                summary: "Fictional preview listing created by GTA FREE STEM to demonstrate the app.",
+                category: "Coding & Robotics",
+                city: "Toronto",
+                ageMin: 9,
+                ageMax: 14,
+                tags: ["sample", "robotics", "solar energy"]
+            ),
+            sample(
+                id: "sample-space-studio",
+                title: "Sample: Family Space Design Studio",
+                summary: "Fictional preview listing created by GTA FREE STEM to demonstrate the app.",
+                category: "Science & Engineering",
+                city: "Scarborough",
+                ageMin: 7,
+                ageMax: 13,
+                tags: ["sample", "space", "engineering"]
+            ),
+            sample(
+                id: "sample-teen-code",
+                title: "Sample: Teen Creative Coding Club",
+                summary: "Fictional preview listing created by GTA FREE STEM to demonstrate the high-school view.",
+                category: "Coding & Robotics",
+                city: "North York",
+                ageMin: 14,
+                ageMax: 18,
+                tags: ["sample", "high school", "teen", "creative coding"]
+            ),
+            sample(
+                id: "sample-family-math",
+                title: "Sample: Family Math Makers",
+                summary: "Fictional preview listing created by GTA FREE STEM to demonstrate the app.",
+                category: "Math & Data",
+                city: "Markham",
+                ageMin: 6,
+                ageMax: 12,
+                tags: ["sample", "math", "family"]
+            )
+        ],
+        meta: OpportunityListResponse.Metadata(
+            activeCount: 4,
+            lastUpdated: "2026-08-20"
+        )
+    )
+
+    private static func sample(
+        id: String,
+        title: String,
+        summary: String,
+        category: String,
+        city: String,
+        ageMin: Int,
+        ageMax: Int,
+        tags: [String]
+    ) -> Opportunity {
+        Opportunity(
+            id: id,
+            title: title,
+            organization: "GTA FREE STEM Sample Studio",
+            description: summary,
+            summary: summary,
+            category: category,
+            city: city,
+            region: "Greater Toronto Area",
+            address: nil,
+            latitude: nil,
+            longitude: nil,
+            startDate: nil,
+            endDate: nil,
+            deadline: nil,
+            ageMin: ageMin,
+            ageMax: ageMax,
+            language: ["en"],
+            cost: "Free",
+            sourceUrl: sourceURL,
+            registrationUrl: sourceURL,
+            status: "active",
+            volunteerHoursEligible: false,
+            coopEligible: false,
+            tags: tags,
+            distanceKm: nil,
+            isNewFind: nil,
+            sourceConfidence: "App-authored screenshot sample"
+        )
     }
 }
 

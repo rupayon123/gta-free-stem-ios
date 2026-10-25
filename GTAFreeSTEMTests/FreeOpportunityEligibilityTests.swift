@@ -51,10 +51,9 @@ final class FreeOpportunityEligibilityTests: XCTestCase {
     }
 
     func testBundledFeedKeepsAllCurrentExplicitlyFreeListings() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let bundleURL = repoRoot.appendingPathComponent("GTAFreeSTEM/Resources/opportunities.json")
+        let bundleURL = try XCTUnwrap(
+            AppResources.url(forResource: "opportunities", withExtension: "json")
+        )
         let data = try Data(contentsOf: bundleURL)
         let rawFeed = try XCTUnwrap(
             JSONSerialization.jsonObject(with: data) as? [String: Any]

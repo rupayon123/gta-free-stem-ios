@@ -10,6 +10,7 @@ enum AppLegalLinks {
 struct SettingsView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appStorageAccess) private var storageAccess
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var opportunities: OpportunityStore
     @State private var profileNameDraft = ""
@@ -24,6 +25,9 @@ struct SettingsView: View {
 
                 ScrollView {
                     VStack(spacing: AppSpacing.standard) {
+                        if !storageAccess.allowsPersistentChanges {
+                            storageRecoveryCard
+                        }
                         accountCard
                         savedCard
                         preferencesCard
@@ -117,6 +121,12 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(StoryButtonStyle(kind: .destructive))
+        .disabled(!storageAccess.allowsPersistentChanges)
+        .accessibilityHint(
+            storageAccess.allowsPersistentChanges
+                ? ""
+                : session.text("localStorageUnavailableMessage")
+        )
     }
 
     private var guestDataDeletionButton: some View {
@@ -127,6 +137,12 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(StoryButtonStyle(kind: .destructive))
+        .disabled(!storageAccess.allowsPersistentChanges)
+        .accessibilityHint(
+            storageAccess.allowsPersistentChanges
+                ? ""
+                : session.text("localStorageUnavailableMessage")
+        )
     }
 
     private var savedCard: some View {
@@ -145,7 +161,30 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(StoryButtonStyle(kind: .secondary))
+            .disabled(!storageAccess.allowsPersistentChanges)
+            .accessibilityHint(
+                storageAccess.allowsPersistentChanges
+                    ? session.text("savedArchiveNote")
+                    : session.text("localStorageUnavailableMessage")
+            )
         }
+        .cardSurface()
+    }
+
+    private var storageRecoveryCard: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(session.text("localStorageUnavailableTitle"))
+                    .font(.headline.weight(.semibold))
+                Text(session.text("localStorageUnavailableMessage"))
+                    .font(.subheadline)
+            }
+        } icon: {
+            Image(systemName: "externaldrive.badge.exclamationmark")
+                .foregroundStyle(Brand.coral)
+        }
+        .foregroundStyle(Brand.outline(for: colorScheme))
+        .frame(maxWidth: .infinity, alignment: .leading)
         .cardSurface()
     }
 
@@ -250,6 +289,10 @@ struct SettingsView: View {
     }
 
     private func clearLocalProfileAndSaves() {
+        guard storageAccess.allowsPersistentChanges else {
+            accountMessage = session.text("localStorageUnavailableMessage")
+            return
+        }
         let hadLocalProfile = session.hasLocalProfile
         Task {
             do {

@@ -106,6 +106,15 @@ enum LocalOpportunitySnapshot {
                 guard matchesScholarship(opportunity, language: displayLanguage) else { return false }
             }
 
+            // Every non-"All" mode is a high-school pathway surface. Keep its
+            // inventory honest by excluding adult-only and younger-child-only
+            // listings before applying the mode's existing pathway matcher.
+            // Explicit age filters above keep their exact behavior, and the
+            // general .all directory remains available to every age range.
+            if mode != .all {
+                guard isHighSchoolPathwayEligible(opportunity) else { return false }
+            }
+
             let tags = searchableTags(for: opportunity, language: displayLanguage)
 
             switch mode {
@@ -135,6 +144,15 @@ enum LocalOpportunitySnapshot {
             displayLanguage: displayLanguage,
             now: now
         )
+    }
+
+    /// A conservative high-school overlap shared by the High School surface,
+    /// its pathway modes, and Home promotion inventory. Programs may start
+    /// younger or remain open-ended, but an adult-only 18+ listing is not a
+    /// high-school pathway promotion.
+    static func isHighSchoolPathwayEligible(_ opportunity: Opportunity) -> Bool {
+        guard opportunity.ageMin <= 17 else { return false }
+        return opportunity.ageMax.map { $0 >= 14 } ?? true
     }
 
     private static var preferredLanguage: AppLanguage {
@@ -211,8 +229,10 @@ enum LocalOpportunitySnapshot {
 
     private static func languagesMatch(_ opportunityLanguages: [String], selected language: String) -> Bool {
         guard language != "all" else { return true }
-        let normalizedSelected = AppLanguage.normalized(language).rawValue
-        return opportunityLanguages.contains { AppLanguage.normalized($0).rawValue == normalizedSelected }
+        guard let normalizedSelected = AppLanguage.supportedLanguage(for: language) else { return false }
+        return opportunityLanguages.contains {
+            AppLanguage.supportedLanguage(for: $0) == normalizedSelected
+        }
     }
 
     private static func sort(

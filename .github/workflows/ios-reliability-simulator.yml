@@ -1,0 +1,164 @@
+# Availability evidence: actions/runner-images@4f94a804ccf6254bfc5c7fd90a213db4b21794cd
+name: iOS focused reliability tests
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      expected_source_sha:
+        description: Full reviewed commit SHA containing this workflow and frozen source
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-focused-reliability-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  simulator-reliability:
+    # Fail closed on private repositories; standard public runner compute is free.
+    if: github.event.repository.visibility == 'public' && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: macos-26
+    timeout-minutes: 35
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the dispatched commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify reviewed commit and frozen backend sources
+        timeout-minutes: 2
+        env:
+          EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha || github.event.pull_request.head.sha }}
+          CANDIDATE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
+          test "$CANDIDATE_SOURCE_SHA" = "$EXPECTED_SOURCE_SHA"
+          test -z "$(git status --porcelain)"
+          shasum -a 256 -c .github/native-ci-source.sha256
+          shasum -a 256 -c <<'HASHES'
+          f3970f09786edc29c469ab09d65b267accc7b5dd98fed842bb7e9f0ddbbc73d2  GTAFreeSTEM/Models.swift
+          15c843595954c905ee3870285f318252af23ed8459cb1f56f37f6039b0e4e695  GTAFreeSTEM/OpportunityStore.swift
+          184f87f7b2f9d2cbf646903e8af33575fdc300f010058d477bbc0cb992b66425  GTAFreeSTEMTests/APIClientTests.swift
+          be242e9353e50ec682e63b11be69d1ecae625be04513cdb5347b08ed2f55d725  GTAFreeSTEM/APIClient.swift
+          HASHES
+          printf 'Reviewed source: `%s`\n' "$EXPECTED_SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify Xcode and resolve the exact available simulator
+        id: simulator
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          test -d "$DEVELOPER_DIR"
+          xcodebuild -version | tee "$RUNNER_TEMP/xcode-version.txt"
+          grep -Fx 'Xcode 26.6' "$RUNNER_TEMP/xcode-version.txt"
+          grep -Fx 'Build version 17F113' "$RUNNER_TEMP/xcode-version.txt"
+          xcodebuild -showsdks | tee "$RUNNER_TEMP/xcode-sdks.txt"
+          grep -F 'iphonesimulator26.5' "$RUNNER_TEMP/xcode-sdks.txt"
+          xcrun simctl list devices available --json > "$RUNNER_TEMP/simulator-devices.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          devices = json.loads((Path(os.environ['RUNNER_TEMP']) / 'simulator-devices.json').read_text())['devices']
+          runtime = 'com.apple.CoreSimulator.SimRuntime.iOS-26-5'
+          matches = [device for device in devices.get(runtime, [])
+                     if device.get('name') == 'iPhone 17 Pro' and device.get('isAvailable') is True]
+          if len(matches) != 1:
+              raise SystemExit('Required iPhone 17 Pro / iOS 26.5 simulator is absent or ambiguous; no silent fallback.')
+          destination = 'platform=iOS Simulator,id=' + matches[0]['udid']
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('destination=' + destination + '\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('Runner: macos-26; Xcode 26.6 (17F113); simulator: iPhone 17 Pro / iOS 26.5\n')
+              summary.write('Destination: `' + destination + '`\n')
+          print(destination)
+          PY
+
+      - name: Run the 26 frozen reliability tests
+        id: tests
+        timeout-minutes: 25
+        env:
+          TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}
+          CANDIDATE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project GTAFreeSTEM.xcodeproj \
+            -scheme GTAFreeSTEM \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "$TEST_DESTINATION" \
+            -destination-timeout 60 \
+            -parallel-testing-enabled NO \
+            -maximum-concurrent-test-simulator-destinations 1 \
+            -derivedDataPath "$RUNNER_TEMP/GTAFreeSTEM-derived-data" \
+            -resultBundlePath "$RUNNER_TEMP/GTAFreeSTEM-reliability.xcresult" \
+            -only-testing:GTAFreeSTEMTests/APIClientTests/testSourceHealthRejectsZeroSuccessAndInvalidThresholds \
+            -only-testing:GTAFreeSTEMTests/APIClientTests/testMalformedSuppliedScheduleAndStatusFieldsRejectTheFeed \
+            -only-testing:GTAFreeSTEMTests/APIClientTests/testAbsentSchedulesAndValidExpiryValuesRemainSupported \
+            -only-testing:GTAFreeSTEMTests/APIClientTests/testChunkedOversizedFeedCancelsBeforeEOFAndUsesFallback \
+            -only-testing:GTAFreeSTEMTests/APIClientTests/testOversizedDeclaredLengthCancelsBeforeReadingBody \
+            -only-testing:GTAFreeSTEMTests/APIClientTests/testInsecureFinalResponseURLUsesSecureFallback \
+            -only-testing:GTAFreeSTEMTests/APIClientTests/testCancelledPrimaryRequestDoesNotTryMirror \
+            -only-testing:GTAFreeSTEMTests/APIClientTests/testOpportunitiesApplyBundledTranslationFallbackToSearch \
+            -only-testing:GTAFreeSTEMTests/APIClientTests/testLocalOpportunitySnapshotFiltersByLanguage \
+            -only-testing:GTAFreeSTEMTests/APIClientTests/testAPIClientAcceptsAProductionSizedPublicFeed \
+            -only-testing:GTAFreeSTEMTests/APIClientTests/testDateOnlyOpportunityRemainsAvailableThroughTorontoEndOfDay \
+            -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testForcedConcurrentRefreshFailurePreservesResultsAndAllowsRetry \
+            -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testFailedRefreshCannotReplaceNewerMemoryWithOlderDiskCache \
+            -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testInitialSnapshotSeedsKnownIDsBeforeBackgroundRefresh \
+            -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testBackgroundOnlyLaunchSeedsTrustedBaselineBeforeNotifying \
+            -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testBackgroundOnlyLaunchStillNotifiesForItemNewerThanTrustedBaseline \
+            -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testNewerBundledFeedReplacesOlderPersistedCacheAfterAppUpdate \
+            -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testOlderLiveFeedCannotReplaceNewerRetainedFeedOrRemoveSavedEvents \
+            -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testRefreshFallsBackToCachedResponse \
+            -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testFreshEmptyFeedFallsBackToCachedResponse \
+            -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testBootstrapShowsBundledSnapshotBeforeSlowLiveRefreshCompletes \
+            -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testPrepareInitialSnapshotMakesBundledResultsUsableWithoutNetwork \
+            -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testSearchUsesBundledFullFeedWhileLiveRefreshIsInFlight \
+            -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testRefreshFallsBackToBundledSnapshotWithoutCache \
+            -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testClosedRegistrationDeadlineArchivesProgramBeforeItsEndDate \
+            -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testMirroredStartDeadlineKeepsOngoingDropInAvailable \
+            CODE_SIGNING_ALLOWED=NO \
+            GTA_RELEASE_SOURCE_COMMIT="$CANDIDATE_SOURCE_SHA" \
+            2>&1 | tee "$RUNNER_TEMP/xcodebuild-reliability.log"
+
+      - name: Verify exactly 26 passed tests and retain summary in job logs
+        if: always() && steps.tests.outcome != 'skipped'
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          test -d "$RUNNER_TEMP/GTAFreeSTEM-reliability.xcresult"
+          xcrun xcresulttool get test-results summary \
+            --path "$RUNNER_TEMP/GTAFreeSTEM-reliability.xcresult" \
+            > "$RUNNER_TEMP/reliability-summary.json"
+          cat "$RUNNER_TEMP/reliability-summary.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          summary = json.loads((Path(os.environ['RUNNER_TEMP']) / 'reliability-summary.json').read_text())
+          expected = {'result': 'Passed', 'totalTestCount': 26, 'passedTests': 26,
+                      'failedTests': 0, 'skippedTests': 0, 'expectedFailures': 0, 'testFailures': []}
+          for key, value in expected.items():
+              if summary.get(key) != value:
+                  raise SystemExit('Focused test receipt failed: ' + key + ' = ' + repr(summary.get(key)))
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
+              output.write('Focused reliability tests: 26 passed; 0 failed/skipped/expected failures.\n')
+              output.write('This is Debug iPhone simulator evidence only; full release gates remain separate.\n')
+          PY
+
+      # No upload-artifact or cache action: only ordinary job logs/summary persist.
+      # The local .xcresult and raw log disappear with this disposable runner.

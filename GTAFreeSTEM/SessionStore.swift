@@ -11,6 +11,9 @@ final class SessionStore: ObservableObject {
                 return
             }
             defaults.set(normalized, forKey: AppLanguage.preferredLanguageDefaultsKey)
+#if os(iOS) && !targetEnvironment(macCatalyst)
+            WatchSavedOpportunitySync.shared.preferredLanguageDidChange(to: normalized)
+#endif
             if !hasLocalProfile {
                 displayName = AppText.shared.string("guest", language: AppLanguage.normalized(normalized))
             }

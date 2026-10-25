@@ -2,6 +2,263 @@ import Foundation
 import SwiftUI
 @preconcurrency import WatchConnectivity
 
+private enum WatchLanguage: String, CaseIterable, Sendable {
+    case en
+    case fr
+    case zh
+    case yue
+    case pa
+    case ur
+    case ta
+    case tl
+    case es
+    case ar
+    case fa
+    case hi
+    case pt
+    case gu
+    case bn
+    case ja
+    case ko
+    case hu
+
+    var localeIdentifier: String {
+        switch self {
+        case .zh: "zh-Hans"
+        case .yue: "yue-Hant"
+        case .tl: "fil"
+        default: rawValue
+        }
+    }
+
+    var layoutDirection: LayoutDirection {
+        switch self {
+        case .ar, .fa, .ur: .rightToLeft
+        default: .leftToRight
+        }
+    }
+
+    static func preferred(from preferredLanguages: [String] = Locale.preferredLanguages) -> WatchLanguage {
+        preferredLanguages.lazy.compactMap(resolve(_:)).first ?? .en
+    }
+
+    static func resolve(_ value: String) -> WatchLanguage? {
+        let normalized = value
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "_", with: "-")
+            .lowercased()
+        guard !normalized.isEmpty else { return nil }
+
+        if let exact = WatchLanguage(rawValue: normalized) {
+            return exact
+        }
+
+        // Cantonese is a supported Traditional-script catalog. Resolve its
+        // yue and legacy zh-yue tags before rejecting unsupported Traditional
+        // Mandarin tags such as zh-Hant-TW.
+        if normalized == "cantonese" || normalized == "cantonese/yue" ||
+            normalized == "yue" || normalized.hasPrefix("yue-") ||
+            normalized == "zh-yue" || normalized.hasPrefix("zh-yue-") {
+            return .yue
+        }
+
+        // This companion has Simplified Mandarin and Cantonese catalogs, but
+        // no Traditional Mandarin catalog. Match the iPhone app's behavior by
+        // continuing to the next preferred locale instead of silently showing
+        // Simplified Mandarin to a Traditional Mandarin reader.
+        if normalized.hasPrefix("zh-") {
+            let subtags = normalized.split(separator: "-").map(String.init)
+            if subtags.contains("hant") || subtags.contains("tw") || subtags.contains("hk") || subtags.contains("mo") {
+                return nil
+            }
+        }
+
+        if normalized == "mandarin" || normalized == "mandarin (simplified)" ||
+            normalized.hasPrefix("zh-hans") || normalized.hasPrefix("zh-cn") || normalized.hasPrefix("zh-sg") {
+            return .zh
+        }
+        if normalized == "fil" || normalized == "filipino" || normalized == "tagalog" || normalized == "tagalog/filipino" || normalized.hasPrefix("fil-") {
+            return .tl
+        }
+
+        guard let primary = normalized.split(separator: "-").first else { return nil }
+        return WatchLanguage(rawValue: String(primary))
+    }
+}
+
+private enum WatchText: String, CaseIterable, Sendable {
+    case syncUnavailable = "watch.syncUnavailable"
+    case openPhoneToRefresh = "watch.openPhoneToRefresh"
+    case latestSavedOnWatch = "watch.latestSavedOnWatch"
+    case updatePhoneApp = "watch.updatePhoneApp"
+    case locationInDetails = "watch.locationInDetails"
+    case eventDetails = "watch.eventDetails"
+    case timingInDetails = "watch.timingInDetails"
+    case date = "watch.date"
+    case yourEventsTitle = "watch.yourEventsTitle"
+    case yourEventsMessage = "watch.yourEventsMessage"
+    case trySync = "watch.trySync"
+    case noSavedEvents = "watch.noSavedEvents"
+    case noSavedEventsMessage = "watch.noSavedEventsMessage"
+    case checkAgain = "watch.checkAgain"
+    case myStemPlan = "watch.myStemPlan"
+    case savedEvents = "watch.savedEvents"
+    case syncSavedFromPhone = "watch.syncSavedFromPhone"
+    case connectPhone = "watch.connectPhone"
+    case eventComingOne = "watch.eventComingOne"
+    case eventsComingMany = "watch.eventsComingMany"
+    case nothingUpcoming = "watch.nothingUpcoming"
+    case archiveStillAvailable = "watch.archiveStillAvailable"
+    case upcoming = "watch.upcoming"
+    case synced = "watch.synced"
+    case showingSavedEvents = "watch.showingSavedEvents"
+    case nextEventLabel = "watch.nextEventLabel"
+    case openEventDetails = "watch.openEventDetails"
+    case eventArchive = "watch.eventArchive"
+    case pastSavedEventOne = "watch.pastSavedEventOne"
+    case pastSavedEventsMany = "watch.pastSavedEventsMany"
+    case openArchivedEvents = "watch.openArchivedEvents"
+    case noArchivedEvents = "watch.noArchivedEvents"
+    case archivedEventsDescription = "watch.archivedEventsDescription"
+    case archive = "watch.archive"
+    case eventDetailsTitle = "watch.eventDetailsTitle"
+    case pastEvent = "watch.pastEvent"
+    case savedEvent = "watch.savedEvent"
+    case when = "watch.when"
+    case applyBy = "watch.applyBy"
+    case `where` = "watch.where"
+    case checkFinalLocation = "watch.checkFinalLocation"
+    case roomDetails = "watch.roomDetails"
+    case openRegistrationForDetails = "watch.openRegistrationForDetails"
+    case directionsInMaps = "watch.directionsInMaps"
+    case opensMapsHint = "watch.opensMapsHint"
+    case registrationDetails = "watch.registrationDetails"
+
+    var english: String {
+        switch self {
+        case .syncUnavailable: "Watch sync is unavailable on this device."
+        case .openPhoneToRefresh: "Open GTA FREE STEM on your iPhone to refresh saved events."
+        case .latestSavedOnWatch: "Still showing the latest events saved on this watch."
+        case .updatePhoneApp: "Update the iPhone app to sync saved events."
+        case .locationInDetails: "Location in event details"
+        case .eventDetails: "Event details"
+        case .timingInDetails: "See event details for timing"
+        case .date: "DATE"
+        case .yourEventsTitle: "Your events, at a glance"
+        case .yourEventsMessage: "Open GTA FREE STEM on your iPhone, save an event, then sync it here."
+        case .trySync: "Try sync"
+        case .noSavedEvents: "No saved events"
+        case .noSavedEventsMessage: "Save an event in the iPhone app and it will appear here, ready for your wrist."
+        case .checkAgain: "Check again"
+        case .myStemPlan: "MY STEM PLAN"
+        case .savedEvents: "Saved events"
+        case .syncSavedFromPhone: "Sync saved events from iPhone"
+        case .connectPhone: "Connect your iPhone"
+        case .eventComingOne: "1 event coming up"
+        case .eventsComingMany: "{count} events coming up"
+        case .nothingUpcoming: "Nothing upcoming"
+        case .archiveStillAvailable: "Your past saved events are still available in the archive."
+        case .upcoming: "UPCOMING"
+        case .synced: "Synced {value}"
+        case .showingSavedEvents: "Showing {shown} of {total} saved events"
+        case .nextEventLabel: "Next event. {title}. {time}. {place}"
+        case .openEventDetails: "Open event details"
+        case .eventArchive: "Event archive"
+        case .pastSavedEventOne: "1 past saved event"
+        case .pastSavedEventsMany: "{count} past saved events"
+        case .openArchivedEvents: "Open archived events"
+        case .noArchivedEvents: "No archived events"
+        case .archivedEventsDescription: "Saved events appear here after their date and time pass."
+        case .archive: "Archive"
+        case .eventDetailsTitle: "Event details"
+        case .pastEvent: "PAST EVENT"
+        case .savedEvent: "SAVED EVENT"
+        case .when: "WHEN"
+        case .applyBy: "Apply by {date}"
+        case .where: "WHERE"
+        case .checkFinalLocation: "Check the event details for the final room or meeting point."
+        case .roomDetails: "ROOM & DETAILS"
+        case .openRegistrationForDetails: "Open the registration page for room and arrival details."
+        case .directionsInMaps: "Directions in Maps"
+        case .opensMapsHint: "Opens Apple Maps with directions to this event"
+        case .registrationDetails: "Registration details"
+        }
+    }
+}
+
+private struct WatchLocalization: Sendable {
+    let language: WatchLanguage
+
+    var locale: Locale {
+        Locale(identifier: language.localeIdentifier)
+    }
+
+    func text(_ key: WatchText, replacing replacements: [String: String] = [:]) -> String {
+        let base = WatchStringCatalog.shared.string(key, language: language) ?? key.english
+        return replacements.reduce(base) { result, replacement in
+            result.replacingOccurrences(of: "{\(replacement.key)}", with: replacement.value)
+        }
+    }
+
+    func number(_ value: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = locale
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: value)) ?? String(value)
+    }
+
+    func relativeDate(_ value: Date, relativeTo reference: Date = .now) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.locale = locale
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: value, relativeTo: reference)
+    }
+
+    func shortDateTime(_ value: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.timeZone = TimeZone(identifier: "America/Toronto")
+        formatter.setLocalizedDateFormatFromTemplate("MMMdhm")
+        return formatter.string(from: value)
+    }
+}
+
+private final class WatchStringCatalog: @unchecked Sendable {
+    static let shared = WatchStringCatalog()
+
+    private let strings: [String: [String: String]]
+
+    private init(bundle: Bundle = .main) {
+        guard let url = bundle.url(forResource: "WatchStrings", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let decoded = try? JSONDecoder().decode([String: [String: String]].self, from: data) else {
+            strings = [:]
+            return
+        }
+        strings = decoded
+    }
+
+    func string(_ key: WatchText, language: WatchLanguage) -> String? {
+        guard let value = strings[language.rawValue]?[key.rawValue]?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty else {
+            return nil
+        }
+        return value
+    }
+}
+
+private struct WatchLocalizationEnvironmentKey: EnvironmentKey {
+    static let defaultValue = WatchLocalization(language: .en)
+}
+
+private extension EnvironmentValues {
+    var watchLocalization: WatchLocalization {
+        get { self[WatchLocalizationEnvironmentKey.self] }
+        set { self[WatchLocalizationEnvironmentKey.self] = newValue }
+    }
+}
+
 @main
 struct GTAFreeSTEMWatchApp: App {
     @StateObject private var store = WatchOpportunityStore()
@@ -10,6 +267,9 @@ struct GTAFreeSTEMWatchApp: App {
         WindowGroup {
             WatchContentView()
                 .environmentObject(store)
+                .environment(\.watchLocalization, store.localization)
+                .environment(\.locale, store.localization.locale)
+                .environment(\.layoutDirection, store.language.layoutDirection)
         }
     }
 }
@@ -19,16 +279,19 @@ private final class WatchOpportunityStore: NSObject, ObservableObject, WCSession
     private enum SyncKey {
         static let payload = "savedEventsPayload"
         static let request = "requestSavedEvents"
+        static let preferredLanguage = "preferredLanguageCode"
     }
 
     private static let cacheKey = "watch-saved-events-v1"
+    private static let languageCacheKey = "watch-preferred-language-v1"
 
     @Published private(set) var events = [WatchSavedEvent]()
     @Published private(set) var totalSavedCount = 0
     @Published private(set) var lastSyncedAt: Date?
     @Published private(set) var hasSynced = false
     @Published private(set) var isSyncing = false
-    @Published private(set) var syncNote: String?
+    @Published private(set) var syncNote: WatchText?
+    @Published private(set) var language: WatchLanguage
 
     private let defaults: UserDefaults
     private var didLoad = false
@@ -54,8 +317,18 @@ private final class WatchOpportunityStore: NSObject, ObservableObject, WCSession
             }
     }
 
-    init(defaults: UserDefaults = .standard) {
+    var localization: WatchLocalization {
+        WatchLocalization(language: language)
+    }
+
+    init(defaults: UserDefaults = .standard, preferredLanguages: [String] = Locale.preferredLanguages) {
         self.defaults = defaults
+        if let cached = defaults.string(forKey: Self.languageCacheKey),
+           let cachedLanguage = WatchLanguage.resolve(cached) {
+            language = cachedLanguage
+        } else {
+            language = WatchLanguage.preferred(from: preferredLanguages)
+        }
         super.init()
     }
 
@@ -68,7 +341,7 @@ private final class WatchOpportunityStore: NSObject, ObservableObject, WCSession
 
     func requestSync() {
         guard WCSession.isSupported() else {
-            syncNote = "Watch sync is unavailable on this device."
+            syncNote = .syncUnavailable
             return
         }
 
@@ -83,7 +356,9 @@ private final class WatchOpportunityStore: NSObject, ObservableObject, WCSession
             return
         }
 
-        if let payload = session.receivedApplicationContext[SyncKey.payload] as? Data {
+        let context = session.receivedApplicationContext
+        applyPreferredLanguage(context[SyncKey.preferredLanguage] as? String)
+        if let payload = context[SyncKey.payload] as? Data {
             apply(payload: payload)
             isSyncing = true
         }
@@ -103,7 +378,7 @@ private final class WatchOpportunityStore: NSObject, ObservableObject, WCSession
         guard session.activationState == .activated else { return }
         guard session.isReachable else {
             isSyncing = false
-            syncNote = "Open GTA FREE STEM on your iPhone to refresh saved events."
+            syncNote = .openPhoneToRefresh
             return
         }
 
@@ -111,7 +386,7 @@ private final class WatchOpportunityStore: NSObject, ObservableObject, WCSession
             Task { @MainActor in
                 guard self?.isSyncing == true else { return }
                 self?.isSyncing = false
-                self?.syncNote = "Open GTA FREE STEM on your iPhone to refresh saved events."
+                self?.syncNote = .openPhoneToRefresh
             }
         }
     }
@@ -124,7 +399,7 @@ private final class WatchOpportunityStore: NSObject, ObservableObject, WCSession
                   self.isSyncing,
                   self.latestRequestAt == requestDate else { return }
             self.isSyncing = false
-            self.syncNote = "Still showing the latest events saved on this watch."
+            self.syncNote = .latestSavedOnWatch
         }
     }
 
@@ -136,11 +411,12 @@ private final class WatchOpportunityStore: NSObject, ObservableObject, WCSession
     private func apply(payload: Data, persist: Bool = true) {
         guard let envelope = try? JSONDecoder().decode(WatchSavedEventsEnvelope.self, from: payload),
               envelope.schemaVersion == WatchSavedEventsEnvelope.currentSchemaVersion else {
-            syncNote = "Update the iPhone app to sync saved events."
+            syncNote = .updatePhoneApp
             isSyncing = false
             return
         }
 
+        applyPreferredLanguage(envelope.preferredLanguageCode)
         events = envelope.events
         totalSavedCount = envelope.totalSavedCount
         lastSyncedAt = envelope.syncedAt
@@ -152,15 +428,24 @@ private final class WatchOpportunityStore: NSObject, ObservableObject, WCSession
         }
     }
 
+    private func applyPreferredLanguage(_ code: String?) {
+        guard let code, let resolved = WatchLanguage.resolve(code) else { return }
+        language = resolved
+        defaults.set(resolved.rawValue, forKey: Self.languageCacheKey)
+    }
+
     nonisolated func session(
         _ session: WCSession,
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: Error?
     ) {
-        let payload = session.receivedApplicationContext[SyncKey.payload] as? Data
+        let context = session.receivedApplicationContext
+        let payload = context[SyncKey.payload] as? Data
+        let preferredLanguage = context[SyncKey.preferredLanguage] as? String
         Task { @MainActor [weak self] in
             guard let self else { return }
             let shouldRequestSync = self.isSyncing
+            self.applyPreferredLanguage(preferredLanguage)
             if let payload {
                 self.apply(payload: payload)
             }
@@ -175,9 +460,14 @@ private final class WatchOpportunityStore: NSObject, ObservableObject, WCSession
         _ session: WCSession,
         didReceiveApplicationContext applicationContext: [String: Any]
     ) {
-        guard let payload = applicationContext[SyncKey.payload] as? Data else { return }
+        let payload = applicationContext[SyncKey.payload] as? Data
+        let preferredLanguage = applicationContext[SyncKey.preferredLanguage] as? String
         Task { @MainActor [weak self] in
-            self?.apply(payload: payload)
+            guard let self else { return }
+            self.applyPreferredLanguage(preferredLanguage)
+            if let payload {
+                self.apply(payload: payload)
+            }
         }
     }
 
@@ -197,6 +487,7 @@ private struct WatchSavedEventsEnvelope: Codable, Sendable {
     let syncedAt: Date
     let totalSavedCount: Int
     let events: [WatchSavedEvent]
+    let preferredLanguageCode: String?
 }
 
 private struct WatchSavedEvent: Codable, Hashable, Identifiable, Sendable {
@@ -231,16 +522,16 @@ private struct WatchSavedEvent: Codable, Hashable, Identifiable, Sendable {
         parsedDate(from: deadline)
     }
 
-    var placeLabel: String {
+    func placeLabel(localization: WatchLocalization) -> String {
         let place = [organization, city].filter { !$0.isEmpty }.joined(separator: " · ")
-        return place.isEmpty ? "Location in event details" : place
+        return place.isEmpty ? localization.text(.locationInDetails) : place
     }
 
-    var compactPlaceLabel: String {
+    func compactPlaceLabel(localization: WatchLocalization) -> String {
         [city, region, organization]
             .lazy
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .first { !$0.isEmpty } ?? "Event details"
+            .first { !$0.isEmpty } ?? localization.text(.eventDetails)
     }
 
     var locationLabel: String {
@@ -248,36 +539,37 @@ private struct WatchSavedEvent: Codable, Hashable, Identifiable, Sendable {
         return [city, region].filter { !$0.isEmpty }.joined(separator: ", ")
     }
 
-    var timingLabel: String {
-        guard let date = eventDate ?? deadlineDate else { return "See event details for timing" }
+    func timingLabel(localization: WatchLocalization) -> String {
+        guard let date = eventDate ?? deadlineDate else { return localization.text(.timingInDetails) }
         let includesTime = primaryDateValue?.count != 10
         let formatter = DateFormatter()
-        formatter.locale = .current
+        formatter.locale = localization.locale
         formatter.timeZone = Self.gtaTimeZone
         formatter.setLocalizedDateFormatFromTemplate(includesTime ? "EEEMMMdhm" : "EEEMMMd")
         return formatter.string(from: date)
     }
 
-    var relativeTimingLabel: String? {
+    func relativeTimingLabel(localization: WatchLocalization) -> String? {
         guard let date = eventDate, date > .now else { return nil }
         let formatter = RelativeDateTimeFormatter()
+        formatter.locale = localization.locale
         formatter.unitsStyle = .full
         return formatter.localizedString(for: date, relativeTo: .now)
     }
 
-    var monthLabel: String {
-        guard let date = eventDate ?? deadlineDate else { return "DATE" }
+    func monthLabel(localization: WatchLocalization) -> String {
+        guard let date = eventDate ?? deadlineDate else { return localization.text(.date) }
         let formatter = DateFormatter()
-        formatter.locale = .current
+        formatter.locale = localization.locale
         formatter.timeZone = Self.gtaTimeZone
         formatter.setLocalizedDateFormatFromTemplate("MMM")
-        return formatter.string(from: date).uppercased()
+        return formatter.string(from: date).uppercased(with: localization.locale)
     }
 
-    var dayLabel: String {
+    func dayLabel(localization: WatchLocalization) -> String {
         guard let date = eventDate ?? deadlineDate else { return "—" }
         let formatter = DateFormatter()
-        formatter.locale = .current
+        formatter.locale = localization.locale
         formatter.timeZone = Self.gtaTimeZone
         formatter.setLocalizedDateFormatFromTemplate("d")
         return formatter.string(from: date)
@@ -322,7 +614,9 @@ private enum WatchRoute: Hashable {
 }
 
 private struct WatchContentView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.watchLocalization) private var localization
     @EnvironmentObject private var store: WatchOpportunityStore
 
     var body: some View {
@@ -337,18 +631,18 @@ private struct WatchContentView: View {
 
                         if !store.hasSynced {
                             WatchEmptyState(
-                                title: "Your events, at a glance",
-                                message: "Open GTA FREE STEM on your iPhone, save an event, then sync it here.",
+                                title: localization.text(.yourEventsTitle),
+                                message: localization.text(.yourEventsMessage),
                                 systemImage: "iphone.and.arrow.forward",
-                                actionTitle: "Try sync",
+                                actionTitle: localization.text(.trySync),
                                 action: store.requestSync
                             )
                         } else if store.events.isEmpty {
                             WatchEmptyState(
-                                title: "No saved events",
-                                message: "Save an event in the iPhone app and it will appear here, ready for your wrist.",
+                                title: localization.text(.noSavedEvents),
+                                message: localization.text(.noSavedEventsMessage),
                                 systemImage: "bookmark",
-                                actionTitle: "Check again",
+                                actionTitle: localization.text(.checkAgain),
                                 action: store.requestSync
                             )
                         } else {
@@ -379,73 +673,90 @@ private struct WatchContentView: View {
     private var header: some View {
         HStack(alignment: .top, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Label("MY STEM PLAN", systemImage: "atom")
+                Label(localization.text(.myStemPlan), systemImage: "atom")
                     .font(.system(.caption2, design: .rounded, weight: .black))
                     .foregroundStyle(WatchTheme.sun)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.82)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                Text("Saved events")
+                Text(localization.text(.savedEvents))
                     .font(.title3.weight(.black))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.70)
                     .allowsTightening(true)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(headerSubtitle)
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .lineLimit(2)
                     .minimumScaleFactor(0.80)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer(minLength: 0)
 
             Button(action: store.requestSync) {
-                if store.isSyncing {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .font(.caption.weight(.black))
+                ZStack {
+                    if store.isSyncing, !reduceMotion {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: store.isSyncing ? "arrow.down.circle.fill" : "arrow.triangle.2.circlepath")
+                            .font(.caption.weight(.black))
+                    }
                 }
+                .foregroundStyle(.white)
+                .frame(width: 32, height: 32)
+                .background(WatchTheme.lake, in: Circle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.white)
-            .frame(width: 32, height: 32)
-            .background(WatchTheme.lake, in: Circle())
-            .contentShape(Circle())
-            .accessibilityLabel("Sync saved events from iPhone")
+            .watchAccessibleControl()
+            .accessibilityLabel(localization.text(.syncSavedFromPhone))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 4)
     }
 
     private var headerSubtitle: String {
-        if !store.hasSynced { return "Connect your iPhone" }
+        if !store.hasSynced { return localization.text(.connectPhone) }
         let count = store.upcomingEvents.count
-        return count == 1 ? "1 event coming up" : "\(count) events coming up"
+        if count == 1 {
+            return localization.text(.eventComingOne)
+        }
+        return localization.text(.eventsComingMany, replacing: ["count": localization.number(count)])
     }
 
     @ViewBuilder
     private var savedEventContent: some View {
         if let next = store.upcomingEvents.first {
-            NavigationLink(value: WatchRoute.event(next)) {
-                WatchNextEventCard(event: next)
+            VStack(spacing: 5) {
+                NavigationLink(value: WatchRoute.event(next)) {
+                    WatchNextEventCard(event: next)
+                }
+                .buttonStyle(.plain)
+                .watchAccessibleControl()
+                WatchOriginalSourceLink(event: next)
             }
-            .buttonStyle(.plain)
         }
 
         if store.upcomingEvents.isEmpty {
             WatchEmptyState(
-                title: "Nothing upcoming",
-                message: "Your past saved events are still available in the archive.",
+                title: localization.text(.nothingUpcoming),
+                message: localization.text(.archiveStillAvailable),
                 systemImage: "calendar.badge.checkmark"
             )
         } else if store.upcomingEvents.count > 1 {
-            WatchSectionHeading(title: "UPCOMING", systemImage: "calendar")
+            WatchSectionHeading(title: localization.text(.upcoming), systemImage: "calendar")
             ForEach(store.upcomingEvents.dropFirst()) { event in
-                NavigationLink(value: WatchRoute.event(event)) {
-                    WatchEventRow(event: event)
+                VStack(spacing: 5) {
+                    NavigationLink(value: WatchRoute.event(event)) {
+                        WatchEventRow(event: event)
+                    }
+                    .buttonStyle(.plain)
+                    .watchAccessibleControl()
+                    WatchOriginalSourceLink(event: event)
                 }
-                .buttonStyle(.plain)
             }
         }
 
@@ -453,24 +764,38 @@ private struct WatchContentView: View {
             WatchArchiveCard(count: store.archivedEvents.count)
         }
         .buttonStyle(.plain)
+        .watchAccessibleControl()
     }
 
     @ViewBuilder
     private var syncFooter: some View {
         if let syncNote = store.syncNote {
-            Label(syncNote, systemImage: "info.circle")
+            Label(localization.text(syncNote), systemImage: "info.circle")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 4)
         } else if let lastSyncedAt = store.lastSyncedAt {
-            Text("Synced \(lastSyncedAt, style: .relative)")
+            Text(
+                localization.text(
+                    .synced,
+                    replacing: ["value": localization.relativeDate(lastSyncedAt)]
+                )
+            )
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .center)
         }
 
         if store.totalSavedCount > store.events.count {
-            Text("Showing \(store.events.count) of \(store.totalSavedCount) saved events")
+            Text(
+                localization.text(
+                    .showingSavedEvents,
+                    replacing: [
+                        "shown": localization.number(store.events.count),
+                        "total": localization.number(store.totalSavedCount)
+                    ]
+                )
+            )
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -493,14 +818,15 @@ private struct WatchSectionHeading: View {
 }
 
 private struct WatchNextEventCard: View {
+    @Environment(\.watchLocalization) private var localization
     let event: WatchSavedEvent
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             if !event.category.isEmpty {
-                Text(event.category.uppercased())
+                Text(event.category.uppercased(with: localization.locale))
                     .font(.caption2.weight(.black))
-                    .foregroundStyle(.white.opacity(0.84))
+                    .foregroundStyle(WatchTheme.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                     .allowsTightening(true)
@@ -512,15 +838,15 @@ private struct WatchNextEventCard: View {
 
                 Text(event.title)
                     .font(.headline.weight(.black))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(WatchTheme.ink)
                     .lineLimit(2)
                     .minimumScaleFactor(0.84)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            Label(timingAndPlace, systemImage: event.relativeTimingLabel == nil ? "mappin.and.ellipse" : "clock.fill")
+            Label(timingAndPlace, systemImage: event.relativeTimingLabel(localization: localization) == nil ? "mappin.and.ellipse" : "clock.fill")
                 .font(.caption2.weight(.bold))
-                .foregroundStyle(.white.opacity(0.88))
+                .foregroundStyle(WatchTheme.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
                 .allowsTightening(true)
@@ -536,15 +862,27 @@ private struct WatchNextEventCard: View {
         )
         .overlay {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(.white.opacity(0.30), lineWidth: 1)
+                .stroke(WatchTheme.ink.opacity(0.30), lineWidth: 1)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Next event. \(event.title). \(event.timingLabel). \(event.placeLabel)")
-        .accessibilityHint("Open event details")
+        .accessibilityLabel(
+            localization.text(
+                .nextEventLabel,
+                replacing: [
+                    "title": event.title,
+                    "time": event.timingLabel(localization: localization),
+                    "place": event.placeLabel(localization: localization)
+                ]
+            )
+        )
+        .accessibilityHint(localization.text(.openEventDetails))
     }
 
     private var timingAndPlace: String {
-        [event.relativeTimingLabel?.capitalized, event.compactPlaceLabel]
+        [
+            event.relativeTimingLabel(localization: localization),
+            event.compactPlaceLabel(localization: localization)
+        ]
             .compactMap { $0 }
             .filter { !$0.isEmpty }
             .joined(separator: " · ")
@@ -552,6 +890,7 @@ private struct WatchNextEventCard: View {
 }
 
 private struct WatchEventRow: View {
+    @Environment(\.watchLocalization) private var localization
     let event: WatchSavedEvent
 
     var body: some View {
@@ -562,11 +901,11 @@ private struct WatchEventRow: View {
                 Text(event.title)
                     .font(.subheadline.weight(.bold))
                     .lineLimit(2)
-                Text(event.timingLabel)
+                Text(event.timingLabel(localization: localization))
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(WatchTheme.lake)
                     .lineLimit(1)
-                Text(event.placeLabel)
+                Text(event.placeLabel(localization: localization))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -579,27 +918,30 @@ private struct WatchEventRow: View {
         }
         .watchSurface()
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(event.title). \(event.timingLabel). \(event.placeLabel)")
-        .accessibilityHint("Open event details")
+        .accessibilityLabel(
+            "\(event.title). \(event.timingLabel(localization: localization)). \(event.placeLabel(localization: localization))"
+        )
+        .accessibilityHint(localization.text(.openEventDetails))
     }
 }
 
 private struct WatchDateTile: View {
+    @Environment(\.watchLocalization) private var localization
     let event: WatchSavedEvent
     var inverted = false
 
     var body: some View {
         VStack(spacing: 0) {
-            Text(event.monthLabel)
+            Text(event.monthLabel(localization: localization))
                 .font(.system(.caption2, design: .rounded, weight: .black))
                 .minimumScaleFactor(0.75)
-            Text(event.dayLabel)
+            Text(event.dayLabel(localization: localization))
                 .font(.system(.title3, design: .rounded, weight: .black))
         }
-        .foregroundStyle(inverted ? .white : WatchTheme.ink)
+        .foregroundStyle(WatchTheme.ink)
         .frame(width: 42, height: 46)
         .background(
-            inverted ? AnyShapeStyle(.white.opacity(0.18)) : AnyShapeStyle(WatchTheme.sun),
+            inverted ? AnyShapeStyle(WatchTheme.cream.opacity(0.88)) : AnyShapeStyle(WatchTheme.sun),
             in: RoundedRectangle(cornerRadius: 12, style: .continuous)
         )
         .accessibilityHidden(true)
@@ -607,6 +949,7 @@ private struct WatchDateTile: View {
 }
 
 private struct WatchArchiveCard: View {
+    @Environment(\.watchLocalization) private var localization
     let count: Int
 
     var body: some View {
@@ -618,9 +961,13 @@ private struct WatchArchiveCard: View {
                 .background(WatchTheme.lavender.opacity(0.16), in: Circle())
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Event archive")
+                Text(localization.text(.eventArchive))
                     .font(.subheadline.weight(.bold))
-                Text(count == 1 ? "1 past saved event" : "\(count) past saved events")
+                Text(
+                    count == 1
+                        ? localization.text(.pastSavedEventOne)
+                        : localization.text(.pastSavedEventsMany, replacing: ["count": localization.number(count)])
+                )
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -632,7 +979,7 @@ private struct WatchArchiveCard: View {
         }
         .watchSurface()
         .accessibilityElement(children: .combine)
-        .accessibilityHint("Open archived events")
+        .accessibilityHint(localization.text(.openArchivedEvents))
     }
 }
 
@@ -670,6 +1017,7 @@ private struct WatchEmptyState: View {
                 Button(actionTitle, action: action)
                     .buttonStyle(.borderedProminent)
                     .tint(WatchTheme.lake)
+                    .watchAccessibleControl()
             }
         }
         .frame(maxWidth: .infinity)
@@ -679,6 +1027,7 @@ private struct WatchEmptyState: View {
 
 private struct WatchArchiveView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.watchLocalization) private var localization
     let events: [WatchSavedEvent]
 
     var body: some View {
@@ -688,18 +1037,22 @@ private struct WatchArchiveView: View {
 
             if events.isEmpty {
                 ContentUnavailableView(
-                    "No archived events",
+                    localization.text(.noArchivedEvents),
                     systemImage: "archivebox",
-                    description: Text("Saved events appear here after their date and time pass.")
+                    description: Text(localization.text(.archivedEventsDescription))
                 )
             } else {
                 ScrollView {
                     LazyVStack(spacing: 9) {
                         ForEach(events) { event in
-                            NavigationLink(value: WatchRoute.event(event)) {
-                                WatchArchivedEventRow(event: event)
+                            VStack(spacing: 5) {
+                                NavigationLink(value: WatchRoute.event(event)) {
+                                    WatchArchivedEventRow(event: event)
+                                }
+                                .buttonStyle(.plain)
+                                .watchAccessibleControl()
+                                WatchOriginalSourceLink(event: event)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                     .padding(.horizontal, 8)
@@ -707,11 +1060,30 @@ private struct WatchArchiveView: View {
                 }
             }
         }
-        .navigationTitle("Archive")
+        .navigationTitle(localization.text(.archive))
+    }
+}
+
+private struct WatchOriginalSourceLink: View {
+    @Environment(\.watchLocalization) private var localization
+    let event: WatchSavedEvent
+
+    var body: some View {
+        if let sourceURL = WatchExternalURL.make(from: event.sourceURL ?? event.registrationURL) {
+            Link(destination: sourceURL) {
+                Label(localization.text(.registrationDetails), systemImage: "arrow.up.right.square")
+                    .font(.caption2.weight(.bold))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .tint(WatchTheme.lake)
+            .watchAccessibleControl()
+        }
     }
 }
 
 private struct WatchArchivedEventRow: View {
+    @Environment(\.watchLocalization) private var localization
     let event: WatchSavedEvent
 
     var body: some View {
@@ -724,22 +1096,23 @@ private struct WatchArchivedEventRow: View {
                 Image(systemName: "clock.arrow.circlepath")
                     .foregroundStyle(WatchTheme.lavender)
             }
-            Text(event.timingLabel)
+            Text(event.timingLabel(localization: localization))
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
-            Label(event.placeLabel, systemImage: "mappin")
+            Label(event.placeLabel(localization: localization), systemImage: "mappin")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
         }
         .watchSurface()
         .accessibilityElement(children: .combine)
-        .accessibilityHint("Open archived event details")
+        .accessibilityHint(localization.text(.openEventDetails))
     }
 }
 
 private struct WatchEventDetail: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.watchLocalization) private var localization
     let event: WatchSavedEvent
 
     var body: some View {
@@ -759,14 +1132,17 @@ private struct WatchEventDetail: View {
                 .padding(.bottom, 16)
             }
         }
-        .navigationTitle("Event details")
+        .navigationTitle(localization.text(.eventDetailsTitle))
         .navigationBarTitleDisplayMode(.inline)
     }
 
     private var detailHeader: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack {
-                Label(event.isArchived() ? "PAST EVENT" : "SAVED EVENT", systemImage: event.isArchived() ? "archivebox.fill" : "bookmark.fill")
+                Label(
+                    event.isArchived() ? localization.text(.pastEvent) : localization.text(.savedEvent),
+                    systemImage: event.isArchived() ? "archivebox.fill" : "bookmark.fill"
+                )
                     .font(.caption2.weight(.black))
                     .foregroundStyle(.white.opacity(0.90))
                 Spacer()
@@ -793,11 +1169,16 @@ private struct WatchEventDetail: View {
     }
 
     private var timingCard: some View {
-        WatchDetailCard(title: "WHEN", systemImage: "calendar.badge.clock", tint: WatchTheme.coral) {
-            Text(event.timingLabel)
+        WatchDetailCard(title: localization.text(.when), systemImage: "calendar.badge.clock", tint: WatchTheme.coral) {
+            Text(event.timingLabel(localization: localization))
                 .font(.subheadline.weight(.bold))
             if let deadline = event.deadlineDate, deadline > .now, deadline != event.eventDate {
-                Text("Apply by \(deadline.formatted(.dateTime.month(.abbreviated).day().hour().minute()))")
+                Text(
+                    localization.text(
+                        .applyBy,
+                        replacing: ["date": localization.shortDateTime(deadline)]
+                    )
+                )
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -805,12 +1186,12 @@ private struct WatchEventDetail: View {
     }
 
     private var locationCard: some View {
-        WatchDetailCard(title: "WHERE", systemImage: "mappin.and.ellipse", tint: WatchTheme.lake) {
+        WatchDetailCard(title: localization.text(.where), systemImage: "mappin.and.ellipse", tint: WatchTheme.lake) {
             if !event.locationLabel.isEmpty {
                 Text(event.locationLabel)
                     .font(.subheadline.weight(.bold))
             } else {
-                Text("Check the event details for the final room or meeting point.")
+                Text(localization.text(.checkFinalLocation))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -823,8 +1204,8 @@ private struct WatchEventDetail: View {
     }
 
     private var detailsCard: some View {
-        WatchDetailCard(title: "ROOM & DETAILS", systemImage: "info.bubble.fill", tint: WatchTheme.lavender) {
-            Text(event.details.isEmpty ? "Open the registration page for room and arrival details." : event.details)
+        WatchDetailCard(title: localization.text(.roomDetails), systemImage: "info.bubble.fill", tint: WatchTheme.lavender) {
+            Text(event.details.isEmpty ? localization.text(.openRegistrationForDetails) : event.details)
                 .font(.caption)
                 .foregroundStyle(.primary)
         }
@@ -834,21 +1215,23 @@ private struct WatchEventDetail: View {
     private var actions: some View {
         if let directionsURL = WatchMapsURL.make(for: event) {
             Link(destination: directionsURL) {
-                Label("Directions in Maps", systemImage: "location.fill")
+                Label(localization.text(.directionsInMaps), systemImage: "location.fill")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .tint(WatchTheme.coral)
-            .accessibilityHint("Opens Apple Maps with directions to this event")
+            .tint(WatchTheme.navy)
+            .watchAccessibleControl()
+            .accessibilityHint(localization.text(.opensMapsHint))
         }
 
         if let detailsURL = WatchExternalURL.make(from: event.registrationURL ?? event.sourceURL) {
             Link(destination: detailsURL) {
-                Label("Registration details", systemImage: "arrow.up.right.square")
+                Label(localization.text(.registrationDetails), systemImage: "arrow.up.right.square")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
             .tint(WatchTheme.lake)
+            .watchAccessibleControl()
         }
     }
 }
@@ -969,5 +1352,10 @@ private struct WatchSurfaceModifier: ViewModifier {
 private extension View {
     func watchSurface() -> some View {
         modifier(WatchSurfaceModifier())
+    }
+
+    func watchAccessibleControl() -> some View {
+        frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
     }
 }

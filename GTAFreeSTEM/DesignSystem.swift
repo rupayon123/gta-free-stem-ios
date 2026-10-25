@@ -11,19 +11,19 @@ enum Brand {
 
     // MARK: Core brand colours
 
-    static let ink = Color(red: 0.05, green: 0.09, blue: 0.11)
+    static let ink = Color(red: 16/255, green: 52/255, blue: 82/255)
     static let cream = Color(red: 0.98, green: 0.97, blue: 0.92)
     static let paper = Color(red: 0.99, green: 0.99, blue: 0.97)
     static let sky = Color(red: 0.45, green: 0.75, blue: 0.80)
-    static let lake = Color(red: 0.05, green: 0.40, blue: 0.45)
-    static let navy = Color(red: 0.04, green: 0.18, blue: 0.28)
+    static let lake = Color(red: 8/255, green: 119/255, blue: 124/255)
+    static let navy = Color(red: 16/255, green: 52/255, blue: 82/255)
     static let deepOcean = Color(red: 0.03, green: 0.10, blue: 0.14)
     static let nightBlue = Color(red: 0.06, green: 0.16, blue: 0.20)
     static let electricBlue = Color(red: 0.31, green: 0.78, blue: 0.77)
     static let ice = Color(red: 0.94, green: 0.98, blue: 0.97)
     static let mintFoam = Color(red: 0.84, green: 0.94, blue: 0.90)
     static let moss = Color(red: 0.39, green: 0.65, blue: 0.43)
-    static let sun = Color(red: 0.96, green: 0.70, blue: 0.22)
+    static let sun = Color(red: 244/255, green: 196/255, blue: 49/255)
     static let coral = Color(red: 0.82, green: 0.28, blue: 0.20)
     static let orange = Color(red: 0.91, green: 0.48, blue: 0.20)
     static let lavender = Color(red: 0.55, green: 0.50, blue: 0.78)
@@ -40,7 +40,7 @@ enum Brand {
     static func canvas(for scheme: ColorScheme) -> Color {
         scheme == .dark
             ? night
-            : Color(red: 0.965, green: 0.973, blue: 0.955)
+            : cream
     }
 
     static func cardFill(for scheme: ColorScheme) -> Color {
@@ -133,31 +133,14 @@ struct StorybookBackground: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        ZStack {
-            Brand.pageGradient(for: colorScheme)
-                .ignoresSafeArea()
-
-            // One quiet discovery field carries the brand across screens without
-            // competing with text, cards, maps, or native navigation controls.
-            Circle()
-                .fill(Brand.sky.opacity(colorScheme == .dark ? 0.07 : 0.10))
-                .frame(width: 340, height: 340)
-                .blur(radius: 28)
-                .offset(x: 180, y: -320)
-
-            Circle()
-                .fill(Brand.sun.opacity(colorScheme == .dark ? 0.035 : 0.07))
-                .frame(width: 280, height: 280)
-                .blur(radius: 32)
-                .offset(x: -190, y: 380)
-        }
-        .accessibilityHidden(true)
+        Brand.canvas(for: colorScheme)
+            .ignoresSafeArea()
+            .accessibilityHidden(true)
     }
 }
 
 struct CardSurface: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     var padding: CGFloat = AppSpacing.standard
     var cornerRadius: CGFloat = AppRadius.card
 
@@ -165,20 +148,8 @@ struct CardSurface: ViewModifier {
         content
             .padding(padding)
             .background(
-                reduceTransparency
-                    ? Brand.cardFill(for: colorScheme)
-                    : Brand.cardFill(for: colorScheme).opacity(0.97),
+                Brand.cardFill(for: colorScheme),
                 in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Brand.surfaceStroke(for: colorScheme), lineWidth: 0.75)
-            }
-            .shadow(
-                color: Brand.deepOcean.opacity(colorScheme == .dark ? 0.18 : 0.07),
-                radius: colorScheme == .dark ? 10 : 14,
-                x: 0,
-                y: colorScheme == .dark ? 5 : 7
             )
     }
 }
@@ -198,8 +169,7 @@ struct StickerBadge: View {
             Text(text)
         }
         .font(.caption.weight(.semibold))
-        .lineLimit(1)
-        .minimumScaleFactor(0.82)
+        .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(
@@ -371,7 +341,7 @@ struct StoryButtonStyle: ButtonStyle {
             }
             .contentShape(RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
-            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .spring(response: 0.30, dampingFraction: 0.78), value: configuration.isPressed)
     }
 
     private var background: Color {
@@ -442,7 +412,7 @@ struct SelectionChipStyle: ButtonStyle {
             }
             .opacity(configuration.isPressed ? 0.78 : 1)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
-            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .spring(response: 0.30, dampingFraction: 0.78), value: configuration.isPressed)
     }
 }
 
@@ -642,5 +612,80 @@ extension View {
 
     func storyPickerRow() -> some View {
         modifier(StoryPickerRowModifier())
+    }
+}
+
+/// Native discovery illustration informed by Hairline's isometric loupe.
+/// Reference: lucasmarkes/hairline @ 37d2e78 (MIT, Lucas Marques).
+/// Original GTA geometry; no DOM, pointer listener, timer, or idle animation.
+struct DiscoveryLoupeScene: View, Animatable {
+    @Environment(\.colorScheme) private var colorScheme
+    nonisolated var progress: CGFloat = 0
+    nonisolated var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    var body: some View {
+        Canvas { context, size in
+            var drawing = context
+            let scale = min(size.width / 260, size.height / 160)
+            drawing.translateBy(x: (size.width - 260 * scale) / 2, y: (size.height - 160 * scale) / 2)
+            drawing.scaleBy(x: scale, y: scale)
+            let ink = Brand.outline(for: colorScheme)
+            let paper = Brand.cardFill(for: colorScheme)
+            let stroke = StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
+            func path(_ points: [CGPoint], close: Bool = false) -> Path {
+                Path { p in
+                    guard let first = points.first else { return }
+                    p.move(to: first)
+                    for point in points.dropFirst() { p.addLine(to: point) }
+                    if close { p.closeSubpath() }
+                }
+            }
+            let sheet = path([CGPoint(x: 20, y: 91), CGPoint(x: 150, y: 46), CGPoint(x: 241, y: 91), CGPoint(x: 110, y: 143)], close: true)
+            drawing.fill(sheet, with: .color(Brand.raisedFill(for: colorScheme)))
+            drawing.stroke(sheet, with: .color(ink), style: stroke)
+            for row in 0..<5 {
+                let y = CGFloat(row) * 9
+                drawing.stroke(path([CGPoint(x: 48 + y, y: 87 + y * 0.48), CGPoint(x: 151 + y, y: 52 + y * 0.48)]), with: .color(Brand.lake), style: StrokeStyle(lineWidth: 1))
+            }
+            // Toronto's tower and a few blocks form a place, rather than a generic spinner.
+            let skyline = path([CGPoint(x: 156, y: 87), CGPoint(x: 156, y: 67), CGPoint(x: 168, y: 67), CGPoint(x: 168, y: 83), CGPoint(x: 179, y: 79), CGPoint(x: 179, y: 57), CGPoint(x: 192, y: 57), CGPoint(x: 192, y: 74), CGPoint(x: 205, y: 69)])
+            drawing.stroke(skyline, with: .color(ink), style: stroke)
+            drawing.stroke(path([CGPoint(x: 139, y: 87), CGPoint(x: 139, y: 25)]), with: .color(ink), style: stroke)
+            drawing.fill(Path(ellipseIn: CGRect(x: 130, y: 43, width: 18, height: 7)), with: .color(Brand.sun))
+            drawing.stroke(Path(ellipseIn: CGRect(x: 130, y: 43, width: 18, height: 7)), with: .color(ink), style: stroke)
+            let x = 85 + min(1, max(0, progress)) * 50
+            let y: CGFloat = 81
+            // Three feet, a solid rim, and a bounded lens: all remain inside this scene.
+            for foot in [CGPoint(x: -31, y: 22), CGPoint(x: 29, y: 23), CGPoint(x: 20, y: -9)] {
+                drawing.stroke(path([CGPoint(x: x + foot.x, y: y + foot.y), CGPoint(x: x + foot.x * 0.7, y: y - 20 + foot.y * 0.35)]), with: .color(ink), style: stroke)
+            }
+            let lens = Path(ellipseIn: CGRect(x: x - 32, y: y - 43, width: 64, height: 39))
+            drawing.fill(lens, with: .color(paper))
+            var magnified = drawing
+            magnified.clip(to: lens)
+            for row in 0..<5 {
+                magnified.stroke(path([CGPoint(x: x - 33, y: y - 22 + CGFloat(row) * 9), CGPoint(x: x + 35, y: y - 43 + CGFloat(row) * 9)]), with: .color(ink), style: StrokeStyle(lineWidth: 1.5))
+            }
+            drawing.stroke(lens, with: .color(Brand.lake), style: StrokeStyle(lineWidth: 4))
+            drawing.fill(Path(ellipseIn: CGRect(x: 213, y: 33, width: 14, height: 14)), with: .color(Brand.sun))
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 144)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Press feedback transforms only the drawing; layout and touch bounds stay fixed.
+struct SpringPressButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.975 : 1)
+            .opacity(configuration.isPressed ? 0.86 : 1)
+            .animation(reduceMotion ? nil : .spring(response: 0.30, dampingFraction: 0.78), value: configuration.isPressed)
     }
 }

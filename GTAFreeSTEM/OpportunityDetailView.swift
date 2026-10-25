@@ -46,6 +46,7 @@ enum AppleMapsDestinationURL {
 struct OpportunityDetailView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appStorageAccess) private var storageAccess
     @EnvironmentObject private var session: SessionStore
     @Query(sort: \SavedOpportunityRecord.savedAt, order: .reverse) private var savedRecords: [SavedOpportunityRecord]
     let opportunity: Opportunity
@@ -193,6 +194,7 @@ struct OpportunityDetailView: View {
                 .buttonStyle(StoryButtonStyle(kind: .secondary))
             }
             Button {
+                guard storageAccess.allowsPersistentChanges else { return }
                 do {
                     _ = try SavedOpportunityLibrary.toggle(opportunity, in: modelContext)
                     saveErrorMessage = nil
@@ -204,7 +206,14 @@ struct OpportunityDetailView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(StoryButtonStyle(kind: .quiet))
-            .accessibilityHint(session.text("savedArchiveNote"))
+            .disabled(!storageAccess.allowsPersistentChanges)
+            .accessibilityHint(
+                session.text(
+                    storageAccess.allowsPersistentChanges
+                        ? "savedArchiveNote"
+                        : "localStorageUnavailableMessage"
+                )
+            )
 
             if let saveErrorMessage {
                 Label(saveErrorMessage, systemImage: "exclamationmark.triangle.fill")
@@ -230,8 +239,7 @@ struct OpportunityDetailView: View {
     }
 
     private func languageName(_ code: String) -> String {
-        let language = AppLanguage.normalized(code)
-        if language == .en && code != AppLanguage.en.rawValue { return code }
+        guard let language = AppLanguage.supportedLanguage(for: code) else { return code }
         return session.languageName(language)
     }
 }

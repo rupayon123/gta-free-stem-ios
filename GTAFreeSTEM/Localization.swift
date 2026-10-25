@@ -67,6 +67,14 @@ enum AppLanguage: String, CaseIterable, Identifiable {
         matching(value) ?? .en
     }
 
+    /// Resolves only languages the app actually supports. Unlike
+    /// `normalized`, this never aliases an unknown or unsupported feed key to
+    /// English, which would let (for example) Traditional Chinese content
+    /// overwrite the English translation bucket.
+    static func supportedLanguage(for value: String) -> AppLanguage? {
+        matching(value)
+    }
+
     private static func matching(_ value: String) -> AppLanguage? {
         let normalized = value
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -79,10 +87,34 @@ enum AppLanguage: String, CaseIterable, Identifiable {
         }
 
         let legacy = normalized.lowercased()
+        // Cantonese is a supported Traditional-script catalog. Resolve its
+        // legacy zh-yue tags before the generic Traditional Mandarin guard so
+        // extension forms such as zh-yue-Hant do not fall back to English.
+        if legacy == "zh-yue" || legacy.hasPrefix("zh-yue-") ||
+            legacy == "yue" || legacy.hasPrefix("yue-") {
+            return .yue
+        }
+        // The app has a complete Simplified Mandarin catalog but no Traditional
+        // Mandarin catalog. Do not silently render Simplified Chinese for a
+        // Traditional Chinese system locale. Returning nil lets first launch
+        // continue to the person's next preferred language; Simplified Mandarin
+        // and Cantonese remain explicit choices in Settings.
+        if legacy == "zh" || legacy.hasPrefix("zh-") {
+            let languageSubtags = legacy
+                .split(separator: "-")
+                .prefix { $0.count != 1 }
+                .map(String.init)
+            if languageSubtags.contains("hant") ||
+                languageSubtags.contains("tw") ||
+                languageSubtags.contains("hk") ||
+                languageSubtags.contains("mo") {
+                return nil
+            }
+        }
         switch legacy {
         case "en-us", "en-ca", "en-gb": return .en
         case "fr-ca", "fr-fr": return .fr
-        case "zh-hans", "zh-hant", "zh-cn", "zh-sg", "zh-tw", "zh-hk", "mandarin": return .zh
+        case "zh-hans", "zh-cn", "zh-sg", "mandarin", "mandarin (simplified)": return .zh
         case "yue-hant", "zh-yue", "cantonese", "cantonese/yue": return .yue
         case "pa-guru", "pa-in", "pa-ca": return .pa
         case "ur-pk", "ur-in": return .ur
