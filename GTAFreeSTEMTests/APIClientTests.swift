@@ -3500,6 +3500,21 @@ final class OpportunityStoreTests: XCTestCase {
         XCTAssertEqual(store.dataSourceLabel, .savedAppCache)
     }
 
+    func testSameDayPublicationOrderRejectsLaggingMirrorAndAcceptsCorrection() throws {
+        func revised(_ id: String, _ revision: String) throws -> OpportunityListResponse {
+            let data = try encodedFeed(id: id, lastUpdated: "2026-08-20")
+            var json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            json["publicationRevision"] = revision
+            return try JSONDecoder().decode(OpportunityListResponse.self, from: JSONSerialization.data(withJSONObject: json))
+        }
+        let old = try revised("old-mirror", "2026-08-20T16:26:56.721Z")
+        let current = try revised("current-program", "2026-08-20T20:55:11.491Z")
+        XCTAssertTrue(OpportunityFeedSelection.isOlder(old, than: current))
+        XCTAssertFalse(OpportunityFeedSelection.isOlder(current, than: old))
+        XCTAssertTrue(OpportunityFeedSelection.shouldPrefer(current, over: old))
+        XCTAssertFalse(OpportunityFeedSelection.shouldPrefer(old, over: current))
+    }
+
     @MainActor
     func testOlderLiveFeedCannotReplaceNewerRetainedFeedOrRemoveSavedEvents() async throws {
         let context = try makeInMemoryContext()

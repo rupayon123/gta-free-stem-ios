@@ -35,7 +35,8 @@ def run(*args, timeout=30, check=True):
 def export(name, mode, **details):
     png = output / (name + ".png")
     jpg = output / (name + ".jpg")
-    run("xcrun", "simctl", "io", device, "screenshot", "--type=png", str(png))
+    # Attach the standard Simulator display before reading its real framebuffer.
+    run("xcrun", "simctl", "io", device, "screenshot", "--type=png", str(png), timeout=90)
     # A bounded downsample of the native screenshot for log transport, never a re-created image.
     run("/usr/bin/sips", "-s", "format", "jpeg", "-s", "formatOptions", "76", "-Z", "1100", str(png), "--out", str(jpg))
     data = jpg.read_bytes()
@@ -61,6 +62,11 @@ if len(matched) != 1 or matched[0].get("state") not in ("Booted", "Shutdown"):
 if matched[0]["state"] == "Shutdown":
     run("xcrun", "simctl", "boot", device, timeout=30)
 run("xcrun", "simctl", "bootstatus", device, "-b", timeout=120)
+simulatorApp = Path(os.environ["DEVELOPER_DIR"]) / "Applications/Simulator.app"
+if not simulatorApp.is_dir():
+    raise SystemExit("The reviewed Xcode Simulator app is unavailable")
+run("open", "-a", str(simulatorApp), "--args", "-CurrentDeviceUDID", device, timeout=30)
+time.sleep(2)
 run("xcrun", "simctl", "install", device, str(app), timeout=60)
 run("xcrun", "simctl", "ui", device, "appearance", "light")
 cases = [(screen, False, False, "en") for screen in ("home", "browse", "saved", "settings")]

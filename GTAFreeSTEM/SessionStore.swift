@@ -110,6 +110,10 @@ final class SessionStore: ObservableObject {
         return localized == key ? category : localized
     }
 
+    func fullDescription(for opportunity: Opportunity) -> String {
+        opportunity.localizedDescription(language: language)
+    }
+
     func summary(for opportunity: Opportunity) -> String {
         opportunity.localizedSummary(language: language)
     }

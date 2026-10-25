@@ -88,7 +88,8 @@ struct OpportunityDetailView: View {
             OpportunityCalendarEditor(
                 opportunity: opportunity,
                 title: session.title(for: opportunity),
-                location: opportunity.address ?? session.city(for: opportunity)
+                location: opportunity.address ?? session.city(for: opportunity),
+                notes: session.fullDescription(for: opportunity)
             )
         }
 #endif
@@ -109,14 +110,11 @@ struct OpportunityDetailView: View {
                 Text(session.organization(for: opportunity))
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(Brand.lake)
-                Text(session.summary(for: opportunity))
+                Text(session.fullDescription(for: opportunity))
+                    .fixedSize(horizontal: false, vertical: true)
                     .font(.body)
                     .foregroundStyle(Brand.outline(for: colorScheme))
-                if session.language != .en, opportunity.hasTranslation(for: session.language) {
-                    Text(session.text("translationNote"))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Brand.mutedText(for: colorScheme))
-                }
+
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.trailing, 44)
@@ -338,6 +336,7 @@ private struct OpportunityCalendarEditor: UIViewControllerRepresentable {
     let opportunity: Opportunity
     let title: String
     let location: String
+    let notes: String
     @Environment(\.dismiss) private var dismiss
 
     func makeCoordinator() -> Coordinator { Coordinator { dismiss() } }
@@ -348,7 +347,7 @@ private struct OpportunityCalendarEditor: UIViewControllerRepresentable {
         let event = EKEvent(eventStore: store)
         event.title = title
         event.location = location
-        event.notes = "\(opportunity.description)\n\n\(opportunity.sourceUrl)"
+        event.notes = "\(notes)\n\n\(opportunity.sourceUrl)"
         event.url = ExternalOpportunityURL.make(from: opportunity.sourceUrl)
         let draft = NativeCalendarDraft(start: opportunity.startDate, end: opportunity.endDate)
         event.isAllDay = draft.allDay
