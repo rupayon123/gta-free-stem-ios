@@ -288,7 +288,11 @@ struct ContentView: View {
         case .support:
             SubmitView()
         case .account:
-            SettingsView()
+            if AppRuntime.isFrontendSavedLayoutReview {
+                SavedView()
+            } else {
+                SettingsView()
+            }
         }
     }
 
@@ -539,6 +543,8 @@ struct HomeView: View {
     }
 
     private var pathwayGrid: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+        StorySectionTitle(text: session.text("exploreMore"))
         LazyVGrid(
             columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())],
             spacing: 12
@@ -576,6 +582,7 @@ struct HomeView: View {
             HomeActionTile(title: session.text("feedback"), icon: "bubble.left.and.bubble.right.fill", color: Brand.coral) {
                 selectedTab = .support
             }
+        }
         }
     }
 

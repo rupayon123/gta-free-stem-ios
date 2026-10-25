@@ -32,6 +32,7 @@ enum BrowseSurface {
 
 struct BrowseView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.openURL) private var openURL
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.layoutDirection) private var layoutDirection
     @Environment(\.modelContext) private var modelContext
@@ -41,6 +42,7 @@ struct BrowseView: View {
     let surface: BrowseSurface
     @StateObject private var locationManager = HuntLocationManager()
     @State private var filtersPresented = false
+    @State private var websiteUnavailable = false
     @State private var displayMode: BrowseDisplayMode = .list
 
     init(surface: BrowseSurface = .opportunities) {
@@ -404,6 +406,24 @@ struct BrowseView: View {
                         .buttonStyle(.bordered)
                 }
 
+                if store.errorMessage != nil {
+                    Button {
+                        openURL(Self.onlineBrowseURL) { accepted in
+                            websiteUnavailable = !accepted
+                        }
+                    } label: {
+                        Label(session.text("browseOnline"), systemImage: "arrow.up.right.square")
+                    }
+                    .accessibilityHint(session.text("opensWebsite"))
+                    .accessibilityIdentifier("browse-online")
+                    Text(session.text("opensWebsite"))
+                        .font(.caption)
+                    if websiteUnavailable {
+                        Text(session.text("websiteUnavailable"))
+                            .foregroundStyle(Brand.coral)
+                    }
+                }
+
                 if store.errorMessage != nil || !hasResettableSearch {
                     Button(session.text("retry"), action: retryEmptySearch)
                         .buttonStyle(.borderedProminent)
@@ -412,6 +432,8 @@ struct BrowseView: View {
             .cardSurface()
         }
     }
+
+    static let onlineBrowseURL = URL(string: "https://gta-free-stem.pages.dev/opportunities/")!
 
     private var hasResettableSearch: Bool {
         !store.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
@@ -534,6 +556,7 @@ struct BrowseView: View {
 
 struct OpportunityRow: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.openURL) private var openURL
     @EnvironmentObject private var session: SessionStore
     let opportunity: Opportunity
 
@@ -635,6 +658,7 @@ struct OpportunityRow: View {
 
 struct OpportunityFilterSheet: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.openURL) private var openURL
     @EnvironmentObject private var session: SessionStore
     @Binding var filters: OpportunityFilters
     let apply: () -> Void

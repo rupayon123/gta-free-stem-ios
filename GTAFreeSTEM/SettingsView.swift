@@ -2,9 +2,9 @@ import SwiftUI
 import SwiftData
 
 enum AppLegalLinks {
-    static let privacyPolicy = URL(string: "https://gta-free-stem.vercel.app/privacy/")!
-    static let termsOfUse = URL(string: "https://gta-free-stem.vercel.app/terms/")!
-    static let support = URL(string: "https://gta-free-stem.vercel.app/support/")!
+    static let privacyPolicy = URL(string: "https://gta-free-stem.pages.dev/privacy/")!
+    static let termsOfUse = URL(string: "https://gta-free-stem.pages.dev/terms/")!
+    static let support = URL(string: "https://gta-free-stem.pages.dev/support/")!
 }
 
 struct SettingsView: View {

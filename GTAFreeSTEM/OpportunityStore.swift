@@ -788,7 +788,7 @@ final class OpportunityStore: ObservableObject {
 
 private enum ScreenshotOpportunityFixtures {
     static let fixtureIdentifier = "gta-free-stem-owned-samples-v1"
-    private static let sourceURL = "https://gta-free-stem.vercel.app/support/"
+    private static let sourceURL = "https://gta-free-stem.pages.dev/support/"
 
     static let fullFeed = OpportunityListResponse(
         data: [

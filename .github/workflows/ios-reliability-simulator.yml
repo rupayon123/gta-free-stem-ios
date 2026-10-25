@@ -51,9 +51,9 @@ jobs:
           shasum -a 256 -c .github/native-ci-source.sha256
           shasum -a 256 -c <<'HASHES'
           f3970f09786edc29c469ab09d65b267accc7b5dd98fed842bb7e9f0ddbbc73d2  GTAFreeSTEM/Models.swift
-          15c843595954c905ee3870285f318252af23ed8459cb1f56f37f6039b0e4e695  GTAFreeSTEM/OpportunityStore.swift
-          94ad1a89cd234d9b7b359ff576d33d91e031539ba68b8e2fef014c9b3464c275  GTAFreeSTEMTests/APIClientTests.swift
-          be242e9353e50ec682e63b11be69d1ecae625be04513cdb5347b08ed2f55d725  GTAFreeSTEM/APIClient.swift
+          502ab3c6245a445b98203840d45998c8717eaf68fc5309e61d47f48bfefcc297  GTAFreeSTEM/OpportunityStore.swift
+          d058f91140dfaa123b67b438a36ba269c030530c9301ec073f9490b4cdfa91f9  GTAFreeSTEMTests/APIClientTests.swift
+          cb16139a429386616665011ac5557d9f372cead113b1589f1bb30be35b5a2a8b  GTAFreeSTEM/APIClient.swift
           HASHES
           printf 'Reviewed source: `%s`\n' "$EXPECTED_SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"
 
@@ -87,7 +87,7 @@ jobs:
           print(destination)
           PY
 
-      - name: Run the 26 frozen reliability tests
+      - name: Run the 31 frozen reliability tests
         id: tests
         timeout-minutes: 25
         env:
@@ -131,11 +131,16 @@ jobs:
             -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testRefreshFallsBackToBundledSnapshotWithoutCache \
             -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testClosedRegistrationDeadlineArchivesProgramBeforeItsEndDate \
             -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testMirroredStartDeadlineKeepsOngoingDropInAvailable \
+            -only-testing:GTAFreeSTEMTests/APIClientTests/testCancellationBeforeStartingDoesNotCreateARequest \
+            -only-testing:GTAFreeSTEMTests/APIClientTests/testCancellationAndCompletionRaceFinishesOnceWithoutMirror \
+            -only-testing:GTAFreeSTEMTests/APIClientTests/testScreenshotSnapshotUsesOnlyAppOwnedSampleListingsWithoutStartingNetwork \
+            -only-testing:GTAFreeSTEMTests/APIClientTests/testLegalAndSupportLinksUseDistinctProductionHTTPSPages \
+            -only-testing:GTAFreeSTEMTests/APIClientTests/testContentRightsRejectsSelfDeclaredProviderAndUnreviewedDigest \
             CODE_SIGNING_ALLOWED=NO \
             GTA_RELEASE_SOURCE_COMMIT="$CANDIDATE_SOURCE_SHA" \
             2>&1 | tee "$RUNNER_TEMP/xcodebuild-reliability.log"
 
-      - name: Verify exactly 26 passed tests and retain summary in job logs
+      - name: Verify exactly 31 passed tests and retain summary in job logs
         if: always() && steps.tests.outcome != 'skipped'
         timeout-minutes: 2
         run: |
@@ -149,15 +154,23 @@ jobs:
           import json, os
           from pathlib import Path
           summary = json.loads((Path(os.environ['RUNNER_TEMP']) / 'reliability-summary.json').read_text())
-          expected = {'result': 'Passed', 'totalTestCount': 26, 'passedTests': 26,
+          expected = {'result': 'Passed', 'totalTestCount': 31, 'passedTests': 31,
                       'failedTests': 0, 'skippedTests': 0, 'expectedFailures': 0, 'testFailures': []}
           for key, value in expected.items():
               if summary.get(key) != value:
                   raise SystemExit('Focused test receipt failed: ' + key + ' = ' + repr(summary.get(key)))
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
-              output.write('Focused reliability tests: 26 passed; 0 failed/skipped/expected failures.\n')
+              output.write('Focused reliability tests: 31 passed; 0 failed/skipped/expected failures.\n')
               output.write('This is Debug iPhone simulator evidence only; full release gates remain separate.\n')
           PY
+
+      - name: Capture bounded native screen review in ordinary job logs
+        if: always() && steps.simulator.outcome == 'success' && steps.tests.outcome != 'skipped'
+        timeout-minutes: 5
+        env:
+          TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}
+          CANDIDATE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 .github/scripts/capture-native-ui-review.py
 
       # No upload-artifact or cache action: only ordinary job logs/summary persist.
       # The local .xcresult and raw log disappear with this disposable runner.

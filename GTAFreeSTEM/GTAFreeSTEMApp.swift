@@ -7,6 +7,22 @@ enum AppRuntime {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
+    static var isFrontendLayoutReview: Bool {
+#if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-frontend-layout-review")
+#else
+        false
+#endif
+    }
+
+    static var isFrontendSavedLayoutReview: Bool {
+        guard isFrontendLayoutReview,
+              let index = ProcessInfo.processInfo.arguments.firstIndex(of: "-review-screen"),
+              ProcessInfo.processInfo.arguments.indices.contains(index + 1)
+        else { return false }
+        return ProcessInfo.processInfo.arguments[index + 1] == "saved"
+    }
+
     /// Lets screenshot QA hold each genuine readiness milestone long enough to
     /// inspect it. Production builds compile the pause out completely.
     static func pauseForLaunchReview() async {
@@ -80,6 +96,14 @@ struct GTAFreeSTEMApp: App {
             SavedOpportunityRecord.self
         ])
         do {
+            if AppRuntime.isFrontendLayoutReview {
+                let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+                return AppModelContainerResolution(
+                    container: try ModelContainer(for: schema, configurations: configuration),
+                    usesEphemeralFallback: false,
+                    persistentInitializationErrorDescription: nil
+                )
+            }
             let resolution = try AppModelContainerResolution.resolve(
                 persistent: {
                     try ModelContainer(for: schema)
@@ -114,7 +138,9 @@ struct GTAFreeSTEMApp: App {
         _isShowingStorageWarning = State(initialValue: Self.modelContainerResolution.usesEphemeralFallback)
 #if os(iOS) && !targetEnvironment(macCatalyst)
         if Self.modelContainerResolution.storageAccess.allowsPersistentChanges {
-            WatchSavedOpportunitySync.shared.configure(container: Self.sharedModelContainer)
+            if !AppRuntime.isFrontendLayoutReview {
+                WatchSavedOpportunitySync.shared.configure(container: Self.sharedModelContainer)
+            }
         }
 #endif
     }
@@ -130,7 +156,11 @@ struct GTAFreeSTEMApp: App {
                 // Keep the launch art and the interactive app mutually exclusive.
                 // A cross-fade here let a partially loaded home screen show through
                 // the loader on slower devices.
-                if isShowingLaunchExperience {
+                if AppRuntime.isFrontendLayoutReview {
+#if DEBUG
+                    FrontendLayoutReview()
+#endif
+                } else if isShowingLaunchExperience {
                     AppLaunchExperience(
                         title: session.text("brand"),
                         mission: session.text("mission"),
@@ -157,6 +187,7 @@ struct GTAFreeSTEMApp: App {
             }
             .task {
                 guard isShowingLaunchExperience else { return }
+                guard !AppRuntime.isFrontendLayoutReview else { return }
                 withAnimation(reduceMotion ? nil : .easeOut(duration: 0.24)) {
                     launchProgress = 0.16
                 }

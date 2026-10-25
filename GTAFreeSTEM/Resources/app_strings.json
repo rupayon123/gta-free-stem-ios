@@ -142,7 +142,7 @@
     "view": "View",
     "opportunities": "Opportunities",
     "brand": "GTA FREE STEM Opportunities",
-    "mission": "Find source-backed free STEM programs and library events currently published in Toronto and Markham.",
+    "mission": "Find free library events, creative workshops and STEM activities across the GTA for children, families and adults.",
     "search": "Search",
     "searchPlaceholder": "Search STEM opportunities...",
     "filters": "Filters",
@@ -279,7 +279,11 @@
     "serverAddressInvalid": "The server address is not valid.",
     "serverResponseInvalid": "The server response could not be read.",
     "signInToUseFeature": "Account, feedback, and online submission features are not available in this build yet.",
-    "publicLiveFeed": "Public live feed"
+    "publicLiveFeed": "Public live feed",
+    "exploreMore": "Explore more",
+    "browseOnline": "Browse online",
+    "opensWebsite": "Opens website",
+    "websiteUnavailable": "The website could not be opened on this device."
   },
   "fr": {
     "browse": "Parcourir",
@@ -332,7 +336,7 @@
     "view": "Vue",
     "opportunities": "Occasions",
     "brand": "Occasions GTA FREE STEM",
-    "mission": "Trouvez des programmes STEM gratuits et des activités en bibliothèque, avec liens vers les sources, actuellement publiés à Toronto et à Markham.",
+    "mission": "Découvrez des événements gratuits en bibliothèque, des ateliers créatifs et des activités STIM dans le Grand Toronto, pour les enfants, les familles et les adultes.",
     "search": "Rechercher",
     "searchPlaceholder": "Rechercher des occasions STEM...",
     "filters": "Filtres",
@@ -469,7 +473,11 @@
     "serverAddressInvalid": "L'adresse du serveur n'est pas valide.",
     "serverResponseInvalid": "La reponse du serveur ne peut pas etre lue.",
     "signInToUseFeature": "Les fonctions de compte, de commentaires et d'envoi en ligne ne sont pas encore disponibles dans cette version.",
-    "publicLiveFeed": "flux public en direct"
+    "publicLiveFeed": "flux public en direct",
+    "exploreMore": "À découvrir",
+    "browseOnline": "Parcourir en ligne",
+    "opensWebsite": "Ouvre le site Web",
+    "websiteUnavailable": "Impossible d’ouvrir le site Web sur cet appareil."
   },
   "zh": {
     "browse": "浏览",
@@ -522,7 +530,7 @@
     "view": "视图",
     "opportunities": "机会",
     "brand": "GTA 免费 STEM 机会",
-    "mission": "查找目前在多伦多和万锦发布、附有来源链接的免费 STEM 项目和图书馆活动。",
+    "mission": "探索大多伦多地区的免费图书馆活动、创意工作坊和 STEM 活动，适合儿童、家庭和成人。",
     "search": "搜索",
     "searchPlaceholder": "搜索 STEM 机会...",
     "filters": "筛选",
@@ -659,7 +667,11 @@
     "serverAddressInvalid": "服务器地址无效。",
     "serverResponseInvalid": "无法读取服务器回复。",
     "signInToUseFeature": "此版本暂不支持账户、反馈和在线提交功能。",
-    "publicLiveFeed": "公共实时数据源"
+    "publicLiveFeed": "公共实时数据源",
+    "exploreMore": "探索更多",
+    "browseOnline": "在线浏览",
+    "opensWebsite": "打开网站",
+    "websiteUnavailable": "无法在此设备上打开网站。"
   },
   "yue": {
     "browse": "瀏覽",
@@ -712,7 +724,7 @@
     "view": "視圖",
     "opportunities": "機會",
     "brand": "GTA 免費 STEM 機會",
-    "mission": "搵目前喺多倫多同萬錦發布、有來源連結嘅免費 STEM 計劃同圖書館活動。",
+    "mission": "喺大多倫多地區搵免費圖書館活動、創意工作坊同 STEM 活動，畀小朋友、家庭同成人探索學習。",
     "search": "搜尋",
     "searchPlaceholder": "搜尋 STEM 機會...",
     "filters": "篩選",
@@ -849,7 +861,11 @@
     "serverAddressInvalid": "伺服器地址無效。",
     "serverResponseInvalid": "讀唔到伺服器回覆。",
     "signInToUseFeature": "呢個版本暫時未有帳戶、回饋同網上提交功能。",
-    "publicLiveFeed": "公開即時資料"
+    "publicLiveFeed": "公開即時資料",
+    "exploreMore": "探索更多",
+    "browseOnline": "網上瀏覽",
+    "opensWebsite": "開啟網站",
+    "websiteUnavailable": "無法喺呢部裝置開啟網站。"
   },
   "pa": {
     "browse": "ਬ੍ਰਾਊਜ਼",
@@ -902,7 +918,7 @@
     "view": "ਵੇਖੋ",
     "opportunities": "ਮੌਕੇ",
     "brand": "GTA FREE STEM ਮੌਕੇ",
-    "mission": "ਟੋਰਾਂਟੋ ਅਤੇ ਮਾਰਖਮ ਵਿੱਚ ਇਸ ਵੇਲੇ ਪ੍ਰਕਾਸ਼ਿਤ, ਸਰੋਤ ਲਿੰਕ ਵਾਲੇ ਮੁਫ਼ਤ STEM ਪ੍ਰੋਗਰਾਮ ਅਤੇ ਲਾਇਬ੍ਰੇਰੀ ਸਮਾਗਮ ਲੱਭੋ।",
+    "mission": "GTA ਵਿੱਚ ਬੱਚਿਆਂ, ਪਰਿਵਾਰਾਂ ਅਤੇ ਬਾਲਗਾਂ ਲਈ ਮੁਫ਼ਤ ਲਾਇਬ੍ਰੇਰੀ ਸਮਾਗਮ, ਰਚਨਾਤਮਕ ਵਰਕਸ਼ਾਪਾਂ ਅਤੇ STEM ਗਤੀਵਿਧੀਆਂ ਲੱਭੋ।",
     "search": "ਖੋਜ",
     "searchPlaceholder": "STEM ਮੌਕੇ ਲੱਭੋ...",
     "filters": "ਫਿਲਟਰ",
@@ -1039,7 +1055,11 @@
     "serverAddressInvalid": "ਸਰਵਰ ਪਤਾ ਠੀਕ ਨਹੀਂ।",
     "serverResponseInvalid": "ਸਰਵਰ ਜਵਾਬ ਪੜ੍ਹਿਆ ਨਹੀਂ ਗਿਆ।",
     "signInToUseFeature": "ਇਸ build ਵਿੱਚ account, feedback ਅਤੇ online submission features ਹਾਲੇ ਉਪਲਬਧ ਨਹੀਂ।",
-    "publicLiveFeed": "ਜਨਤਕ ਲਾਈਵ ਫੀਡ"
+    "publicLiveFeed": "ਜਨਤਕ ਲਾਈਵ ਫੀਡ",
+    "exploreMore": "ਹੋਰ ਖੋਜੋ",
+    "browseOnline": "ਆਨਲਾਈਨ ਵੇਖੋ",
+    "opensWebsite": "ਵੈੱਬਸਾਈਟ ਖੁੱਲ੍ਹੇਗੀ",
+    "websiteUnavailable": "ਇਸ ਡਿਵਾਈਸ ਉੱਤੇ ਵੈੱਬਸਾਈਟ ਨਹੀਂ ਖੁੱਲ੍ਹ ਸਕੀ।"
   },
   "ur": {
     "browse": "دیکھیں",
@@ -1092,7 +1112,7 @@
     "view": "منظر",
     "opportunities": "مواقع",
     "brand": "GTA FREE STEM مواقع",
-    "mission": "ٹورنٹو اور مارکھم میں فی الحال شائع شدہ، ماخذ کے لنک والے مفت STEM پروگرام اور لائبریری تقریبات تلاش کریں۔",
+    "mission": "GTA میں بچوں، خاندانوں اور بالغوں کے لیے مفت لائبریری تقریبات، تخلیقی ورکشاپس اور STEM سرگرمیاں تلاش کریں۔",
     "search": "تلاش",
     "searchPlaceholder": "STEM مواقع تلاش کریں...",
     "filters": "فلٹرز",
@@ -1229,7 +1249,11 @@
     "serverAddressInvalid": "سرور کا پتہ درست نہیں۔",
     "serverResponseInvalid": "سرور کا جواب پڑھا نہیں جا سکا۔",
     "signInToUseFeature": "اس build میں account، feedback اور online submission features ابھی دستیاب نہیں۔",
-    "publicLiveFeed": "عوامی لائیو فیڈ"
+    "publicLiveFeed": "عوامی لائیو فیڈ",
+    "exploreMore": "مزید دیکھیں",
+    "browseOnline": "آن لائن دیکھیں",
+    "opensWebsite": "ویب سائٹ کھلے گی",
+    "websiteUnavailable": "اس آلے پر ویب سائٹ نہیں کھل سکی۔"
   },
   "ta": {
     "browse": "உலாவு",
@@ -1282,7 +1306,7 @@
     "view": "பார்வை",
     "opportunities": "வாய்ப்புகள்",
     "brand": "GTA FREE STEM வாய்ப்புகள்",
-    "mission": "டொராண்டோ மற்றும் மார்க்கமில் தற்போது வெளியிடப்பட்ட, மூல இணைப்புகளுடன் கூடிய இலவச STEM திட்டங்களையும் நூலக நிகழ்வுகளையும் கண்டறியுங்கள்.",
+    "mission": "GTA முழுவதும் குழந்தைகள், குடும்பங்கள் மற்றும் பெரியவர்களுக்கான இலவச நூலக நிகழ்வுகள், படைப்புப் பயிற்சிகள் மற்றும் STEM செயல்பாடுகளைக் கண்டறியுங்கள்.",
     "search": "தேடல்",
     "searchPlaceholder": "STEM வாய்ப்புகளை தேடுங்கள்...",
     "filters": "வடிகள்",
@@ -1419,7 +1443,11 @@
     "serverAddressInvalid": "சர்வர் முகவரி சரியில்லை.",
     "serverResponseInvalid": "சர்வர் பதிலை படிக்க முடியவில்லை.",
     "signInToUseFeature": "இந்த build இல் account, feedback, online submission features இன்னும் கிடைக்கவில்லை.",
-    "publicLiveFeed": "பொது நேரடி பட்டியல்"
+    "publicLiveFeed": "பொது நேரடி பட்டியல்",
+    "exploreMore": "மேலும் பார்க்க",
+    "browseOnline": "இணையத்தில் உலாவவும்",
+    "opensWebsite": "இணையதளத்தைத் திறக்கும்",
+    "websiteUnavailable": "இந்தச் சாதனத்தில் இணையதளத்தைத் திறக்க முடியவில்லை."
   },
   "tl": {
     "browse": "Mag-browse",
@@ -1472,7 +1500,7 @@
     "view": "Tingnan",
     "opportunities": "Mga oportunidad",
     "brand": "Mga oportunidad sa GTA FREE STEM",
-    "mission": "Maghanap ng mga libreng STEM program at event sa library na may link sa pinagmulan at kasalukuyang naka-publish sa Toronto at Markham.",
+    "mission": "Tuklasin ang mga libreng aktibidad sa aklatan, malikhaing workshop, at STEM sa GTA para sa mga bata, pamilya, at mga nasa hustong gulang.",
     "search": "Hanap",
     "searchPlaceholder": "Maghanap ng STEM opportunities...",
     "filters": "Mga filter",
@@ -1609,7 +1637,11 @@
     "serverAddressInvalid": "Hindi valid ang server address.",
     "serverResponseInvalid": "Hindi mabasa ang sagot ng server.",
     "signInToUseFeature": "Hindi pa available ang account, feedback, at online submission features sa build na ito.",
-    "publicLiveFeed": "Live na pampublikong feed"
+    "publicLiveFeed": "Live na pampublikong feed",
+    "exploreMore": "Tuklasin pa",
+    "browseOnline": "Mag-browse online",
+    "opensWebsite": "Bubuksan ang website",
+    "websiteUnavailable": "Hindi mabuksan ang website sa device na ito."
   },
   "es": {
     "browse": "Explorar",
@@ -1662,7 +1694,7 @@
     "view": "Vista",
     "opportunities": "Oportunidades",
     "brand": "Oportunidades GTA FREE STEM",
-    "mission": "Encuentra programas STEM gratuitos y eventos de bibliotecas con enlaces a sus fuentes, publicados actualmente en Toronto y Markham.",
+    "mission": "Encuentra actividades gratuitas en bibliotecas, talleres creativos y actividades STEM en el GTA para niños, familias y adultos.",
     "search": "Buscar",
     "searchPlaceholder": "Busca oportunidades STEM...",
     "filters": "Filtros",
@@ -1799,7 +1831,11 @@
     "serverAddressInvalid": "La direccion del servidor no es valida.",
     "serverResponseInvalid": "No se pudo leer la respuesta del servidor.",
     "signInToUseFeature": "Las funciones de cuenta, comentarios y envio en linea aun no estan disponibles en esta version.",
-    "publicLiveFeed": "fuente pública en vivo"
+    "publicLiveFeed": "fuente pública en vivo",
+    "exploreMore": "Explora más",
+    "browseOnline": "Explorar en línea",
+    "opensWebsite": "Abre el sitio web",
+    "websiteUnavailable": "No se pudo abrir el sitio web en este dispositivo."
   },
   "ar": {
     "browse": "تصفح",
@@ -1852,7 +1888,7 @@
     "view": "العرض",
     "opportunities": "فرص",
     "brand": "فرص GTA FREE STEM",
-    "mission": "اعثر على برامج STEM مجانية وفعاليات المكتبات الموثقة بروابط المصادر والمنشورة حاليا في تورونتو وماركهام.",
+    "mission": "اكتشف فعاليات المكتبات وورش الإبداع وأنشطة STEM المجانية في منطقة تورونتو الكبرى للأطفال والعائلات والكبار.",
     "search": "بحث",
     "searchPlaceholder": "ابحث عن فرص STEM...",
     "filters": "فلاتر",
@@ -1989,7 +2025,11 @@
     "serverAddressInvalid": "عنوان الخادم غير صحيح.",
     "serverResponseInvalid": "لا يمكن قراءة رد الخادم.",
     "signInToUseFeature": "ميزات الحساب والملاحظات والإرسال عبر الإنترنت غير متاحة بعد في هذا الإصدار.",
-    "publicLiveFeed": "موجز عام مباشر"
+    "publicLiveFeed": "موجز عام مباشر",
+    "exploreMore": "اكتشف المزيد",
+    "browseOnline": "تصفّح عبر الإنترنت",
+    "opensWebsite": "يفتح الموقع الإلكتروني",
+    "websiteUnavailable": "تعذّر فتح الموقع الإلكتروني على هذا الجهاز."
   },
   "fa": {
     "browse": "مرور",
@@ -2042,7 +2082,7 @@
     "view": "نما",
     "opportunities": "فرصت ها",
     "brand": "فرصت‌های GTA FREE STEM",
-    "mission": "برنامه‌های رایگان STEM و رویدادهای کتابخانه‌ای دارای پیوند منبع را که اکنون در تورنتو و مارکام منتشر شده‌اند، پیدا کنید.",
+    "mission": "رویدادهای رایگان کتابخانه، کارگاه‌های خلاقانه و فعالیت‌های STEM را در تورنتوی بزرگ برای کودکان، خانواده‌ها و بزرگسالان پیدا کنید.",
     "search": "جستجو",
     "searchPlaceholder": "جستجوی فرصت های STEM...",
     "filters": "فیلترها",
@@ -2179,7 +2219,11 @@
     "serverAddressInvalid": "آدرس سرور درست نیست.",
     "serverResponseInvalid": "پاسخ سرور خوانده نشد.",
     "signInToUseFeature": "ویژگی‌های حساب، بازخورد و ارسال آنلاین در این build هنوز در دسترس نیست.",
-    "publicLiveFeed": "فید عمومی زنده"
+    "publicLiveFeed": "فید عمومی زنده",
+    "exploreMore": "بیشتر ببینید",
+    "browseOnline": "مرور آنلاین",
+    "opensWebsite": "وب‌سایت باز می‌شود",
+    "websiteUnavailable": "وب‌سایت در این دستگاه باز نشد."
   },
   "hi": {
     "browse": "ब्राउज़",
@@ -2232,7 +2276,7 @@
     "view": "दृश्य",
     "opportunities": "अवसर",
     "brand": "GTA FREE STEM अवसर",
-    "mission": "टोरंटो और मार्कहम में अभी प्रकाशित, स्रोत लिंक वाले मुफ़्त STEM कार्यक्रम और लाइब्रेरी इवेंट खोजें।",
+    "mission": "GTA में बच्चों, परिवारों और वयस्कों के लिए मुफ़्त लाइब्रेरी कार्यक्रम, रचनात्मक कार्यशालाएँ और STEM गतिविधियाँ खोजें।",
     "search": "खोज",
     "searchPlaceholder": "STEM opportunities खोजें...",
     "filters": "फिल्टर",
@@ -2369,7 +2413,11 @@
     "serverAddressInvalid": "सर्वर पता सही नहीं है।",
     "serverResponseInvalid": "सर्वर जवाब पढ़ा नहीं गया।",
     "signInToUseFeature": "इस build में account, feedback और online submission features अभी उपलब्ध नहीं हैं।",
-    "publicLiveFeed": "सार्वजनिक लाइव फीड"
+    "publicLiveFeed": "सार्वजनिक लाइव फीड",
+    "exploreMore": "और देखें",
+    "browseOnline": "ऑनलाइन देखें",
+    "opensWebsite": "वेबसाइट खुलेगी",
+    "websiteUnavailable": "इस डिवाइस पर वेबसाइट नहीं खुल सकी।"
   },
   "pt": {
     "browse": "Explorar",
@@ -2422,7 +2470,7 @@
     "view": "Vista",
     "opportunities": "Oportunidades",
     "brand": "Oportunidades GTA FREE STEM",
-    "mission": "Encontre programas STEM gratuitos e eventos de bibliotecas, com links para as fontes, publicados atualmente em Toronto e Markham.",
+    "mission": "Encontre eventos gratuitos em bibliotecas, oficinas criativas e atividades STEM no GTA para crianças, famílias e adultos.",
     "search": "Pesquisar",
     "searchPlaceholder": "Pesquisar oportunidades STEM...",
     "filters": "Filtros",
@@ -2559,7 +2607,11 @@
     "serverAddressInvalid": "O endereco do servidor nao e valido.",
     "serverResponseInvalid": "Nao foi possivel ler a resposta do servidor.",
     "signInToUseFeature": "Recursos de conta, feedback e envio online ainda nao estao disponiveis nesta versao.",
-    "publicLiveFeed": "feed público ao vivo"
+    "publicLiveFeed": "feed público ao vivo",
+    "exploreMore": "Explore mais",
+    "browseOnline": "Explorar online",
+    "opensWebsite": "Abre o site",
+    "websiteUnavailable": "Não foi possível abrir o site neste dispositivo."
   },
   "gu": {
     "browse": "બ્રાઉઝ",
@@ -2612,7 +2664,7 @@
     "view": "જુઓ",
     "opportunities": "તકો",
     "brand": "GTA FREE STEM તકો",
-    "mission": "ટોરોન્ટો અને માર્કહામમાં હાલમાં પ્રકાશિત, સ્રોત લિંક્સ સાથેના મફત STEM કાર્યક્રમો અને લાઇબ્રેરી ઇવેન્ટ્સ શોધો.",
+    "mission": "GTAમાં બાળકો, પરિવારો અને પુખ્ત વયના લોકો માટે મફત લાઇબ્રેરી કાર્યક્રમો, સર્જનાત્મક વર્કશોપ અને STEM પ્રવૃત્તિઓ શોધો.",
     "search": "શોધ",
     "searchPlaceholder": "STEM તકો શોધો...",
     "filters": "ફિલ્ટર્સ",
@@ -2749,7 +2801,11 @@
     "serverAddressInvalid": "સર્વર સરનામું સાચું નથી.",
     "serverResponseInvalid": "સર્વર જવાબ વાંચી શકાયો નથી.",
     "signInToUseFeature": "આ build માં account, feedback અને online submission features હજુ ઉપલબ્ધ નથી.",
-    "publicLiveFeed": "જાહેર લાઇવ ફીડ"
+    "publicLiveFeed": "જાહેર લાઇવ ફીડ",
+    "exploreMore": "વધુ શોધો",
+    "browseOnline": "ઑનલાઇન જુઓ",
+    "opensWebsite": "વેબસાઇટ ખોલે છે",
+    "websiteUnavailable": "આ ઉપકરણ પર વેબસાઇટ ખોલી શકાઈ નથી."
   },
   "bn": {
     "browse": "ব্রাউজ",
@@ -2802,7 +2858,7 @@
     "view": "দেখুন",
     "opportunities": "সুযোগ",
     "brand": "GTA FREE STEM সুযোগ",
-    "mission": "টরন্টো ও মার্কহামে বর্তমানে প্রকাশিত, উৎসের লিংকসহ বিনামূল্যের STEM প্রোগ্রাম ও লাইব্রেরি ইভেন্ট খুঁজুন।",
+    "mission": "GTA জুড়ে শিশু, পরিবার ও প্রাপ্তবয়স্কদের জন্য বিনামূল্যের লাইব্রেরি অনুষ্ঠান, সৃজনশীল কর্মশালা ও STEM কার্যক্রম খুঁজুন।",
     "search": "খুঁজুন",
     "searchPlaceholder": "robotics, Python, volunteer hours, co-op খুঁজুন...",
     "filters": "ফিল্টার",
@@ -2939,7 +2995,11 @@
     "serverAddressInvalid": "সার্ভারের ঠিকানা ঠিক নয়।",
     "serverResponseInvalid": "সার্ভারের উত্তর পড়া যায়নি।",
     "signInToUseFeature": "এই build-এ account, feedback এবং online submission features এখনও নেই।",
-    "publicLiveFeed": "পাবলিক লাইভ ফিড"
+    "publicLiveFeed": "পাবলিক লাইভ ফিড",
+    "exploreMore": "আরও দেখুন",
+    "browseOnline": "অনলাইনে দেখুন",
+    "opensWebsite": "ওয়েবসাইট খুলবে",
+    "websiteUnavailable": "এই ডিভাইসে ওয়েবসাইট খোলা যায়নি।"
   },
   "ja": {
     "browse": "探す",
@@ -2992,7 +3052,7 @@
     "view": "表示",
     "opportunities": "機会",
     "brand": "GTA FREE STEM の機会",
-    "mission": "出典リンク付きで、現在トロントとマーカムで公開されている無料のSTEMプログラムと図書館イベントを探せます。",
+    "mission": "子ども、家族、大人向けの無料の図書館イベントや創作ワークショップ、STEMの活動をGTAで探せます。",
     "search": "検索",
     "searchPlaceholder": "ロボット、Python、ボランティア時間、co-opを検索...",
     "filters": "フィルター",
@@ -3129,7 +3189,11 @@
     "serverAddressInvalid": "サーバーのアドレスが正しくありません。",
     "serverResponseInvalid": "サーバーの応答を読めませんでした。",
     "signInToUseFeature": "このbuildではアカウント、フィードバック、オンライン投稿はまだ利用できません。",
-    "publicLiveFeed": "公開ライブフィード"
+    "publicLiveFeed": "公開ライブフィード",
+    "exploreMore": "もっと探す",
+    "browseOnline": "オンラインで探す",
+    "opensWebsite": "ウェブサイトを開きます",
+    "websiteUnavailable": "このデバイスではウェブサイトを開けませんでした。"
   },
   "ko": {
     "browse": "둘러보기",
@@ -3182,7 +3246,7 @@
     "view": "보기",
     "opportunities": "기회",
     "brand": "GTA FREE STEM 기회",
-    "mission": "현재 토론토와 마컴에서 게시 중인 출처 링크가 있는 무료 STEM 프로그램과 도서관 행사를 찾아보세요.",
+    "mission": "GTA에서 어린이, 가족, 성인을 위한 무료 도서관 행사, 창작 워크숍, STEM 활동을 찾아보세요.",
     "search": "검색",
     "searchPlaceholder": "로봇, Python, 봉사 시간, co-op 검색...",
     "filters": "필터",
@@ -3319,7 +3383,11 @@
     "serverAddressInvalid": "서버 주소가 올바르지 않습니다.",
     "serverResponseInvalid": "서버 응답을 읽을 수 없습니다.",
     "signInToUseFeature": "이 build에서는 계정, 피드백, 온라인 제출 기능을 아직 사용할 수 없습니다.",
-    "publicLiveFeed": "공개 라이브 피드"
+    "publicLiveFeed": "공개 라이브 피드",
+    "exploreMore": "더 둘러보기",
+    "browseOnline": "온라인으로 둘러보기",
+    "opensWebsite": "웹사이트 열기",
+    "websiteUnavailable": "이 기기에서 웹사이트를 열 수 없습니다."
   },
   "hu": {
     "browse": "Bongeszés",
@@ -3372,7 +3440,7 @@
     "view": "Nézet",
     "opportunities": "Lehetőségek",
     "brand": "GTA FREE STEM lehetőségek",
-    "mission": "Találj forráshivatkozással ellátott, ingyenes STEM-programokat és könyvtári eseményeket, amelyeket jelenleg Torontóban és Markhamben tesznek közzé.",
+    "mission": "Keress ingyenes könyvtári programokat, kreatív műhelyeket és STEM-foglalkozásokat a GTA területén gyerekeknek, családoknak és felnőtteknek.",
     "search": "Keresés",
     "searchPlaceholder": "Keress STEM lehetőségeket...",
     "filters": "Szűrők",
@@ -3509,6 +3577,10 @@
     "serverAddressInvalid": "A szerver címe nem érvényes.",
     "serverResponseInvalid": "A szerver válasza nem olvasható.",
     "signInToUseFeature": "A fiók, visszajelzés és online beküldés ebben a buildben még nem érhető el.",
-    "publicLiveFeed": "nyilvános élő adatfolyam"
+    "publicLiveFeed": "nyilvános élő adatfolyam",
+    "exploreMore": "Fedezz fel többet",
+    "browseOnline": "Böngészés online",
+    "opensWebsite": "Megnyitja a weboldalt",
+    "websiteUnavailable": "A weboldal nem nyitható meg ezen az eszközön."
   }
 }

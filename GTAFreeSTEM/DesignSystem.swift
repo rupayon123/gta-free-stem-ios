@@ -1,4 +1,8 @@
 import SwiftUI
+import UIKit
+#if DEBUG
+import SwiftData
+#endif
 
 /// The app's single visual source of truth.
 ///
@@ -15,7 +19,11 @@ enum Brand {
     static let cream = Color(red: 0.98, green: 0.97, blue: 0.92)
     static let paper = Color(red: 0.99, green: 0.99, blue: 0.97)
     static let sky = Color(red: 0.45, green: 0.75, blue: 0.80)
-    static let lake = Color(red: 8/255, green: 119/255, blue: 124/255)
+    static let lake = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.31, green: 0.78, blue: 0.77, alpha: 1)
+            : UIColor(red: 8/255, green: 119/255, blue: 124/255, alpha: 1)
+    })
     static let navy = Color(red: 16/255, green: 52/255, blue: 82/255)
     static let deepOcean = Color(red: 0.03, green: 0.10, blue: 0.14)
     static let nightBlue = Color(red: 0.06, green: 0.16, blue: 0.20)
@@ -24,7 +32,11 @@ enum Brand {
     static let mintFoam = Color(red: 0.84, green: 0.94, blue: 0.90)
     static let moss = Color(red: 0.39, green: 0.65, blue: 0.43)
     static let sun = Color(red: 244/255, green: 196/255, blue: 49/255)
-    static let coral = Color(red: 0.82, green: 0.28, blue: 0.20)
+    static let coral = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 1, green: 0.706, blue: 0.671, alpha: 1)
+            : UIColor(red: 183/255, green: 55/255, blue: 44/255, alpha: 1)
+    })
     static let orange = Color(red: 0.91, green: 0.48, blue: 0.20)
     static let lavender = Color(red: 0.55, green: 0.50, blue: 0.78)
     static let night = Color(red: 0.025, green: 0.065, blue: 0.085)
@@ -689,3 +701,85 @@ struct SpringPressButtonStyle: ButtonStyle {
             .animation(reduceMotion ? nil : .spring(response: 0.30, dampingFraction: 0.78), value: configuration.isPressed)
     }
 }
+
+#if DEBUG
+/// CI-only layout review of real screens with clearly labelled, app-owned samples.
+/// The separate model container and defaults never replace personal saved data.
+struct FrontendLayoutReview: View {
+    @StateObject private var session: SessionStore
+    @StateObject private var store: OpportunityStore
+    @State private var ready = false
+    private let container: ModelContainer
+    private let screen = Self.option("-review-screen") ?? "home"
+    private let isDark = ProcessInfo.processInfo.arguments.contains("-review-dark")
+    private let largeText = ProcessInfo.processInfo.arguments.contains("-review-large-text")
+
+    init() {
+        let defaults = UserDefaults(suiteName: "GTAFreeSTEM.LayoutReview.\(UUID().uuidString)")!
+        let reviewSession = SessionStore(defaults: defaults, preferredLanguages: [Self.option("-review-language") ?? "en"])
+        reviewSession.preferredTheme = ProcessInfo.processInfo.arguments.contains("-review-dark") ? "Dark" : "Light"
+        _session = StateObject(wrappedValue: reviewSession)
+        _store = StateObject(wrappedValue: OpportunityStore(api: APIClient(), defaults: defaults))
+        let schema = Schema([OpportunityCacheRecord.self, SavedHuntRecord.self, SeenOpportunityRecord.self, SavedOpportunityRecord.self])
+        do {
+            container = try ModelContainer(for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        } catch {
+            preconditionFailure("Unable to create the isolated layout-review store: \(error)")
+        }
+    }
+
+    var body: some View {
+        Group {
+            if ready {
+                ContentView()
+            } else {
+                ProgressView("Preparing app-owned layout samples")
+            }
+        }
+        .environmentObject(session)
+        .environmentObject(store)
+        .modelContainer(container)
+        .environment(\.appStorageAccess, .persistent)
+        .environment(\.locale, Locale(identifier: session.language.localeIdentifier))
+        .environment(\.layoutDirection, session.language.layoutDirection)
+        .environment(\.dynamicTypeSize, largeText ? .accessibility3 : .large)
+        .preferredColorScheme(isDark ? .dark : .light)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            Text("Layout preview · app-owned sample listings")
+                .font(.caption.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(8)
+                .foregroundStyle(Brand.navy)
+                .background(Brand.sun)
+        }
+        .task {
+            guard !ready else { return }
+            let prepared = await store.prepareScreenshotSnapshot()
+            guard prepared else { return }
+            if screen == "saved" {
+                let context = ModelContext(container)
+                do {
+                    for opportunity in store.opportunities.prefix(3) {
+                        context.insert(try SavedOpportunityRecord(opportunity: opportunity))
+                    }
+                    try context.save()
+                    guard try context.fetchCount(FetchDescriptor<SavedOpportunityRecord>()) == 3 else {
+                        preconditionFailure("The saved-layout fixture did not contain all three app-owned samples.")
+                    }
+                } catch {
+                    preconditionFailure("Unable to seed the isolated saved-layout fixture: \(error)")
+                }
+            }
+            ready = true
+            // This marker proves fixture preparation only; the capture script waits for drawing.
+            AppLaunchConfiguration.markScreenshotReady(true)
+        }
+    }
+
+    private static func option(_ flag: String) -> String? {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let index = arguments.firstIndex(of: flag), arguments.indices.contains(index + 1) else { return nil }
+        return arguments[index + 1]
+    }
+}
+#endif

@@ -413,7 +413,7 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(store.opportunities.count, 4)
         XCTAssertTrue(store.opportunities.allSatisfy { $0.title.hasPrefix("Sample:") })
         XCTAssertTrue(store.opportunities.allSatisfy { $0.organization == "GTA FREE STEM Sample Studio" })
-        XCTAssertTrue(store.opportunities.allSatisfy { $0.sourceUrl.hasPrefix("https://gta-free-stem.vercel.app/") })
+        XCTAssertTrue(store.opportunities.allSatisfy { $0.sourceUrl == "https://gta-free-stem.pages.dev/support/" })
         XCTAssertFalse(store.opportunities.contains { $0.organization.contains("Library") })
     }
 
@@ -549,28 +549,21 @@ final class APIClientTests: XCTestCase {
         let primary = URL(string: "https://primary.example/declared-length.json")!
         let fallback = URL(string: "https://fallback.example/declared-length.json")!
         let client = APIClient(feedURL: primary, fallbackFeedURLs: [fallback], session: makeURLSessionForStub(), now: { now })
-        URLProtocolStub.register(responseFor: primary, statusCode: 200, body: Data("unexpected body".utf8), headers: ["Content-Length": "10000001"], holdBody: true, holdCompletion: true, initialBodyChunk: Data([32]))
+        URLProtocolStub.register(responseFor: primary, statusCode: 200, body: Data("unexpected body".utf8), headers: ["Content-Length": "10000001"], holdBody: true)
         URLProtocolStub.register(responseFor: fallback, statusCode: 200, body: try encodedFeed(id: "header-fallback", lastUpdated: "2026-08-20T12:00:00Z"))
-        let finished = expectation(description: "Oversized declared length is rejected while the remaining body is held")
+        let finished = expectation(description: "Oversized declared length is rejected before the body")
         let request = Task {
             defer { finished.fulfill() }
             return try await client.opportunityFeed()
         }
 
         await fulfillment(of: [finished], timeout: 5)
-        // This URLProtocol/AsyncBytes runtime resumes bytes(from:) only after
-        // a first data callback. Prime that transport handshake with one byte;
-        // the application must reject headers before iterating/draining the body.
-        let stoppedBeforeBody = URLProtocolStub.stopCount(for: primary) > 0
-            && URLProtocolStub.deliveredBytes(for: primary) == 1
-            && !URLProtocolStub.didFinish(for: primary)
+        let stoppedBeforeBody = URLProtocolStub.stopCount(for: primary) > 0 && URLProtocolStub.deliveredBytes(for: primary) == 0
         URLProtocolStub.releaseBody(for: primary)
-        URLProtocolStub.releaseCompletion(for: primary)
         let response = try await request.value
 
         XCTAssertTrue(stoppedBeforeBody)
         XCTAssertEqual(response.data.map(\.id), ["header-fallback"])
-        XCTAssertEqual(URLProtocolStub.requestCount(for: fallback), 1)
     }
 
     func testInsecureFinalResponseURLUsesSecureFallback() async throws {
@@ -611,6 +604,76 @@ final class APIClientTests: XCTestCase {
         }
         XCTAssertEqual(URLProtocolStub.requestCount(for: primary), 1)
         XCTAssertEqual(URLProtocolStub.requestCount(for: fallback), 0)
+    }
+
+    func testCancellationBeforeStartingDoesNotCreateARequest() async throws {
+        URLProtocolStub.reset()
+        defer { URLProtocolStub.reset() }
+        let primary = URL(string: "https://primary.example/pre-cancelled.json")!
+        let fallback = URL(string: "https://fallback.example/pre-cancelled.json")!
+        let client = APIClient(feedURL: primary, fallbackFeedURLs: [fallback], session: makeURLSessionForStub())
+        let gate = APIRequestStartGate()
+        let request = Task {
+            await gate.wait()
+            return try await client.opportunityFeed()
+        }
+        request.cancel()
+        await gate.release()
+        do {
+            _ = try await request.value
+            XCTFail("A pre-cancelled operation must not start transport.")
+        } catch {
+            XCTAssertTrue(error is CancellationError || (error as? URLError)?.code == .cancelled)
+        }
+        XCTAssertEqual(URLProtocolStub.requestCount, 0)
+    }
+
+    func testCancellationAndCompletionRaceFinishesOnceWithoutMirror() async throws {
+        URLProtocolStub.reset()
+        defer { URLProtocolStub.reset() }
+        let now = FeedFreshness.date(from: "2026-08-20T12:00:00Z")!
+        for index in 0..<18 {
+            let primary = URL(string: "https://primary.example/race-\(index).json")!
+            let fallback = URL(string: "https://fallback.example/race-\(index).json")!
+            let expectedID = "race-\(index)"
+            let client = APIClient(feedURL: primary, fallbackFeedURLs: [fallback], session: makeURLSessionForStub(), now: { now })
+            URLProtocolStub.register(responseFor: primary, statusCode: 200, body: try encodedFeed(id: expectedID, lastUpdated: "2026-08-20T12:00:00Z"), holdResponse: true)
+            URLProtocolStub.register(responseFor: fallback, statusCode: 200, body: try encodedFeed(id: "must-not-load", lastUpdated: "2026-08-20T12:00:00Z"))
+            let finished = expectation(description: "Race \(index) finishes exactly once")
+            finished.assertForOverFulfill = true
+            let request = Task {
+                defer { finished.fulfill() }
+                return try await client.opportunityFeed()
+            }
+            let clock = ContinuousClock()
+            let deadline = clock.now.advanced(by: .seconds(3))
+            while URLProtocolStub.requestCount(for: primary) == 0 && clock.now < deadline { await Task.yield() }
+            XCTAssertEqual(URLProtocolStub.requestCount(for: primary), 1)
+            if index % 3 == 0 {
+                request.cancel()
+                URLProtocolStub.releaseResponse(for: primary)
+            } else if index % 3 == 1 {
+                URLProtocolStub.releaseResponse(for: primary)
+                await fulfillment(of: [finished], timeout: 5)
+                request.cancel()
+            } else {
+                await withTaskGroup(of: Void.self) { group in
+                    group.addTask { request.cancel() }
+                    group.addTask { URLProtocolStub.releaseResponse(for: primary) }
+                    await group.waitForAll()
+                }
+            }
+            if index % 3 != 1 { await fulfillment(of: [finished], timeout: 5) }
+            do {
+                let response = try await request.value
+                XCTAssertEqual(response.data.map(\.id), [expectedID])
+                XCTAssertNotEqual(index % 3, 0, "Cancellation-first control must not succeed.")
+            } catch {
+                XCTAssertTrue(error is CancellationError || (error as? URLError)?.code == .cancelled)
+                XCTAssertNotEqual(index % 3, 1, "Completion-first control must succeed.")
+            }
+            XCTAssertEqual(URLProtocolStub.requestCount(for: fallback), 0)
+        }
     }
 
     func testMalformedSuppliedScheduleAndStatusFieldsRejectTheFeed() throws {
@@ -1742,15 +1805,15 @@ final class APIClientTests: XCTestCase {
 
     func testLegalAndSupportLinksUseDistinctProductionHTTPSPages() {
         let expected: [(URL, String)] = [
-            (AppLegalLinks.privacyPolicy, "https://gta-free-stem.vercel.app/privacy/"),
-            (AppLegalLinks.termsOfUse, "https://gta-free-stem.vercel.app/terms/"),
-            (AppLegalLinks.support, "https://gta-free-stem.vercel.app/support/")
+            (AppLegalLinks.privacyPolicy, "https://gta-free-stem.pages.dev/privacy/"),
+            (AppLegalLinks.termsOfUse, "https://gta-free-stem.pages.dev/terms/"),
+            (AppLegalLinks.support, "https://gta-free-stem.pages.dev/support/")
         ]
 
         XCTAssertEqual(Set(expected.map(\.0)).count, expected.count)
         for (url, absoluteString) in expected {
             XCTAssertEqual(url.scheme, "https")
-            XCTAssertEqual(url.host, "gta-free-stem.vercel.app")
+            XCTAssertEqual(url.host, "gta-free-stem.pages.dev")
             XCTAssertEqual(url.absoluteString, absoluteString)
         }
     }
@@ -2088,6 +2151,25 @@ final class APIClientTests: XCTestCase {
             termsVersion: source.termsVersion,
             termsDigestVersion: source.termsDigestVersion,
             termsSectionDigest: "sha256:" + String(repeating: "0", count: 64)
+        )
+
+        // App-authored preview/support links do not authorize provider excerpts
+        // hosted or self-declared on a first-party site.
+        let firstPartyHostClaim = OpportunityListResponse.ContentRights.Source(
+            organization: source.organization,
+            sourceHost: "gta-free-stem.pages.dev",
+            records: source.records,
+            status: source.status,
+            basisUrl: source.basisUrl,
+            conditions: source.conditions,
+            termsVerifiedAt: source.termsVerifiedAt,
+            termsVersion: source.termsVersion,
+            termsDigestVersion: source.termsDigestVersion,
+            termsSectionDigest: source.termsSectionDigest
+        )
+        XCTAssertFalse(
+            response(with: firstPartyHostClaim)
+                .hasReleaseReadyContentRights(now: feedDate.addingTimeInterval(3_600))
         )
 
         XCTAssertFalse(
@@ -4516,7 +4598,6 @@ final class URLProtocolStub: URLProtocol {
         let holdResponse: Bool
         let holdBody: Bool
         let holdCompletion: Bool
-        var initialBodyChunk: Data? = nil
     }
 
     private final class State: @unchecked Sendable {
@@ -4643,14 +4724,12 @@ final class URLProtocolStub: URLProtocol {
         headers: [String: String] = [:],
         finalResponseURL: URL? = nil,
         holdBody: Bool = false,
-        holdCompletion: Bool = false,
-        initialBodyChunk: Data? = nil
+        holdResponse: Bool = false
     ) {
         state.register(Response(
             statusCode: statusCode, chunks: [body], delaySeconds: delaySeconds,
             errorCode: nil, headers: headers, finalResponseURL: finalResponseURL,
-            holdResponse: false, holdBody: holdBody, holdCompletion: holdCompletion,
-            initialBodyChunk: initialBodyChunk
+            holdResponse: holdResponse, holdBody: holdBody, holdCompletion: false
         ), for: url)
     }
 
@@ -4716,10 +4795,6 @@ final class URLProtocolStub: URLProtocol {
                 httpVersion: "HTTP/1.1", headerFields: stub.headers
             ) else { return }
             self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-            if let prefix = stub.initialBodyChunk, !self.hasStopped {
-                Self.state.recordBytes(prefix.count, for: url)
-                self.client?.urlProtocol(self, didLoad: prefix)
-            }
             let body = DispatchWorkItem { [weak self] in
                 guard let self, !self.hasStopped else { return }
                 for chunk in stub.chunks {
@@ -4748,5 +4823,20 @@ final class URLProtocolStub: URLProtocol {
         pendingLock.unlock()
         pending.forEach { $0.cancel() }
         if let url = request.url { Self.state.recordStop(for: url) }
+    }
+}
+
+private actor APIRequestStartGate {
+    private var released = false
+    private var waiters = [CheckedContinuation<Void, Never>]()
+    func wait() async {
+        if released { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+    func release() {
+        released = true
+        let pending = waiters
+        waiters.removeAll()
+        pending.forEach { $0.resume() }
     }
 }

@@ -193,44 +193,111 @@ final class APIClient: @unchecked Sendable {
     private func get<T: Decodable>(_ url: URL) async throws -> T {
         try Task.checkCancellation()
         guard Self.isTrustedTransport(url) else { throw APIError.insecureConnection }
-        let (bytes, response) = try await session.bytes(from: url)
-        let responseTask = bytes.task
-        do {
-            return try await withTaskCancellationHandler {
-                try Task.checkCancellation()
-                guard let http = response as? HTTPURLResponse, 200..<300 ~= http.statusCode else {
-                    throw APIError.invalidResponse
-                }
-                guard let finalURL = http.url, Self.isTrustedTransport(finalURL) else {
-                    throw APIError.insecureConnection
-                }
-                guard response.expectedContentLength <= Int64(Self.maxResponseBytes) else {
-                    throw APIError.invalidResponse
-                }
+        // Use response/data delegate callbacks so a header-only response can be
+        // rejected without waiting for AsyncBytes to expose its response.
+        let request = BoundedFeedRequest()
+        let data = try await request.load(url, configuration: session.configuration)
+        try Task.checkCancellation()
+        return try JSONDecoder().decode(T.self, from: data)
+    }
 
-                var data = Data()
-                if response.expectedContentLength > 0 {
-                    data.reserveCapacity(Int(response.expectedContentLength))
-                }
-                for try await byte in bytes {
-                    // Unknown or understated lengths still cannot grow the
-                    // retained payload beyond the cap while the body arrives.
-                    guard data.count < Self.maxResponseBytes else { throw APIError.invalidResponse }
-                    data.append(byte)
-                    if data.count.isMultiple(of: 65_536) {
-                        try Task.checkCancellation()
+    /// Each request owns a disposable session with the injected configuration.
+    /// The lock coordinates cancellation with the serial delegate callbacks and
+    /// guarantees the continuation is completed exactly once.
+    private final class BoundedFeedRequest: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+        private let lock = NSLock()
+        private var continuation: CheckedContinuation<Data, Error>?
+        private var requestTask: URLSessionDataTask?
+        private var requestSession: URLSession?
+        private var buffer = Data()
+        private var completed = false
+
+        func load(_ url: URL, configuration: URLSessionConfiguration) async throws -> Data {
+            try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { continuation in
+                    lock.lock()
+                    guard !completed else {
+                        lock.unlock()
+                        continuation.resume(throwing: CancellationError())
+                        return
                     }
+                    self.continuation = continuation
+                    let requestSession = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
+                    self.requestSession = requestSession
+                    let task = requestSession.dataTask(with: url)
+                    requestTask = task
+                    lock.unlock()
+                    task.resume()
                 }
-                try Task.checkCancellation()
-                return try JSONDecoder().decode(T.self, from: data)
             } onCancel: {
-                responseTask.cancel()
+                self.finish(.failure(CancellationError()))
             }
-        } catch {
-            // Header rejection and byte overflow must stop the transfer, not
-            // leave a response downloading after the caller moves to a mirror.
-            responseTask.cancel()
-            throw error
+        }
+
+        func urlSession(
+            _ session: URLSession,
+            dataTask: URLSessionDataTask,
+            didReceive response: URLResponse,
+            completionHandler: @escaping @Sendable (URLSession.ResponseDisposition) -> Void
+        ) {
+            guard let http = response as? HTTPURLResponse, 200..<300 ~= http.statusCode else {
+                completionHandler(.cancel)
+                finish(.failure(APIError.invalidResponse))
+                return
+            }
+            guard let finalURL = http.url, APIClient.isTrustedTransport(finalURL) else {
+                completionHandler(.cancel)
+                finish(.failure(APIError.insecureConnection))
+                return
+            }
+            guard response.expectedContentLength <= Int64(APIClient.maxResponseBytes) else {
+                completionHandler(.cancel)
+                finish(.failure(APIError.invalidResponse))
+                return
+            }
+            completionHandler(.allow)
+        }
+
+        func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+            lock.lock()
+            guard !completed else { lock.unlock(); return }
+            guard data.count <= APIClient.maxResponseBytes - buffer.count else {
+                lock.unlock()
+                finish(.failure(APIError.invalidResponse))
+                return
+            }
+            buffer.append(data)
+            lock.unlock()
+        }
+
+        func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+            if let error {
+                finish(.failure(error))
+            } else {
+                lock.lock()
+                let payload = buffer
+                lock.unlock()
+                finish(.success(payload))
+            }
+        }
+
+        private func finish(_ result: Result<Data, Error>) {
+            lock.lock()
+            guard !completed else { lock.unlock(); return }
+            completed = true
+            let pending = continuation
+            let task = requestTask
+            let session = requestSession
+            continuation = nil
+            requestTask = nil
+            requestSession = nil
+            buffer = Data()
+            lock.unlock()
+            // Stop the transfer and break session/delegate ownership before
+            // resuming the caller, including early response rejection.
+            task?.cancel()
+            session?.invalidateAndCancel()
+            pending?.resume(with: result)
         }
     }
 
