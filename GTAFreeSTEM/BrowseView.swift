@@ -73,11 +73,11 @@ struct BrowseView: View {
                         if prioritizesResultsOnCompactLayout {
                             resultsContent
                             huntPanel
-                            if dynamicTypeSize.isAccessibilitySize { hero }
                         } else {
                             huntPanel
                             resultsContent
                         }
+                        if dynamicTypeSize.isAccessibilitySize { hero }
                     }
                     .frame(maxWidth: 880)
                     .frame(maxWidth: .infinity)
