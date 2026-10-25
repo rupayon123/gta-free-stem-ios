@@ -99,7 +99,6 @@ jobs:
             -project GTAFreeSTEM.xcodeproj \
             -scheme GTAFreeSTEM \
             -configuration Debug \
-            -sdk iphonesimulator \
             -destination "$TEST_DESTINATION" \
             -destination-timeout 60 \
             -parallel-testing-enabled NO \
