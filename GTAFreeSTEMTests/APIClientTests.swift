@@ -549,21 +549,28 @@ final class APIClientTests: XCTestCase {
         let primary = URL(string: "https://primary.example/declared-length.json")!
         let fallback = URL(string: "https://fallback.example/declared-length.json")!
         let client = APIClient(feedURL: primary, fallbackFeedURLs: [fallback], session: makeURLSessionForStub(), now: { now })
-        URLProtocolStub.register(responseFor: primary, statusCode: 200, body: Data("unexpected body".utf8), headers: ["Content-Length": "10000001"], holdBody: true)
+        URLProtocolStub.register(responseFor: primary, statusCode: 200, body: Data("unexpected body".utf8), headers: ["Content-Length": "10000001"], holdBody: true, holdCompletion: true, initialBodyChunk: Data([32]))
         URLProtocolStub.register(responseFor: fallback, statusCode: 200, body: try encodedFeed(id: "header-fallback", lastUpdated: "2026-08-20T12:00:00Z"))
-        let finished = expectation(description: "Oversized declared length is rejected before the body")
+        let finished = expectation(description: "Oversized declared length is rejected while the remaining body is held")
         let request = Task {
             defer { finished.fulfill() }
             return try await client.opportunityFeed()
         }
 
         await fulfillment(of: [finished], timeout: 5)
-        let stoppedBeforeBody = URLProtocolStub.stopCount(for: primary) > 0 && URLProtocolStub.deliveredBytes(for: primary) == 0
+        // This URLProtocol/AsyncBytes runtime resumes bytes(from:) only after
+        // a first data callback. Prime that transport handshake with one byte;
+        // the application must reject headers before iterating/draining the body.
+        let stoppedBeforeBody = URLProtocolStub.stopCount(for: primary) > 0
+            && URLProtocolStub.deliveredBytes(for: primary) == 1
+            && !URLProtocolStub.didFinish(for: primary)
         URLProtocolStub.releaseBody(for: primary)
+        URLProtocolStub.releaseCompletion(for: primary)
         let response = try await request.value
 
         XCTAssertTrue(stoppedBeforeBody)
         XCTAssertEqual(response.data.map(\.id), ["header-fallback"])
+        XCTAssertEqual(URLProtocolStub.requestCount(for: fallback), 1)
     }
 
     func testInsecureFinalResponseURLUsesSecureFallback() async throws {
@@ -4509,6 +4516,7 @@ final class URLProtocolStub: URLProtocol {
         let holdResponse: Bool
         let holdBody: Bool
         let holdCompletion: Bool
+        var initialBodyChunk: Data? = nil
     }
 
     private final class State: @unchecked Sendable {
@@ -4634,12 +4642,15 @@ final class URLProtocolStub: URLProtocol {
         delaySeconds: TimeInterval = 0,
         headers: [String: String] = [:],
         finalResponseURL: URL? = nil,
-        holdBody: Bool = false
+        holdBody: Bool = false,
+        holdCompletion: Bool = false,
+        initialBodyChunk: Data? = nil
     ) {
         state.register(Response(
             statusCode: statusCode, chunks: [body], delaySeconds: delaySeconds,
             errorCode: nil, headers: headers, finalResponseURL: finalResponseURL,
-            holdResponse: false, holdBody: holdBody, holdCompletion: false
+            holdResponse: false, holdBody: holdBody, holdCompletion: holdCompletion,
+            initialBodyChunk: initialBodyChunk
         ), for: url)
     }
 
@@ -4704,10 +4715,11 @@ final class URLProtocolStub: URLProtocol {
                 url: stub.finalResponseURL ?? url, statusCode: stub.statusCode,
                 httpVersion: "HTTP/1.1", headerFields: stub.headers
             ) else { return }
-            if url.host == "primary.example", url.path == "/declared-length.json" {
-                print("DECLARED_LENGTH_PROBE stub headers expected=\(response.expectedContentLength) header=\(response.value(forHTTPHeaderField: "Content-Length") ?? "nil")")
-            }
             self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            if let prefix = stub.initialBodyChunk, !self.hasStopped {
+                Self.state.recordBytes(prefix.count, for: url)
+                self.client?.urlProtocol(self, didLoad: prefix)
+            }
             let body = DispatchWorkItem { [weak self] in
                 guard let self, !self.hasStopped else { return }
                 for chunk in stub.chunks {

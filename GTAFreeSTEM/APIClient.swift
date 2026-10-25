@@ -193,15 +193,7 @@ final class APIClient: @unchecked Sendable {
     private func get<T: Decodable>(_ url: URL) async throws -> T {
         try Task.checkCancellation()
         guard Self.isTrustedTransport(url) else { throw APIError.insecureConnection }
-        #if DEBUG
-        if url.host == "primary.example", url.path == "/declared-length.json" { print("DECLARED_LENGTH_PROBE before bytes") }
-        #endif
         let (bytes, response) = try await session.bytes(from: url)
-        #if DEBUG
-        if url.host == "primary.example", url.path == "/declared-length.json" {
-            print("DECLARED_LENGTH_PROBE after bytes expected=\(response.expectedContentLength) header=\((response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Length") ?? "nil")")
-        }
-        #endif
         let responseTask = bytes.task
         do {
             return try await withTaskCancellationHandler {
