@@ -4704,6 +4704,9 @@ final class URLProtocolStub: URLProtocol {
                 url: stub.finalResponseURL ?? url, statusCode: stub.statusCode,
                 httpVersion: "HTTP/1.1", headerFields: stub.headers
             ) else { return }
+            if url.host == "primary.example", url.path == "/declared-length.json" {
+                print("DECLARED_LENGTH_PROBE stub headers expected=\(response.expectedContentLength) header=\(response.value(forHTTPHeaderField: "Content-Length") ?? "nil")")
+            }
             self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
             let body = DispatchWorkItem { [weak self] in
                 guard let self, !self.hasStopped else { return }
