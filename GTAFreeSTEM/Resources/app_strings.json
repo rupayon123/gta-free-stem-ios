@@ -283,7 +283,9 @@
     "exploreMore": "Explore more",
     "browseOnline": "Browse online",
     "opensWebsite": "Opens website",
-    "websiteUnavailable": "The website could not be opened on this device."
+    "websiteUnavailable": "The website could not be opened on this device.",
+    "openProgramPage": "Open program page",
+    "addToCalendar": "Add to calendar"
   },
   "fr": {
     "browse": "Parcourir",
@@ -477,7 +479,9 @@
     "exploreMore": "À découvrir",
     "browseOnline": "Parcourir en ligne",
     "opensWebsite": "Ouvre le site Web",
-    "websiteUnavailable": "Impossible d’ouvrir le site Web sur cet appareil."
+    "websiteUnavailable": "Impossible d’ouvrir le site Web sur cet appareil.",
+    "openProgramPage": "Ouvrir la page du programme",
+    "addToCalendar": "Ajouter au calendrier"
   },
   "zh": {
     "browse": "浏览",
@@ -671,7 +675,9 @@
     "exploreMore": "探索更多",
     "browseOnline": "在线浏览",
     "opensWebsite": "打开网站",
-    "websiteUnavailable": "无法在此设备上打开网站。"
+    "websiteUnavailable": "无法在此设备上打开网站。",
+    "openProgramPage": "打开活动页面",
+    "addToCalendar": "添加到日历"
   },
   "yue": {
     "browse": "瀏覽",
@@ -865,7 +871,9 @@
     "exploreMore": "探索更多",
     "browseOnline": "網上瀏覽",
     "opensWebsite": "開啟網站",
-    "websiteUnavailable": "無法喺呢部裝置開啟網站。"
+    "websiteUnavailable": "無法喺呢部裝置開啟網站。",
+    "openProgramPage": "開啟活動頁面",
+    "addToCalendar": "加入行事曆"
   },
   "pa": {
     "browse": "ਬ੍ਰਾਊਜ਼",
@@ -1059,7 +1067,9 @@
     "exploreMore": "ਹੋਰ ਖੋਜੋ",
     "browseOnline": "ਆਨਲਾਈਨ ਵੇਖੋ",
     "opensWebsite": "ਵੈੱਬਸਾਈਟ ਖੁੱਲ੍ਹੇਗੀ",
-    "websiteUnavailable": "ਇਸ ਡਿਵਾਈਸ ਉੱਤੇ ਵੈੱਬਸਾਈਟ ਨਹੀਂ ਖੁੱਲ੍ਹ ਸਕੀ।"
+    "websiteUnavailable": "ਇਸ ਡਿਵਾਈਸ ਉੱਤੇ ਵੈੱਬਸਾਈਟ ਨਹੀਂ ਖੁੱਲ੍ਹ ਸਕੀ।",
+    "openProgramPage": "ਪ੍ਰੋਗਰਾਮ ਪੰਨਾ ਖੋਲ੍ਹੋ",
+    "addToCalendar": "ਕੈਲੰਡਰ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ"
   },
   "ur": {
     "browse": "دیکھیں",
@@ -1253,7 +1263,9 @@
     "exploreMore": "مزید دیکھیں",
     "browseOnline": "آن لائن دیکھیں",
     "opensWebsite": "ویب سائٹ کھلے گی",
-    "websiteUnavailable": "اس آلے پر ویب سائٹ نہیں کھل سکی۔"
+    "websiteUnavailable": "اس آلے پر ویب سائٹ نہیں کھل سکی۔",
+    "openProgramPage": "پروگرام کا صفحہ کھولیں",
+    "addToCalendar": "کیلنڈر میں شامل کریں"
   },
   "ta": {
     "browse": "உலாவு",
@@ -1447,7 +1459,9 @@
     "exploreMore": "மேலும் பார்க்க",
     "browseOnline": "இணையத்தில் உலாவவும்",
     "opensWebsite": "இணையதளத்தைத் திறக்கும்",
-    "websiteUnavailable": "இந்தச் சாதனத்தில் இணையதளத்தைத் திறக்க முடியவில்லை."
+    "websiteUnavailable": "இந்தச் சாதனத்தில் இணையதளத்தைத் திறக்க முடியவில்லை.",
+    "openProgramPage": "நிகழ்ச்சிப் பக்கத்தைத் திறக்கவும்",
+    "addToCalendar": "நாள்காட்டியில் சேர்க்கவும்"
   },
   "tl": {
     "browse": "Mag-browse",
@@ -1641,7 +1655,9 @@
     "exploreMore": "Tuklasin pa",
     "browseOnline": "Mag-browse online",
     "opensWebsite": "Bubuksan ang website",
-    "websiteUnavailable": "Hindi mabuksan ang website sa device na ito."
+    "websiteUnavailable": "Hindi mabuksan ang website sa device na ito.",
+    "openProgramPage": "Buksan ang pahina ng programa",
+    "addToCalendar": "Idagdag sa kalendaryo"
   },
   "es": {
     "browse": "Explorar",
@@ -1835,7 +1851,9 @@
     "exploreMore": "Explora más",
     "browseOnline": "Explorar en línea",
     "opensWebsite": "Abre el sitio web",
-    "websiteUnavailable": "No se pudo abrir el sitio web en este dispositivo."
+    "websiteUnavailable": "No se pudo abrir el sitio web en este dispositivo.",
+    "openProgramPage": "Abrir la página del programa",
+    "addToCalendar": "Añadir al calendario"
   },
   "ar": {
     "browse": "تصفح",
@@ -2029,7 +2047,9 @@
     "exploreMore": "اكتشف المزيد",
     "browseOnline": "تصفّح عبر الإنترنت",
     "opensWebsite": "يفتح الموقع الإلكتروني",
-    "websiteUnavailable": "تعذّر فتح الموقع الإلكتروني على هذا الجهاز."
+    "websiteUnavailable": "تعذّر فتح الموقع الإلكتروني على هذا الجهاز.",
+    "openProgramPage": "افتح صفحة البرنامج",
+    "addToCalendar": "أضف إلى التقويم"
   },
   "fa": {
     "browse": "مرور",
@@ -2223,7 +2243,9 @@
     "exploreMore": "بیشتر ببینید",
     "browseOnline": "مرور آنلاین",
     "opensWebsite": "وب‌سایت باز می‌شود",
-    "websiteUnavailable": "وب‌سایت در این دستگاه باز نشد."
+    "websiteUnavailable": "وب‌سایت در این دستگاه باز نشد.",
+    "openProgramPage": "باز کردن صفحه برنامه",
+    "addToCalendar": "افزودن به تقویم"
   },
   "hi": {
     "browse": "ब्राउज़",
@@ -2417,7 +2439,9 @@
     "exploreMore": "और देखें",
     "browseOnline": "ऑनलाइन देखें",
     "opensWebsite": "वेबसाइट खुलेगी",
-    "websiteUnavailable": "इस डिवाइस पर वेबसाइट नहीं खुल सकी।"
+    "websiteUnavailable": "इस डिवाइस पर वेबसाइट नहीं खुल सकी।",
+    "openProgramPage": "कार्यक्रम का पेज खोलें",
+    "addToCalendar": "कैलेंडर में जोड़ें"
   },
   "pt": {
     "browse": "Explorar",
@@ -2611,7 +2635,9 @@
     "exploreMore": "Explore mais",
     "browseOnline": "Explorar online",
     "opensWebsite": "Abre o site",
-    "websiteUnavailable": "Não foi possível abrir o site neste dispositivo."
+    "websiteUnavailable": "Não foi possível abrir o site neste dispositivo.",
+    "openProgramPage": "Abrir a página do programa",
+    "addToCalendar": "Adicionar ao calendário"
   },
   "gu": {
     "browse": "બ્રાઉઝ",
@@ -2805,7 +2831,9 @@
     "exploreMore": "વધુ શોધો",
     "browseOnline": "ઑનલાઇન જુઓ",
     "opensWebsite": "વેબસાઇટ ખોલે છે",
-    "websiteUnavailable": "આ ઉપકરણ પર વેબસાઇટ ખોલી શકાઈ નથી."
+    "websiteUnavailable": "આ ઉપકરણ પર વેબસાઇટ ખોલી શકાઈ નથી.",
+    "openProgramPage": "કાર્યક્રમનું પૃષ્ઠ ખોલો",
+    "addToCalendar": "કૅલેન્ડરમાં ઉમેરો"
   },
   "bn": {
     "browse": "ব্রাউজ",
@@ -2999,7 +3027,9 @@
     "exploreMore": "আরও দেখুন",
     "browseOnline": "অনলাইনে দেখুন",
     "opensWebsite": "ওয়েবসাইট খুলবে",
-    "websiteUnavailable": "এই ডিভাইসে ওয়েবসাইট খোলা যায়নি।"
+    "websiteUnavailable": "এই ডিভাইসে ওয়েবসাইট খোলা যায়নি।",
+    "openProgramPage": "কর্মসূচির পৃষ্ঠা খুলুন",
+    "addToCalendar": "ক্যালেন্ডারে যোগ করুন"
   },
   "ja": {
     "browse": "探す",
@@ -3193,7 +3223,9 @@
     "exploreMore": "もっと探す",
     "browseOnline": "オンラインで探す",
     "opensWebsite": "ウェブサイトを開きます",
-    "websiteUnavailable": "このデバイスではウェブサイトを開けませんでした。"
+    "websiteUnavailable": "このデバイスではウェブサイトを開けませんでした。",
+    "openProgramPage": "プログラムのページを開く",
+    "addToCalendar": "カレンダーに追加"
   },
   "ko": {
     "browse": "둘러보기",
@@ -3387,7 +3419,9 @@
     "exploreMore": "더 둘러보기",
     "browseOnline": "온라인으로 둘러보기",
     "opensWebsite": "웹사이트 열기",
-    "websiteUnavailable": "이 기기에서 웹사이트를 열 수 없습니다."
+    "websiteUnavailable": "이 기기에서 웹사이트를 열 수 없습니다.",
+    "openProgramPage": "프로그램 페이지 열기",
+    "addToCalendar": "캘린더에 추가"
   },
   "hu": {
     "browse": "Bongeszés",
@@ -3581,6 +3615,8 @@
     "exploreMore": "Fedezz fel többet",
     "browseOnline": "Böngészés online",
     "opensWebsite": "Megnyitja a weboldalt",
-    "websiteUnavailable": "A weboldal nem nyitható meg ezen az eszközön."
+    "websiteUnavailable": "A weboldal nem nyitható meg ezen az eszközön.",
+    "openProgramPage": "Programoldal megnyitása",
+    "addToCalendar": "Hozzáadás a naptárhoz"
   }
 }

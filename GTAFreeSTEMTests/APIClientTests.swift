@@ -549,7 +549,7 @@ final class APIClientTests: XCTestCase {
         let primary = URL(string: "https://primary.example/declared-length.json")!
         let fallback = URL(string: "https://fallback.example/declared-length.json")!
         let client = APIClient(feedURL: primary, fallbackFeedURLs: [fallback], session: makeURLSessionForStub(), now: { now })
-        URLProtocolStub.register(responseFor: primary, statusCode: 200, body: Data("unexpected body".utf8), headers: ["Content-Length": "10000001"], holdBody: true)
+        URLProtocolStub.register(responseFor: primary, statusCode: 200, body: Data("unexpected body".utf8), headers: ["Content-Type": "application/json", "Content-Length": "10000001"], holdBody: true)
         URLProtocolStub.register(responseFor: fallback, statusCode: 200, body: try encodedFeed(id: "header-fallback", lastUpdated: "2026-08-20T12:00:00Z"))
         let finished = expectation(description: "Oversized declared length is rejected before the body")
         let request = Task {

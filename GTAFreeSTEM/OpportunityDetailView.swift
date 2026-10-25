@@ -1,6 +1,10 @@
 import MapKit
 import SwiftData
 import SwiftUI
+#if canImport(EventKitUI)
+import EventKit
+import EventKitUI
+#endif
 
 enum AppleMapsDestinationURL {
     static func make(
@@ -51,6 +55,7 @@ struct OpportunityDetailView: View {
     @Query(sort: \SavedOpportunityRecord.savedAt, order: .reverse) private var savedRecords: [SavedOpportunityRecord]
     let opportunity: Opportunity
     @State private var saveErrorMessage: String?
+    @State private var calendarPresented = false
 
     var body: some View {
         ZStack {
@@ -71,6 +76,15 @@ struct OpportunityDetailView: View {
         }
         .navigationTitle(session.text("details"))
         .navigationBarTitleDisplayMode(.inline)
+#if canImport(EventKitUI)
+        .sheet(isPresented: $calendarPresented) {
+            OpportunityCalendarEditor(
+                opportunity: opportunity,
+                title: session.title(for: opportunity),
+                location: opportunity.address ?? session.city(for: opportunity)
+            )
+        }
+#endif
     }
 
     private var isSaved: Bool {
@@ -152,7 +166,7 @@ struct OpportunityDetailView: View {
                 DetailFact(title: session.text("date"), value: scheduleDateValue, icon: "calendar")
             }
             if let deadline = opportunity.deadline, shouldShowDeadline {
-                DetailFact(title: session.text("deadline"), value: session.formattedEventDateTime(deadline), icon: "alarm")
+                DetailFact(title: session.text("deadline"), value: session.formattedLocalEventDateTime(deadline), icon: "alarm")
             }
             if opportunity.volunteerHoursEligible {
                 DetailFact(title: session.text("pathway"), value: session.text("volunteerHours"), icon: "checkmark.seal")
@@ -178,14 +192,22 @@ struct OpportunityDetailView: View {
 
     private var actions: some View {
         VStack(spacing: 12) {
-            StorySectionTitle(text: session.text("registerApply"), systemImage: "paperplane.fill")
+            StorySectionTitle(text: session.text("details"), systemImage: "paperplane.fill")
             if let url = ExternalOpportunityURL.make(from: opportunity.registrationUrl ?? opportunity.sourceUrl) {
                 Link(destination: url) {
-                    Label(session.text("registerApply"), systemImage: "safari")
+                    Label(session.text(opportunity.registrationUrl == nil || opportunity.registrationUrl?.trimmingCharacters(in: .whitespacesAndNewlines) == opportunity.sourceUrl.trimmingCharacters(in: .whitespacesAndNewlines) ? "openProgramPage" : "registerApply"), systemImage: "safari")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(StoryButtonStyle(kind: .primary))
             }
+#if canImport(EventKitUI)
+            Button { calendarPresented = true } label: {
+                Label(session.text("addToCalendar"), systemImage: "calendar.badge.plus")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(StoryButtonStyle(kind: .secondary))
+            .accessibilityIdentifier("opportunity-calendar")
+#endif
             if let url = directionsURL {
                 Link(destination: url) {
                     Label(session.text("directions"), systemImage: "map")
@@ -273,3 +295,68 @@ private struct DetailFact: View {
         .padding(.vertical, 3)
     }
 }
+
+/// A draft for the person's system editor. No direct Calendar writes or reads.
+struct NativeCalendarDraft {
+    let start: Date?
+    let end: Date?
+    let allDay: Bool
+
+    init(start: String?, end: String?) {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Toronto")!
+        func day(_ raw: String?) -> Date? {
+            guard let raw, raw.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil else { return nil }
+            let parts = raw.split(separator: "-").compactMap { Int($0) }
+            guard parts.count == 3 else { return nil }
+            return calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
+        }
+        if let startDay = day(start) {
+            self.start = startDay
+            self.allDay = true
+            self.end = day(end).flatMap { $0 >= startDay ? calendar.date(byAdding: .day, value: 1, to: $0) : nil }
+        } else {
+            let startTime = start.flatMap { FeedFreshness.date(from: $0) }
+            self.start = startTime
+            self.allDay = false
+            self.end = end.flatMap { FeedFreshness.date(from: $0) }.flatMap { value in
+                startTime.flatMap { value > $0 ? value : nil }
+            }
+        }
+    }
+}
+
+#if canImport(EventKitUI)
+private struct OpportunityCalendarEditor: UIViewControllerRepresentable {
+    let opportunity: Opportunity
+    let title: String
+    let location: String
+    @Environment(\.dismiss) private var dismiss
+
+    func makeCoordinator() -> Coordinator { Coordinator { dismiss() } }
+    func makeUIViewController(context: Context) -> EKEventEditViewController {
+        let controller = EKEventEditViewController()
+        let store = EKEventStore()
+        controller.eventStore = store
+        let event = EKEvent(eventStore: store)
+        event.title = title
+        event.location = location
+        event.notes = "\(opportunity.description)\n\n\(opportunity.sourceUrl)"
+        event.url = ExternalOpportunityURL.make(from: opportunity.sourceUrl)
+        let draft = NativeCalendarDraft(start: opportunity.startDate, end: opportunity.endDate)
+        event.isAllDay = draft.allDay
+        event.timeZone = TimeZone(identifier: "America/Toronto")
+        if let start = draft.start { event.startDate = start }
+        if let end = draft.end { event.endDate = end }
+        controller.event = event
+        controller.editViewDelegate = context.coordinator
+        return controller
+    }
+    func updateUIViewController(_ controller: EKEventEditViewController, context: Context) {}
+    final class Coordinator: NSObject, EKEventEditViewDelegate {
+        let finish: () -> Void
+        init(finish: @escaping () -> Void) { self.finish = finish }
+        func eventEditViewController(_ controller: EKEventEditViewController, didCompleteWith action: EKEventEditViewAction) { finish() }
+    }
+}
+#endif

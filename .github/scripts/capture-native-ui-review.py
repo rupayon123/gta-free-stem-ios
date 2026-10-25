@@ -25,7 +25,10 @@ output.mkdir(exist_ok=True)
 bundle = "com.rupayonhaldar.gtafreestem"
 
 def run(*args, timeout=30, check=True):
-    return subprocess.run(args, check=check, timeout=timeout, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.strip()
+    try:
+        return subprocess.run(args, check=check, timeout=timeout, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.strip()
+    except subprocess.CalledProcessError as error:
+        raise SystemExit("Native capture command failed: " + repr(args) + "\n" + (error.stdout or "")[-4000:]) from error
 
 def export(name, mode, **details):
     png = output / (name + ".png")
@@ -47,6 +50,15 @@ def export(name, mode, **details):
         print("NATIVE_UI_CAPTURE_DATA " + encoded[start:start + 100])
     print("NATIVE_UI_CAPTURE_END " + name, flush=True)
 
+# xcodebuild may run tests on its own clone, leaving the reviewed destination shut down.
+# Boot this exact preflight-selected device instead of selecting an unrelated booted simulator.
+inventory = json.loads(run("xcrun", "simctl", "list", "devices", "available", "--json"))["devices"]
+matched = [entry for entries in inventory.values() for entry in entries if entry.get("udid") == device]
+if len(matched) != 1 or matched[0].get("state") not in ("Booted", "Shutdown"):
+    raise SystemExit("Reviewed simulator missing or in an unsupported transition state")
+if matched[0]["state"] == "Shutdown":
+    run("xcrun", "simctl", "boot", device, timeout=30)
+run("xcrun", "simctl", "bootstatus", device, "-b", timeout=120)
 run("xcrun", "simctl", "install", device, str(app), timeout=60)
 run("xcrun", "simctl", "ui", device, "appearance", "light")
 # Normal app launch: actual source/rights/error state, not a fixture or data acceptance claim.
