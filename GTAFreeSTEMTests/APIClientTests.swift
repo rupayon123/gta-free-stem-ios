@@ -305,7 +305,7 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(storeSource.contains("decodeCachedFullResponse"))
         XCTAssertTrue(storeSource.contains("guard let payload = cachedPayload(from: context)"))
         XCTAssertTrue(
-            storeSource.contains("guard let cached = await Self.decodeCachedFullResponse(payload)"),
+            storeSource.contains("guard let cached = await Self.decodeCachedFullResponse(payload, now: self.now())"),
             "A repeat launch must copy the SwiftData payload on the main actor and decode it off-main so loader motion stays responsive."
         )
         XCTAssertFalse(appSource.contains("scanPosition"))
@@ -1159,7 +1159,24 @@ final class APIClientTests: XCTestCase {
             return "\(opportunity.organization)\u{001F}\(host)"
         })
 
-        XCTAssertEqual(Set(feed.data.map(\.city)), exactCities)
+        // These three exact branches are listed by Markham Public Library:
+        // https://markhampubliclibrary.ca/locations/TV/ (10 Colborne Street)
+        // https://markhampubliclibrary.ca/locations/TC/ (7755 Bayview Avenue)
+        // https://markhampubliclibrary.ca/locations/UL/ (15 Library Lane)
+        // Retain their district labels while checking municipal mission scope.
+        let markhamDistrictBranches: [String: Set<String>] = [
+            "Thornhill": ["Thornhill Comm. Ctr. Branch, 7755 Bayview Avenue, Thornhill, Ontario, L3T 4P1", "Thornhill Village Branch, 10 Colborne Street, Thornhill, Ontario, L3T 1Z6"],
+            "Unionville": ["Unionville Branch, 15 Library Lane, Unionville, Ontario, L3R 5C4"]
+        ]
+        let municipalities = feed.data.map { opportunity -> String in
+            guard let addresses = markhamDistrictBranches[opportunity.city] else { return opportunity.city }
+            XCTAssertEqual(opportunity.organization, "Markham Public Library")
+            XCTAssertEqual(URL(string: opportunity.sourceUrl)?.host, "markham.bibliocommons.com")
+            XCTAssertTrue(addresses.contains(opportunity.address ?? ""))
+            return "Markham"
+        }
+        XCTAssertEqual(Set(feed.data.map(\.city)), ["Toronto", "Markham", "Thornhill", "Unionville"])
+        XCTAssertEqual(Set(municipalities), exactCities)
         XCTAssertEqual(observedLibrarySources, exactLibrarySources)
         XCTAssertEqual(feed.meta?.activeCount, feed.data.count)
         XCTAssertTrue(feed.hasReleaseReadyContentRights(now: feedDate))
@@ -2377,9 +2394,19 @@ final class APIClientTests: XCTestCase {
     }
 
     func testHighSchoolPathwayEligibilityExcludesAdultOnlyMentorAndHonorsBoundaries() throws {
-        let bundled = try LocalOpportunitySnapshot.loadFull()
-        let adultOnlyMentorID = "tpl-rss-6a3d62916db61d280097eb64"
-        let adultOnlyMentor = try XCTUnwrap(bundled.data.first { $0.id == adultOnlyMentorID })
+        // Eligibility boundaries are stable synthetic facts, independent of
+        // whether an old August event remains in the current published feed.
+        let adultOnlyMentorID = "synthetic-adult-only-arts-mentor"
+        let adultOnlyMentor = opportunity(
+            id: adultOnlyMentorID,
+            title: "Adult Arts Mentor Program",
+            description: "An adults-only arts mentoring program.",
+            startDate: "2026-08-20T10:00:00Z",
+            endDate: "2026-08-21T18:00:00Z",
+            ageMin: 18,
+            ageMax: nil,
+            tags: ["mentor"]
+        )
         let beforeItsArchiveBoundary = try XCTUnwrap(
             ISO8601DateFormatter().date(from: "2026-08-20T12:00:00Z")
         )
@@ -2441,15 +2468,21 @@ final class APIClientTests: XCTestCase {
         XCTAssertFalse(LocalOpportunitySnapshot.isHighSchoolPathwayEligible(boundaryRecords[3]))
     }
 
-    func testExactBundledFeedHasNoPromotedHomePathwayInventory() throws {
+    func testExactBundledFeedPromotesOnlySourceBackedCurrentPathwayInventory() throws {
         let bundled = try LocalOpportunitySnapshot.loadFull()
         let currentFeedMoment = try bundledSnapshotTestNow()
 
         XCTAssertEqual(bundled.data.count, 1882)
         XCTAssertEqual(
             HomePathwayInventory.availableModes(in: bundled.data, now: currentFeedMoment),
-            []
+            [.volunteer]
         )
+        let volunteerRows = LocalOpportunitySnapshot.filter(
+            bundled.data, query: "", mode: .volunteer, filters: OpportunityFilters(), now: currentFeedMoment
+        )
+        XCTAssertEqual(volunteerRows.map(\.id), ["tpl-rss-6ac92852295b3b0033cb1160"])
+        XCTAssertTrue(volunteerRows.allSatisfy { $0.description.contains("volunteer hours") })
+        XCTAssertTrue(volunteerRows.allSatisfy(LocalOpportunitySnapshot.isHighSchoolPathwayEligible))
     }
 
     func testMapPinsAreSubsetOfFilteredListResults() {
@@ -3998,7 +4031,9 @@ final class OpportunityStoreTests: XCTestCase {
         XCTAssertEqual(store.huntPhase, .cached)
         XCTAssertNil(store.errorMessage)
         XCTAssertEqual(URLProtocolStub.requestCount, 0)
-        XCTAssertTrue(store.availableHomePathwayModes.isEmpty)
+        XCTAssertEqual(store.availableHomePathwayModes, [.volunteer])
+        let volunteerRows = LocalOpportunitySnapshot.filter(store.opportunities, query: "", mode: .volunteer, filters: OpportunityFilters(), now: now)
+        XCTAssertEqual(volunteerRows.map(\.id), ["tpl-rss-6ac92852295b3b0033cb1160"])
     }
 
     @MainActor

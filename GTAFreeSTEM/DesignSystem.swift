@@ -709,7 +709,7 @@ struct FrontendLayoutReview: View {
     @StateObject private var session: SessionStore
     @StateObject private var store: OpportunityStore
     @State private var ready = false
-    private let container: ModelContainer
+    @State private var container: ModelContainer
     private let screen = Self.option("-review-screen") ?? "home"
     private let isDark = ProcessInfo.processInfo.arguments.contains("-review-dark")
     private let largeText = ProcessInfo.processInfo.arguments.contains("-review-large-text")
@@ -722,7 +722,7 @@ struct FrontendLayoutReview: View {
         _store = StateObject(wrappedValue: OpportunityStore(api: APIClient(), defaults: defaults))
         let schema = Schema([OpportunityCacheRecord.self, SavedHuntRecord.self, SeenOpportunityRecord.self, SavedOpportunityRecord.self])
         do {
-            container = try ModelContainer(for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+            _container = State(initialValue: try ModelContainer(for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
         } catch {
             preconditionFailure("Unable to create the isolated layout-review store: \(error)")
         }

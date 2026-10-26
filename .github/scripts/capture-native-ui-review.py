@@ -88,7 +88,8 @@ if not simulatorApp.is_dir():
 run("open", "-a", str(simulatorApp), "--args", "-CurrentDeviceUDID", device, timeout=30)
 time.sleep(2)
 run("xcrun", "simctl", "install", device, str(app), timeout=60)
-run("xcrun", "simctl", "ui", device, "appearance", "light")
+# Each fixture sets its own native preferredColorScheme. A redundant simulator
+# appearance RPC can hang after xcodebuild finishes; normal mode retains real defaults.
 cases = [(screen, False, False, "en") for screen in ("home", "browse", "saved", "settings")]
 cases += [(screen, True, False, "en") for screen in ("home", "browse")]
 cases += [(screen, False, True, "en") for screen in ("home", "browse", "saved", "settings")]
