@@ -428,10 +428,13 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(appSource.contains("withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.32))"))
         XCTAssertTrue(appSource.contains("withAnimation(reduceMotion ? nil : .easeOut(duration: 0.26))"))
         XCTAssertTrue(contentSource.contains(".animation(reduceMotion ? nil : .easeInOut(duration: 0.20), value: selectedTab)"))
-        XCTAssertEqual(
-            contentSource.components(separatedBy: "isActive: store.isLoading && !reduceMotion").count - 1,
-            1
-        )
+        let designSource = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/DesignSystem.swift"))
+        XCTAssertTrue(contentSource.contains(".buttonStyle(SpringPressButtonStyle())"))
+        let pressStyle = try XCTUnwrap(designSource.range(of: "struct SpringPressButtonStyle: ButtonStyle"))
+        let pressSource = String(designSource[pressStyle.lowerBound...].prefix(800))
+        XCTAssertTrue(pressSource.contains("@Environment(\\.accessibilityReduceMotion)"))
+        XCTAssertTrue(pressSource.contains("configuration.isPressed && !reduceMotion"))
+        XCTAssertTrue(pressSource.contains(".animation(reduceMotion ? nil : .spring("))
 
         let launchBranch = try XCTUnwrap(appSource.range(of: "if isShowingLaunchExperience"))
         let localeEnvironment = try XCTUnwrap(appSource.range(of: ".environment(\\.locale"))

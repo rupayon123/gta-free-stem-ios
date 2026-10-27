@@ -581,7 +581,9 @@ struct HomeView: View {
             ForEach(0...17, id: \.self) { age in
                 Button("\(age)") { selectAge("\(age)") }
             }
-            Button("18+") { selectAge("18+") }
+            Button { selectAge("18+") } label: {
+                Text(verbatim: "18+")
+            }
         } label: {
             filterLabel(title: session.text("age"),
                         value: store.filters.age.isEmpty ? session.text("any") : store.filters.age,
@@ -748,7 +750,7 @@ struct HomeView: View {
                 .accessibilityHidden(true)
             Text(session.text("freeShort"))
             if let lastUpdated = store.lastUpdated {
-                Text("· \(session.text("lastVerified")) \(session.formattedDate(lastUpdated))")
+                Text(verbatim: "· \(session.text("lastVerified")) \(session.formattedDate(lastUpdated))")
             }
         }
         .font(.caption)
