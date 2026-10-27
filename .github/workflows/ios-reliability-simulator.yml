@@ -54,7 +54,7 @@ jobs:
           51514df690e9df97f1e710ad8a61c805d21362382f20300768f6b45482ea5b41  GTAFreeSTEM/Models.swift
           ead07cba24fe454417c1d0b49fbd2bed1e0fe75a0e0834227751658f12f528ca  GTAFreeSTEM/OpportunityStore.swift
           f3a9d5b68dda29db7adbc23ce09135fd2bb31089993500dfc620e80ef1690fb1  GTAFreeSTEM/LocalOpportunitySnapshot.swift
-          f9bb28c7b201d0f7eb894d44bb136210315967dc144225b6dfa1025ae5678fbc  GTAFreeSTEMTests/APIClientTests.swift
+          f733ff316a5703adcce02b66b1d21f360df312950d55f1e871ba010bfa7c2d7e  GTAFreeSTEMTests/APIClientTests.swift
           66263a59a5f2fdf9d217593d8b13db0fc214a0ae1e13db171740f388b1aef4fc  GTAFreeSTEM/Resources/opportunities.json
           06181e9494ed5cf7b5bcd672fba62f674dbed03320de8455c48aa57e92b79da3  docs/scripts/validate-feed-content-rights.py
           HASHES
@@ -102,7 +102,7 @@ jobs:
             -project GTAFreeSTEM.xcodeproj \
             -scheme GTAFreeSTEM \
             -configuration Debug \
-            -only-testing:GTAFreeSTEMTests/APIClientTests/testRealCatalogueResponsivenessDiagnostic \
+            -only-testing:GTAFreeSTEMTests/APIClientTests/testRealCataloguePreparationKeepsTheMainActorResponsiveAndLatestQueryWins \
             -destination "$TEST_DESTINATION" \
             -destination-timeout 60 \
             -parallel-testing-enabled NO \
@@ -136,4 +136,3 @@ jobs:
               output.write('Bounded diagnostic passed: 1 executed, 1 passed. Timings are Debug simulator measurements.\n')
               output.write('This is Debug iPhone simulator evidence only; full release gates remain separate.\n')
           PY
-

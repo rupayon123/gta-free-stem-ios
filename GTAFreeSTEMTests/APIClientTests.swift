@@ -44,6 +44,50 @@ final class APIClientTests: XCTestCase {
         print("GTA_PERF cache_encode_ms=\((clock()-begin)*1000) bytes=\(bytes.count)")
     }
 
+    @MainActor
+    func testRealCataloguePreparationKeepsTheMainActorResponsiveAndLatestQueryWins() async throws {
+        let now = try bundledSnapshotTestNow()
+        let suite = "GTAFreeSTEMTests.Responsiveness.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = OpportunityStore(api: APIClient(), defaults: defaults, now: { now })
+        var beats = 0
+        var maximumGap = 0.0
+        let heartbeat = Task { @MainActor in
+            var last = ProcessInfo.processInfo.systemUptime
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 10_000_000)
+                let current = ProcessInfo.processInfo.systemUptime
+                maximumGap = max(maximumGap, current - last)
+                last = current
+                beats += 1
+            }
+        }
+        defer { heartbeat.cancel() }
+        await Task.yield()
+        let ready = await store.prepareInitialSnapshot(cache: nil)
+        XCTAssertTrue(ready)
+        try await Task.sleep(nanoseconds: 20_000_000)
+        print("GTA_PERF actual_store_main_actor_max_gap_ms=\(maximumGap*1000) heartbeat_count=\(beats)")
+        XCTAssertGreaterThan(beats, 5, "The UI actor must run during catalogue preparation")
+        XCTAssertLessThan(maximumGap, 0.75, "Catalogue work must not block UI interactions for a second")
+        store.query = "robotics"
+        let earlierSearch = Task { @MainActor in await store.prepareInitialSnapshot(cache: nil) }
+        await Task.yield()
+        store.query = "volunteer"
+        let latestSearch = Task { @MainActor in await store.prepareInitialSnapshot(cache: nil) }
+        _ = await earlierSearch.value
+        _ = await latestSearch.value
+        let expected = try await Task.detached(priority: .userInitiated) {
+            try LocalOpportunitySnapshot.loadFull().data
+        }.value
+        let expectedIDs = await Task.detached(priority: .userInitiated) {
+            LocalOpportunitySnapshot.filter(expected, query: "volunteer", mode: .all, filters: OpportunityFilters(), now: now).map(\.id)
+        }.value
+        XCTAssertEqual(store.query, "volunteer")
+        XCTAssertEqual(store.opportunities.map(\.id), expectedIDs, "A slower earlier search cannot replace the latest results")
+    }
+
     private var testRepositoryRoot: URL {
         let fixtureRoot = Bundle(for: APIClientTests.self)
             .resourceURL?
