@@ -85,9 +85,26 @@ run("xcrun", "simctl", "bootstatus", device, "-b", timeout=120)
 simulatorApp = Path(os.environ["DEVELOPER_DIR"]) / "Applications/Simulator.app"
 if not simulatorApp.is_dir():
     raise SystemExit("The reviewed Xcode Simulator app is unavailable")
+# Verify the entire installed product before reuse, as in the map capture.
+# Opening Simulator before a redundant install previously stalled that install.
+def bundle_manifest(directory):
+    return {str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sorted(directory.rglob("*")) if path.is_file()}
+
+expected_manifest = bundle_manifest(app)
+if not expected_manifest:
+    raise SystemExit("Built native app has no files")
+installed_text = run("xcrun", "simctl", "get_app_container", device, bundle, "app", check=False)
+installed = Path(installed_text) if installed_text.startswith("/") else None
+reused = bool(installed and installed.is_dir() and bundle_manifest(installed) == expected_manifest)
+if not reused:
+    run("xcrun", "simctl", "terminate", device, bundle, check=False)
+    run("xcrun", "simctl", "install", device, str(app), timeout=120)
+    installed = Path(run("xcrun", "simctl", "get_app_container", device, bundle, "app"))
+    if bundle_manifest(installed) != expected_manifest:
+        raise SystemExit("Installed native app does not match the tested product")
+print("NATIVE_INSTALLED_PRODUCT_VERIFIED " + json.dumps(dict(files=len(expected_manifest), reusedTestedInstallation=reused)), flush=True)
 run("open", "-a", str(simulatorApp), "--args", "-CurrentDeviceUDID", device, timeout=30)
-time.sleep(2)
-run("xcrun", "simctl", "install", device, str(app), timeout=60)
 # Each fixture sets its own native preferredColorScheme. A redundant simulator
 # appearance RPC can hang after xcodebuild finishes; normal mode retains real defaults.
 cases = [(screen, False, False, "en") for screen in ("home", "browse", "saved", "settings")]
