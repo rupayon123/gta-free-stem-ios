@@ -548,6 +548,12 @@ struct BrowseView: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(session.title(for: opportunity)).font(.subheadline.weight(.semibold))
                                     Text(session.organization(for: opportunity)).font(.caption)
+                                    if let schedule = session.formattedSchedule(start: opportunity.startDate, end: opportunity.endDate) {
+                                        Text(schedule)
+                                            .font(.caption)
+                                            .foregroundStyle(Brand.mutedText(for: colorScheme))
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
                                 }
                                 Spacer(minLength: 8)
                                 Image(systemName: "chevron.right").accessibilityHidden(true)

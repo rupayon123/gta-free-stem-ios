@@ -82,8 +82,25 @@ try:
             emit_frame(name+'-not-ready',dict(mode='diagnostic-native-runtime',acceptedState=False,releaseAcceptance=False,physicalDeviceAcceptance=False))
             raise SystemExit('No actual mapped venues reached the native review screen: '+name)
         time.sleep(5)
+        # Feed refresh can replace the bundled results after the first marker.
+        # Observe the latest rendered state and require a quiet interval instead
+        # of attaching first-readiness counts to a later screenshot.
+        pattern=r'GTA_MAP_REVIEW_READY (overview|selected|detail) venues=(\d+) mapped=(\d+) filtered=(\d+)'
+        stable_since=time.monotonic(); last_state=None; settle_deadline=time.monotonic()+20
+        while time.monotonic()<settle_deadline:
+            os.kill(pid,0)
+            matches=list(re.finditer(pattern,log.read_text(errors='replace')))
+            if not matches: raise SystemExit('Native readiness disappeared')
+            latest=matches[-1]
+            state=latest.groups()
+            if state!=last_state:
+                last_state=state; stable_since=time.monotonic()
+            elif time.monotonic()-stable_since>=2:
+                ready=latest; break
+            time.sleep(.25)
+        else: raise SystemExit('Native map counts did not settle before capture')
         os.kill(pid,0)
-        meta=dict(mode='normal-source-native-runtime',dark=dark,largeText=large,venues=int(ready.group(2)),mapped=int(ready.group(3)),filtered=int(ready.group(4)),selectedState='-review-map-selected' in extra,detailState='-review-map-detail' in extra,selectionEnteredByDebugFlag=bool(extra),automatedTouchInteraction=False,releaseAcceptance=False,physicalDeviceAcceptance=False)
+        meta=dict(readinessObservation='latest-state-after-two-second-quiet-interval',mode='normal-source-native-runtime',dark=dark,largeText=large,venues=int(ready.group(2)),mapped=int(ready.group(3)),filtered=int(ready.group(4)),selectedState='-review-map-selected' in extra,detailState='-review-map-detail' in extra,selectionEnteredByDebugFlag=bool(extra),automatedTouchInteraction=False,releaseAcceptance=False,physicalDeviceAcceptance=False)
         frames.append(emit_frame(name,meta))
 finally:
     run('xcrun','simctl','terminate',device,bundle,check=False)
