@@ -151,6 +151,10 @@ final class APIClient: @unchecked Sendable {
         guard let bundled = Self.bundledTranslationIndex[opportunity.id] else {
             return opportunity
         }
+        return Self.mergingBundledTranslations(bundled, into: opportunity)
+    }
+
+    static func mergingBundledTranslations(_ bundled: [String: OpportunityTranslation], into opportunity: Opportunity) -> Opportunity {
         var translations = bundled
         for (key, remoteTranslation) in opportunity.translations {
             let supportedLanguage = AppLanguage.supportedLanguage(for: key)
@@ -189,7 +193,8 @@ final class APIClient: @unchecked Sendable {
             distanceKm: opportunity.distanceKm,
             isNewFind: opportunity.isNewFind,
             sourceConfidence: opportunity.sourceConfidence,
-            translations: mergedTranslations
+            translations: mergedTranslations,
+            virtual: opportunity.virtual
         )
     }
 

@@ -756,6 +756,9 @@ final class APIClientTests: XCTestCase {
             XCTAssertEqual(URLProtocolStub.requestCount(for: primary), 1)
             if index % 3 == 0 {
                 request.cancel()
+                // Keep headers held until cancellation finishes; only the third
+                // control intentionally races cancellation with response delivery.
+                await fulfillment(of: [finished], timeout: 5)
                 URLProtocolStub.releaseResponse(for: primary)
             } else if index % 3 == 1 {
                 URLProtocolStub.releaseResponse(for: primary)
@@ -768,7 +771,7 @@ final class APIClientTests: XCTestCase {
                     await group.waitForAll()
                 }
             }
-            if index % 3 != 1 { await fulfillment(of: [finished], timeout: 5) }
+            if index % 3 == 2 { await fulfillment(of: [finished], timeout: 5) }
             do {
                 let response = try await request.value
                 XCTAssertEqual(response.data.map(\.id), [expectedID])
@@ -2660,6 +2663,13 @@ final class APIClientTests: XCTestCase {
         let cached = try JSONDecoder().decode(Opportunity.self, from: JSONEncoder().encode(online))
         XCTAssertTrue(cached.virtual)
         XCTAssertTrue(cached.replacingStatus(with: "archived").virtual)
+        let translated = APIClient.mergingBundledTranslations(
+            ["fr": OpportunityTranslation(title: "Atelier en ligne")], into: cached)
+        XCTAssertTrue(translated.virtual, "Translation augmentation must retain online-only venue safety")
+        XCTAssertEqual(translated.translations["fr"]?.title, "Atelier en ligne")
+        XCTAssertEqual(translated.address, cached.address)
+        XCTAssertEqual(translated.description, cached.description)
+        XCTAssertTrue(OpportunityMapProjection.pins(from: [translated]).isEmpty)
         XCTAssertEqual(cached.description, online.description)
         wire["virtual"] = "true"
         XCTAssertThrowsError(try JSONDecoder().decode(Opportunity.self, from: JSONSerialization.data(withJSONObject: wire)),
@@ -2784,12 +2794,24 @@ final class APIClientTests: XCTestCase {
         let selected = presentation(reset: 0, selected: venue.id)
         let coordinator = selected.makeCoordinator()
         let map = MKMapView(frame: CGRect(x: 0, y: 0, width: 390, height: 340))
+        let configuration = MKStandardMapConfiguration(elevationStyle: .realistic)
+        configuration.pointOfInterestFilter = .excludingAll
+        map.preferredConfiguration = configuration
+        map.isPitchEnabled = true
+        map.isRotateEnabled = true
+        // MapKit may clamp requested pitch on this SDK/device. Measure the same
+        // selected camera directly, then require the coordinator to preserve it.
+        map.setCamera(MKMapCamera(lookingAtCenter: CLLocationCoordinate2D(latitude: venue.latitude, longitude: venue.longitude),
+                                  fromDistance: 2_400, pitch: 55, heading: -12), animated: false)
+        let supportedSelectedPitch = map.camera.pitch
+        XCTAssertGreaterThan(supportedSelectedPitch, 0)
+        XCTAssertLessThanOrEqual(supportedSelectedPitch, 55.01)
         defer { map.removeAnnotations(map.annotations) }
         coordinator.update(map)
         XCTAssertEqual(map.camera.centerCoordinate.latitude, venue.latitude, accuracy: 0.001)
         XCTAssertEqual(map.camera.centerCoordinate.longitude, venue.longitude, accuracy: 0.001)
         XCTAssertEqual(map.camera.centerCoordinateDistance, 2_400, accuracy: 100)
-        XCTAssertEqual(map.camera.pitch, 55, accuracy: 1)
+        XCTAssertEqual(map.camera.pitch, supportedSelectedPitch, accuracy: 0.01)
 
         // A regular SwiftUI update must preserve the user's subsequent pan/tilt.
         let panned = MKMapCamera(lookingAtCenter: CLLocationCoordinate2D(latitude: 43.7, longitude: -79.43),
@@ -2807,7 +2829,7 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(map.camera.centerCoordinate.latitude, venue.latitude, accuracy: 0.001)
         XCTAssertEqual(map.camera.centerCoordinate.longitude, venue.longitude, accuracy: 0.001)
         XCTAssertEqual(map.camera.centerCoordinateDistance, 2_400, accuracy: 100)
-        XCTAssertEqual(map.camera.pitch, 55, accuracy: 1)
+        XCTAssertEqual(map.camera.pitch, supportedSelectedPitch, accuracy: 0.01)
 
         coordinator.parent = presentation(reset: 2, selected: nil)
         coordinator.update(map)
