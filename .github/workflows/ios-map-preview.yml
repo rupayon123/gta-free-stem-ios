@@ -31,9 +31,9 @@ jobs:
           shasum -a 256 -c <<'HASHES'
           b43447d78fb72d4bc068d175808d125f4e804fbe317c3531a416cb6df2e1e7b9  GTAFreeSTEM/GTAFreeSTEMApp.swift
           d7c7f6a569336ab94ded4d8177228d6e375d3a5c71b195c8116a70d1075850ff  GTAFreeSTEM/APIClient.swift
-          6b1d94f6f4d2b54e1cc4754967b6df8360a53698f0477189c936b43245279197  GTAFreeSTEM/OpportunityStore.swift
+          da7a342188fb9cbf9cba2e7b3d3c3d5989bfe88f447f3c18519ae4f4e513a36f  GTAFreeSTEM/OpportunityStore.swift
           90297d73766303fb1a8f1a2f307b9f9aca96f01fd2c04be1e6626d8e4901fbd7  GTAFreeSTEM/LocalOpportunitySnapshot.swift
-          66263a59a5f2fdf9d217593d8b13db0fc214a0ae1e13db171740f388b1aef4fc  GTAFreeSTEM/Resources/opportunities.json
+          c61ed81737815ad1543df966f382c8e2672fe2cb28b7d8f6f68cfc3ef39fd391  GTAFreeSTEM/Resources/opportunities.json
           HASHES
       - name: Record toolchain and select a disposable runner simulator
         id: simulator

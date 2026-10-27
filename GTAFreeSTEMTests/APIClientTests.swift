@@ -2575,7 +2575,8 @@ final class APIClientTests: XCTestCase {
         let bundled = try LocalOpportunitySnapshot.loadFull()
         let currentFeedMoment = try bundledSnapshotTestNow()
 
-        XCTAssertEqual(bundled.data.count, 1882)
+        XCTAssertEqual(bundled.data.count, 1878)
+        XCTAssertEqual(bundled.data.filter(\.virtual).count, 45)
         XCTAssertEqual(
             HomePathwayInventory.availableModes(in: bundled.data, now: currentFeedMoment),
             [.volunteer]

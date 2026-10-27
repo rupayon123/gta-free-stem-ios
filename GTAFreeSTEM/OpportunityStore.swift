@@ -398,16 +398,42 @@ final class OpportunityStore: ObservableObject {
 
     @discardableResult
     func prepareInitialSnapshot(cache context: ModelContext?) async -> Bool {
+#if DEBUG
+        let diagnosticStart = ProcessInfo.processInfo.systemUptime
+        let arguments = ProcessInfo.processInfo.arguments
+        let diagnosticNonce: String? = arguments.firstIndex(of: "-runtime-ready-nonce").flatMap { index in
+            guard arguments.indices.contains(index + 1), UUID(uuidString: arguments[index + 1]) != nil else { return nil }
+            return arguments[index + 1]
+        }
+        func observeStartup(_ phase: String) {
+            guard let diagnosticNonce else { return }
+            let elapsed = (ProcessInfo.processInfo.systemUptime - diagnosticStart) * 1_000
+            FileHandle.standardOutput.write(Data(("GTA_STARTUP_PHASE \(diagnosticNonce) phase=\(phase) elapsed_ms=\(elapsed) rows=\(opportunities.count)\n").utf8))
+        }
+        observeStartup("begin")
+#endif
         await restoreLastHuntIfNeeded(in: context)
+#if DEBUG
+        observeStartup("hunt-restored")
+#endif
         if let context {
             await restoreCachedResultsIfAvailable(in: context)
         }
+#if DEBUG
+        observeStartup("cache-restored")
+#endif
         await applyBundledSnapshotIfNeeded()
+#if DEBUG
+        observeStartup("bundle-considered")
+#endif
         // The retained full feed may have been loaded by the launch experience
         // before a deep link or deterministic screenshot hunt was configured.
         // Always reapply the current query and filters before declaring the
         // interactive snapshot ready.
         await applyAvailableLocalResults(cache: context)
+#if DEBUG
+        observeStartup("current-hunt-filtered")
+#endif
         if let inMemoryFeed {
             seedKnownIDsIfNeeded(with: inMemoryFeed.data)
         }
@@ -422,6 +448,9 @@ final class OpportunityStore: ObservableObject {
             )
         }
 
+#if DEBUG
+        observeStartup("saved-reconciled")
+#endif
         // A valid zero-result query still carries metadata, so it is launch-ready
         // even though its visible result list is empty.
         return !opportunities.isEmpty || lastUpdated != nil
