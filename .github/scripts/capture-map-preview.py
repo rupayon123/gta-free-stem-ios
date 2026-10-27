@@ -23,6 +23,22 @@ run('open','-a','Simulator','--args','-CurrentDeviceUDID',device)
 run('xcrun','simctl','install',device,str(app),timeout=60)
 bundle='com.rupayonhaldar.gtafreestem'
 frames=[]
+
+def emit_frame(name, meta):
+    png=output/(name+'.png');jpg=output/(name+'.jpg')
+    run('xcrun','simctl','io',device,'screenshot','--type=png',str(png),timeout=60)
+    run(str(verifier),str(png),timeout=10)
+    run('/usr/bin/sips','-s','format','jpeg','-s','formatOptions','76','-Z','1100',str(png),'--out',str(jpg))
+    data=jpg.read_bytes()
+    if len(data)>180000:raise SystemExit('Frame exceeds bounded log export')
+    meta.update(name=name,commit=os.environ['CANDIDATE_SOURCE_SHA'],sha256=hashlib.sha256(data).hexdigest(),nativePngSha256=hashlib.sha256(png.read_bytes()).hexdigest(),bytes=len(data),format='jpeg',exportMaximumDimension=1100,quality=76)
+    print('NATIVE_UI_CAPTURE_META '+json.dumps(meta,sort_keys=True),flush=True)
+    print('NATIVE_UI_CAPTURE_BEGIN '+name,flush=True)
+    encoded=base64.b64encode(data).decode()
+    for start in range(0,len(encoded),100):print('NATIVE_UI_CAPTURE_DATA '+encoded[start:start+100],flush=True)
+    print('NATIVE_UI_CAPTURE_END '+name,flush=True)
+    return meta
+
 try:
     for name,dark,large,extra in [
         ('ios-map-overview-light',False,False,[]),
@@ -44,21 +60,12 @@ try:
         else:
             print(log.read_text(errors='replace')[-3000:] if log.exists() else 'No native stdout')
             print(err.read_text(errors='replace')[-3000:] if err.exists() else 'No native stderr')
+            emit_frame(name+'-not-ready',dict(mode='diagnostic-native-runtime',acceptedState=False,releaseAcceptance=False,physicalDeviceAcceptance=False))
             raise SystemExit('No actual mapped venues reached the native review screen: '+name)
         time.sleep(5)
         os.kill(pid,0)
-        png=output/(name+'.png');jpg=output/(name+'.jpg')
-        run('xcrun','simctl','io',device,'screenshot','--type=png',str(png),timeout=60)
-        run(str(verifier),str(png),timeout=10)
-        run('/usr/bin/sips','-s','format','jpeg','-s','formatOptions','76','-Z','1100',str(png),'--out',str(jpg))
-        data=jpg.read_bytes()
-        if len(data)>180000:raise SystemExit('Frame exceeds bounded log export')
-        meta=dict(name=name,mode='normal-source-native-runtime',commit=os.environ['CANDIDATE_SOURCE_SHA'],sha256=hashlib.sha256(data).hexdigest(),nativePngSha256=hashlib.sha256(png.read_bytes()).hexdigest(),bytes=len(data),format='jpeg',exportMaximumDimension=1100,quality=76,dark=dark,largeText=large,venues=int(ready.group(2)),mapped=int(ready.group(3)),filtered=int(ready.group(4)),selectedState='-review-map-selected' in extra,detailState='-review-map-detail' in extra,selectionEnteredByDebugFlag=bool(extra),automatedTouchInteraction=False,releaseAcceptance=False,physicalDeviceAcceptance=False)
-        print('NATIVE_UI_CAPTURE_META '+json.dumps(meta,sort_keys=True),flush=True)
-        print('NATIVE_UI_CAPTURE_BEGIN '+name,flush=True)
-        encoded=base64.b64encode(data).decode()
-        for start in range(0,len(encoded),100):print('NATIVE_UI_CAPTURE_DATA '+encoded[start:start+100],flush=True)
-        print('NATIVE_UI_CAPTURE_END '+name,flush=True);frames.append(meta)
+        meta=dict(mode='normal-source-native-runtime',dark=dark,largeText=large,venues=int(ready.group(2)),mapped=int(ready.group(3)),filtered=int(ready.group(4)),selectedState='-review-map-selected' in extra,detailState='-review-map-detail' in extra,selectionEnteredByDebugFlag=bool(extra),automatedTouchInteraction=False,releaseAcceptance=False,physicalDeviceAcceptance=False)
+        frames.append(emit_frame(name,meta))
 finally:
     run('xcrun','simctl','terminate',device,bundle,check=False)
     run('xcrun','simctl','shutdown',device,check=False)

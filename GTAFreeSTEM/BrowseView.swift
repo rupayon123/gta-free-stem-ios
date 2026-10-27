@@ -610,7 +610,7 @@ struct BrowseView: View {
         if arguments.contains("-review-map") {
             let mode = arguments.contains("-review-map-detail") ? "detail" : (selectedVenueID == nil ? "overview" : "selected")
             let mapped = venues.reduce(0) { $0 + $1.opportunities.count }
-            print("GTA_MAP_REVIEW_READY \(mode) venues=\(venues.count) mapped=\(mapped) filtered=\(store.opportunities.count)")
+            FileHandle.standardOutput.write(Data(("GTA_MAP_REVIEW_READY \(mode) venues=\(venues.count) mapped=\(mapped) filtered=\(store.opportunities.count)\n").utf8))
         }
 #endif
     }
