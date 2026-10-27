@@ -3029,8 +3029,15 @@ final class APIClientTests: XCTestCase {
             "Upcoming, additional, and archived Watch extracts each need a direct original-source action."
         )
         XCTAssertTrue(watchSource.contains("Link(destination: sourceURL)"))
+        let mapStart = try XCTUnwrap(browseSource.range(of: "private var opportunityMap"))
+        let mapEnd = try XCTUnwrap(browseSource.range(of: "private func venueTitle", range: mapStart.upperBound..<browseSource.endIndex))
+        let mapSource = String(browseSource[mapStart.lowerBound..<mapEnd.lowerBound])
         XCTAssertTrue(
-            browseSource.contains("Marker(venueTitle(venue)") && browseSource.contains("NavigationLink(value: opportunity)")
+            mapSource.contains("ClusteredOpportunityMap(") &&
+            mapSource.contains("selectedVenueID: $selectedVenueID") &&
+            mapSource.contains("ForEach(selected.opportunities)") &&
+            mapSource.contains("NavigationLink(value: opportunity)"),
+            "Native map venues must expose selected opportunity rows that open the source-linked detail view."
         )
     }
 
