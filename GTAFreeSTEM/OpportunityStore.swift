@@ -208,12 +208,29 @@ final class OpportunityStore: ObservableObject {
     private let maximumCachePayloadBytes = 10_000_000
     private var lastNotificationSentAt: Date?
     private var lastRefreshStartedAt: Date?
-    private var inMemoryFeed: OpportunityListResponse? {
-        didSet {
-            availableHomePathwayModes = inMemoryFeed.map {
-                HomePathwayInventory.availableModes(in: $0.data, now: self.now())
-            } ?? []
-        }
+    private var inMemoryFeed: OpportunityListResponse?
+    private var catalogueGeneration = 0
+    private var retainedFeedSource: DataSource = .publicLiveFeed
+    private var preparedSearchIndex: (generation: Int, language: AppLanguage, values: [String: String])?
+
+    /// Catalogue scans are CPU work. Keep them off the UI actor and publish
+    /// their inventory only if this is still the retained feed on completion.
+    @discardableResult
+    private func retainFullFeed(_ response: OpportunityListResponse?, source: DataSource) async -> Int {
+        catalogueGeneration &+= 1
+        let generation = catalogueGeneration
+        inMemoryFeed = response
+        preparedSearchIndex = nil
+        retainedFeedSource = source
+        availableHomePathwayModes = []
+        guard let response else { return generation }
+        let snapshotNow = now()
+        let modes = await Task.detached(priority: .userInitiated) {
+            HomePathwayInventory.availableModes(in: response.data, now: snapshotNow)
+        }.value
+        guard generation == catalogueGeneration else { return generation }
+        availableHomePathwayModes = modes
+        return generation
     }
 
     init(
@@ -278,10 +295,11 @@ final class OpportunityStore: ObservableObject {
                fullFeed.data == retained.data {
                 // Verify an unchanged publication without rewriting immutable
                 // accepted bytes or reconciling saved events a second time.
-                apply(responseForCurrentHunt(from: retained), source: .publicLiveFeed)
+                retainedFeedSource = .publicLiveFeed
+                apply(await responseForCurrentHunt(from: retained), source: retainedFeedSource)
                 persistCurrentHunt(in: context)
                 lastSuccessfulHuntAt = self.now()
-                huntPhase = .fresh
+                huntPhase = retainedFeedSource == .publicLiveFeed ? .fresh : .cached
                 errorMessage = nil
                 return
             }
@@ -296,10 +314,18 @@ final class OpportunityStore: ObservableObject {
                 errorMessage = nil
                 return
             }
-            inMemoryFeed = fullFeed
-            let response = responseForCurrentHunt(from: fullFeed)
+            let generation = await retainFullFeed(fullFeed, source: .publicLiveFeed)
+            let response = await responseForCurrentHunt(from: fullFeed)
+            guard generation == catalogueGeneration else {
+                // A newer trusted retained feed can finish while filtering is
+                // suspended. Do not persist or reconcile this superseded feed.
+                await applyAvailableLocalResults(cache: context)
+                persistCurrentHunt(in: context)
+                huntPhase = retainedFeedSource == .publicLiveFeed ? .fresh : .cached
+                return
+            }
             let newCount = updateKnownIDs(in: fullFeed.data, matching: response.data)
-            apply(response, source: DataSource.publicLiveFeed)
+            apply(response, source: retainedFeedSource)
             persist(fullFeed, in: context)
             if let context {
                 _ = try? SavedOpportunityLibrary.reconcile(
@@ -390,9 +416,9 @@ final class OpportunityStore: ObservableObject {
     func prepareScreenshotSnapshot() async -> Bool {
         let fullFeed = ScreenshotOpportunityFixtures.fullFeed
 
-        inMemoryFeed = fullFeed
-        apply(responseForCurrentHunt(from: fullFeed), source: .previewDatabase)
-        huntPhase = .cached
+        await retainFullFeed(fullFeed, source: .previewDatabase)
+        apply(await responseForCurrentHunt(from: fullFeed), source: retainedFeedSource)
+        huntPhase = retainedFeedSource == .publicLiveFeed ? .fresh : .cached
         errorMessage = nil
         return !opportunities.isEmpty || lastUpdated != nil
     }
@@ -400,7 +426,7 @@ final class OpportunityStore: ObservableObject {
     func refreshIfStale(cache context: ModelContext?) async {
         await restoreLastHuntIfNeeded(in: context)
         if let inMemoryFeed {
-            apply(responseForCurrentHunt(from: inMemoryFeed), source: dataSourceLabel)
+            apply(await responseForCurrentHunt(from: inMemoryFeed), source: retainedFeedSource)
         } else if let context {
             _ = await applyCachedResultsIfAvailableOffMain(in: context)
         }
@@ -488,10 +514,10 @@ final class OpportunityStore: ObservableObject {
         query = ""
         mode = .all
         filters = OpportunityFilters()
-        inMemoryFeed = retainedFeed
+        await retainFullFeed(retainedFeed, source: .savedAppCache)
         if let retainedFeed {
-            apply(responseForCurrentHunt(from: retainedFeed), source: .savedAppCache)
-            huntPhase = .cached
+            apply(await responseForCurrentHunt(from: retainedFeed), source: retainedFeedSource)
+            huntPhase = retainedFeedSource == .publicLiveFeed ? .fresh : .cached
         } else {
             opportunities = []
             activeCount = 0
@@ -534,7 +560,7 @@ final class OpportunityStore: ObservableObject {
 
     private func applyAvailableLocalResults(cache context: ModelContext?) async {
         if let inMemoryFeed {
-            apply(responseForCurrentHunt(from: inMemoryFeed), source: dataSourceLabel)
+            apply(await responseForCurrentHunt(from: inMemoryFeed), source: retainedFeedSource)
         } else if let context {
             _ = await applyCachedResultsIfAvailableOffMain(in: context)
         }
@@ -553,9 +579,9 @@ final class OpportunityStore: ObservableObject {
         // updated app does not remain pinned to an older pre-update cache.
         guard OpportunityFeedSelection.shouldPrefer(fullFeed, over: inMemoryFeed, now: self.now()) else { return }
 
-        inMemoryFeed = fullFeed
-        apply(responseForCurrentHunt(from: fullFeed), source: .previewDatabase)
-        huntPhase = .cached
+        await retainFullFeed(fullFeed, source: .previewDatabase)
+        apply(await responseForCurrentHunt(from: fullFeed), source: retainedFeedSource)
+        huntPhase = retainedFeedSource == .publicLiveFeed ? .fresh : .cached
         errorMessage = nil
     }
 
@@ -658,13 +684,13 @@ final class OpportunityStore: ObservableObject {
         // after that suspension, and never roll retained data backwards on failure.
         guard OpportunityFeedSelection.shouldPrefer(cached, over: inMemoryFeed, now: self.now()) else {
             if let inMemoryFeed {
-                apply(responseForCurrentHunt(from: inMemoryFeed), source: dataSourceLabel)
+                apply(await responseForCurrentHunt(from: inMemoryFeed), source: retainedFeedSource)
             }
             return false
         }
-        inMemoryFeed = cached
-        apply(responseForCurrentHunt(from: cached), source: DataSource.savedAppCache)
-        huntPhase = .cached
+        await retainFullFeed(cached, source: .savedAppCache)
+        apply(await responseForCurrentHunt(from: cached), source: retainedFeedSource)
+        huntPhase = retainedFeedSource == .publicLiveFeed ? .fresh : .cached
         return true
     }
 
@@ -747,13 +773,46 @@ final class OpportunityStore: ObservableObject {
         return true
     }
 
-    private func responseForCurrentHunt(from response: OpportunityListResponse) -> OpportunityListResponse {
-        let filtered = LocalOpportunitySnapshot.filter(response.data, query: query, mode: mode, filters: filters, now: self.now())
-        return OpportunityListResponse(
-            data: filtered,
-            meta: OpportunityListResponse.Metadata(activeCount: filtered.count, lastUpdated: response.meta?.lastUpdated),
-            publicationRevision: response.publicationRevision
-        )
+    private func responseForCurrentHunt(from response: OpportunityListResponse) async -> OpportunityListResponse {
+        while true {
+            let feed = inMemoryFeed ?? response
+            let generation = catalogueGeneration
+            let snapshotQuery = query
+            let snapshotMode = mode
+            let snapshotFilters = filters
+            let snapshotLanguage = AppLanguage.preferred()
+            let snapshotNow = now()
+            let cachedIndex = preparedSearchIndex.flatMap {
+                $0.generation == generation && $0.language == snapshotLanguage ? $0.values : nil
+            }
+            let result = await Task.detached(priority: .userInitiated) {
+                let index = snapshotQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? cachedIndex
+                    : cachedIndex ?? LocalOpportunitySnapshot.prepareSearchIndex(feed.data, displayLanguage: snapshotLanguage)
+                let filtered = LocalOpportunitySnapshot.filter(
+                    feed.data, query: snapshotQuery, mode: snapshotMode,
+                    filters: snapshotFilters, displayLanguage: snapshotLanguage, now: snapshotNow,
+                    preparedSearchIndex: index
+                )
+                return (filtered: filtered, index: index)
+            }.value
+            // Reuse a completed index even if the query changed meanwhile;
+            // its identity is the public feed and language, never the query.
+            if generation == catalogueGeneration, snapshotLanguage == AppLanguage.preferred(), let index = result.index {
+                preparedSearchIndex = (generation, snapshotLanguage, index)
+            }
+            // A keystroke, filter, language or accepted feed can change while
+            // the worker runs. Never replace the newest hunt with an old result.
+            guard generation == catalogueGeneration,
+                  snapshotQuery == query, snapshotMode == mode,
+                  snapshotFilters == filters, snapshotLanguage == AppLanguage.preferred()
+            else { continue }
+            return OpportunityListResponse(
+                data: result.filtered,
+                meta: OpportunityListResponse.Metadata(activeCount: result.filtered.count, lastUpdated: feed.meta?.lastUpdated),
+                publicationRevision: feed.publicationRevision
+            )
+        }
     }
 
     private func cacheNeedsRefresh(in context: ModelContext?) -> Bool {

@@ -40,7 +40,8 @@ enum LocalOpportunitySnapshot {
         mode: SearchMode,
         filters: OpportunityFilters,
         displayLanguage: AppLanguage = preferredLanguage,
-        now: Date = .now
+        now: Date = .now,
+        preparedSearchIndex: [String: String]? = nil
     ) -> [Opportunity] {
         let normalizedTerms = normalizedSearchTerms(query)
         let selectedAge = filters.age.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -80,7 +81,7 @@ enum LocalOpportunitySnapshot {
                 guard distanceKm(fromLatitude: latitude, longitude: longitude, toLatitude: opportunityLatitude, longitude: opportunityLongitude) <= filters.distanceKm else { return false }
             }
             if !normalizedTerms.isEmpty {
-                let searchable = searchableText(for: opportunity, language: displayLanguage)
+                let searchable = preparedSearchIndex?[opportunity.id] ?? searchableText(for: opportunity, language: displayLanguage)
                 guard normalizedTerms.allSatisfy({ searchable.contains($0) }) else { return false }
             }
             if filters.blackFocused {
@@ -117,12 +118,11 @@ enum LocalOpportunitySnapshot {
                 guard isHighSchoolPathwayEligible(opportunity) else { return false }
             }
 
-            let tags = searchableTags(for: opportunity, language: displayLanguage)
-
             switch mode {
             case .all:
                 return true
             case .highSchool:
+                let tags = searchableTags(for: opportunity, language: displayLanguage)
                 return matchesVolunteerHours(opportunity, language: displayLanguage) ||
                     matchesCoop(opportunity, language: displayLanguage) ||
                     matchesMentorship(opportunity, language: displayLanguage) ||
@@ -246,33 +246,49 @@ enum LocalOpportunitySnapshot {
     ) -> [Opportunity] {
         switch filters.sort {
         case .date:
-            return opportunities.sorted { dateValue($0, now: now) < dateValue($1, now: now) }
+            return sortedByDate(opportunities, now: now)
         case .distance:
             guard filters.hasLocation,
                   let latitude = filters.latitude,
                   let longitude = filters.longitude
             else {
-                return opportunities.sorted { dateValue($0, now: now) < dateValue($1, now: now) }
+                return sortedByDate(opportunities, now: now)
             }
-            return opportunities.sorted {
-                distanceValue($0, latitude: latitude, longitude: longitude) < distanceValue($1, latitude: latitude, longitude: longitude)
-            }
+            return opportunities.map {
+                (opportunity: $0, distance: distanceValue($0, latitude: latitude, longitude: longitude))
+            }.sorted { $0.distance < $1.distance }.map(\.opportunity)
         case .relevance:
             guard !queryTerms.isEmpty else {
-                return opportunities.sorted { dateValue($0, now: now) < dateValue($1, now: now) }
+                return sortedByDate(opportunities, now: now)
             }
-            return opportunities.sorted {
-                let lhs = relevance($0, queryTerms: queryTerms, language: displayLanguage)
-                let rhs = relevance($1, queryTerms: queryTerms, language: displayLanguage)
-                return lhs == rhs ? dateValue($0, now: now) < dateValue($1, now: now) : lhs > rhs
-            }
+            return opportunities.map {
+                (opportunity: $0, score: relevance($0, queryTerms: queryTerms, language: displayLanguage), date: dateValue($0, now: now))
+            }.sorted {
+                $0.score == $1.score ? $0.date < $1.date : $0.score > $1.score
+            }.map(\.opportunity)
         }
+    }
+
+    /// Parse each record's key once, rather than repeatedly inside O(n log n)
+    /// comparisons. Swift's stable sort preserves the source order for ties.
+    private static func sortedByDate(_ opportunities: [Opportunity], now: Date) -> [Opportunity] {
+        opportunities.map {
+            (opportunity: $0, date: dateValue($0, now: now))
+        }.sorted { $0.date < $1.date }.map(\.opportunity)
     }
 
     private static func normalizedSearchTerms(_ query: String) -> [String] {
         normalizedText(query)
             .split(whereSeparator: \.isWhitespace)
             .map(String.init)
+    }
+
+    /// The retained feed has validated unique IDs. Build this immutable index
+    /// once per feed and display language, off the UI actor, then reuse it.
+    static func prepareSearchIndex(_ opportunities: [Opportunity], displayLanguage: AppLanguage) -> [String: String] {
+        Dictionary(opportunities.map {
+            ($0.id, searchableText(for: $0, language: displayLanguage))
+        }, uniquingKeysWith: { first, _ in first })
     }
 
     private static func searchableText(for opportunity: Opportunity, language: AppLanguage) -> String {

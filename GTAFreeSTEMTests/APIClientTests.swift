@@ -39,6 +39,16 @@ final class APIClientTests: XCTestCase {
             let modes = HomePathwayInventory.availableModes(in: feed.data, now: now)
             print("GTA_PERF pass=\(pass) home_inventory_ms=\((clock()-begin)*1000) modes=\(modes.count)")
         }
+        let indexStart = clock()
+        let index = LocalOpportunitySnapshot.prepareSearchIndex(feed.data, displayLanguage: .en)
+        print("GTA_PERF prepared_index_build_ms=\((clock()-indexStart)*1000) entries=\(index.count)")
+        for query in ["robotics", "library", "volunteer", "science"] {
+            let begin = clock()
+            let indexed = LocalOpportunitySnapshot.filter(feed.data, query: query, mode: .all, filters: OpportunityFilters(), displayLanguage: .en, now: now, preparedSearchIndex: index)
+            print("GTA_PERF indexed_query=\(query) filter_ms=\((clock()-begin)*1000) results=\(indexed.count)")
+            let original = LocalOpportunitySnapshot.filter(feed.data, query: query, mode: .all, filters: OpportunityFilters(), displayLanguage: .en, now: now)
+            XCTAssertEqual(indexed.map(\.id), original.map(\.id), "Indexing must preserve complete source matches and sort order")
+        }
         let begin = clock()
         let bytes = try JSONEncoder().encode(feed)
         print("GTA_PERF cache_encode_ms=\((clock()-begin)*1000) bytes=\(bytes.count)")
