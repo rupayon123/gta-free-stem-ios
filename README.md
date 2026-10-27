@@ -2,9 +2,19 @@
 
 I'm building GTA FREE STEM to make free STEM programs easier to find across the Greater Toronto Area. This is the native SwiftUI app for iPhone, with iPad, Mac Catalyst, and an Apple Watch companion in the project.
 
-[Android app](https://github.com/rupayon123/gta-free-stem-android) | [Web app](https://github.com/rupayon123/gta-free-stem-opportunities) | [Try the website](https://gta-free-stem.vercel.app/)
+[Android app](https://github.com/rupayon123/gta-free-stem-android) | [Web app](https://github.com/rupayon123/gta-free-stem-opportunities) | [Try the website](https://gta-free-stem.pages.dev/)
 
 ## The iPhone experience
+
+<table>
+<tr><th width="50%">Home</th><th width="50%">Native map</th></tr>
+<tr><td align="center"><a href="docs/showcase/2026-10-27/normal-home.jpg"><img src="docs/showcase/2026-10-27/normal-home.jpg" alt="Native simulator Home with 1,877 current results" width="300"></a></td><td align="center"><a href="docs/showcase/2026-10-27/ios-map-overview-light.jpg"><img src="docs/showcase/2026-10-27/ios-map-overview-light.jpg" alt="Native simulator map with clustered physical venues" width="300"></a></td></tr>
+</table>
+
+Captured from source `08c172d20060ec0748fccae2677c7554c3fe8145` in the [October 27 simulator CI run](https://github.com/rupayon123/gta-free-stem-ios/actions/runs/40521124677). These are normal-runtime captures using the public feed, not sample layout fixtures: Home shows 1,877 available results at capture time; the map shows 94 physical venues containing 1,832 opportunities. [Capture provenance and image hashes](docs/showcase/2026-10-27/capture-receipt.json). These resized JPEG exports are repository previews, not physical-device acceptance or the final App Store screenshot package.
+
+<details>
+<summary>Historical build 12 screenshots, captured September 11</summary>
 
 <table>
 <tr><th width="50%">Home</th><th width="50%">Search</th></tr>
@@ -12,6 +22,9 @@ I'm building GTA FREE STEM to make free STEM programs easier to find across the 
 <tr><th>High School Search</th><th>Profile</th></tr>
 <tr><td align="center"><a href="docs/showcase/hs-search.png"><img src="docs/showcase/hs-search.png" alt="High School Search" width="300"></a></td><td align="center"><a href="docs/showcase/profile.png"><img src="docs/showcase/profile.png" alt="Profile" width="300"></a></td></tr>
 </table>
+
+The source revision of that installed build was not established. [Historical capture notes](docs/showcase/README.md).
+</details>
 
 ## About the app
 
@@ -23,7 +36,9 @@ The app reads the public opportunity feed from the web repository and keeps a lo
 
 ## Development status
 
-Build 1.0 (12) is the recorded release candidate, with TestFlight upload and real-device signoff still pending. These screenshots are from the installed simulator build, not a new build of the latest source.
+The current internal iPhone candidate is **1.0 (15)**, bound to source `08c172d20060ec0748fccae2677c7554c3fe8145`. Its CI run passed 178/178 tests and three targeted cancellation-race repeats; its archive and exported IPA passed 52/52 and 62/62 strict checks. Upload to the existing internal TestFlight channel is in progress; processed-build availability and installation have not been confirmed in this handoff.
+
+Public App Store release is **not complete**. Fresh physical iPhone/iPad, paired Watch and Mac acceptance, the canonical App Store screenshots, and the required public-release gates remain separate work. [Current build 15 handoff and evidence](docs/CURRENT_RELEASE_HANDOFF.md) records those boundaries; older build 12/13/14 records remain historical.
 
 [Release runbook](docs/PUBLIC_RELEASE_RUNBOOK.md) | [TestFlight setup](docs/TESTFLIGHT.md) | [Device signoff](docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md)
 
