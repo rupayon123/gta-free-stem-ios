@@ -2713,6 +2713,31 @@ final class APIClientTests: XCTestCase {
         XCTAssertFalse(projection.isPreparing)
     }
 
+    @MainActor
+    func testMapProjectionResumesOnlyInterruptedPreparationWithoutAnotherPublication() async {
+        let gate = MapProjectionTestGate()
+        let projection = OpportunityMapPresentation(project: { records in
+            let result = OpportunityMapProjection.snapshot(from: records)
+            await gate.hold()
+            return result
+        })
+        let row = opportunity(id: "session", title: "Current session", address: "1 College Street", latitude: 43.654, longitude: -79.384)
+        let interrupted = projection.prepare([row])
+        await gate.waitUntilStarted()
+        projection.cancel()
+        projection.cancel() // Repeated disappear must not forget the interrupted work.
+        await gate.release()
+        await interrupted.value
+        XCTAssertTrue(projection.snapshot.venues.isEmpty)
+        let resumed = projection.resumeIfInterrupted([row])
+        XCTAssertNotNil(resumed, "Returning must not depend on another store publication")
+        await resumed?.value
+        XCTAssertEqual(projection.snapshot.venues.flatMap(\.opportunities).map(\.id), ["session"])
+        XCTAssertNil(projection.resumeIfInterrupted([row]), "A completed projection must not restart on appearance")
+        projection.cancel()
+        XCTAssertNil(projection.resumeIfInterrupted([row]), "Leaving a completed map does not invalidate its cache")
+    }
+
     func testMapCameraFollowsActualFilteredVenueExtent() throws {
         let first = opportunity(id: "toronto", title: "Toronto Lab", address: "1 College Street", latitude: 43.654, longitude: -79.384)
         let second = opportunity(id: "markham", title: "Markham Lab", address: "2 Main Street", latitude: 43.856, longitude: -79.337)
@@ -5283,6 +5308,7 @@ private actor MapProjectionTestGate {
     private var startWaiters: [CheckedContinuation<Void, Never>] = []
     private var releaseWaiter: CheckedContinuation<Void, Never>?
     func hold() async {
+        guard !started else { return }
         started = true
         startWaiters.forEach { $0.resume() }
         startWaiters.removeAll()

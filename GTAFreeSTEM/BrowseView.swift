@@ -152,6 +152,7 @@ struct BrowseView: View {
             .onReceive(store.$opportunities) { records in
                 mapProjection.prepare(records)
             }
+            .onAppear { mapProjection.resumeIfInterrupted(store.opportunities) }
             .onDisappear { mapProjection.cancel() }
             .onReceive(locationManager.$coordinate.compactMap { $0 }) { coordinate in
                 store.useCurrentLocation(coordinate)
@@ -961,6 +962,7 @@ final class OpportunityMapPresentation: ObservableObject {
     @Published private(set) var revision = 0
     @Published private(set) var isPreparing = false
     private var generation = 0
+    private var needsResume = false
     private var pending: Task<Void, Never>?
     private let project: @Sendable ([Opportunity]) async -> OpportunityMapSnapshot
 
@@ -976,6 +978,7 @@ final class OpportunityMapPresentation: ObservableObject {
     @discardableResult
     func prepare(_ records: [Opportunity]) -> Task<Void, Never> {
         generation &+= 1
+        needsResume = false
         let requestedGeneration = generation
         pending?.cancel()
         // Never display pins from a previous filter while its replacement is pending.
@@ -993,7 +996,14 @@ final class OpportunityMapPresentation: ObservableObject {
         return task
     }
 
+    @discardableResult
+    func resumeIfInterrupted(_ records: [Opportunity]) -> Task<Void, Never>? {
+        guard needsResume else { return nil }
+        return prepare(records)
+    }
+
     func cancel() {
+        needsResume = needsResume || isPreparing
         generation &+= 1
         pending?.cancel()
         pending = nil
