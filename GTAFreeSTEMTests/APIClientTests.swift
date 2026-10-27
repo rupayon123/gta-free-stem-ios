@@ -94,6 +94,10 @@ final class APIClientTests: XCTestCase {
         let expectedIDs = await Task.detached(priority: .userInitiated) {
             LocalOpportunitySnapshot.filter(expected, query: "volunteer", mode: .all, filters: OpportunityFilters(), now: now).map(\.id)
         }.value
+        let expectedCities = Set(expected.filter {
+            $0.isExplicitlyFree && LocalOpportunitySnapshot.isCurrentlyAvailable($0, on: now)
+        }.map(\.city)).sorted()
+        XCTAssertEqual(store.availableFilterCities, expectedCities)
         XCTAssertEqual(store.query, "volunteer")
         XCTAssertEqual(store.opportunities.map(\.id), expectedIDs, "A slower earlier search cannot replace the latest results")
     }
@@ -2912,17 +2916,20 @@ final class APIClientTests: XCTestCase {
         let contentSource = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/ContentView.swift"))
         let gridStart = try XCTUnwrap(contentSource.range(of: "private var pathwayGrid"))
         let gridEnd = try XCTUnwrap(
-            contentSource.range(of: "private var searchActions", range: gridStart.lowerBound..<contentSource.endIndex)
+            contentSource.range(of: "private func pathwayRow", range: gridStart.lowerBound..<contentSource.endIndex)
         )
         let gridSource = String(contentSource[gridStart.lowerBound..<gridEnd.lowerBound])
 
-        XCTAssertTrue(gridSource.contains("HomeActionTile(title: session.text(\"browse\")"))
-        XCTAssertTrue(gridSource.contains("HomeActionTile(title: session.text(\"feedback\")"))
+        XCTAssertTrue(contentSource.contains("Button(action: openResults)"))
+        XCTAssertTrue(gridSource.contains("pathwayRow(session.text(\"feedback\")"))
         XCTAssertTrue(gridSource.contains("if store.availableHomePathwayModes.contains(.volunteer)"))
         XCTAssertTrue(gridSource.contains("if store.availableHomePathwayModes.contains(.coop)"))
         XCTAssertTrue(gridSource.contains("if store.availableHomePathwayModes.contains(.mentorship)"))
-        XCTAssertTrue(gridSource.contains("store.mode = .all"))
-        XCTAssertTrue(gridSource.contains("selectedTab = .opportunities"))
+        XCTAssertTrue(contentSource.contains("store.mode = .all"))
+        XCTAssertTrue(contentSource.contains("selectedTab = .opportunities"))
+        XCTAssertTrue(contentSource.contains("ForEach(Array(store.opportunities.prefix(2)))"))
+        XCTAssertTrue(contentSource.contains("private var cityMenu"))
+        XCTAssertTrue(contentSource.contains("private var ageMenu"))
     }
 
     func testBackgroundRefreshUsesCacheContextAndNewMatchNotifications() throws {

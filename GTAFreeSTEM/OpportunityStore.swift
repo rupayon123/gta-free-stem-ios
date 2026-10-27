@@ -192,6 +192,7 @@ final class OpportunityStore: ObservableObject {
     @Published var notificationStatusMessage: String?
     @Published var didRestoreLastHunt = false
     @Published private(set) var availableHomePathwayModes: [SearchMode] = []
+    @Published private(set) var availableFilterCities: [String] = []
 
     private let api: APIClient
     private let defaults: UserDefaults
@@ -223,13 +224,24 @@ final class OpportunityStore: ObservableObject {
         preparedSearchIndex = nil
         retainedFeedSource = source
         availableHomePathwayModes = []
+        availableFilterCities = []
         guard let response else { return generation }
         let snapshotNow = now()
-        let modes = await Task.detached(priority: .userInitiated) {
-            HomePathwayInventory.availableModes(in: response.data, now: snapshotNow)
+        let inventory = await Task.detached(priority: .userInitiated) {
+            let modes = HomePathwayInventory.availableModes(in: response.data, now: snapshotNow)
+            let eligibleCities: [String] = response.data.compactMap { opportunity in
+                guard opportunity.isExplicitlyFree,
+                      LocalOpportunitySnapshot.isCurrentlyAvailable(opportunity, on: snapshotNow),
+                      !opportunity.city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                else { return nil }
+                return opportunity.city
+            }
+            let cities = Array(Set(eligibleCities)).sorted()
+            return (modes: modes, cities: cities)
         }.value
         guard generation == catalogueGeneration else { return generation }
-        availableHomePathwayModes = modes
+        availableHomePathwayModes = inventory.modes
+        availableFilterCities = inventory.cities
         return generation
     }
 

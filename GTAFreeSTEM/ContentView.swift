@@ -415,27 +415,30 @@ enum AppNavigationModePolicy {
 }
 
 struct HomeView: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appStorageAccess) private var storageAccess
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
     @Binding var selectedTab: AppTab
 
+
+
     var body: some View {
         NavigationStack {
             ZStack {
                 StorybookBackground()
-
                 ScrollView {
-                    VStack(spacing: AppSpacing.standard) {
-                        heroCard
-                        searchEntryCard
-                        statusCard
+                    VStack(alignment: .leading, spacing: 22) {
+                        masthead
+                        searchSection
+                        interestStrip
+                        activitySection
                         pathwayGrid
+                        sourceFootnote
                     }
-                    .frame(maxWidth: 780)
+                    .frame(maxWidth: 720)
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, AppSpacing.standard)
                     .padding(.top, AppSpacing.small)
@@ -445,17 +448,26 @@ struct HomeView: View {
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(for: Opportunity.self) { opportunity in
+                OpportunityDetailView(opportunity: opportunity)
+            }
         }
     }
 
-    private var heroCard: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            HStack(alignment: .top, spacing: AppSpacing.medium) {
-                BrandLogoImage(size: 64)
+    private var homeAccent: Color { colorScheme == .dark ? Brand.ice : Brand.lake }
+
+    private var masthead: some View {
+        VStack(alignment: .leading, spacing: 13) {
+            Rectangle()
+                .fill(Brand.sun)
+                .frame(width: 52, height: 5)
+                .accessibilityHidden(true)
+
+            HStack(alignment: .center, spacing: 12) {
+                BrandLogoImage(size: 70)
                     .accessibilityHidden(true)
                 Text(Brand.compactName)
                     .font(.title2.weight(.bold))
-                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .foregroundStyle(Brand.outline(for: colorScheme))
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -464,183 +476,308 @@ struct HomeView: View {
 
             Text(session.text("mission"))
                 .font(.body)
-                .foregroundStyle(Brand.mutedText(for: colorScheme))
+                .foregroundStyle(Brand.outline(for: colorScheme))
                 .fixedSize(horizontal: false, vertical: true)
-
-            StickerBadge(text: session.text("freeOnly"), color: Brand.sun, systemImage: "heart.fill")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(AppSpacing.large)
-        .background(Brand.raisedFill(for: colorScheme), in: RoundedRectangle(cornerRadius: AppRadius.feature))
     }
 
-    private var searchEntryCard: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            StorySectionTitle(text: session.text("search"), systemImage: "sparkle.magnifyingglass")
-
-            DiscoveryLoupeScene(progress: min(CGFloat(store.query.count) / 16, 1))
-                .animation(reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.84), value: store.query)
+    private var searchSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(session.text("search"))
+                .font(.title3.weight(.bold))
+                .foregroundStyle(Brand.outline(for: colorScheme))
 
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass")
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(Brand.lake)
+                    .foregroundStyle(homeAccent)
+                    .accessibilityHidden(true)
                 TextField(session.text("searchPlaceholder"), text: $store.query)
                     .textInputAutocapitalization(.never)
                     .submitLabel(.search)
-                    .onSubmit {
-                        store.mode = .all
-                        selectedTab = .opportunities
-                        Task { await store.refresh(cache: persistenceContext) }
-                    }
+                    .onSubmit(openResults)
             }
-            .storyField()
+            .padding(.horizontal, 14)
+            .frame(minHeight: 52)
+            .background(Brand.cardFill(for: colorScheme), in: RoundedRectangle(cornerRadius: 12))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(Brand.outline(for: colorScheme).opacity(0.38), lineWidth: 1)
+            }
 
-            searchActions
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(spacing: 10) { cityMenu; ageMenu }
+            } else {
+                HStack(spacing: 10) { cityMenu; ageMenu }
+            }
+
+            Button(action: openResults) {
+                HStack {
+                    Text(session.text("browse"))
+                    Spacer()
+                    Image(systemName: "arrow.forward").accessibilityHidden(true)
+                }
+                .font(.headline.weight(.semibold))
+                .padding(.horizontal, 18)
+                .frame(minHeight: 52)
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(StoryButtonStyle(kind: .primary))
+
+            Button {
+                openPathway(.highSchool)
+            } label: {
+                Label(session.text("highSchool"), systemImage: "graduationcap.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(minHeight: 44)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(homeAccent)
         }
-        .cardSurface()
     }
 
-    private var statusCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 14) {
-                Image(systemName: store.isLoading ? "arrow.triangle.2.circlepath.circle.fill" : "checkmark.seal.fill")
-                    .font(.system(size: 28, weight: .semibold))
-                    .foregroundStyle(store.isLoading ? Brand.lake : Brand.moss)
-                    .symbolEffect(.pulse, options: .repeating, isActive: store.isLoading && !reduceMotion)
-                    .accessibilityHidden(true)
-
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("\(store.activeCount) \(session.text("visible"))")
-                        .font(.headline.weight(.semibold))
-                        .foregroundStyle(Brand.outline(for: colorScheme))
-                    Text("\(session.text("loadedFrom")) \(localizedDataSource)")
-                        .font(.subheadline)
-                        .foregroundStyle(Brand.mutedText(for: colorScheme))
-                    if let lastUpdated = store.lastUpdated {
-                        Label("\(session.text("date")): \(session.formattedDate(lastUpdated))", systemImage: "calendar")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Brand.mutedText(for: colorScheme))
-                            .accessibilityIdentifier("feed-last-updated")
-                    }
-                }
-
-                Spacer()
-
-                Button {
-                    Task { await store.refresh(cache: persistenceContext) }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.headline.weight(.semibold))
-                        .frame(width: 20, height: 20)
-                }
-                .buttonStyle(StoryButtonStyle(kind: .quiet))
-                .accessibilityLabel(session.text("refreshResearch"))
+    private var cityMenu: some View {
+        Menu {
+            Button(session.text("allCities")) { selectCity("") }
+            ForEach(store.availableFilterCities, id: \.self) { city in
+                Button(city) { selectCity(city) }
             }
-            .cardSurface()
+        } label: {
+            filterLabel(title: session.text("city"),
+                        value: store.filters.city.isEmpty ? session.text("allCities") : store.filters.city,
+                        icon: "mappin.and.ellipse")
+        }
+        .accessibilityLabel("\(session.text("city")): \(store.filters.city.isEmpty ? session.text("allCities") : store.filters.city)")
+    }
 
-            if let message = store.errorMessage {
-                Label(message, systemImage: "exclamationmark.triangle.fill")
-                    .font(.footnote)
-                    .foregroundStyle(Brand.coral)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+    private var interestStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 9) {
+                interestButton(category: "Science & Engineering", icon: "atom", color: Brand.sky)
+                interestButton(category: "Coding & Robotics", icon: "curlybraces", color: Brand.sun)
+                interestButton(category: "Makerspace & Fabrication", icon: "paintpalette.fill", color: Brand.coral)
             }
         }
+    }
+
+    private func interestButton(category: String, icon: String, color: Color) -> some View {
+        Button {
+            store.filters.category = category
+            openResults()
+        } label: {
+            Label(session.categoryName(category), systemImage: icon)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Brand.outline(for: colorScheme))
+                .padding(.horizontal, 12)
+                .frame(minHeight: 44)
+                .background(color.opacity(colorScheme == .dark ? 0.28 : 0.22), in: Capsule())
+        }
+        .buttonStyle(SpringPressButtonStyle())
+    }
+
+    private var ageMenu: some View {
+        Menu {
+            Button(session.text("any")) { selectAge("") }
+            ForEach(0...17, id: \.self) { age in
+                Button("\(age)") { selectAge("\(age)") }
+            }
+            Button("18+") { selectAge("18+") }
+        } label: {
+            filterLabel(title: session.text("age"),
+                        value: store.filters.age.isEmpty ? session.text("any") : store.filters.age,
+                        icon: "person.2")
+        }
+        .accessibilityLabel("\(session.text("age")): \(store.filters.age.isEmpty ? session.text("any") : store.filters.age)")
+    }
+
+    private func filterLabel(title: String, value: String, icon: String) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: icon).foregroundStyle(homeAccent).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.caption.weight(.semibold))
+                Text(value).font(.subheadline.weight(.semibold)).lineLimit(1)
+            }
+            Spacer(minLength: 2)
+            Image(systemName: "chevron.down")
+                .font(.caption.weight(.bold))
+                .accessibilityHidden(true)
+        }
+        .foregroundStyle(Brand.outline(for: colorScheme))
+        .padding(.horizontal, 11)
+        .frame(minHeight: 54)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Brand.cardFill(for: colorScheme), in: RoundedRectangle(cornerRadius: 12))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Brand.outline(for: colorScheme).opacity(0.28), lineWidth: 1)
+        }
+    }
+
+    private var activitySection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(session.text("navOpportunities"))
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(Brand.outline(for: colorScheme))
+                Spacer()
+                if store.activeCount > 0 {
+                    Text(OpportunityResultCountText.string(store.activeCount, language: session.language))
+                        .font(.caption)
+                        .foregroundStyle(Brand.mutedText(for: colorScheme))
+                }
+            }
+            .padding(.bottom, 8)
+
+            if store.opportunities.isEmpty {
+                if store.isLoading {
+                    ProgressView(session.text("preparingOpportunities"))
+                        .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+                } else {
+                    Text(store.errorMessage ?? session.text("noOpportunities"))
+                        .font(.subheadline)
+                        .foregroundStyle(Brand.mutedText(for: colorScheme))
+                        .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+                }
+            } else {
+                ForEach(Array(store.opportunities.prefix(2))) { opportunity in
+                    NavigationLink(value: opportunity) {
+                        activityRow(opportunity)
+                    }
+                    .buttonStyle(.plain)
+                    .overlay(alignment: .bottom) {
+                        Rectangle()
+                            .fill(Brand.outline(for: colorScheme).opacity(0.16))
+                            .frame(height: 1)
+                    }
+                }
+            }
+        }
+    }
+
+    private func activityRow(_ opportunity: Opportunity) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: categorySymbol(opportunity.category))
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(Brand.navy)
+                .frame(width: 40, height: 40)
+                .background(Brand.sun.opacity(0.66), in: RoundedRectangle(cornerRadius: 10))
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(opportunity.localizedTitle(language: session.language))
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(Brand.outline(for: colorScheme))
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("\(opportunity.localizedOrganization(language: session.language)) · \(opportunity.city)")
+                    .font(.subheadline)
+                    .foregroundStyle(Brand.mutedText(for: colorScheme))
+                    .fixedSize(horizontal: false, vertical: true)
+                if let schedule = session.formattedSchedule(start: opportunity.startDate, end: opportunity.endDate) {
+                    Label(schedule, systemImage: "calendar")
+                        .font(.caption)
+                        .foregroundStyle(Brand.mutedText(for: colorScheme))
+                }
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.forward")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(homeAccent)
+                .accessibilityHidden(true)
+        }
+        .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
+        .padding(.vertical, 12)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint(session.text("openDetailsHint"))
+    }
+
+    private func categorySymbol(_ category: String) -> String {
+        let lower = category.lowercased()
+        if lower.contains("coding") || lower.contains("robot") || lower.contains("digital") { return "curlybraces" }
+        if lower.contains("nature") || lower.contains("environment") { return "leaf.fill" }
+        if lower.contains("art") || lower.contains("maker") { return "paintpalette.fill" }
+        if lower.contains("science") || lower.contains("stem") { return "atom" }
+        return "book.closed.fill"
     }
 
     private var pathwayGrid: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-        StorySectionTitle(text: session.text("exploreMore"))
-        LazyVGrid(
-            columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())],
-            spacing: 12
-        ) {
-            HomeActionTile(title: session.text("browse"), icon: "rectangle.grid.2x2.fill", color: Brand.lake) {
-                store.mode = .all
-                selectedTab = .opportunities
-                Task { await store.refresh(cache: persistenceContext) }
-            }
-
+        VStack(alignment: .leading, spacing: 0) {
+            Text(session.text("exploreMore"))
+                .font(.headline.weight(.bold))
+                .padding(.bottom, 4)
             if store.availableHomePathwayModes.contains(.volunteer) {
-                HomeActionTile(title: session.text("volunteerHours"), icon: "checkmark.seal.fill", color: Brand.moss) {
-                    store.mode = .volunteer
-                    selectedTab = .highSchool
-                    Task { await store.refresh(cache: persistenceContext) }
+                pathwayRow(session.text("volunteerHours"), icon: "checkmark.seal.fill") {
+                    openPathway(.volunteer)
                 }
             }
-
             if store.availableHomePathwayModes.contains(.coop) {
-                HomeActionTile(title: session.text("coop"), icon: "briefcase.fill", color: Brand.lavender) {
-                    store.mode = .coop
-                    selectedTab = .highSchool
-                    Task { await store.refresh(cache: persistenceContext) }
+                pathwayRow(session.text("coop"), icon: "briefcase.fill") {
+                    openPathway(.coop)
                 }
             }
-
             if store.availableHomePathwayModes.contains(.mentorship) {
-                HomeActionTile(title: session.text("mentorship"), icon: "person.2.wave.2.fill", color: Brand.sky) {
-                    store.mode = .mentorship
-                    selectedTab = .highSchool
-                    Task { await store.refresh(cache: persistenceContext) }
+                pathwayRow(session.text("mentorship"), icon: "person.2.fill") {
+                    openPathway(.mentorship)
                 }
             }
-
-            HomeActionTile(title: session.text("feedback"), icon: "bubble.left.and.bubble.right.fill", color: Brand.coral) {
+            pathwayRow(session.text("feedback"), icon: "bubble.left.and.bubble.right.fill") {
                 selectedTab = .support
             }
         }
-        }
     }
 
-    private var searchActions: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 10) {
-                allOpportunitiesButton
-                highSchoolButton
+    private func pathwayRow(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon).foregroundStyle(homeAccent).frame(width: 26)
+                Text(title).font(.subheadline.weight(.semibold))
+                Spacer()
+                Image(systemName: "arrow.up.forward")
+                    .font(.caption.weight(.semibold))
+                    .accessibilityHidden(true)
             }
+            .foregroundStyle(Brand.outline(for: colorScheme))
+            .frame(minHeight: 48)
+        }
+        .buttonStyle(.plain)
+    }
 
-            VStack(spacing: 10) {
-                allOpportunitiesButton
-                highSchoolButton
+    private var sourceFootnote: some View {
+        HStack(alignment: .top, spacing: 6) {
+            Image(systemName: "checkmark.seal.fill")
+                .foregroundStyle(Brand.moss)
+                .accessibilityHidden(true)
+            Text(session.text("freeShort"))
+            if let lastUpdated = store.lastUpdated {
+                Text("· \(session.text("lastVerified")) \(session.formattedDate(lastUpdated))")
             }
         }
+        .font(.caption)
+        .foregroundStyle(Brand.mutedText(for: colorScheme))
+        .accessibilityIdentifier("feed-last-updated")
     }
 
-    private var allOpportunitiesButton: some View {
-        Button {
-            store.mode = .all
-            selectedTab = .opportunities
-            Task { await store.refresh(cache: persistenceContext) }
-        } label: {
-            Label(session.text("search"), systemImage: "magnifyingglass")
-                .lineLimit(1)
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(StoryButtonStyle(kind: .primary))
+    private func selectCity(_ city: String) {
+        store.filters.city = city
+        store.mode = .all
+        Task { await store.refresh(cache: persistenceContext) }
     }
 
-    private var highSchoolButton: some View {
-        Button {
-            store.mode = .highSchool
-            selectedTab = .highSchool
-            Task { await store.refresh(cache: persistenceContext) }
-        } label: {
-            Label(session.text("highSchool"), systemImage: "graduationcap.fill")
-                .lineLimit(1)
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(StoryButtonStyle(kind: .secondary))
+    private func selectAge(_ age: String) {
+        store.filters.age = age
+        store.mode = .all
+        Task { await store.refresh(cache: persistenceContext) }
     }
 
-    private var localizedDataSource: String {
-        switch store.dataSourceLabel {
-        case DataSource.publicLiveFeed:
-            session.text("publicLiveFeed")
-        case DataSource.previewDatabase:
-            session.text("previewDatabase")
-        case DataSource.savedAppCache:
-            session.text("savedAppCache")
-        }
+    private func openResults() {
+        store.mode = .all
+        selectedTab = .opportunities
+        Task { await store.refresh(cache: persistenceContext) }
+    }
+
+    private func openPathway(_ mode: SearchMode) {
+        store.mode = mode
+        selectedTab = .highSchool
+        Task { await store.refresh(cache: persistenceContext) }
     }
 
     private var persistenceContext: ModelContext? {
@@ -665,33 +802,5 @@ enum OpportunityResultCountText {
         let key = count == 1 ? "resultCountOne" : "resultCountMany"
         return AppText.shared.string(key, language: language)
             .replacingOccurrences(of: "{count}", with: formattedCount)
-    }
-}
-
-private struct HomeActionTile: View {
-    @Environment(\.colorScheme) private var colorScheme
-    let title: String
-    let icon: String
-    let color: Color
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 12) {
-                Image(systemName: icon)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(colorScheme == .dark ? Brand.ice : Brand.navy)
-                    .frame(width: 42, height: 42)
-                    .background(color.opacity(colorScheme == .dark ? 0.28 : 0.18), in: Circle())
-                Text(title)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(Brand.outline(for: colorScheme))
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .frame(maxWidth: .infinity, minHeight: 108, alignment: .topLeading)
-            .cardSurface(padding: 14, cornerRadius: AppRadius.card)
-        }
-        .buttonStyle(SpringPressButtonStyle())
     }
 }

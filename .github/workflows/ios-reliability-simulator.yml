@@ -52,9 +52,9 @@ jobs:
           shasum -a 256 -c <<'HASHES'
           d7c7f6a569336ab94ded4d8177228d6e375d3a5c71b195c8116a70d1075850ff  GTAFreeSTEM/APIClient.swift
           51514df690e9df97f1e710ad8a61c805d21362382f20300768f6b45482ea5b41  GTAFreeSTEM/Models.swift
-          ed9e9537656f2575e9154b1b51914f46f97d33584643114c779e8354f4d76af8  GTAFreeSTEM/OpportunityStore.swift
+          d5597ca1b5085ef612c4577aa3414696dc4e5b8a19be9cbd9971c92f5dc2c91c  GTAFreeSTEM/OpportunityStore.swift
           90297d73766303fb1a8f1a2f307b9f9aca96f01fd2c04be1e6626d8e4901fbd7  GTAFreeSTEM/LocalOpportunitySnapshot.swift
-          6088c6ffa08ef26c2342acbbe08155bb907f2c98ee14093bb8dc9b702d5475db  GTAFreeSTEMTests/APIClientTests.swift
+          81e5c46acf4623820e9a289a5bc675099e82369d18852ec9c1c9581b80ff514c  GTAFreeSTEMTests/APIClientTests.swift
           66263a59a5f2fdf9d217593d8b13db0fc214a0ae1e13db171740f388b1aef4fc  GTAFreeSTEM/Resources/opportunities.json
           06181e9494ed5cf7b5bcd672fba62f674dbed03320de8455c48aa57e92b79da3  docs/scripts/validate-feed-content-rights.py
           HASHES
