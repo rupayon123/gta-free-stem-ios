@@ -1662,11 +1662,68 @@ struct OpportunityFilters: Equatable {
     }
 }
 
+struct OpportunityMapVenue: Identifiable {
+    let id: String
+    let address: String
+    let latitude: Double
+    let longitude: Double
+    let opportunities: [Opportunity]
+}
+
+struct OpportunityMapViewport {
+    let latitude: Double
+    let longitude: Double
+    let distance: Double
+    let pitch: Double
+}
+
 enum OpportunityMapProjection {
     static func pins(from opportunities: [Opportunity]) -> [Opportunity] {
-        opportunities.filter {
-            OpportunityCoordinate.isValid(latitude: $0.latitude, longitude: $0.longitude)
+        opportunities.filter { opportunity in
+            let address = normalizedAddress(opportunity.address)
+            // An online listing may carry a city-centre fallback coordinate.
+            // A missing physical address must remain list-only, too.
+            return !address.isEmpty && !address.hasPrefix("online") && !address.hasPrefix("virtual") &&
+                OpportunityCoordinate.isValid(latitude: opportunity.latitude, longitude: opportunity.longitude)
         }
+    }
+
+    static func venues(from opportunities: [Opportunity]) -> [OpportunityMapVenue] {
+        let mapped = pins(from: opportunities)
+        var order: [String] = []
+        var groups: [String: [Opportunity]] = [:]
+        for opportunity in mapped {
+            // The address AND source coordinate must agree. Distinct venues
+            // sharing a municipal fallback coordinate must never be merged.
+            let key = "\(normalizedAddress(opportunity.address))|\(opportunity.latitude!)|\(opportunity.longitude!)"
+            if groups[key] == nil { order.append(key) }
+            groups[key, default: []].append(opportunity)
+        }
+        return order.compactMap { key in
+            guard let records = groups[key], let first = records.first,
+                  let latitude = first.latitude, let longitude = first.longitude else { return nil }
+            return OpportunityMapVenue(id: key, address: (first.address ?? "").trimmingCharacters(in: .whitespacesAndNewlines),
+                                       latitude: latitude, longitude: longitude, opportunities: records)
+        }
+    }
+
+    static func viewport(for venues: [OpportunityMapVenue]) -> OpportunityMapViewport? {
+        guard let first = venues.first else { return nil }
+        let latitudes = venues.map(\.latitude)
+        let longitudes = venues.map(\.longitude)
+        let latitude = ((latitudes.min() ?? first.latitude) + (latitudes.max() ?? first.latitude)) / 2
+        let longitude = ((longitudes.min() ?? first.longitude) + (longitudes.max() ?? first.longitude)) / 2
+        let northSouth = ((latitudes.max() ?? latitude) - (latitudes.min() ?? latitude)) * 111_320
+        let eastWest = ((longitudes.max() ?? longitude) - (longitudes.min() ?? longitude)) * 111_320 * cos(latitude * .pi / 180)
+        let distance = max(2_400, hypot(northSouth, eastWest) * 2.2)
+        return OpportunityMapViewport(latitude: latitude, longitude: longitude, distance: distance,
+                                      pitch: distance <= 20_000 ? 55 : 35)
+    }
+
+    private static func normalizedAddress(_ address: String?) -> String {
+        (address ?? "").folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
     }
 }
 
