@@ -96,7 +96,7 @@ jobs:
           DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
         run: python3 .github/scripts/capture-native-ui-review.py
       - name: Capture actual native map and detail screens
-        if: always() && steps.simulator.outcome == 'success' && steps.tests.outcome != 'skipped'
+        if: success()
         timeout-minutes: 9
         env:
           TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}

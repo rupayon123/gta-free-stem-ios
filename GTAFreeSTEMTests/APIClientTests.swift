@@ -2166,7 +2166,9 @@ final class APIClientTests: XCTestCase {
         let bundled = try LocalOpportunitySnapshot.loadFull()
         let now = try bundledSnapshotTestNow()
         let client = APIClient(feedURL: feedURL, session: session, now: { now })
-        let target = try XCTUnwrap(bundled.data.first)
+        let target = try XCTUnwrap(bundled.data.first {
+            LocalOpportunitySnapshot.isCurrentlyAvailable($0, on: now)
+        })
         XCTAssertTrue(target.translations.isEmpty)
         let expectedDescription = target.description
         let bundleURL = try XCTUnwrap(AppResources.url(forResource: "opportunities", withExtension: "json"))
@@ -3998,7 +4000,10 @@ final class OpportunityStoreTests: XCTestCase {
         let bundled = try LocalOpportunitySnapshot.loadFull()
         let bundledDate = try XCTUnwrap(FeedFreshness.date(from: bundled.meta?.lastUpdated))
         let now = try bundledSnapshotTestNow()
-        let expectedBundledID = try XCTUnwrap(bundled.data.first?.id)
+        let expectedBundledIDs = LocalOpportunitySnapshot.filter(
+            bundled.data, query: "", mode: .all, filters: OpportunityFilters(), now: now
+        ).map(\.id)
+        XCTAssertFalse(expectedBundledIDs.isEmpty)
         let olderLive = opportunity(
             id: "older-live-only",
             title: "Older Live Event",
@@ -4026,7 +4031,8 @@ final class OpportunityStoreTests: XCTestCase {
         XCTAssertTrue(prepared)
         await store.refresh(cache: context, force: true)
 
-        XCTAssertTrue(store.opportunities.contains { $0.id == expectedBundledID })
+        XCTAssertEqual(store.opportunities.map(\.id), expectedBundledIDs,
+                       "An older live feed must preserve every currently available result from the newer full feed")
         XCTAssertFalse(store.opportunities.contains { $0.id == "older-live-only" })
         XCTAssertEqual(store.dataSourceLabel, .previewDatabase)
         XCTAssertEqual(store.huntPhase, .cached)

@@ -65,7 +65,8 @@ try:
         ('ios-map-detail-light',False,False,['-review-map-selected','-review-map-detail']),
         ('ios-map-overview-dark',True,False,[]),
         ('ios-map-selected-large-text',False,True,['-review-map-selected'])]:
-        run('xcrun','simctl','ui',device,'appearance','dark' if dark else 'light')
+        # The app's explicit preferredTheme launch default controls both SwiftUI
+        # and the MapKit bridge; a redundant simulator appearance RPC can stall.
         run('xcrun','simctl','ui',device,'content_size','accessibility-extra-large' if large else 'large')
         log=output/(name+'.stdout');err=output/(name+'.stderr')
         launched=run('xcrun','simctl','launch','--terminate-running-process','--stdout='+str(log),'--stderr='+str(err),device,bundle,'-preferredTheme','Dark' if dark else 'Light','-start-opportunities','-review-map',*extra,timeout=60)
