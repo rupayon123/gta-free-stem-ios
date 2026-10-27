@@ -4100,6 +4100,7 @@ final class OpportunityStoreTests: XCTestCase {
             delaySeconds: 3.0
         )
 
+        let diagnosticStart = ProcessInfo.processInfo.systemUptime
         let bootstrap = Task { @MainActor in
             await store.bootstrap(cache: nil)
         }
@@ -4107,6 +4108,7 @@ final class OpportunityStoreTests: XCTestCase {
             try await Task.sleep(nanoseconds: 50_000_000)
         }
 
+        print("GTA_STARTUP_OBSERVATION elapsed_ms=\((ProcessInfo.processInfo.systemUptime - diagnosticStart) * 1000) visible=\(store.opportunities.count)")
         XCTAssertGreaterThan(store.opportunities.count, 0)
         XCTAssertEqual(store.dataSourceLabel, .previewDatabase)
 

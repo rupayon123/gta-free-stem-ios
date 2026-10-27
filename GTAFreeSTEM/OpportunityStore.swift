@@ -390,6 +390,8 @@ final class OpportunityStore: ObservableObject {
 
     @discardableResult
     func prepareInitialSnapshot(cache context: ModelContext?) async -> Bool {
+        let diagnosticStart = ProcessInfo.processInfo.systemUptime
+        defer { print("GTA_STARTUP_TRACE prepare_total_ms=\((ProcessInfo.processInfo.systemUptime - diagnosticStart) * 1000) visible=\(opportunities.count)") }
         await restoreLastHuntIfNeeded(in: context)
         if let context {
             await restoreCachedResultsIfAvailable(in: context)
@@ -586,6 +588,7 @@ final class OpportunityStore: ObservableObject {
     }
 
     private func applyBundledSnapshotIfNeeded() async {
+        let diagnosticStart = ProcessInfo.processInfo.systemUptime
         guard let fullFeed = await Self.loadBundledFullFeed(now: self.now()) else {
             // The live refresh remains the authoritative path. If the packaged
             // snapshot is unavailable or corrupt, preserve the existing empty
@@ -593,13 +596,16 @@ final class OpportunityStore: ObservableObject {
             return
         }
 
+        print("GTA_STARTUP_TRACE decoded_bundle_ms=\((ProcessInfo.processInfo.systemUptime - diagnosticStart) * 1000)")
         // A persisted cache can survive an App Store/TestFlight update. Prefer
         // whichever full feed declares the newer data change so an offline
         // updated app does not remain pinned to an older pre-update cache.
         guard OpportunityFeedSelection.shouldPrefer(fullFeed, over: inMemoryFeed, now: self.now()) else { return }
 
         await retainFullFeed(fullFeed, source: .previewDatabase)
+        print("GTA_STARTUP_TRACE after_inventory_ms=\((ProcessInfo.processInfo.systemUptime - diagnosticStart) * 1000)")
         apply(await responseForCurrentHunt(from: fullFeed), source: retainedFeedSource)
+        print("GTA_STARTUP_TRACE bundle_visible_ms=\((ProcessInfo.processInfo.systemUptime - diagnosticStart) * 1000) visible=\(opportunities.count)")
         huntPhase = retainedFeedSource == .publicLiveFeed ? .fresh : .cached
         errorMessage = nil
     }
