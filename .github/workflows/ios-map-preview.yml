@@ -82,7 +82,7 @@ jobs:
           import json,os
           from pathlib import Path
           summary=json.loads((Path(os.environ['RUNNER_TEMP'])/'map-test-summary.json').read_text())
-          expected={'result':'Passed','totalTestCount':177,'passedTests':177,'failedTests':0,'skippedTests':0}
+          expected={'result':'Passed','totalTestCount':178,'passedTests':178,'failedTests':0,'skippedTests':0}
           for key,value in expected.items():
               if summary.get(key)!=value:raise SystemExit('Native test receipt mismatch: '+key+'='+repr(summary.get(key)))
           print('NATIVE_MAP_TESTS_PASS '+json.dumps(expected,sort_keys=True))
