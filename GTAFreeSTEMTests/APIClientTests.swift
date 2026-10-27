@@ -2588,9 +2588,9 @@ final class APIClientTests: XCTestCase {
 
     func testMapPinsAreSubsetOfFilteredListResults() {
         let opportunities = [
-            opportunity(id: "mapped", title: "Mapped Lab", city: "Toronto", latitude: 43.654, longitude: -79.384, startDate: "2026-07-01T04:00:00.000Z"),
+            opportunity(id: "mapped", title: "Mapped Lab", city: "Toronto", address: "1 College Street", latitude: 43.654, longitude: -79.384, startDate: "2026-07-01T04:00:00.000Z"),
             opportunity(id: "list-only", title: "List Lab", city: "Toronto", startDate: "2026-07-02T04:00:00.000Z"),
-            opportunity(id: "filtered-out", title: "Map Lab", city: "Markham", latitude: 43.856, longitude: -79.337, startDate: "2026-07-03T04:00:00.000Z")
+            opportunity(id: "filtered-out", title: "Map Lab", city: "Markham", address: "2 Main Street", latitude: 43.856, longitude: -79.337, startDate: "2026-07-03T04:00:00.000Z")
         ]
         var filters = OpportunityFilters()
         filters.city = "Toronto"
@@ -2611,11 +2611,11 @@ final class APIClientTests: XCTestCase {
 
     func testMapProjectionRejectsInvalidAndIncompleteCoordinatePairs() {
         let opportunities = [
-            opportunity(id: "valid", title: "Valid Map Lab", latitude: 43.654, longitude: -79.384),
-            opportunity(id: "latitude-out-of-range", title: "Bad Latitude", latitude: 91, longitude: -79.384),
-            opportunity(id: "longitude-out-of-range", title: "Bad Longitude", latitude: 43.654, longitude: -181),
-            opportunity(id: "non-finite", title: "Infinite Coordinate", latitude: .infinity, longitude: -79.384),
-            opportunity(id: "latitude-only", title: "Half Coordinate", latitude: 43.654, longitude: nil)
+            opportunity(id: "valid", title: "Valid Map Lab", address: "1 College Street", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "latitude-out-of-range", title: "Bad Latitude", address: "1 College Street", latitude: 91, longitude: -79.384),
+            opportunity(id: "longitude-out-of-range", title: "Bad Longitude", address: "1 College Street", latitude: 43.654, longitude: -181),
+            opportunity(id: "non-finite", title: "Infinite Coordinate", address: "1 College Street", latitude: .infinity, longitude: -79.384),
+            opportunity(id: "latitude-only", title: "Half Coordinate", address: "1 College Street", latitude: 43.654, longitude: nil)
         ]
 
         XCTAssertEqual(OpportunityMapProjection.pins(from: opportunities).map(\.id), ["valid"])
@@ -2624,6 +2624,51 @@ final class APIClientTests: XCTestCase {
         XCTAssertFalse(OpportunityCoordinate.isValid(latitude: 43.654, longitude: -181))
         XCTAssertFalse(OpportunityCoordinate.isValid(latitude: .nan, longitude: -79.384))
         XCTAssertFalse(OpportunityCoordinate.isValid(latitude: 43.654, longitude: nil))
+    }
+
+    func testMapKeepsMissingAndOnlineAddressesInListOnly() {
+        let records = [
+            opportunity(id: "physical", title: "Physical Lab", address: "1 College Street", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "missing", title: "Unknown Venue", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "blank", title: "Blank Venue", address: "  ", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "online", title: "Online Lab", address: "  ONLINE event", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "virtual", title: "Virtual Lab", address: "Virtual via Zoom", latitude: 43.654, longitude: -79.384)
+        ]
+        XCTAssertEqual(OpportunityMapProjection.pins(from: records).map(\.id), ["physical"])
+        XCTAssertEqual(records.count, 5, "Projection must not remove list-only records from its input")
+    }
+
+    func testMapGroupsOnlyMatchingPhysicalVenueAndCoordinates() {
+        let records = [
+            opportunity(id: "first", title: "First Lab", address: "1 College Street", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "second", title: "Second Lab", address: "  1  COLLEGE Street  ", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "different-address", title: "Elsewhere", address: "2 College Street", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "different-coordinate", title: "Another Branch", address: "1 College Street", latitude: 43.7, longitude: -79.4)
+        ]
+        let venues = OpportunityMapProjection.venues(from: records)
+        XCTAssertEqual(venues.count, 3)
+        XCTAssertEqual(venues[0].opportunities.map(\.id), ["first", "second"])
+        XCTAssertEqual(venues.flatMap(\.opportunities).map(\.id), records.map(\.id))
+        let filtered = OpportunityMapProjection.venues(from: [records[1]])
+        XCTAssertEqual(filtered.count, 1)
+        XCTAssertEqual(filtered[0].id, venues[0].id, "Venue identity stays stable as filters remove events at that venue")
+        XCTAssertEqual(filtered[0].opportunities.map(\.id), ["second"])
+    }
+
+    func testMapCameraFollowsActualFilteredVenueExtent() throws {
+        let first = opportunity(id: "toronto", title: "Toronto Lab", address: "1 College Street", latitude: 43.654, longitude: -79.384)
+        let second = opportunity(id: "markham", title: "Markham Lab", address: "2 Main Street", latitude: 43.856, longitude: -79.337)
+        XCTAssertNil(OpportunityMapProjection.viewport(for: []))
+        let single = try XCTUnwrap(OpportunityMapProjection.viewport(for: OpportunityMapProjection.venues(from: [first])))
+        XCTAssertEqual(single.latitude, 43.654)
+        XCTAssertEqual(single.longitude, -79.384)
+        XCTAssertEqual(single.distance, 2_400)
+        XCTAssertEqual(single.pitch, 55)
+        let broad = try XCTUnwrap(OpportunityMapProjection.viewport(for: OpportunityMapProjection.venues(from: [first, second])))
+        XCTAssertEqual(broad.latitude, 43.755, accuracy: 0.000001)
+        XCTAssertEqual(broad.longitude, -79.3605, accuracy: 0.000001)
+        XCTAssertGreaterThan(broad.distance, single.distance)
+        XCTAssertEqual(broad.pitch, 35)
     }
 
     func testSearchSortsByRelevanceThenDate() {
@@ -2881,7 +2926,7 @@ final class APIClientTests: XCTestCase {
         )
         XCTAssertTrue(watchSource.contains("Link(destination: sourceURL)"))
         XCTAssertTrue(
-            browseSource.contains("\"\\(session.text(\"navOpportunities\")) · \\(session.city(for: opportunity))\"")
+            browseSource.contains("Marker(venueTitle(venue)") && browseSource.contains("NavigationLink(value: opportunity)")
         )
     }
 
@@ -3004,6 +3049,7 @@ final class APIClientTests: XCTestCase {
         category: String = "Coding & Robotics",
         city: String = "Toronto",
         region: String = "Toronto",
+        address: String? = nil,
         latitude: Double? = nil,
         longitude: Double? = nil,
         startDate: String? = nil,
@@ -3030,7 +3076,7 @@ final class APIClientTests: XCTestCase {
             category: category,
             city: city,
             region: region,
-            address: nil,
+            address: address,
             latitude: latitude,
             longitude: longitude,
             startDate: startDate,

@@ -45,23 +45,35 @@ struct BrowseView: View {
     @State private var filtersPresented = false
     @State private var websiteUnavailable = false
     @State private var displayMode: BrowseDisplayMode = .list
+    @State private var selectedVenueID: String?
+    @State private var navigationPath: [Opportunity] = []
+    @State private var mapPosition: MapCameraPosition = .camera(MapCamera(
+        centerCoordinate: CLLocationCoordinate2D(latitude: 43.6532, longitude: -79.3832),
+        distance: 5_500, heading: -12, pitch: 55
+    ))
 
     init(surface: BrowseSurface = .opportunities) {
         self.surface = surface
+#if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-review-map") {
+            _displayMode = State(initialValue: .map)
+        }
+#endif
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             ZStack {
                 background
 
+                ScrollViewReader { scrollProxy in
                 ScrollView {
                     VStack(spacing: AppSpacing.standard) {
-                        if dynamicTypeSize.isAccessibilitySize {
+                        if displayMode == .list && dynamicTypeSize.isAccessibilitySize {
                             Text("\(store.activeCount) \(session.text("visible")) · \(session.text("freeShort"))")
                                 .font(.footnote.weight(.semibold))
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                        } else {
+                        } else if displayMode == .list {
                             hero
                         }
                         searchControls
@@ -77,13 +89,17 @@ struct BrowseView: View {
                             huntPanel
                             resultsContent
                         }
-                        if dynamicTypeSize.isAccessibilitySize { hero }
+                        if displayMode == .list && dynamicTypeSize.isAccessibilitySize { hero }
                     }
                     .frame(maxWidth: 880)
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, AppSpacing.standard)
                     .padding(.top, AppSpacing.small)
                     .padding(.bottom, 104)
+                }
+                .onChange(of: selectedVenueID) { _, newID in
+                    if newID != nil { scrollProxy.scrollTo("map-selected-location", anchor: .top) }
+                }
                 }
             }
             .navigationTitle(session.text(surface.titleKey))
@@ -138,7 +154,7 @@ struct BrowseView: View {
     }
 
     private var prioritizesResultsOnCompactLayout: Bool {
-        horizontalSizeClass == .compact && displayMode == .list
+        horizontalSizeClass == .compact
     }
 
     @ViewBuilder
@@ -463,32 +479,140 @@ struct BrowseView: View {
         Task { await store.refresh(cache: persistenceContext, force: true) }
     }
 
-    private var opportunityMap: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            StorySectionTitle(text: session.text("map"), systemImage: "map")
-            Map {
-                ForEach(OpportunityMapProjection.pins(from: store.opportunities)) { opportunity in
-                    Marker(
-                        "\(session.text("navOpportunities")) · \(session.city(for: opportunity))",
-                        coordinate: CLLocationCoordinate2D(latitude: opportunity.latitude ?? 0, longitude: opportunity.longitude ?? 0)
-                    )
-                    .tint(Brand.lake)
-                }
-            }
-            .frame(minHeight: 520)
-            .clipShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-                    .strokeBorder(Brand.surfaceStroke(for: colorScheme), lineWidth: 0.75)
-            }
-            .accessibilityLabel(mapAccessibilityLabel)
-            .accessibilityHint(session.text("sourceDetails"))
+    private var mapVenues: [OpportunityMapVenue] {
+        OpportunityMapProjection.venues(from: store.opportunities)
+    }
 
-            Text(session.text("sourceDetails"))
-                .font(.caption)
-                .foregroundStyle(Brand.mutedText(for: colorScheme))
+    private var opportunityMap: some View {
+        let venues = mapVenues
+        let mappedCount = venues.reduce(0) { $0 + $1.opportunities.count }
+        let selected = venues.first { $0.id == selectedVenueID }
+        return VStack(alignment: .leading, spacing: 12) {
+            StorySectionTitle(text: session.text("map"), systemImage: "map")
+            if venues.isEmpty {
+                ContentUnavailableView(session.text("mapNoLocations"), systemImage: "mappin.slash")
+            } else {
+                Text(session.text("mapLocationCount")
+                    .replacingOccurrences(of: "{locations}", with: "\(venues.count)")
+                    .replacingOccurrences(of: "{count}", with: "\(mappedCount)"))
+                    .font(.subheadline.weight(.semibold))
+                Map(position: $mapPosition, selection: $selectedVenueID) {
+                    ForEach(venues) { venue in
+                        Marker(venueTitle(venue), systemImage: venue.opportunities.count > 1 ? "square.stack.3d.up.fill" : "mappin",
+                               coordinate: CLLocationCoordinate2D(latitude: venue.latitude, longitude: venue.longitude))
+                            .tint(Brand.lake)
+                            .tag(venue.id)
+                    }
+                }
+                .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excludingAll))
+                .mapControls {
+                    MapCompass()
+                    MapPitchToggle()
+                    MapScaleView()
+                }
+                .frame(height: horizontalSizeClass == .compact ? 340 : 520)
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+                        .strokeBorder(Brand.surfaceStroke(for: colorScheme), lineWidth: 0.75)
+                }
+                .accessibilityLabel(mapAccessibilityLabel)
+                .accessibilityHint(session.text("mapLocationsHint"))
+                .accessibilityIdentifier("opportunity-map")
+                .onAppear { updateMap(for: venues) }
+                .onChange(of: venues.map(\.id)) { _, _ in updateMap(for: venues) }
+                .onChange(of: selectedVenueID) { _, newID in
+                    if let venue = venues.first(where: { $0.id == newID }) { focusMap(on: venue) }
+                }
+
+                Button { updateMap(for: venues, clearSelection: true) } label: {
+                    Label(session.text("mapShowLocations"), systemImage: "arrow.up.left.and.arrow.down.right")
+                        .frame(minHeight: 44)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("map-show-locations")
+                Text(session.text("mapLocationsHint"))
+                    .font(.caption)
+                    .foregroundStyle(Brand.mutedText(for: colorScheme))
+            }
+
+            if let selected {
+                LazyVStack(alignment: .leading, spacing: 10) {
+                    Text(selected.address)
+                        .id("map-selected-location")
+                        .font(.headline)
+                        .fixedSize(horizontal: false, vertical: true)
+                    ForEach(selected.opportunities) { opportunity in
+                        NavigationLink(value: opportunity) {
+                            HStack(alignment: .top) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(session.title(for: opportunity)).font(.subheadline.weight(.semibold))
+                                    Text(opportunity.organization).font(.caption)
+                                }
+                                Spacer(minLength: 8)
+                                Image(systemName: "chevron.right").accessibilityHidden(true)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint(session.text("details"))
+                        .accessibilityIdentifier("map-opportunity-\(opportunity.id)")
+                        Divider()
+                    }
+                }
+                .cardSurface(padding: AppSpacing.medium)
+                .accessibilityIdentifier("map-selected-location")
+            }
+
+            if mappedCount < store.opportunities.count {
+                Text(session.text("mapMissingLocations").replacingOccurrences(of: "{count}", with: "\(store.opportunities.count - mappedCount)"))
+                    .font(.footnote)
+                    .foregroundStyle(Brand.mutedText(for: colorScheme))
+            }
+            Button { displayMode = .list } label: {
+                Label(session.text("list"), systemImage: "list.bullet")
+                    .frame(maxWidth: .infinity, minHeight: 44)
+            }
+            .buttonStyle(StoryButtonStyle(kind: .quiet))
+            .accessibilityIdentifier("map-list-fallback")
         }
         .cardSurface()
+    }
+
+    private func venueTitle(_ venue: OpportunityMapVenue) -> String {
+        venue.opportunities.count == 1
+            ? session.title(for: venue.opportunities[0])
+            : "\(venue.opportunities.count) \(session.text("navOpportunities")) · \(session.city(for: venue.opportunities[0]))"
+    }
+
+    private func focusMap(on venue: OpportunityMapVenue) {
+        mapPosition = .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: venue.latitude, longitude: venue.longitude),
+                                        distance: 2_400, heading: -12, pitch: 55))
+    }
+
+    private func updateMap(for venues: [OpportunityMapVenue], clearSelection: Bool = false) {
+        if clearSelection || !venues.contains(where: { $0.id == selectedVenueID }) { selectedVenueID = nil }
+        guard let viewport = OpportunityMapProjection.viewport(for: venues) else { return }
+        mapPosition = .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: viewport.latitude, longitude: viewport.longitude),
+                                        distance: viewport.distance, heading: -12, pitch: viewport.pitch))
+#if DEBUG
+        // Isolated runtime review can open a real selected-location state.
+        // It never fabricates a venue or mutates the feed, saved state or loader.
+        let arguments = ProcessInfo.processInfo.arguments
+        if !clearSelection, arguments.contains("-review-map-selected"), let first = venues.first(where: { $0.opportunities.count > 1 }) ?? venues.first {
+            selectedVenueID = first.id
+            focusMap(on: first)
+            if arguments.contains("-review-map-detail"), let opportunity = first.opportunities.first, navigationPath.isEmpty {
+                navigationPath = [opportunity]
+            }
+        }
+        if arguments.contains("-review-map") {
+            let mode = arguments.contains("-review-map-detail") ? "detail" : (selectedVenueID == nil ? "overview" : "selected")
+            let mapped = venues.reduce(0) { $0 + $1.opportunities.count }
+            print("GTA_MAP_REVIEW_READY \(mode) venues=\(venues.count) mapped=\(mapped) filtered=\(store.opportunities.count)")
+        }
+#endif
     }
 
 
@@ -504,7 +628,7 @@ struct BrowseView: View {
     }
 
     private var mapAccessibilityLabel: String {
-        "\(session.text("map")): \(store.opportunities.count) \(session.text("visible"))"
+        "\(session.text("map")): \(OpportunityMapProjection.pins(from: store.opportunities).count) / \(store.opportunities.count) \(session.text("visible"))"
     }
 
     private var background: some View {
