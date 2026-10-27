@@ -85,7 +85,7 @@ run("xcrun", "simctl", "bootstatus", device, "-b", timeout=120)
 simulatorApp = Path(os.environ["DEVELOPER_DIR"]) / "Applications/Simulator.app"
 if not simulatorApp.is_dir():
     raise SystemExit("The reviewed Xcode Simulator app is unavailable")
-run("open", "-a", str(simulatorApp), "--args", "-CurrentDeviceUDID", device, timeout=30)
+run("open", "-a", str(simulatorApp), "--args", "-CurrentDeviceUDID", device, timeout=90)
 time.sleep(2)
 run("xcrun", "simctl", "install", device, str(app), timeout=60)
 # Each fixture sets its own native preferredColorScheme. A redundant simulator

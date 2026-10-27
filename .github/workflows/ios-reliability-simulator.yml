@@ -75,7 +75,7 @@ jobs:
             -derivedDataPath "$RUNNER_TEMP/GTAFreeSTEM-derived-data" -jobs 2 \
             CODE_SIGNING_ALLOWED=NO GTA_RELEASE_SOURCE_COMMIT="$CANDIDATE_SOURCE_SHA"
       - name: Capture actual normal Browse after bounded loading waits
-        timeout-minutes: 8
+        timeout-minutes: 12
         env:
           TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}
         run: python3 "$GITHUB_WORKSPACE/qa/.github/scripts/capture-normal-browse.py"
