@@ -271,6 +271,7 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
     let isNewFind: Bool?
     let sourceConfidence: String?
     let translations: [String: OpportunityTranslation]
+    let virtual: Bool
 
     var isExplicitlyFree: Bool {
         OpportunityCostEligibility.isExplicitlyFree(cost)
@@ -311,6 +312,7 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
         case translations
         case localizations
         case localized
+        case virtual
     }
 
     private enum AgeKeys: String, CodingKey {
@@ -346,7 +348,8 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
         distanceKm: Double?,
         isNewFind: Bool?,
         sourceConfidence: String?,
-        translations: [String: OpportunityTranslation] = [:]
+        translations: [String: OpportunityTranslation] = [:],
+        virtual: Bool = false
     ) {
         self.id = id
         self.title = title
@@ -381,6 +384,7 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
         self.isNewFind = isNewFind
         self.sourceConfidence = sourceConfidence
         self.translations = Self.normalizedTranslations(translations)
+        self.virtual = virtual
     }
 
     init(from decoder: Decoder) throws {
@@ -464,7 +468,8 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
             distanceKm: try? container.decodeIfPresent(Double.self, forKey: .distanceKm),
             isNewFind: try? container.decodeIfPresent(Bool.self, forKey: .isNewFind),
             sourceConfidence: try? container.decodeIfPresent(String.self, forKey: .sourceConfidence),
-            translations: decodedTranslations
+            translations: decodedTranslations,
+            virtual: try container.decodeIfPresent(Bool.self, forKey: .virtual) ?? false
         )
     }
 
@@ -541,6 +546,7 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
         try container.encode(sourceUrl, forKey: .sourceUrl)
         try container.encodeIfPresent(registrationUrl, forKey: .registrationUrl)
         try container.encode(status, forKey: .status)
+        try container.encode(virtual, forKey: .virtual)
         try container.encode(volunteerHoursEligible, forKey: .volunteerHoursEligible)
         try container.encode(coopEligible, forKey: .coopEligible)
         try container.encode(tags, forKey: .tags)
@@ -602,7 +608,8 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
             distanceKm: distanceKm,
             isNewFind: isNewFind,
             sourceConfidence: sourceConfidence,
-            translations: translations
+            translations: translations,
+            virtual: virtual
         )
     }
 
@@ -1698,7 +1705,7 @@ enum OpportunityMapProjection {
             let address = normalizedAddress(opportunity.address)
             // An online listing may carry a city-centre fallback coordinate.
             // A missing physical address must remain list-only, too.
-            return !address.isEmpty && !address.hasPrefix("online") && !address.hasPrefix("virtual") &&
+            return !opportunity.virtual && !address.isEmpty && !address.hasPrefix("online") && !address.hasPrefix("virtual") &&
                 OpportunityCoordinate.isValid(latitude: opportunity.latitude, longitude: opportunity.longitude)
         }
     }

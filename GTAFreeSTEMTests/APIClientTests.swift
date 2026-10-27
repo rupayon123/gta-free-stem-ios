@@ -2640,6 +2640,27 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(records.count, 5, "Projection must not remove list-only records from its input")
     }
 
+    func testExplicitVirtualFlagSurvivesCacheAndArchiveAndPreventsPhysicalPins() throws {
+        let physical = opportunity(id: "physical", title: "Library visit", address: "1 College Street", latitude: 43.654, longitude: -79.384)
+        var wire = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(physical)) as? [String: Any])
+        wire.removeValue(forKey: "virtual")
+        let legacy = try JSONDecoder().decode(Opportunity.self, from: JSONSerialization.data(withJSONObject: wire))
+        XCTAssertFalse(legacy.virtual, "Existing feeds without the optional field remain compatible")
+        wire["id"] = "online-with-provider-address"
+        wire["virtual"] = true
+        let online = try JSONDecoder().decode(Opportunity.self, from: JSONSerialization.data(withJSONObject: wire))
+        XCTAssertTrue(online.virtual)
+        XCTAssertEqual(OpportunityMapProjection.pins(from: [legacy, online]).map(\.id), ["physical"],
+                       "An online event must not become a physical destination merely because its provider has an address")
+        let cached = try JSONDecoder().decode(Opportunity.self, from: JSONEncoder().encode(online))
+        XCTAssertTrue(cached.virtual)
+        XCTAssertTrue(cached.replacingStatus(with: "archived").virtual)
+        XCTAssertEqual(cached.description, online.description)
+        wire["virtual"] = "true"
+        XCTAssertThrowsError(try JSONDecoder().decode(Opportunity.self, from: JSONSerialization.data(withJSONObject: wire)),
+                             "A supplied safety-relevant flag must be a boolean")
+    }
+
     func testMapGroupsOnlyMatchingPhysicalVenueAndCoordinates() {
         let records = [
             opportunity(id: "first", title: "First Lab", address: "1 College Street", latitude: 43.654, longitude: -79.384),
