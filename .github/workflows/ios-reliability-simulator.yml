@@ -54,7 +54,7 @@ jobs:
           51514df690e9df97f1e710ad8a61c805d21362382f20300768f6b45482ea5b41  GTAFreeSTEM/Models.swift
           1f70bff830e09b7d83e89f5ff61d84c9a6e22bad124758372b5e03978a156266  GTAFreeSTEM/OpportunityStore.swift
           90297d73766303fb1a8f1a2f307b9f9aca96f01fd2c04be1e6626d8e4901fbd7  GTAFreeSTEM/LocalOpportunitySnapshot.swift
-          2ebcf9b08926b7b71444fa6a1b0c31fa8d516a457e0730d0c04c95ffce6b77ea  GTAFreeSTEMTests/APIClientTests.swift
+          3af881debf6cf57f4ade8a0032bcaff6597d7bf3da5a2a0c48fed681bfbc18c7  GTAFreeSTEMTests/APIClientTests.swift
           66263a59a5f2fdf9d217593d8b13db0fc214a0ae1e13db171740f388b1aef4fc  GTAFreeSTEM/Resources/opportunities.json
           06181e9494ed5cf7b5bcd672fba62f674dbed03320de8455c48aa57e92b79da3  docs/scripts/validate-feed-content-rights.py
           HASHES
