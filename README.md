@@ -36,7 +36,7 @@ The app reads the public opportunity feed from the web repository and keeps a lo
 
 ## Development status
 
-The current internal iPhone candidate is **1.0 (15)**, bound to source `08c172d20060ec0748fccae2677c7554c3fe8145`. Its CI run passed 178/178 tests and three targeted cancellation-race repeats; its archive and exported IPA passed 52/52 and 62/62 strict checks. Upload to the existing internal TestFlight channel is in progress; processed-build availability and installation have not been confirmed in this handoff.
+The current internal iPhone candidate is **1.0 (15)**, bound to source `08c172d20060ec0748fccae2677c7554c3fe8145`. Its CI run passed 178/178 tests and three targeted cancellation-race repeats; its archive and exported IPA passed 52/52 and 62/62 strict checks. Xcode confirmed upload to the existing internal TestFlight channel on October 27. App Store Connect processing, tester-group availability and installation have not yet been confirmed.
 
 Public App Store release is **not complete**. Fresh physical iPhone/iPad, paired Watch and Mac acceptance, the canonical App Store screenshots, and the required public-release gates remain separate work. [Current build 15 handoff and evidence](docs/CURRENT_RELEASE_HANDOFF.md) records those boundaries; older build 12/13/14 records remain historical.
 

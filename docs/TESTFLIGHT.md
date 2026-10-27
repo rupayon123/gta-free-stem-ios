@@ -1,6 +1,6 @@
 # TestFlight Guide
 
-This guide covers the current internal GTA FREE STEM candidate, **1.0 (15)**. Its verified app source and exact exported IPA are recorded in [the current release handoff](CURRENT_RELEASE_HANDOFF.md). Upload is in progress; do not assume that build 15 is processed, available to testers or installed. Reuse the recorded verified export for delivery rather than rebuilding it from a documentation-only follow-up commit.
+This guide covers the current internal GTA FREE STEM candidate, **1.0 (15)**. Its verified app source and exact exported IPA are recorded in [the current release handoff](CURRENT_RELEASE_HANDOFF.md). Xcode confirmed upload; do not assume that build 15 is processed, available to testers or installed. Reuse the recorded verified export for delivery rather than rebuilding it from a documentation-only follow-up commit.
 
 ## Prerequisites
 
