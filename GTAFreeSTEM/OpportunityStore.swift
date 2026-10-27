@@ -193,6 +193,7 @@ final class OpportunityStore: ObservableObject {
     @Published var didRestoreLastHunt = false
     @Published private(set) var availableHomePathwayModes: [SearchMode] = []
     @Published private(set) var availableFilterCities: [String] = []
+    @Published private(set) var availableFilterCategories: [String] = []
 
     private let api: APIClient
     private let defaults: UserDefaults
@@ -225,23 +226,30 @@ final class OpportunityStore: ObservableObject {
         retainedFeedSource = source
         availableHomePathwayModes = []
         availableFilterCities = []
+        availableFilterCategories = []
         guard let response else { return generation }
         let snapshotNow = now()
         let inventory = await Task.detached(priority: .userInitiated) {
             let modes = HomePathwayInventory.availableModes(in: response.data, now: snapshotNow)
-            let eligibleCities: [String] = response.data.compactMap { opportunity in
+            var cities = Set<String>()
+            var categories = Set<String>()
+            for opportunity in response.data {
                 guard opportunity.isExplicitlyFree,
-                      LocalOpportunitySnapshot.isCurrentlyAvailable(opportunity, on: snapshotNow),
-                      !opportunity.city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                else { return nil }
-                return opportunity.city
+                      LocalOpportunitySnapshot.isCurrentlyAvailable(opportunity, on: snapshotNow)
+                else { continue }
+                if !opportunity.city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    cities.insert(opportunity.city)
+                }
+                if !opportunity.category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    categories.insert(opportunity.category)
+                }
             }
-            let cities = Array(Set(eligibleCities)).sorted()
-            return (modes: modes, cities: cities)
+            return (modes: modes, cities: cities.sorted(), categories: categories.sorted())
         }.value
         guard generation == catalogueGeneration else { return generation }
         availableHomePathwayModes = inventory.modes
         availableFilterCities = inventory.cities
+        availableFilterCategories = inventory.categories
         return generation
     }
 

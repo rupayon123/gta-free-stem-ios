@@ -99,6 +99,11 @@ final class APIClientTests: XCTestCase {
             $0.isExplicitlyFree && LocalOpportunitySnapshot.isCurrentlyAvailable($0, on: now)
         }.map(\.city)).sorted()
         XCTAssertEqual(store.availableFilterCities, expectedCities)
+        let expectedCategories = Set(expected.filter {
+            $0.isExplicitlyFree && LocalOpportunitySnapshot.isCurrentlyAvailable($0, on: now)
+        }.map(\.category)).sorted()
+        XCTAssertEqual(store.availableFilterCategories, expectedCategories,
+                       "Home must show categories from the retained full feed even after a narrow search.")
         XCTAssertEqual(store.query, "volunteer")
         XCTAssertEqual(store.opportunities.map(\.id), expectedIDs, "A slower earlier search cannot replace the latest results")
         store.useCurrentLocation(CLLocationCoordinate2D(latitude: 43.6532, longitude: -79.3832))
@@ -2945,6 +2950,9 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(contentSource.contains("ForEach(Array(store.opportunities.prefix(2)))"))
         XCTAssertTrue(contentSource.contains("private var cityMenu"))
         XCTAssertTrue(contentSource.contains("private var ageMenu"))
+        XCTAssertTrue(contentSource.contains("private var categoryMenu"))
+        XCTAssertTrue(contentSource.contains("store.availableFilterCategories"))
+        XCTAssertTrue(contentSource.contains("home-category-filter"))
     }
 
     func testBackgroundRefreshUsesCacheContextAndNewMatchNotifications() throws {

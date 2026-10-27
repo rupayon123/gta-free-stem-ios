@@ -510,6 +510,7 @@ struct HomeView: View {
             } else {
                 HStack(spacing: 10) { cityMenu; ageMenu }
             }
+            categoryMenu
 
             Button(action: openResults) {
                 HStack {
@@ -560,12 +561,32 @@ struct HomeView: View {
         }
     }
 
+    private var categoryMenu: some View {
+        Menu {
+            Button(session.text("allCategories")) { selectCategory("All") }
+            ForEach(store.availableFilterCategories, id: \.self) { category in
+                Button(session.categoryName(category)) { selectCategory(category) }
+            }
+        } label: {
+            filterLabel(title: session.text("category"),
+                        value: store.filters.category == "All" ? session.text("allCategories") : session.categoryName(store.filters.category),
+                        icon: "square.grid.2x2")
+        }
+        .accessibilityLabel("\(session.text("category")): \(store.filters.category == "All" ? session.text("allCategories") : session.categoryName(store.filters.category))")
+        .accessibilityIdentifier("home-category-filter")
+    }
+
     private func interestButton(category: String, icon: String, color: Color) -> some View {
         Button {
             store.filters.category = category
             openResults()
         } label: {
-            Label(session.categoryName(category), systemImage: icon)
+            HStack(spacing: 7) {
+                Label(session.categoryName(category), systemImage: icon)
+                if store.filters.category == category {
+                    Image(systemName: "checkmark.circle.fill").accessibilityHidden(true)
+                }
+            }
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Brand.outline(for: colorScheme))
                 .padding(.horizontal, 12)
@@ -573,6 +594,7 @@ struct HomeView: View {
                 .background(color.opacity(colorScheme == .dark ? 0.28 : 0.22), in: Capsule())
         }
         .buttonStyle(SpringPressButtonStyle())
+        .accessibilityAddTraits(store.filters.category == category ? .isSelected : [])
     }
 
     private var ageMenu: some View {
@@ -597,7 +619,10 @@ struct HomeView: View {
             Image(systemName: icon).foregroundStyle(homeAccent).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).font(.caption.weight(.semibold))
-                Text(value).font(.subheadline.weight(.semibold)).lineLimit(1)
+                Text(value)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+                    .fixedSize(horizontal: false, vertical: dynamicTypeSize.isAccessibilitySize)
             }
             Spacer(minLength: 2)
             Image(systemName: "chevron.down")
@@ -766,6 +791,12 @@ struct HomeView: View {
 
     private func selectAge(_ age: String) {
         store.filters.age = age
+        store.mode = .all
+        Task { await store.refresh(cache: persistenceContext) }
+    }
+
+    private func selectCategory(_ category: String) {
+        store.filters.category = category
         store.mode = .all
         Task { await store.refresh(cache: persistenceContext) }
     }
