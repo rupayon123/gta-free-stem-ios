@@ -757,7 +757,7 @@ struct HomeView: View {
     }
 
     private func selectCity(_ city: String) {
-        store.filters.city = city
+        store.useCity(city)
         store.mode = .all
         Task { await store.refresh(cache: persistenceContext) }
     }

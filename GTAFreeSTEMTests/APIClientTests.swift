@@ -100,6 +100,17 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(store.availableFilterCities, expectedCities)
         XCTAssertEqual(store.query, "volunteer")
         XCTAssertEqual(store.opportunities.map(\.id), expectedIDs, "A slower earlier search cannot replace the latest results")
+        store.useCurrentLocation(CLLocationCoordinate2D(latitude: 43.6532, longitude: -79.3832))
+        store.filters.region = "York"
+        store.filters.age = "12"
+        store.useCity("Toronto")
+        XCTAssertEqual(store.filters.city, "Toronto")
+        XCTAssertEqual(store.filters.region, "All")
+        XCTAssertNil(store.filters.latitude)
+        XCTAssertNil(store.filters.longitude)
+        XCTAssertEqual(store.filters.sort, .date)
+        XCTAssertEqual(store.filters.age, "12", "Choosing a city preserves the chosen age")
+        XCTAssertEqual(store.query, "volunteer")
     }
 
     private var testRepositoryRoot: URL {

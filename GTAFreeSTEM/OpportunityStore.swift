@@ -546,6 +546,13 @@ final class OpportunityStore: ObservableObject {
         filters.sort = .distance
     }
 
+    func useCity(_ city: String) {
+        // A city selection replaces a one-shot nearby/region constraint.
+        clearLocation()
+        filters.region = "All"
+        filters.city = city
+    }
+
     func clearLocation() {
         filters.latitude = nil
         filters.longitude = nil
