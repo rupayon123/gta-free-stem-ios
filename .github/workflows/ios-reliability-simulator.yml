@@ -51,10 +51,10 @@ jobs:
           shasum -a 256 -c .github/native-ci-source.sha256
           shasum -a 256 -c <<'HASHES'
           d7c7f6a569336ab94ded4d8177228d6e375d3a5c71b195c8116a70d1075850ff  GTAFreeSTEM/APIClient.swift
-          e866cbbdf2da4da1c6b4b21bb8dcc4ae400629447f8084da38488689f316d1d4  GTAFreeSTEM/Models.swift
+          fe4c7acecf31a64e2bfc2826a49aa94521a937294c8c7674de3506e4c81d36f4  GTAFreeSTEM/Models.swift
           6b1d94f6f4d2b54e1cc4754967b6df8360a53698f0477189c936b43245279197  GTAFreeSTEM/OpportunityStore.swift
           90297d73766303fb1a8f1a2f307b9f9aca96f01fd2c04be1e6626d8e4901fbd7  GTAFreeSTEM/LocalOpportunitySnapshot.swift
-          f5078ecd9df20a41f5fb775b399d29de3313376ec5928147e89b1bca8379241f  GTAFreeSTEMTests/APIClientTests.swift
+          e52873c026b39305a12241a80a0e856f688f938f37e8ef53814fe519373cc61f  GTAFreeSTEMTests/APIClientTests.swift
           66263a59a5f2fdf9d217593d8b13db0fc214a0ae1e13db171740f388b1aef4fc  GTAFreeSTEM/Resources/opportunities.json
           06181e9494ed5cf7b5bcd672fba62f674dbed03320de8455c48aa57e92b79da3  docs/scripts/validate-feed-content-rights.py
           HASHES
@@ -126,13 +126,13 @@ jobs:
           import json, os
           from pathlib import Path
           summary = json.loads((Path(os.environ['RUNNER_TEMP']) / 'reliability-summary.json').read_text())
-          expected = {'result': 'Passed', 'totalTestCount': 176, 'passedTests': 176,
+          expected = {'result': 'Passed', 'totalTestCount': 177, 'passedTests': 177,
                       'failedTests': 0, 'skippedTests': 0, 'expectedFailures': 0}
           for key, value in expected.items():
               if summary.get(key) != value:
                   raise SystemExit('Full reliability receipt differs: ' + key + ' = ' + repr(summary.get(key)))
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
-              output.write('Full iOS reliability target passed: 176 executed, 176 passed, 0 failed, 0 skipped.\n')
+              output.write('Full iOS reliability target passed: 177 executed, 177 passed, 0 failed, 0 skipped.\n')
               output.write('This is Debug iPhone simulator evidence only; full release gates remain separate.\n')
           PY
 
