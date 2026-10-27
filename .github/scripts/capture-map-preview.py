@@ -19,9 +19,28 @@ match=[x for xs in inventory.values() for x in xs if x.get('udid')==device]
 if len(match)!=1:raise SystemExit('Exact runner simulator missing')
 if match[0]['state']=='Shutdown':run('xcrun','simctl','boot',device)
 run('xcrun','simctl','bootstatus',device,'-b',timeout=120)
-run('open','-a','Simulator','--args','-CurrentDeviceUDID',device)
-run('xcrun','simctl','install',device,str(app),timeout=60)
 bundle='com.rupayonhaldar.gtafreestem'
+
+def bundle_manifest(directory):
+    return {str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sorted(directory.rglob('*')) if path.is_file()}
+
+# xcodebuild test has already installed this app on the same destination.
+# Reuse it only when every installed file matches the exact tested product.
+# A redundant install after opening Simulator can stall behind its UI attach.
+expected_manifest=bundle_manifest(app)
+if not expected_manifest:raise SystemExit('Built native app has no files')
+installed_text=run('xcrun','simctl','get_app_container',device,bundle,'app',check=False)
+installed=Path(installed_text) if installed_text.startswith('/') else None
+reused=bool(installed and installed.is_dir() and bundle_manifest(installed)==expected_manifest)
+if not reused:
+    run('xcrun','simctl','terminate',device,bundle,check=False)
+    run('xcrun','simctl','install',device,str(app),timeout=120)
+    installed=Path(run('xcrun','simctl','get_app_container',device,bundle,'app'))
+    if bundle_manifest(installed)!=expected_manifest:
+        raise SystemExit('Installed native app does not match the tested product')
+print('NATIVE_INSTALLED_PRODUCT_VERIFIED '+json.dumps(dict(files=len(expected_manifest),reusedTestedInstallation=reused)),flush=True)
+run('open','-a','Simulator','--args','-CurrentDeviceUDID',device)
 frames=[]
 
 def emit_frame(name, meta):
