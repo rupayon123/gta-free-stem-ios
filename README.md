@@ -2,16 +2,23 @@
 
 I'm building GTA FREE STEM to make free STEM programs easier to find across the Greater Toronto Area. This is the native SwiftUI app for iPhone, with iPad, Mac Catalyst, and an Apple Watch companion in the project.
 
-[Android app](https://github.com/rupayon123/gta-free-stem-android) | [Web app](https://github.com/rupayon123/gta-free-stem-opportunities) | [Try the website](https://gta-free-stem.vercel.app/)
+[Android app](https://github.com/rupayon123/gta-free-stem-android) | [Web app](https://github.com/rupayon123/gta-free-stem-opportunities) | [Try the website](https://gta-free-stem.pages.dev/)
 
 ## The iPhone experience
 
 <table>
-<tr><th width="50%">Home</th><th width="50%">Search</th></tr>
-<tr><td align="center"><a href="docs/showcase/home.png"><img src="docs/showcase/home.png" alt="Home" width="300"></a></td><td align="center"><a href="docs/showcase/search.png"><img src="docs/showcase/search.png" alt="Search" width="300"></a></td></tr>
-<tr><th>High School Search</th><th>Profile</th></tr>
-<tr><td align="center"><a href="docs/showcase/hs-search.png"><img src="docs/showcase/hs-search.png" alt="High School Search" width="300"></a></td><td align="center"><a href="docs/showcase/profile.png"><img src="docs/showcase/profile.png" alt="Profile" width="300"></a></td></tr>
+<tr><th width="50%">Start on Home</th><th width="50%">Browse real activities</th></tr>
+<tr><td align="center"><a href="docs/showcase/ios-home-simulator-2026-10-25.jpg"><img src="docs/showcase/ios-home-simulator-2026-10-25.jpg" alt="iPhone simulator home showing Search, High School, and a public live feed status" width="300"></a></td><td align="center"><a href="docs/showcase/ios-browse-simulator-2026-10-27.jpg"><img src="docs/showcase/ios-browse-simulator-2026-10-27.jpg" alt="iPhone simulator Browse screen showing search, filters, list and map switch, and a Toronto Public Library activity" width="300"></a></td></tr>
 </table>
+
+These unretouched **iPhone simulator** captures use the `a6b1a54` app source in normal runtime. Home was captured October 25 with 1,882 public-feed listings. Browse was captured October 27 after 20 seconds, with 1,856 listings and a real Toronto Public Library result. Counts change; these captures do not prove physical-device performance or the later build 14. [Capture details and older screenshots](docs/showcase/README.md).
+
+## Find and save an activity
+
+1. Open **Search** or **Opportunities**, then enter an interest, library, or city. Use **Filters** to narrow by age, category, place, and other available fields.
+2. Open a listing to review its age range, schedule, location, and original provider. Use the provider link to confirm availability and any registration steps.
+3. Save an activity to return to it later on this device. Use **High School** for volunteer hours, co-op, SHSM, mentorship, and related pathways.
+4. If the app opens from an offline backup, check the source and last-checked date, then refresh when connected.
 
 ## About the app
 
@@ -23,7 +30,9 @@ The app reads the public opportunity feed from the web repository and keeps a lo
 
 ## Development status
 
-Build 1.0 (12) is the recorded release candidate, with TestFlight upload and real-device signoff still pending. These screenshots are from the installed simulator build, not a new build of the latest source.
+Version **1.0 (14)** has processed successfully and is available to existing internal TestFlight testers. The public App Store release is still in preparation. Current work includes responsiveness fixes, complete description translations, and further device testing.
+
+The screenshots above show the same interface from an earlier source capture. They are simulator images; physical-device performance remains a separate check.
 
 [Release runbook](docs/PUBLIC_RELEASE_RUNBOOK.md) | [TestFlight setup](docs/TESTFLIGHT.md) | [Device signoff](docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md)
 
