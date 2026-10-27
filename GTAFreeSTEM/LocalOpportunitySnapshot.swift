@@ -468,6 +468,9 @@ private final class OpportunityDateParser: @unchecked Sendable {
     private let fractionalISO8601: ISO8601DateFormatter
     private let standardISO8601: ISO8601DateFormatter
     private let dateOnly: DateFormatter
+    private struct CachedDate { let value: Date? }
+    private var parsedDates: [String: CachedDate] = [:]
+    private let maximumCachedDates = 4_096
 
     init() {
         let fractionalISO8601 = ISO8601DateFormatter()
@@ -491,8 +494,16 @@ private final class OpportunityDateParser: @unchecked Sendable {
     func date(from value: String) -> Date? {
         lock.lock()
         defer { lock.unlock() }
-        return fractionalISO8601.date(from: value) ??
+        if let cached = parsedDates[value] { return cached.value }
+        let parsed = fractionalISO8601.date(from: value) ??
             standardISO8601.date(from: value) ??
             dateOnly.date(from: value)
+        // Only the deterministic parse is cached, never time-dependent event
+        // eligibility. Bound both entry count and key bytes across feed updates.
+        if value.utf8.count <= 64 {
+            if parsedDates.count >= maximumCachedDates { parsedDates.removeAll(keepingCapacity: true) }
+            parsedDates[value] = CachedDate(value: parsed)
+        }
+        return parsed
     }
 }

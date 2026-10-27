@@ -4204,7 +4204,7 @@ final class OpportunityStoreTests: XCTestCase {
             responseFor: feedURL,
             statusCode: 200,
             body: Data(makeOpportunitiesJSON([live], lastUpdated: now).utf8),
-            delaySeconds: 0.70
+            holdResponse: true
         )
 
         // This matches the real launch contract: GTAFreeSTEMApp prepares the
@@ -4216,6 +4216,7 @@ final class OpportunityStoreTests: XCTestCase {
         let liveRefresh = Task { @MainActor in
             await store.refresh(cache: nil)
         }
+        defer { URLProtocolStub.releaseResponse(for: feedURL) }
         try await Task.sleep(nanoseconds: 50_000_000)
         XCTAssertTrue(store.isLoading)
 
@@ -4233,6 +4234,7 @@ final class OpportunityStoreTests: XCTestCase {
         XCTAssertEqual(store.dataSourceLabel, .previewDatabase)
         XCTAssertTrue(store.isLoading)
 
+        URLProtocolStub.releaseResponse(for: feedURL)
         await liveRefresh.value
         XCTAssertEqual(URLProtocolStub.requestCount, 1)
         XCTAssertFalse(store.isLoading)
