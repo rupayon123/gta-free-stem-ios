@@ -2128,7 +2128,9 @@ final class APIClientTests: XCTestCase {
         let browseView = repoRoot.appendingPathComponent("GTAFreeSTEM/BrowseView.swift")
         let contents = try String(contentsOf: browseView)
 
-        XCTAssertTrue(contents.contains("horizontalSizeClass == .compact && displayMode == .list"))
+        XCTAssertTrue(contents.contains("horizontalSizeClass == .compact"))
+        XCTAssertFalse(contents.contains("horizontalSizeClass == .compact && displayMode == .list"),
+                       "Compact map results should also precede the research controls")
         XCTAssertTrue(contents.contains("if prioritizesResultsOnCompactLayout {"))
         XCTAssertTrue(contents.contains("resultsContent\n                            huntPanel"))
     }
