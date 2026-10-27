@@ -547,7 +547,7 @@ struct BrowseView: View {
                             HStack(alignment: .top) {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(session.title(for: opportunity)).font(.subheadline.weight(.semibold))
-                                    Text(opportunity.organization).font(.caption)
+                                    Text(session.organization(for: opportunity)).font(.caption)
                                 }
                                 Spacer(minLength: 8)
                                 Image(systemName: "chevron.right").accessibilityHidden(true)

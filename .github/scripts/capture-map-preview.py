@@ -68,7 +68,7 @@ try:
         run('xcrun','simctl','ui',device,'appearance','dark' if dark else 'light')
         run('xcrun','simctl','ui',device,'content_size','accessibility-extra-large' if large else 'large')
         log=output/(name+'.stdout');err=output/(name+'.stderr')
-        launched=run('xcrun','simctl','launch','--terminate-running-process','--stdout='+str(log),'--stderr='+str(err),device,bundle,'-start-opportunities','-review-map',*extra,timeout=60)
+        launched=run('xcrun','simctl','launch','--terminate-running-process','--stdout='+str(log),'--stderr='+str(err),device,bundle,'-preferredTheme','Dark' if dark else 'Light','-start-opportunities','-review-map',*extra,timeout=60)
         pid=int(launched.rsplit(': ',1)[1]);deadline=time.monotonic()+60;ready=None
         while time.monotonic()<deadline:
             os.kill(pid,0)
