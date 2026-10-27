@@ -21,6 +21,29 @@ private func bundledSnapshotTestNow() throws -> Date {
 }
 
 final class APIClientTests: XCTestCase {
+    @MainActor
+    func testRealCatalogueResponsivenessDiagnostic() throws {
+        let clock = { ProcessInfo.processInfo.systemUptime }
+        let start = clock()
+        let feed = try LocalOpportunitySnapshot.loadFull()
+        print("GTA_PERF decode_validate_ms=\((clock()-start)*1000) records=\(feed.data.count)")
+        XCTAssertGreaterThan(feed.data.count, 1000)
+        let now = max(try XCTUnwrap(FeedFreshness.date(from: feed.meta?.lastUpdated)), FeedPublicationRevision.date(from: feed.publicationRevision) ?? .distantPast).addingTimeInterval(60)
+        for pass in 0..<3 {
+            for query in ["", "robotics", "library", "volunteer", "science"] {
+                let begin = clock()
+                let result = LocalOpportunitySnapshot.filter(feed.data, query: query, mode: .all, filters: OpportunityFilters(), now: now)
+                print("GTA_PERF pass=\(pass) query=\(query.isEmpty ? "ALL" : query) filter_ms=\((clock()-begin)*1000) results=\(result.count)")
+            }
+            let begin = clock()
+            let modes = HomePathwayInventory.availableModes(in: feed.data, now: now)
+            print("GTA_PERF pass=\(pass) home_inventory_ms=\((clock()-begin)*1000) modes=\(modes.count)")
+        }
+        let begin = clock()
+        let bytes = try JSONEncoder().encode(feed)
+        print("GTA_PERF cache_encode_ms=\((clock()-begin)*1000) bytes=\(bytes.count)")
+    }
+
     private var testRepositoryRoot: URL {
         let fixtureRoot = Bundle(for: APIClientTests.self)
             .resourceURL?
