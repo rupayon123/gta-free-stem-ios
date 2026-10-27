@@ -18,7 +18,7 @@ done
 
 echo "=== Version and project configuration ==="
 rg -Fq 'MARKETING_VERSION: "1.0"' project.yml
-rg -Fq 'CURRENT_PROJECT_VERSION: "12"' project.yml
+rg -Fq 'CURRENT_PROJECT_VERSION: "13"' project.yml
 rg -Fq 'GTA_RELEASE_SOURCE_COMMIT: UNSET' project.yml
 rg -Fq 'ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon' project.yml
 for info_plist in GTAFreeSTEM/Info.plist GTAFreeSTEM/MacCatalyst-Info.plist GTAFreeSTEMWatch/Info.plist; do
@@ -28,7 +28,7 @@ for info_plist in GTAFreeSTEM/Info.plist GTAFreeSTEM/MacCatalyst-Info.plist GTAF
   }
 done
 rg -Fq '"GTA_RELEASE_SOURCE_COMMIT=$SOURCE_COMMIT"' docs/scripts/install-connected-device.sh
-echo "Version/build: 1.0 (12)"
+echo "Version/build: 1.0 (13)"
 
 echo
 echo "=== Localized UI coverage ==="
