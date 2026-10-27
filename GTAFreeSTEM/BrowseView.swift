@@ -1013,7 +1013,7 @@ final class OpportunityMapPresentation: ObservableObject {
 
 /// MapKit owns zoom-dependent clustering and camera gestures. SwiftUI retains only
 /// the selected real venue, so panning cannot rescan the opportunity catalogue.
-private struct ClusteredOpportunityMap: UIViewRepresentable {
+struct ClusteredOpportunityMap: UIViewRepresentable {
     let snapshot: OpportunityMapSnapshot
     let revision: Int
     let resetRevision: Int
@@ -1115,7 +1115,8 @@ private struct ClusteredOpportunityMap: UIViewRepresentable {
                 displayedLanguage = parent.language
                 focusedVenueID = nil
             }
-            if newRecords || displayedResetRevision != parent.resetRevision {
+            let cameraWasReset = newRecords || displayedResetRevision != parent.resetRevision
+            if cameraWasReset {
                 displayedResetRevision = parent.resetRevision
                 if let viewport = parent.snapshot.viewport {
                     let camera = MKMapCamera(lookingAtCenter: CLLocationCoordinate2D(latitude: viewport.latitude, longitude: viewport.longitude),
@@ -1123,7 +1124,7 @@ private struct ClusteredOpportunityMap: UIViewRepresentable {
                     map.setCamera(camera, animated: false)
                 }
             }
-            if let id = parent.selectedVenueID, id != focusedVenueID, let annotation = annotations[id] {
+            if let id = parent.selectedVenueID, (cameraWasReset || id != focusedVenueID), let annotation = annotations[id] {
                 focusedVenueID = id
                 let camera = MKMapCamera(lookingAtCenter: annotation.coordinate, fromDistance: 2_400, pitch: 55, heading: -12)
                 map.setCamera(camera, animated: !parent.reduceMotion)

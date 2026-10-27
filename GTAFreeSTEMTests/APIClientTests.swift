@@ -1,5 +1,7 @@
 import XCTest
 import CoreLocation
+import MapKit
+import SwiftUI
 @testable import GTAFreeSTEM
 import SwiftData
 
@@ -2760,6 +2762,59 @@ final class APIClientTests: XCTestCase {
         XCTAssertNil(projection.resumeIfInterrupted([row]), "A completed projection must not restart on appearance")
         projection.cancel()
         XCTAssertNil(projection.resumeIfInterrupted([row]), "Leaving a completed map does not invalidate its cache")
+    }
+
+    @MainActor
+    func testNativeMapResetKeepsSelectionFocusedAndShowAllClearsItWithoutInterruptingPan() throws {
+        let first = opportunity(id: "toronto", title: "Toronto Lab", address: "1 College Street", latitude: 43.654, longitude: -79.384)
+        let second = opportunity(id: "markham", title: "Markham Lab", address: "2 Main Street", latitude: 43.856, longitude: -79.337)
+        let snapshot = OpportunityMapProjection.snapshot(from: [first, second])
+        let venue = try XCTUnwrap(snapshot.venues.first)
+        let overview = try XCTUnwrap(snapshot.viewport)
+        func presentation(reset: Int, selected: String?) -> ClusteredOpportunityMap {
+            ClusteredOpportunityMap(
+                snapshot: snapshot, revision: 1, resetRevision: reset,
+                selectedVenueID: .constant(selected), colorScheme: .light,
+                reduceMotion: true, language: .en,
+                venueTitle: { $0.address },
+                clusterTitle: { locations, events in "\(locations) locations, \(events) events" },
+                selectCoincidentVenues: { _ in }, clearCoincidentVenues: {}
+            )
+        }
+        let selected = presentation(reset: 0, selected: venue.id)
+        let coordinator = selected.makeCoordinator()
+        let map = MKMapView(frame: CGRect(x: 0, y: 0, width: 390, height: 340))
+        defer { map.removeAnnotations(map.annotations) }
+        coordinator.update(map)
+        XCTAssertEqual(map.camera.centerCoordinate.latitude, venue.latitude, accuracy: 0.001)
+        XCTAssertEqual(map.camera.centerCoordinate.longitude, venue.longitude, accuracy: 0.001)
+        XCTAssertEqual(map.camera.centerCoordinateDistance, 2_400, accuracy: 100)
+        XCTAssertEqual(map.camera.pitch, 55, accuracy: 1)
+
+        // A regular SwiftUI update must preserve the user's subsequent pan/tilt.
+        let panned = MKMapCamera(lookingAtCenter: CLLocationCoordinate2D(latitude: 43.7, longitude: -79.43),
+                                 fromDistance: 7_000, pitch: 20, heading: 0)
+        map.setCamera(panned, animated: false)
+        coordinator.update(map)
+        XCTAssertEqual(map.camera.centerCoordinate.latitude, 43.7, accuracy: 0.001)
+        XCTAssertEqual(map.camera.centerCoordinate.longitude, -79.43, accuracy: 0.001)
+        XCTAssertEqual(map.camera.centerCoordinateDistance, 7_000, accuracy: 100)
+        XCTAssertEqual(map.camera.pitch, 20, accuracy: 1)
+
+        // The selection is unchanged, but an overview reset invalidates its old focus.
+        coordinator.parent = presentation(reset: 1, selected: venue.id)
+        coordinator.update(map)
+        XCTAssertEqual(map.camera.centerCoordinate.latitude, venue.latitude, accuracy: 0.001)
+        XCTAssertEqual(map.camera.centerCoordinate.longitude, venue.longitude, accuracy: 0.001)
+        XCTAssertEqual(map.camera.centerCoordinateDistance, 2_400, accuracy: 100)
+        XCTAssertEqual(map.camera.pitch, 55, accuracy: 1)
+
+        coordinator.parent = presentation(reset: 2, selected: nil)
+        coordinator.update(map)
+        XCTAssertEqual(map.camera.centerCoordinate.latitude, overview.latitude, accuracy: 0.001)
+        XCTAssertEqual(map.camera.centerCoordinate.longitude, overview.longitude, accuracy: 0.001)
+        XCTAssertEqual(map.camera.centerCoordinateDistance, overview.distance, accuracy: 100)
+        XCTAssertTrue(map.selectedAnnotations.isEmpty, "Show all must clear the actual native selection")
     }
 
     func testMapCameraFollowsActualFilteredVenueExtent() throws {
