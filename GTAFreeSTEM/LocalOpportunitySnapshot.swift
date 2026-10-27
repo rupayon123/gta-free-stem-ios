@@ -261,11 +261,15 @@ enum LocalOpportunitySnapshot {
             guard !queryTerms.isEmpty else {
                 return sortedByDate(opportunities, now: now)
             }
-            return opportunities.map {
-                (opportunity: $0, score: relevance($0, queryTerms: queryTerms, language: displayLanguage), date: dateValue($0, now: now))
-            }.sorted {
-                $0.score == $1.score ? $0.date < $1.date : $0.score > $1.score
-            }.map(\.opportunity)
+            let ranked: [(opportunity: Opportunity, score: Int, date: Date)] = opportunities.map { opportunity in
+                let score = relevance(opportunity, queryTerms: queryTerms, language: displayLanguage)
+                let date = dateValue(opportunity, now: now)
+                return (opportunity: opportunity, score: score, date: date)
+            }
+            let ordered = ranked.sorted { lhs, rhs in
+                lhs.score == rhs.score ? lhs.date < rhs.date : lhs.score > rhs.score
+            }
+            return ordered.map { $0.opportunity }
         }
     }
 

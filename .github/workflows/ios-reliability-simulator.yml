@@ -53,7 +53,7 @@ jobs:
           d7c7f6a569336ab94ded4d8177228d6e375d3a5c71b195c8116a70d1075850ff  GTAFreeSTEM/APIClient.swift
           51514df690e9df97f1e710ad8a61c805d21362382f20300768f6b45482ea5b41  GTAFreeSTEM/Models.swift
           ed9e9537656f2575e9154b1b51914f46f97d33584643114c779e8354f4d76af8  GTAFreeSTEM/OpportunityStore.swift
-          12c6b5b9e1478ca5c44f97c3f61fd60e10856247b5980786a40ccc898cd2fbe7  GTAFreeSTEM/LocalOpportunitySnapshot.swift
+          de8523de2f1f671c94181a3b193a8c0742c12ca116761e3dd0c1b592a8028676  GTAFreeSTEM/LocalOpportunitySnapshot.swift
           8f7dc927af113fbb96c83f0a2b99d0e875ec938971af13c1c4de9785da90fc28  GTAFreeSTEMTests/APIClientTests.swift
           66263a59a5f2fdf9d217593d8b13db0fc214a0ae1e13db171740f388b1aef4fc  GTAFreeSTEM/Resources/opportunities.json
           06181e9494ed5cf7b5bcd672fba62f674dbed03320de8455c48aa57e92b79da3  docs/scripts/validate-feed-content-rights.py
@@ -137,7 +137,7 @@ jobs:
           PY
 
       - name: Capture bounded native screen review in ordinary job logs
-        if: always() && !cancelled() && steps.simulator.outcome == 'success' && steps.tests.outcome != 'skipped'
+        if: steps.simulator.outcome == 'success' && steps.tests.outcome == 'success'
         timeout-minutes: 9
         env:
           TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}
