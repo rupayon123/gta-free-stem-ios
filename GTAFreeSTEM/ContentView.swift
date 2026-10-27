@@ -184,6 +184,17 @@ struct ContentView: View {
         }
         .tint(Brand.lake)
         .accessibilityIdentifier("app-root")
+        .onAppear {
+#if DEBUG
+            // A smoke capture must observe the real shell after the unchanged
+            // launch animation hands over, rather than photographing a timer.
+            let args = ProcessInfo.processInfo.arguments
+            if let index = args.firstIndex(of: "-runtime-ready-nonce"),
+               args.indices.contains(index + 1), UUID(uuidString: args[index + 1]) != nil {
+                FileHandle.standardOutput.write(Data(("GTA_RUNTIME_SHELL_READY " + args[index + 1] + "\n").utf8))
+            }
+#endif
+        }
         .safeAreaInset(edge: .top, spacing: 0) {
             if !storageAccess.allowsPersistentChanges {
                 StorageRecoveryBanner()

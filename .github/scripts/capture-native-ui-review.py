@@ -157,16 +157,31 @@ for screen, dark, large, language in cases:
            productionData=False, isolatedMemoryStore=True, visibleFixtureBanner=screen != "calendar",
            systemCalendarPresentationOnly=screen == "calendar", calendarSaved=False,
            sampleTitleVisible=screen == "calendar")
-# Normal runtime after simulator/framework warmup: actual source/rights/error state.
-# This is a new process, but is not a first-install cold-start performance claim.
-launched = run("xcrun", "simctl", "launch", "--terminate-running-process", device, bundle, timeout=90)
-activePid = int(launched.rsplit(": ", 1)[1])
-time.sleep(20)
-export("normal-home", "normal-runtime", waitSeconds=20, dataAcceptance=False)
-launched = run("xcrun", "simctl", "launch", "--terminate-running-process", device, bundle, "-start-opportunities")
-activePid = int(launched.rsplit(": ", 1)[1])
-time.sleep(8)
-export("normal-browse", "normal-runtime", waitSeconds=8, dataAcceptance=False)
+# Normal source state after framework warmup. Readiness only observes the real
+# shell's appearance; it does not seed data, bypass the loader, or alter filters.
+# The separate original startup/heartbeat tests retain their performance gates.
+for screen, extra in [("home", []), ("browse", ["-start-opportunities"])]:
+    nonce = str(uuid.uuid4())
+    stdoutLog = output / ("normal-" + screen + ".stdout")
+    stderrLog = output / ("normal-" + screen + ".stderr")
+    started = time.monotonic()
+    launched = run("xcrun", "simctl", "launch", "--terminate-running-process",
+                   "--stdout=" + str(stdoutLog), "--stderr=" + str(stderrLog), device, bundle,
+                   "-runtime-ready-nonce", nonce, *extra, timeout=90)
+    activePid = int(launched.rsplit(": ", 1)[1])
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        require_alive()
+        if stdoutLog.is_file() and "GTA_RUNTIME_SHELL_READY " + nonce in stdoutLog.read_text(errors="replace").splitlines():
+            break
+        time.sleep(.25)
+    else:
+        export("normal-" + screen + "-not-ready", "diagnostic-normal-runtime", acceptedState=False)
+        raise SystemExit("Normal runtime did not hand over to the interactive shell: " + screen)
+    elapsed = time.monotonic() - started
+    time.sleep(2)
+    export("normal-" + screen, "normal-runtime", shellObservedAfterSeconds=elapsed,
+           dataAcceptance=False, performanceAcceptance=False, readiness="actual-shell-onAppear")
 
 
 run("xcrun", "simctl", "terminate", device, bundle, check=False)
