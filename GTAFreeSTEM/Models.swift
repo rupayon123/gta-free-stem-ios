@@ -1662,7 +1662,7 @@ struct OpportunityFilters: Equatable {
     }
 }
 
-struct OpportunityMapVenue: Identifiable {
+struct OpportunityMapVenue: Identifiable, Sendable {
     let id: String
     let address: String
     let latitude: Double
@@ -1670,14 +1670,29 @@ struct OpportunityMapVenue: Identifiable {
     let opportunities: [Opportunity]
 }
 
-struct OpportunityMapViewport {
+struct OpportunityMapViewport: Sendable {
     let latitude: Double
     let longitude: Double
     let distance: Double
     let pitch: Double
 }
 
+struct OpportunityMapSnapshot: Sendable {
+    let venues: [OpportunityMapVenue]
+    let mappedCount: Int
+    let viewport: OpportunityMapViewport?
+
+    static let empty = OpportunityMapSnapshot(venues: [], mappedCount: 0, viewport: nil)
+}
+
 enum OpportunityMapProjection {
+    static func snapshot(from opportunities: [Opportunity]) -> OpportunityMapSnapshot {
+        let venues = venues(from: opportunities)
+        return OpportunityMapSnapshot(venues: venues,
+                                      mappedCount: venues.reduce(0) { $0 + $1.opportunities.count },
+                                      viewport: viewport(for: venues))
+    }
+
     static func pins(from opportunities: [Opportunity]) -> [Opportunity] {
         opportunities.filter { opportunity in
             let address = normalizedAddress(opportunity.address)
@@ -1693,6 +1708,7 @@ enum OpportunityMapProjection {
         var order: [String] = []
         var groups: [String: [Opportunity]] = [:]
         for opportunity in mapped {
+            guard !Task.isCancelled else { return [] }
             // The address AND source coordinate must agree. Distinct venues
             // sharing a municipal fallback coordinate must never be merged.
             let key = "\(normalizedAddress(opportunity.address))|\(opportunity.latitude!)|\(opportunity.longitude!)"

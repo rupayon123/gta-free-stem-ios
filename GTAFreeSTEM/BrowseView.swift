@@ -31,6 +31,7 @@ enum BrowseSurface {
 }
 
 struct BrowseView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.openURL) private var openURL
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -47,10 +48,9 @@ struct BrowseView: View {
     @State private var displayMode: BrowseDisplayMode = .list
     @State private var selectedVenueID: String?
     @State private var navigationPath: [Opportunity] = []
-    @State private var mapPosition: MapCameraPosition = .camera(MapCamera(
-        centerCoordinate: CLLocationCoordinate2D(latitude: 43.6532, longitude: -79.3832),
-        distance: 5_500, heading: -12, pitch: 55
-    ))
+    @StateObject private var mapProjection = OpportunityMapPresentation()
+    @State private var mapResetRevision = 0
+    @State private var coincidentVenueIDs: Set<String> = []
 
     init(surface: BrowseSurface = .opportunities) {
         self.surface = surface
@@ -100,6 +100,9 @@ struct BrowseView: View {
                 .onChange(of: selectedVenueID) { _, newID in
                     if newID != nil { scrollProxy.scrollTo("map-selected-location", anchor: .top) }
                 }
+                .onChange(of: coincidentVenueIDs) { _, ids in
+                    if !ids.isEmpty { scrollProxy.scrollTo("map-selected-location", anchor: .top) }
+                }
                 }
             }
             .navigationTitle(session.text(surface.titleKey))
@@ -146,6 +149,10 @@ struct BrowseView: View {
             .onChange(of: session.language) { _, _ in
                 Task { await preparePresentedSurface() }
             }
+            .onReceive(store.$opportunities) { records in
+                mapProjection.prepare(records)
+            }
+            .onDisappear { mapProjection.cancel() }
             .onReceive(locationManager.$coordinate.compactMap { $0 }) { coordinate in
                 store.useCurrentLocation(coordinate)
                 Task { await store.refresh(cache: persistenceContext) }
@@ -480,36 +487,41 @@ struct BrowseView: View {
     }
 
     private var mapVenues: [OpportunityMapVenue] {
-        OpportunityMapProjection.venues(from: store.opportunities)
+        mapProjection.snapshot.venues
     }
 
     private var opportunityMap: some View {
         let venues = mapVenues
-        let mappedCount = venues.reduce(0) { $0 + $1.opportunities.count }
-        let selected = venues.first { $0.id == selectedVenueID }
+        let mappedCount = mapProjection.snapshot.mappedCount
+        let selectedVenues = venues.filter { $0.id == selectedVenueID || coincidentVenueIDs.contains($0.id) }
         return VStack(alignment: .leading, spacing: 12) {
             StorySectionTitle(text: session.text("map"), systemImage: "map")
-            if venues.isEmpty {
+            if mapProjection.isPreparing && venues.isEmpty {
+                ProgressView(session.text("preparingOpportunities"))
+            } else if venues.isEmpty {
                 ContentUnavailableView(session.text("mapNoLocations"), systemImage: "mappin.slash")
             } else {
                 Text(session.text("mapLocationCount")
                     .replacingOccurrences(of: "{locations}", with: "\(venues.count)")
                     .replacingOccurrences(of: "{count}", with: "\(mappedCount)"))
                     .font(.subheadline.weight(.semibold))
-                Map(position: $mapPosition, selection: $selectedVenueID) {
-                    ForEach(venues) { venue in
-                        Marker(venueTitle(venue), systemImage: venue.opportunities.count > 1 ? "square.stack.3d.up.fill" : "mappin",
-                               coordinate: CLLocationCoordinate2D(latitude: venue.latitude, longitude: venue.longitude))
-                            .tint(Brand.lake)
-                            .tag(venue.id)
-                    }
-                }
-                .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excludingAll))
-                .mapControls {
-                    MapCompass()
-                    MapPitchToggle()
-                    MapScaleView()
-                }
+                ClusteredOpportunityMap(
+                    snapshot: mapProjection.snapshot,
+                    revision: mapProjection.revision,
+                    resetRevision: mapResetRevision,
+                    selectedVenueID: $selectedVenueID,
+                    colorScheme: colorScheme,
+                    reduceMotion: reduceMotion,
+                    language: session.language,
+                    venueTitle: venueTitle,
+                    clusterTitle: { count, events in
+                        session.text("mapLocationCount")
+                            .replacingOccurrences(of: "{locations}", with: "\(count)")
+                            .replacingOccurrences(of: "{count}", with: "\(events)")
+                    },
+                    selectCoincidentVenues: { ids in coincidentVenueIDs = Set(ids) },
+                    clearCoincidentVenues: { coincidentVenueIDs = [] }
+                )
                 .frame(height: horizontalSizeClass == .compact ? 340 : 520)
                 .clipShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
                 .overlay {
@@ -520,9 +532,9 @@ struct BrowseView: View {
                 .accessibilityHint(session.text("mapLocationsHint"))
                 .accessibilityIdentifier("opportunity-map")
                 .onAppear { updateMap(for: venues) }
-                .onChange(of: venues.map(\.id)) { _, _ in updateMap(for: venues) }
-                .onChange(of: selectedVenueID) { _, newID in
-                    if let venue = venues.first(where: { $0.id == newID }) { focusMap(on: venue) }
+                .onChange(of: mapProjection.revision) { _, _ in
+                    coincidentVenueIDs.formIntersection(Set(venues.map(\.id)))
+                    updateMap(for: venues)
                 }
 
                 Button { updateMap(for: venues, clearSelection: true) } label: {
@@ -536,37 +548,39 @@ struct BrowseView: View {
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
             }
 
-            if let selected {
+            if !selectedVenues.isEmpty {
                 LazyVStack(alignment: .leading, spacing: 10) {
-                    Text(selected.address)
-                        .id("map-selected-location")
-                        .font(.headline)
-                        .fixedSize(horizontal: false, vertical: true)
-                    ForEach(selected.opportunities) { opportunity in
-                        NavigationLink(value: opportunity) {
-                            HStack(alignment: .top) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(session.title(for: opportunity)).font(.subheadline.weight(.semibold))
-                                    Text(session.organization(for: opportunity)).font(.caption)
-                                    if let schedule = session.formattedSchedule(start: opportunity.startDate, end: opportunity.endDate) {
-                                        Text(schedule)
-                                            .font(.caption)
-                                            .foregroundStyle(Brand.mutedText(for: colorScheme))
-                                            .fixedSize(horizontal: false, vertical: true)
+                    ForEach(selectedVenues) { selected in
+                        Text(selected.address)
+                            .font(.headline)
+                            .fixedSize(horizontal: false, vertical: true)
+                        ForEach(selected.opportunities) { opportunity in
+                            NavigationLink(value: opportunity) {
+                                HStack(alignment: .top) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(session.title(for: opportunity)).font(.subheadline.weight(.semibold))
+                                        Text(session.organization(for: opportunity)).font(.caption)
+                                        if let schedule = session.formattedSchedule(start: opportunity.startDate, end: opportunity.endDate) {
+                                            Text(schedule)
+                                                .font(.caption)
+                                                .foregroundStyle(Brand.mutedText(for: colorScheme))
+                                                .fixedSize(horizontal: false, vertical: true)
+                                        }
                                     }
+                                    Spacer(minLength: 8)
+                                    Image(systemName: "chevron.right").accessibilityHidden(true)
                                 }
-                                Spacer(minLength: 8)
-                                Image(systemName: "chevron.right").accessibilityHidden(true)
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                .contentShape(Rectangle())
                             }
-                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                            .contentShape(Rectangle())
+                            .buttonStyle(.plain)
+                            .accessibilityHint(session.text("details"))
+                            .accessibilityIdentifier("map-opportunity-\(opportunity.id)")
+                            Divider()
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityHint(session.text("details"))
-                        .accessibilityIdentifier("map-opportunity-\(opportunity.id)")
-                        Divider()
                     }
                 }
+                .id("map-selected-location")
                 .cardSurface(padding: AppSpacing.medium)
                 .accessibilityIdentifier("map-selected-location")
             }
@@ -593,15 +607,15 @@ struct BrowseView: View {
     }
 
     private func focusMap(on venue: OpportunityMapVenue) {
-        mapPosition = .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: venue.latitude, longitude: venue.longitude),
-                                        distance: 2_400, heading: -12, pitch: 55))
+        selectedVenueID = venue.id
     }
 
     private func updateMap(for venues: [OpportunityMapVenue], clearSelection: Bool = false) {
         if clearSelection || !venues.contains(where: { $0.id == selectedVenueID }) { selectedVenueID = nil }
-        guard let viewport = OpportunityMapProjection.viewport(for: venues) else { return }
-        mapPosition = .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: viewport.latitude, longitude: viewport.longitude),
-                                        distance: viewport.distance, heading: -12, pitch: viewport.pitch))
+        coincidentVenueIDs.formIntersection(Set(venues.map(\.id)))
+        if clearSelection { coincidentVenueIDs = [] }
+        guard !venues.isEmpty else { return }
+        mapResetRevision &+= 1
 #if DEBUG
         // Isolated runtime review can open a real selected-location state.
         // It never fabricates a venue or mutates the feed, saved state or loader.
@@ -634,7 +648,7 @@ struct BrowseView: View {
     }
 
     private var mapAccessibilityLabel: String {
-        "\(session.text("map")): \(OpportunityMapProjection.pins(from: store.opportunities).count) / \(store.opportunities.count) \(session.text("visible"))"
+        "\(session.text("map")): \(mapProjection.snapshot.mappedCount) / \(store.opportunities.count) \(session.text("visible"))"
     }
 
     private var background: some View {
@@ -937,5 +951,277 @@ private struct HuntRefreshButton: View {
         .buttonStyle(StoryButtonStyle(kind: .primary))
         .disabled(isLoading)
         .accessibilityLabel(title)
+    }
+}
+
+/// Projection runs only when filtered records are published, never on map gestures.
+@MainActor
+final class OpportunityMapPresentation: ObservableObject {
+    @Published private(set) var snapshot = OpportunityMapSnapshot.empty
+    @Published private(set) var revision = 0
+    @Published private(set) var isPreparing = false
+    private var generation = 0
+    private var pending: Task<Void, Never>?
+    private let project: @Sendable ([Opportunity]) async -> OpportunityMapSnapshot
+
+    init(project: @escaping @Sendable ([Opportunity]) async -> OpportunityMapSnapshot = { records in
+        let worker = Task.detached(priority: .userInitiated) {
+            OpportunityMapProjection.snapshot(from: records)
+        }
+        return await withTaskCancellationHandler(operation: { await worker.value }, onCancel: { worker.cancel() })
+    }) {
+        self.project = project
+    }
+
+    @discardableResult
+    func prepare(_ records: [Opportunity]) -> Task<Void, Never> {
+        generation &+= 1
+        let requestedGeneration = generation
+        pending?.cancel()
+        // Never display pins from a previous filter while its replacement is pending.
+        snapshot = .empty
+        isPreparing = true
+        let project = project
+        let task = Task { [weak self] in
+            let result = await project(records)
+            guard !Task.isCancelled, let self, self.generation == requestedGeneration else { return }
+            self.snapshot = result
+            self.revision = requestedGeneration
+            self.isPreparing = false
+        }
+        pending = task
+        return task
+    }
+
+    func cancel() {
+        generation &+= 1
+        pending?.cancel()
+        pending = nil
+        isPreparing = false
+    }
+}
+
+/// MapKit owns zoom-dependent clustering and camera gestures. SwiftUI retains only
+/// the selected real venue, so panning cannot rescan the opportunity catalogue.
+private struct ClusteredOpportunityMap: UIViewRepresentable {
+    let snapshot: OpportunityMapSnapshot
+    let revision: Int
+    let resetRevision: Int
+    @Binding var selectedVenueID: String?
+    let colorScheme: ColorScheme
+    let reduceMotion: Bool
+    let language: AppLanguage
+    let venueTitle: (OpportunityMapVenue) -> String
+    let clusterTitle: (Int, Int) -> String
+    let selectCoincidentVenues: ([String]) -> Void
+    let clearCoincidentVenues: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeUIView(context: Context) -> MKMapView {
+        let map = MKMapView()
+        let configuration = MKStandardMapConfiguration(elevationStyle: .realistic)
+        configuration.pointOfInterestFilter = .excludingAll
+        map.preferredConfiguration = configuration
+        map.isPitchEnabled = true
+        map.isRotateEnabled = true
+        map.showsCompass = false
+        map.register(OpportunityMapMarker.self, forAnnotationViewWithReuseIdentifier: "venue")
+        map.register(OpportunityMapMarker.self, forAnnotationViewWithReuseIdentifier: MKMapViewDefaultClusterAnnotationViewReuseIdentifier)
+        map.delegate = context.coordinator
+        context.coordinator.addControls(to: map)
+        return map
+    }
+
+    func updateUIView(_ map: MKMapView, context: Context) {
+        context.coordinator.parent = self
+        context.coordinator.update(map)
+    }
+
+    static func dismantleUIView(_ map: MKMapView, coordinator: Coordinator) {
+        map.delegate = nil
+    }
+
+    @MainActor
+    final class Coordinator: NSObject, MKMapViewDelegate {
+        var parent: ClusteredOpportunityMap
+        private var displayedRevision: Int?
+        private var displayedLanguage: AppLanguage?
+        private var displayedResetRevision: Int?
+        private var focusedVenueID: String?
+        private var annotations: [String: OpportunityVenueAnnotation] = [:]
+        private weak var map: MKMapView?
+        private let pitchButton = UIButton(type: .system)
+        private var applyingUpdate = false
+
+        init(_ parent: ClusteredOpportunityMap) { self.parent = parent }
+
+        func addControls(to map: MKMapView) {
+            self.map = map
+            var appearance = UIButton.Configuration.filled()
+            appearance.baseBackgroundColor = .secondarySystemBackground
+            appearance.baseForegroundColor = UIColor(Brand.lake)
+            appearance.cornerStyle = .capsule
+            pitchButton.configuration = appearance
+            pitchButton.addTarget(self, action: #selector(togglePitch), for: .touchUpInside)
+            let compass = MKCompassButton(mapView: map)
+            compass.compassVisibility = .visible
+            let scale = MKScaleView(mapView: map)
+            scale.scaleVisibility = .adaptive
+            for control in [pitchButton, compass, scale] {
+                control.translatesAutoresizingMaskIntoConstraints = false
+                map.addSubview(control)
+            }
+            NSLayoutConstraint.activate([
+                pitchButton.topAnchor.constraint(equalTo: map.safeAreaLayoutGuide.topAnchor, constant: 8),
+                pitchButton.trailingAnchor.constraint(equalTo: map.safeAreaLayoutGuide.trailingAnchor, constant: -8),
+                pitchButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 44),
+                pitchButton.heightAnchor.constraint(equalToConstant: 44),
+                compass.topAnchor.constraint(equalTo: pitchButton.bottomAnchor, constant: 8),
+                compass.centerXAnchor.constraint(equalTo: pitchButton.centerXAnchor),
+                compass.widthAnchor.constraint(equalToConstant: 44),
+                compass.heightAnchor.constraint(equalToConstant: 44),
+                scale.topAnchor.constraint(equalTo: map.safeAreaLayoutGuide.topAnchor, constant: 8),
+                scale.leadingAnchor.constraint(equalTo: map.safeAreaLayoutGuide.leadingAnchor, constant: 8),
+                scale.trailingAnchor.constraint(lessThanOrEqualTo: pitchButton.leadingAnchor, constant: -8)
+            ])
+            updatePitchLabel(map)
+        }
+
+        func update(_ map: MKMapView) {
+            applyingUpdate = true
+            defer { applyingUpdate = false }
+            map.overrideUserInterfaceStyle = parent.colorScheme == .dark ? .dark : .light
+            let newRecords = displayedRevision != parent.revision
+            let newLabels = displayedLanguage != parent.language
+            if newRecords || newLabels {
+                map.removeAnnotations(Array(annotations.values))
+                annotations = Dictionary(uniqueKeysWithValues: parent.snapshot.venues.map { venue in
+                    let value = OpportunityVenueAnnotation(venue: venue, title: parent.venueTitle(venue))
+                    return (venue.id, value)
+                })
+                map.addAnnotations(Array(annotations.values))
+                displayedRevision = parent.revision
+                displayedLanguage = parent.language
+                focusedVenueID = nil
+            }
+            if newRecords || displayedResetRevision != parent.resetRevision {
+                displayedResetRevision = parent.resetRevision
+                if let viewport = parent.snapshot.viewport {
+                    let camera = MKMapCamera(lookingAtCenter: CLLocationCoordinate2D(latitude: viewport.latitude, longitude: viewport.longitude),
+                                             fromDistance: viewport.distance, pitch: viewport.pitch, heading: -12)
+                    map.setCamera(camera, animated: false)
+                }
+            }
+            if let id = parent.selectedVenueID, id != focusedVenueID, let annotation = annotations[id] {
+                focusedVenueID = id
+                let camera = MKMapCamera(lookingAtCenter: annotation.coordinate, fromDistance: 2_400, pitch: 55, heading: -12)
+                map.setCamera(camera, animated: !parent.reduceMotion)
+                map.selectAnnotation(annotation, animated: !parent.reduceMotion)
+            } else if parent.selectedVenueID == nil, focusedVenueID != nil {
+                focusedVenueID = nil
+                for annotation in map.selectedAnnotations { map.deselectAnnotation(annotation, animated: false) }
+            }
+            updatePitchLabel(map)
+        }
+
+        func mapView(_ mapView: MKMapView, viewFor annotation: any MKAnnotation) -> MKAnnotationView? {
+            if annotation is MKUserLocation { return nil }
+            let isCluster = annotation is MKClusterAnnotation
+            let identifier = isCluster ? MKMapViewDefaultClusterAnnotationViewReuseIdentifier : "venue"
+            let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier, for: annotation) as! OpportunityMapMarker
+            view.annotation = annotation
+            view.clusteringIdentifier = isCluster ? nil : "gta-physical-venues"
+            view.collisionMode = .circle
+            view.displayPriority = isCluster ? .required : .defaultHigh
+            view.canShowCallout = false
+            view.markerTintColor = UIColor(Brand.lake)
+            view.titleVisibility = .adaptive
+            view.subtitleVisibility = .hidden
+            view.glyphText = nil
+            view.glyphImage = nil
+            if let cluster = annotation as? MKClusterAnnotation {
+                view.glyphText = "\(cluster.memberAnnotations.count)"
+            } else if let venue = annotation as? OpportunityVenueAnnotation {
+                view.glyphImage = UIImage(systemName: venue.eventCount > 1 ? "square.stack.3d.up.fill" : "mappin")
+            }
+            view.accessibilityLabel = annotation.title ?? nil
+            view.accessibilityTraits.insert(.button)
+            return view
+        }
+
+        func mapView(_ mapView: MKMapView, clusterAnnotationForMemberAnnotations members: [any MKAnnotation]) -> MKClusterAnnotation {
+            let cluster = MKClusterAnnotation(memberAnnotations: members)
+            let eventCount = members.compactMap { $0 as? OpportunityVenueAnnotation }.reduce(0) { $0 + $1.eventCount }
+            cluster.title = parent.clusterTitle(members.count, eventCount)
+            return cluster
+        }
+
+        func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+            guard !applyingUpdate else { return }
+            if let cluster = view.annotation as? MKClusterAnnotation {
+                let members = cluster.memberAnnotations.compactMap { $0 as? OpportunityVenueAnnotation }
+                guard let first = members.first else { return }
+                let coincident = members.allSatisfy {
+                    $0.coordinate.latitude == first.coordinate.latitude && $0.coordinate.longitude == first.coordinate.longitude
+                }
+                // Different source addresses at one coordinate remain separate venues.
+                // They cannot be separated by zoom, so expose every real venue's rows.
+                let revision = parent.revision
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, self.parent.revision == revision else { return }
+                    self.parent.selectedVenueID = nil
+                    if coincident { self.parent.selectCoincidentVenues(members.map(\.venueID)) }
+                    else { self.parent.clearCoincidentVenues() }
+                }
+                mapView.showAnnotations(cluster.memberAnnotations, animated: !parent.reduceMotion)
+                mapView.deselectAnnotation(cluster, animated: false)
+            } else if let venue = view.annotation as? OpportunityVenueAnnotation {
+                let revision = parent.revision
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, self.parent.revision == revision else { return }
+                    self.parent.clearCoincidentVenues()
+                    self.parent.selectedVenueID = venue.venueID
+                }
+            }
+        }
+
+        func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) { updatePitchLabel(mapView) }
+
+        @objc private func togglePitch() {
+            guard let map else { return }
+            let camera = map.camera.copy() as! MKMapCamera
+            camera.pitch = map.camera.pitch > 1 ? 0 : 55
+            map.setCamera(camera, animated: !parent.reduceMotion)
+            updatePitchLabel(map)
+        }
+
+        private func updatePitchLabel(_ map: MKMapView) {
+            let target = map.camera.pitch > 1 ? "2D" : "3D"
+            pitchButton.setTitle(target, for: .normal)
+            pitchButton.accessibilityLabel = target
+        }
+    }
+}
+
+private final class OpportunityVenueAnnotation: NSObject, MKAnnotation {
+    let venueID: String
+    let coordinate: CLLocationCoordinate2D
+    let title: String?
+    let eventCount: Int
+
+    init(venue: OpportunityMapVenue, title: String) {
+        venueID = venue.id
+        coordinate = CLLocationCoordinate2D(latitude: venue.latitude, longitude: venue.longitude)
+        self.title = title
+        eventCount = venue.opportunities.count
+        super.init()
+    }
+}
+
+private final class OpportunityMapMarker: MKMarkerAnnotationView {
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        let target = bounds.insetBy(dx: -max(0, (44 - bounds.width) / 2), dy: -max(0, (44 - bounds.height) / 2))
+        return target.contains(point)
     }
 }

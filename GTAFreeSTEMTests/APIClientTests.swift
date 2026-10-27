@@ -2657,6 +2657,62 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(filtered[0].opportunities.map(\.id), ["second"])
     }
 
+    func testMapSnapshotPreservesDistinctVenuesAtOneCoordinateAndListOnlyRows() {
+        let records = [
+            opportunity(id: "one", title: "First", address: "1 College Street", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "two", title: "Second", address: "2 College Street", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "same-venue", title: "Later session", address: "1 College Street", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "online", title: "Online", address: "Online", latitude: 43.654, longitude: -79.384)
+        ]
+        let snapshot = OpportunityMapProjection.snapshot(from: records)
+        XCTAssertEqual(snapshot.venues.count, 2, "Screen clustering must never merge distinct physical source addresses")
+        XCTAssertEqual(snapshot.mappedCount, 3)
+        XCTAssertEqual(snapshot.venues.map(\.address), ["1 College Street", "2 College Street"])
+        XCTAssertEqual(Set(snapshot.venues.flatMap(\.opportunities).map(\.id)), ["one", "two", "same-venue"])
+        XCTAssertEqual(records.count, 4, "The online event stays available in List")
+    }
+
+    @MainActor
+    func testMapProjectionRefreshesChangedMetadataEvenWhenOpportunityIDIsUnchanged() async {
+        let projection = OpportunityMapPresentation()
+        let first = opportunity(id: "session", title: "Before", address: "1 College Street", latitude: 43.654, longitude: -79.384)
+        let updated = opportunity(id: "session", title: "Updated title", address: "2 College Street", latitude: 43.7, longitude: -79.4)
+        await projection.prepare([first]).value
+        let revision = projection.revision
+        await projection.prepare([updated]).value
+        XCTAssertGreaterThan(projection.revision, revision)
+        XCTAssertEqual(projection.snapshot.venues.first?.address, "2 College Street")
+        XCTAssertEqual(projection.snapshot.venues.first?.latitude, 43.7)
+        XCTAssertEqual(projection.snapshot.venues.first?.opportunities.first?.title, "Updated title")
+        await projection.prepare([]).value
+        XCTAssertTrue(projection.snapshot.venues.isEmpty)
+        XCTAssertEqual(projection.snapshot.mappedCount, 0)
+        XCTAssertNil(projection.snapshot.viewport)
+    }
+
+    @MainActor
+    func testMapProjectionCancelledOldFilterCannotReplaceNewerPins() async {
+        let gate = MapProjectionTestGate()
+        let projection = OpportunityMapPresentation(project: { records in
+            let prepared = OpportunityMapProjection.snapshot(from: records)
+            if records.first?.id == "old" { await gate.hold() }
+            return prepared
+        })
+        let old = opportunity(id: "old", title: "Old filter", address: "1 College Street", latitude: 43.654, longitude: -79.384)
+        let latest = opportunity(id: "latest", title: "Latest filter", address: "2 Main Street", latitude: 43.856, longitude: -79.337)
+        let oldTask = projection.prepare([old])
+        await gate.waitUntilStarted()
+        let latestTask = projection.prepare([latest])
+        await latestTask.value
+        XCTAssertEqual(projection.snapshot.venues.flatMap(\.opportunities).map(\.id), ["latest"])
+        let revision = projection.revision
+        await gate.release()
+        await oldTask.value
+        XCTAssertEqual(projection.revision, revision)
+        XCTAssertEqual(projection.snapshot.venues.flatMap(\.opportunities).map(\.id), ["latest"])
+        XCTAssertFalse(projection.isPreparing)
+    }
+
     func testMapCameraFollowsActualFilteredVenueExtent() throws {
         let first = opportunity(id: "toronto", title: "Toronto Lab", address: "1 College Street", latitude: 43.654, longitude: -79.384)
         let second = opportunity(id: "markham", title: "Markham Lab", address: "2 Main Street", latitude: 43.856, longitude: -79.337)
@@ -5219,5 +5275,25 @@ private actor APIRequestStartGate {
         let pending = waiters
         waiters.removeAll()
         pending.forEach { $0.resume() }
+    }
+}
+
+private actor MapProjectionTestGate {
+    private var started = false
+    private var startWaiters: [CheckedContinuation<Void, Never>] = []
+    private var releaseWaiter: CheckedContinuation<Void, Never>?
+    func hold() async {
+        started = true
+        startWaiters.forEach { $0.resume() }
+        startWaiters.removeAll()
+        await withCheckedContinuation { releaseWaiter = $0 }
+    }
+    func waitUntilStarted() async {
+        if started { return }
+        await withCheckedContinuation { startWaiters.append($0) }
+    }
+    func release() {
+        releaseWaiter?.resume()
+        releaseWaiter = nil
     }
 }
