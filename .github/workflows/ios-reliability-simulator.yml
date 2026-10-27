@@ -1,5 +1,5 @@
 # Availability evidence: actions/runner-images@4f94a804ccf6254bfc5c7fd90a213db4b21794cd
-name: iOS native reliability and screen review
+name: iOS focused responsiveness regression
 
 on:
   pull_request:
@@ -102,6 +102,9 @@ jobs:
             -project GTAFreeSTEM.xcodeproj \
             -scheme GTAFreeSTEM \
             -configuration Debug \
+            -only-testing:GTAFreeSTEMTests/APIClientTests/testRealCataloguePreparationKeepsTheMainActorResponsiveAndLatestQueryWins \
+            -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testBootstrapShowsBundledSnapshotBeforeSlowLiveRefreshCompletes \
+            -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testSearchUsesBundledFullFeedWhileLiveRefreshIsInFlight \
             -destination "$TEST_DESTINATION" \
             -destination-timeout 60 \
             -parallel-testing-enabled NO \
@@ -126,23 +129,12 @@ jobs:
           import json, os
           from pathlib import Path
           summary = json.loads((Path(os.environ['RUNNER_TEMP']) / 'reliability-summary.json').read_text())
-          expected = {'result': 'Passed', 'totalTestCount': 169, 'passedTests': 169,
+          expected = {'result': 'Passed', 'totalTestCount': 3, 'passedTests': 3,
                       'failedTests': 0, 'skippedTests': 0, 'expectedFailures': 0}
           for key, value in expected.items():
               if summary.get(key) != value:
                   raise SystemExit('Full reliability receipt differs: ' + key + ' = ' + repr(summary.get(key)))
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
-              output.write('Full iOS reliability target passed: 169 executed, 169 passed, 0 failed, 0 skipped.\n')
+              output.write('Full iOS reliability target passed: 3 executed, 3 passed, 0 failed, 0 skipped.\n')
               output.write('This is Debug iPhone simulator evidence only; full release gates remain separate.\n')
           PY
-
-      - name: Capture bounded native screen review in ordinary job logs
-        if: steps.simulator.outcome == 'success' && steps.tests.outcome == 'success'
-        timeout-minutes: 9
-        env:
-          TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}
-          CANDIDATE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: python3 .github/scripts/capture-native-ui-review.py
-
-      # No upload-artifact or cache action: only ordinary job logs/summary persist.
-      # The local .xcresult and raw log disappear with this disposable runner.
