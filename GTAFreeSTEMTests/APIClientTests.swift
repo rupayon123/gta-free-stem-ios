@@ -2316,7 +2316,7 @@ final class APIClientTests: XCTestCase {
         )
     }
 
-    func testLocalOpportunitySnapshotMatchesLocaleAwareLanguageFilters() {
+    func testLocalOpportunitySnapshotIgnoresDeprecatedLocaleAwareLanguageFilter() {
         let results = LocalOpportunitySnapshot.filter(
             [
                 opportunity(id: "enca", title: "Metro STEM Day", language: ["en-CA"]),
@@ -2327,7 +2327,7 @@ final class APIClientTests: XCTestCase {
             filters: { var filters = OpportunityFilters(); filters.language = "en"; return filters }()
         )
 
-        XCTAssertEqual(results.map(\.id), ["enca"])
+        XCTAssertEqual(Set(results.map(\.id)), Set(["enca", "es"]))
     }
 
     func testAdultAgeFilterExcludesYouthOnlyProgramsCappedAtEighteen() {
