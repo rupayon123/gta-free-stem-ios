@@ -100,7 +100,7 @@ struct BrowseView: View {
             }
             .navigationTitle(session.text(surface.titleKey))
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $store.query, prompt: session.text("searchPlaceholder"))
+            .searchable(text: $store.query, prompt: Text(session.text("searchPlaceholder")).foregroundStyle(Brand.mutedText(for: colorScheme)))
             .onSubmit(of: .search) {
                 Task { await store.refresh(cache: persistenceContext) }
             }

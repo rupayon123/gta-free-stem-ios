@@ -492,7 +492,8 @@ struct HomeView: View {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(homeAccent)
                     .accessibilityHidden(true)
-                TextField(session.text("searchPlaceholder"), text: $store.query)
+                TextField(session.text("searchPlaceholder"), text: $store.query,
+                          prompt: Text(session.text("searchPlaceholder")).foregroundStyle(Brand.mutedText(for: colorScheme)))
                     .textInputAutocapitalization(.never)
                     .submitLabel(.search)
                     .onSubmit(openResults)
