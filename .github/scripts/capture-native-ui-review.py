@@ -46,15 +46,23 @@ def export(name, mode, **details):
     jpg = output / (name + ".jpg")
     require_alive()
     # Retry a transient blank framebuffer only while the actual app process survives.
-    for attempt in range(3):
-        run("xcrun", "simctl", "io", device, "screenshot", "--type=png", str(png), timeout=90)
-        result = subprocess.run([str(frameVerifier), str(png)], text=True, capture_output=True, timeout=10)
+    deadline = time.monotonic() + 15
+    for attempt in range(20):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise SystemExit("Native content did not settle before capture: " + name)
+        run("xcrun", "simctl", "io", device, "screenshot", "--type=png", str(png), timeout=min(remaining, 10))
+        verifyArgs = [str(frameVerifier), str(png)]
+        if not details.get("systemCalendarPresentationOnly"):
+            verifyArgs.append("dark" if details.get("dark") else "light")
+        result = subprocess.run(verifyArgs, text=True, capture_output=True, timeout=5)
         require_alive()
+        print("NATIVE_FRAME_READINESS " + json.dumps(dict(name=name, attempt=attempt, observed=result.stdout.strip())), flush=True)
         if result.returncode == 0:
             break
-        if attempt == 2:
+        if attempt == 19:
             raise SystemExit(result.stderr)
-        time.sleep(1)
+        time.sleep(.25)
     # A bounded downsample of the native screenshot for log transport, never a re-created image.
     run("/usr/bin/sips", "-s", "format", "jpeg", "-s", "formatOptions", "76", "-Z", "1100", str(png), "--out", str(jpg))
     data = jpg.read_bytes()
@@ -111,11 +119,13 @@ cases = [(screen, False, False, "en") for screen in ("home", "browse", "saved", 
 cases += [(screen, True, False, "en") for screen in ("home", "browse")]
 cases += [(screen, False, True, "en") for screen in ("home", "browse", "saved", "settings")]
 cases += [("browse", False, False, "ar")]
+cases += [(screen, False, True, language) for language in ("zh", "ja", "ko", "ar") for screen in ("home", "browse")]
 cases += [("calendar", False, False, "en")]
 for screen, dark, large, language in cases:
-    nonce = uuid.uuid4().hex
+    nonce = str(uuid.uuid4())
     args = ["-frontend-layout-review", "-screenshot-mode", "-review-screen", screen,
-            "-review-language", language, "-screenshot-ready-nonce", nonce]
+            "-review-language", language, "-screenshot-ready-nonce", nonce,
+            "-runtime-ready-nonce", nonce]
     if screen == "browse":
         args += ["-start-opportunities"]
     elif screen in ("saved", "settings"):
@@ -140,8 +150,12 @@ for screen, dark, large, language in cases:
     readyTag = "GTA_CALENDAR_REVIEW_READY" if screen == "calendar" else "GTA_SAVED_REVIEW_READY" if screen == "saved" else "GTA_LAYOUT_REVIEW_READY"
     deadline = time.monotonic() + (30 if screen == "calendar" else 15)
     while time.monotonic() < deadline:
-        if stdoutLog.is_file() and readyTag + " " + nonce in stdoutLog.read_text(errors="replace").splitlines():
-            break
+        if stdoutLog.is_file():
+            lines = stdoutLog.read_text(errors="replace").splitlines()
+            prepared = readyTag + " " + nonce in lines
+            shellAppeared = screen == "calendar" or "GTA_RUNTIME_SHELL_READY " + nonce in lines
+            if prepared and shellAppeared:
+                break
         time.sleep(0.25)
     else:
         diagnostics = stderrLog.read_text(errors="replace")[-4000:] if stderrLog.is_file() else "No app stderr output"
@@ -150,10 +164,14 @@ for screen, dark, large, language in cases:
         for crash in crashes[:1]:
             print("NATIVE_UI_CRASH_DIAGNOSTICS " + crash.name + "\n" + crash.read_text(errors="replace")[:20000], flush=True)
         raise SystemExit("Layout fixture did not signal readiness: " + screen)
-    time.sleep(2 if screen == "calendar" else 0.75)
+    # Calendar owns its separate actual-presentation marker. App screens require
+    # both preparation and real shell appearance, then a real content framebuffer.
+    if screen == "calendar":
+        time.sleep(2)  # Preserve the existing system-editor transition allowance.
     name = "fixture-" + screen + ("-dark" if dark else "-light") + ("-large" if large else "") + ("-" + language if language != "en" else "")
     export(name, "app-owned-layout-fixture", screen=screen, language=language,
            dark=dark, dynamicType="accessibility3" if large else "large",
+           readiness="calendar-presentation-marker" if screen == "calendar" else "preparation-and-shell-markers-plus-content-canvas",
            productionData=False, isolatedMemoryStore=True, visibleFixtureBanner=screen != "calendar",
            systemCalendarPresentationOnly=screen == "calendar", calendarSaved=False,
            sampleTitleVisible=screen == "calendar")
