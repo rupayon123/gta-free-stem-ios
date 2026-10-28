@@ -165,8 +165,10 @@ struct OpportunityDetailView: View {
         VStack(alignment: .leading, spacing: 14) {
             StorySectionTitle(text: session.text("details"), systemImage: "checklist")
             DetailFact(title: session.text("city"), value: "\(session.city(for: opportunity)), \(session.region(for: opportunity))", icon: "mappin.and.ellipse")
-            DetailFact(title: session.text("ages"), value: "\(opportunity.ageMin)\(opportunity.ageMax.map { "–\($0)" } ?? "+")", icon: "person.2")
-            DetailFact(title: session.text("cost"), value: session.cost(for: opportunity), icon: "heart.fill")
+            if let ageGuide = OpportunityRow.ageGuideRange(for: opportunity) {
+                DetailFact(title: session.text("ageGuide"), value: ageGuide, icon: "person.2")
+            }
+            DetailFact(title: session.text("cost"), value: opportunity.localizedCost(language: session.language), icon: "heart.fill")
             if let scheduleDateValue {
                 DetailFact(title: session.text("date"), value: scheduleDateValue, icon: "calendar")
             }
