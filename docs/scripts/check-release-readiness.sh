@@ -18,8 +18,8 @@ done
 
 echo "=== Version and project configuration ==="
 rg -Fq 'MARKETING_VERSION: "1.0"' project.yml
-rg -Fq 'CURRENT_PROJECT_VERSION: "15"' project.yml
-rg -Fq 'CURRENT_PROJECT_VERSION = 15;' GTAFreeSTEM.xcodeproj/project.pbxproj
+rg -Fq 'CURRENT_PROJECT_VERSION: "16"' project.yml
+rg -Fq 'CURRENT_PROJECT_VERSION = 16;' GTAFreeSTEM.xcodeproj/project.pbxproj
 rg -Fq 'GTA_RELEASE_SOURCE_COMMIT: UNSET' project.yml
 rg -Fq 'ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon' project.yml
 for info_plist in GTAFreeSTEM/Info.plist GTAFreeSTEM/MacCatalyst-Info.plist GTAFreeSTEMWatch/Info.plist; do
