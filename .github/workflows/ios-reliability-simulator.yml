@@ -126,13 +126,13 @@ jobs:
           import json, os
           from pathlib import Path
           summary = json.loads((Path(os.environ['RUNNER_TEMP']) / 'reliability-summary.json').read_text())
-          expected = {'result': 'Passed', 'totalTestCount': 178, 'passedTests': 178,
+          expected = {'result': 'Passed', 'totalTestCount': 179, 'passedTests': 179,
                       'failedTests': 0, 'skippedTests': 0, 'expectedFailures': 0}
           for key, value in expected.items():
               if summary.get(key) != value:
                   raise SystemExit('Full reliability receipt differs: ' + key + ' = ' + repr(summary.get(key)))
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
-              output.write('Full iOS reliability target passed: 178 executed, 178 passed, 0 failed, 0 skipped.\n')
+              output.write('Full iOS reliability target passed: 179 executed, 179 passed, 0 failed, 0 skipped.\n')
               output.write('This is Debug iPhone simulator evidence only; full release gates remain separate.\n')
           PY
 
