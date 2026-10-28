@@ -63,8 +63,15 @@ struct OpportunityDetailView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: AppSpacing.standard) {
-                    mapPreview
                     titleCard
+                    keyFacts
+                    providerAction
+                    Text(session.fullDescription(for: opportunity))
+                        .font(.body)
+                        .foregroundStyle(Brand.outline(for: colorScheme))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                    mapPreview
                     details
                     actions
                 }
@@ -76,6 +83,7 @@ struct OpportunityDetailView: View {
         }
         .navigationTitle(session.text("details"))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement: .topBarTrailing) { ThemeToolbarButton(showLabel: false) } }
 #if canImport(EventKitUI)
 #if DEBUG
         .task {
@@ -100,77 +108,84 @@ struct OpportunityDetailView: View {
     }
 
     private var titleCard: some View {
-        ZStack(alignment: .topTrailing) {
-            VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                StickerBadge(text: session.categoryName(for: opportunity), color: Brand.sun, systemImage: "star.fill")
-                Text(session.title(for: opportunity))
-                    .font(.title.weight(.bold))
-                    .foregroundStyle(Brand.outline(for: colorScheme))
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(session.organization(for: opportunity))
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Brand.lake)
-                Text(session.fullDescription(for: opportunity))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .font(.body)
-                    .foregroundStyle(Brand.outline(for: colorScheme))
-
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.trailing, 44)
-
-            ThemeToolbarButton(showLabel: false)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(session.categoryName(for: opportunity))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Brand.lake)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(session.title(for: opportunity))
+                .font(.title2.weight(.bold))
+                .foregroundStyle(Brand.outline(for: colorScheme))
+                .fixedSize(horizontal: false, vertical: true)
+            Text(session.organization(for: opportunity))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Brand.mutedText(for: colorScheme))
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .cardSurface(padding: AppSpacing.large, cornerRadius: AppRadius.feature)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var mapPreview: some View {
-        Group {
-            if OpportunityCoordinate.isValid(
-                latitude: opportunity.latitude,
-                longitude: opportunity.longitude
-            ), let latitude = opportunity.latitude, let longitude = opportunity.longitude {
-                Map(initialPosition: .region(MKCoordinateRegion(
-                    center: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
-                    span: MKCoordinateSpan(latitudeDelta: 0.04, longitudeDelta: 0.04)
-                ))) {
-                    Marker(
-                        "\(session.title(for: opportunity)) · \(session.city(for: opportunity))",
-                        coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-                    )
-                        .tint(Brand.lake)
+    private var keyFacts: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            FlowLabels {
+                if let ageGuide = OpportunityRow.ageGuideRange(for: opportunity) {
+                    Text("\(session.text("ageGuide")): \(ageGuide)")
                 }
-                .accessibilityLabel("\(session.text("map")): \(session.title(for: opportunity)), \(session.city(for: opportunity))")
-                .frame(height: 220)
-            } else {
-                RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-                    .fill(Brand.selectionFill(for: colorScheme))
-                    .frame(height: 180)
-                    .overlay {
-                        Label(session.city(for: opportunity), systemImage: "map")
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(Brand.outline(for: colorScheme))
-                    }
+                Label(opportunity.localizedCost(language: session.language), systemImage: "ticket")
+                if opportunity.virtual {
+                    Label(session.text("onlineActivity"), systemImage: "globe")
+                } else {
+                    Label(session.city(for: opportunity), systemImage: "mappin.and.ellipse")
+                }
+            }
+            if let scheduleDateValue {
+                Label(scheduleDateValue, systemImage: "calendar")
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-                .strokeBorder(Brand.surfaceStroke(for: colorScheme), lineWidth: 0.75)
+        .font(.subheadline)
+        .foregroundStyle(Brand.mutedText(for: colorScheme))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var providerAction: some View {
+        if let url = ExternalOpportunityURL.make(from: opportunity.registrationUrl ?? opportunity.sourceUrl) {
+            Link(destination: url) {
+                Label(session.text(opportunity.registrationUrl == nil || opportunity.registrationUrl?.trimmingCharacters(in: .whitespacesAndNewlines) == opportunity.sourceUrl.trimmingCharacters(in: .whitespacesAndNewlines) ? "openProgramPage" : "registerApply"), systemImage: "safari")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(StoryButtonStyle(kind: .primary))
         }
-        .shadow(color: Brand.deepOcean.opacity(colorScheme == .dark ? 0.18 : 0.07), radius: 12, x: 0, y: 6)
+    }
+
+    @ViewBuilder
+    private var mapPreview: some View {
+        if Self.canShowPhysicalMap(for: opportunity), let latitude = opportunity.latitude, let longitude = opportunity.longitude {
+            Map(initialPosition: .region(MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
+                span: MKCoordinateSpan(latitudeDelta: 0.04, longitudeDelta: 0.04)
+            ))) {
+                Marker("\(session.title(for: opportunity)) · \(session.city(for: opportunity))",
+                       coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude))
+                    .tint(Brand.lake)
+            }
+            .accessibilityLabel("\(session.text("map")): \(session.title(for: opportunity)), \(session.city(for: opportunity))")
+            .frame(height: 220)
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+        }
+    }
+
+    static func canShowPhysicalMap(for opportunity: Opportunity) -> Bool {
+        !opportunity.virtual && OpportunityCoordinate.isValid(latitude: opportunity.latitude, longitude: opportunity.longitude)
     }
 
     private var details: some View {
         VStack(alignment: .leading, spacing: 14) {
-            StorySectionTitle(text: session.text("details"), systemImage: "checklist")
-            DetailFact(title: session.text("city"), value: "\(session.city(for: opportunity)), \(session.region(for: opportunity))", icon: "mappin.and.ellipse")
-            if let ageGuide = OpportunityRow.ageGuideRange(for: opportunity) {
-                DetailFact(title: session.text("ageGuide"), value: ageGuide, icon: "person.2")
-            }
-            DetailFact(title: session.text("cost"), value: opportunity.localizedCost(language: session.language), icon: "heart.fill")
-            if let scheduleDateValue {
-                DetailFact(title: session.text("date"), value: scheduleDateValue, icon: "calendar")
+            Divider()
+            if !opportunity.virtual {
+                DetailFact(title: session.text("city"), value: "\(session.city(for: opportunity)), \(session.region(for: opportunity))", icon: "mappin.and.ellipse")
             }
             if let deadline = opportunity.deadline, shouldShowDeadline {
                 DetailFact(title: session.text("deadline"), value: session.formattedLocalEventDateTime(deadline), icon: "alarm")
@@ -181,12 +196,8 @@ struct OpportunityDetailView: View {
             if opportunity.coopEligible {
                 DetailFact(title: session.text("pathway"), value: session.text("coop"), icon: "briefcase")
             }
-            if !opportunity.language.isEmpty {
-                DetailFact(title: session.text("languages"), value: opportunity.language.map(languageName).joined(separator: ", "), icon: "globe")
-            }
             DetailFact(title: session.text("source"), value: opportunity.sourceUrl, icon: "link")
         }
-        .cardSurface()
     }
 
     private var scheduleDateValue: String? {
@@ -200,13 +211,6 @@ struct OpportunityDetailView: View {
     private var actions: some View {
         VStack(spacing: 12) {
             StorySectionTitle(text: session.text("details"), systemImage: "paperplane.fill")
-            if let url = ExternalOpportunityURL.make(from: opportunity.registrationUrl ?? opportunity.sourceUrl) {
-                Link(destination: url) {
-                    Label(session.text(opportunity.registrationUrl == nil || opportunity.registrationUrl?.trimmingCharacters(in: .whitespacesAndNewlines) == opportunity.sourceUrl.trimmingCharacters(in: .whitespacesAndNewlines) ? "openProgramPage" : "registerApply"), systemImage: "safari")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(StoryButtonStyle(kind: .primary))
-            }
 #if canImport(EventKitUI)
             Button { calendarPresented = true } label: {
                 Label(session.text("addToCalendar"), systemImage: "calendar.badge.plus")
@@ -251,26 +255,26 @@ struct OpportunityDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .cardSurface()
     }
 
     private var directionsURL: URL? {
-        AppleMapsDestinationURL.make(
+        Self.directionsURL(for: opportunity, language: session.language)
+    }
+
+    static func directionsURL(for opportunity: Opportunity, language: AppLanguage) -> URL? {
+        guard !opportunity.virtual else { return nil }
+        return AppleMapsDestinationURL.make(
             latitude: opportunity.latitude,
             longitude: opportunity.longitude,
-            address: opportunity.localizedAddress(language: session.language),
+            address: opportunity.localizedAddress(language: language),
             fallbackComponents: [
-                opportunity.localizedOrganization(language: session.language),
-                opportunity.localizedCity(language: session.language),
-                opportunity.localizedRegion(language: session.language)
+                opportunity.localizedOrganization(language: language),
+                opportunity.localizedCity(language: language),
+                opportunity.localizedRegion(language: language)
             ]
         )
     }
 
-    private func languageName(_ code: String) -> String {
-        guard let language = AppLanguage.supportedLanguage(for: code) else { return code }
-        return session.languageName(language)
-    }
 }
 
 private struct DetailFact: View {

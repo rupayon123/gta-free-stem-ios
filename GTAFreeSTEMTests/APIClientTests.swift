@@ -2214,15 +2214,20 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(response.data.first?.localizedDescription(language: .fr), expectedDescription)
     }
 
-    func testLocalOpportunitySnapshotFiltersByLanguage() throws {
+    func testLocalOpportunitySnapshotIgnoresUnprovenLegacyProgramLanguage() throws {
+        let browseSource = try String(contentsOf: testRepositoryRoot.appendingPathComponent("GTAFreeSTEM/BrowseView.swift"))
+        XCTAssertFalse(browseSource.contains("$filters.language"))
         var filters = OpportunityFilters()
-        filters.language = "en"
+        filters.language = "ja"
 
         let fullFeed = try LocalOpportunitySnapshot.loadFull()
         let response = LocalOpportunitySnapshot.filter(fullFeed.data, query: "", mode: .all, filters: filters, now: try bundledSnapshotTestNow())
 
         XCTAssertFalse(response.isEmpty)
         XCTAssertTrue(response.allSatisfy { $0.language.contains("en") })
+        filters.language = "all"
+        let neutral = LocalOpportunitySnapshot.filter(fullFeed.data, query: "", mode: .all, filters: filters, now: try bundledSnapshotTestNow())
+        XCTAssertEqual(response.map(\.id), neutral.map(\.id))
     }
 
     func testBundledSnapshotCarriesReleaseReadyContentRightsManifest() throws {
@@ -3082,6 +3087,22 @@ final class APIClientTests: XCTestCase {
     }
 
     @MainActor
+    func testDetailPresentationRejectsVirtualPhysicalActionsAndUnprovenLanguageClaims() throws {
+        let physical = opportunity(id: "physical", title: "Physical event", address: "1 College Street", latitude: 43.654, longitude: -79.384)
+        let online = opportunity(id: "online", title: "Online event", address: "1 College Street", latitude: 43.654, longitude: -79.384, virtual: true)
+        let addressOnly = opportunity(id: "address-only", title: "Address event", address: "1 College Street")
+        XCTAssertTrue(OpportunityDetailView.canShowPhysicalMap(for: physical))
+        XCTAssertNotNil(OpportunityDetailView.directionsURL(for: physical, language: .en))
+        XCTAssertFalse(OpportunityDetailView.canShowPhysicalMap(for: online), "Valid coordinates must not turn a virtual event into a physical pin")
+        XCTAssertNil(OpportunityDetailView.directionsURL(for: online, language: .en))
+        XCTAssertFalse(OpportunityDetailView.canShowPhysicalMap(for: addressOnly))
+        XCTAssertNotNil(OpportunityDetailView.directionsURL(for: addressOnly, language: .en), "Real address fallback must remain available")
+        let source = try String(contentsOf: testRepositoryRoot.appendingPathComponent("GTAFreeSTEM/OpportunityDetailView.swift"))
+        XCTAssertFalse(source.contains("opportunity.language.map"), "Producer language defaults are not evidence of provider delivery languages")
+        XCTAssertTrue(source.contains("Text(session.fullDescription(for: opportunity))"), "The complete provider body must remain visible")
+    }
+
+    @MainActor
     func testDiscoveryAgeGuideOmitsUnknownBoundsWithoutChangingGenuineRanges() {
         XCTAssertNil(OpportunityRow.ageGuideRange(for: opportunity(id: "unknown", title: "Unknown age", ageMin: 0, ageMax: nil)))
         XCTAssertEqual(OpportunityRow.ageGuideRange(for: opportunity(id: "bounded", title: "Bounded age", ageMin: 0, ageMax: 12)), "0–12")
@@ -3263,7 +3284,8 @@ final class APIClientTests: XCTestCase {
         tags: [String] = [],
         isNewFind: Bool? = nil,
         translations: [String: OpportunityTranslation] = [:],
-        sourceURL: String? = nil
+        sourceURL: String? = nil,
+        virtual: Bool = false
     ) -> Opportunity {
         let resolvedSourceURL = sourceURL ?? "https://example.com/\(id)"
         return Opportunity(
@@ -3294,7 +3316,8 @@ final class APIClientTests: XCTestCase {
             distanceKm: nil,
             isNewFind: isNewFind,
             sourceConfidence: nil,
-            translations: translations
+            translations: translations,
+            virtual: virtual
         )
     }
 
@@ -4611,14 +4634,49 @@ final class OpportunityStoreTests: XCTestCase {
 
         await store.refresh(cache: context)
 
+        XCTAssertEqual(try context.fetch(FetchDescriptor<SavedHuntRecord>()).first?.language, "all")
+
         let restoredStore = OpportunityStore(api: client)
         await restoredStore.restoreLastHuntIfNeeded(in: context)
 
         XCTAssertEqual(restoredStore.query, "leadership")
         XCTAssertEqual(restoredStore.mode, .mentorship)
+        filters.language = "all"
         XCTAssertEqual(restoredStore.filters, filters)
         XCTAssertEqual(restoredStore.opportunities.map(\.id), ["restored"])
         XCTAssertEqual(restoredStore.dataSourceLabel, DataSource.savedAppCache)
+    }
+
+    @MainActor
+    func testLegacyProgramLanguageRestoresNeutralWithoutChangingDisplayLanguageOrOtherFilters() async throws {
+        let context = try makeInMemoryContext()
+        let suite = "GTA-language-migration-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let displaySession = SessionStore(defaults: defaults, preferredLanguages: ["ja"])
+        var filters = OpportunityFilters()
+        filters.city = "Toronto"
+        filters.category = "Coding & Robotics"
+        filters.age = "12"
+        let record = SavedHuntRecord(cacheKey: "last-hunt", query: "robotics", mode: .all, filters: filters)
+        record.language = "ja" // Reproduce bytes written by a previous version.
+        context.insert(record)
+        let row = opportunity(id: "english-default", title: "Robotics Lab", organization: "Community Library", category: "Coding & Robotics", city: "Toronto")
+        context.insert(OpportunityCacheRecord(cacheKey: "latest-opportunities", payload: Data(makeOpportunitiesJSON([row]).utf8)))
+        try context.save()
+
+        let store = OpportunityStore(api: APIClient())
+        await store.restoreLastHuntIfNeeded(in: context)
+        XCTAssertEqual(store.query, "robotics")
+        XCTAssertEqual(store.mode, .all)
+        XCTAssertEqual(store.filters, filters)
+        XCTAssertEqual(store.opportunities.map(\.id), [row.id])
+        XCTAssertEqual(displaySession.language, .ja)
+        XCTAssertEqual(defaults.string(forKey: AppLanguage.preferredLanguageDefaultsKey), "ja")
+        var legacyOnly = OpportunityFilters()
+        legacyOnly.language = "ja"
+        XCTAssertFalse(legacyOnly.hasActiveFilters)
+        XCTAssertEqual(SavedHuntRecord(cacheKey: "new", query: "", mode: .all, filters: legacyOnly).language, "all")
     }
 
     @MainActor

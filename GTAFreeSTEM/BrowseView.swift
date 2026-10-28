@@ -605,8 +605,12 @@ struct BrowseView: View {
                 navigationPath = [opportunity]
             }
         }
+        if !clearSelection, arguments.contains("-review-virtual-detail"),
+           let opportunity = store.opportunities.first(where: { $0.virtual }), navigationPath.isEmpty {
+            navigationPath = [opportunity]
+        }
         if arguments.contains("-review-map") {
-            let mode = arguments.contains("-review-map-detail") ? "detail" : (selectedVenueID == nil ? "overview" : "selected")
+            let mode = (arguments.contains("-review-map-detail") || arguments.contains("-review-virtual-detail")) ? "detail" : (selectedVenueID == nil ? "overview" : "selected")
             let mapped = venues.reduce(0) { $0 + $1.opportunities.count }
             FileHandle.standardOutput.write(Data(("GTA_MAP_REVIEW_READY \(mode) venues=\(venues.count) mapped=\(mapped) filtered=\(store.opportunities.count)\n").utf8))
         }
@@ -844,15 +848,6 @@ struct OpportunityFilterSheet: View {
                             Text("\(age)").tag("\(age)")
                         }
                         Text(verbatim: "18+").tag("18+")
-                    }
-                }
-
-                Section(session.text("programLanguage")) {
-                    Picker(session.text("programLanguage"), selection: $filters.language) {
-                        Text(session.text("any")).tag("all")
-                        ForEach(AppLanguage.allCases) { language in
-                            Text(session.languageName(language)).tag(language.rawValue)
-                        }
                     }
                 }
 

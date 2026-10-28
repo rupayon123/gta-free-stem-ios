@@ -1176,7 +1176,7 @@ final class SavedHuntRecord {
         self.city = filters.city
         self.category = filters.category
         self.age = filters.age
-        self.language = filters.language
+        self.language = "all"
         self.latitude = filters.latitude
         self.longitude = filters.longitude
         self.distanceKm = filters.distanceKm
@@ -1630,6 +1630,7 @@ struct OpportunityFilters: Equatable {
     var city = ""
     var category = "All"
     var age = ""
+    // Retained for compatibility with older saved hunts; no longer a supported filter.
     var language = "all"
     var latitude: Double?
     var longitude: Double?
@@ -1654,7 +1655,6 @@ struct OpportunityFilters: Equatable {
             !city.isEmpty ||
             category != "All" ||
             !age.isEmpty ||
-            language != "all" ||
             hasLocation ||
             sort != .date ||
             !includeNewFinds ||

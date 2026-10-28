@@ -292,7 +292,8 @@
     "openProgramPage": "Open program page",
     "addToCalendar": "Add to calendar",
     "layoutReviewBanner": "Layout preview · app-owned sample listings",
-    "ageGuide": "Age guide"
+    "ageGuide": "Age guide",
+    "onlineActivity": "Online"
   },
   "fr": {
     "browse": "Parcourir",
@@ -495,7 +496,8 @@
     "openProgramPage": "Ouvrir la page du programme",
     "addToCalendar": "Ajouter au calendrier",
     "layoutReviewBanner": "Aperçu · exemples créés par l’application",
-    "ageGuide": "Âge indicatif"
+    "ageGuide": "Âge indicatif",
+    "onlineActivity": "En ligne"
   },
   "zh": {
     "browse": "浏览",
@@ -698,7 +700,8 @@
     "openProgramPage": "打开活动页面",
     "addToCalendar": "添加到日历",
     "layoutReviewBanner": "布局预览 · 应用自有示例活动",
-    "ageGuide": "年龄参考"
+    "ageGuide": "年龄参考",
+    "onlineActivity": "线上"
   },
   "yue": {
     "browse": "瀏覽",
@@ -901,7 +904,8 @@
     "openProgramPage": "開啟活動頁面",
     "addToCalendar": "加入行事曆",
     "layoutReviewBanner": "版面預覽 · 應用程式自有示例活動",
-    "ageGuide": "年齡參考"
+    "ageGuide": "年齡參考",
+    "onlineActivity": "網上"
   },
   "pa": {
     "browse": "ਬ੍ਰਾਊਜ਼",
@@ -1104,7 +1108,8 @@
     "openProgramPage": "ਪ੍ਰੋਗਰਾਮ ਪੰਨਾ ਖੋਲ੍ਹੋ",
     "addToCalendar": "ਕੈਲੰਡਰ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ",
     "layoutReviewBanner": "ਲੇਆਉਟ ਝਲਕ · ਐਪ ਦੇ ਆਪਣੇ ਨਮੂਨੇ",
-    "ageGuide": "ਉਮਰ ਲਈ ਸੇਧ"
+    "ageGuide": "ਉਮਰ ਲਈ ਸੇਧ",
+    "onlineActivity": "ਆਨਲਾਈਨ"
   },
   "ur": {
     "browse": "دیکھیں",
@@ -1307,7 +1312,8 @@
     "openProgramPage": "پروگرام کا صفحہ کھولیں",
     "addToCalendar": "کیلنڈر میں شامل کریں",
     "layoutReviewBanner": "لے آؤٹ کا پیش منظر · ایپ کی اپنی نمونہ فہرستیں",
-    "ageGuide": "عمر کی رہنمائی"
+    "ageGuide": "عمر کی رہنمائی",
+    "onlineActivity": "آن لائن"
   },
   "ta": {
     "browse": "உலாவு",
@@ -1510,7 +1516,8 @@
     "openProgramPage": "நிகழ்ச்சிப் பக்கத்தைத் திறக்கவும்",
     "addToCalendar": "நாள்காட்டியில் சேர்க்கவும்",
     "layoutReviewBanner": "தளவமைப்பு முன்னோட்டம் · செயலியின் மாதிரிப் பட்டியல்கள்",
-    "ageGuide": "வயது வழிகாட்டி"
+    "ageGuide": "வயது வழிகாட்டி",
+    "onlineActivity": "இணையவழி"
   },
   "tl": {
     "browse": "Mag-browse",
@@ -1713,7 +1720,8 @@
     "openProgramPage": "Buksan ang pahina ng programa",
     "addToCalendar": "Idagdag sa kalendaryo",
     "layoutReviewBanner": "Preview ng layout · sariling mga halimbawa ng app",
-    "ageGuide": "Gabay sa edad"
+    "ageGuide": "Gabay sa edad",
+    "onlineActivity": "Sa internet"
   },
   "es": {
     "browse": "Explorar",
@@ -1916,7 +1924,8 @@
     "openProgramPage": "Abrir la página del programa",
     "addToCalendar": "Añadir al calendario",
     "layoutReviewBanner": "Vista previa · ejemplos propios de la aplicación",
-    "ageGuide": "Edad orientativa"
+    "ageGuide": "Edad orientativa",
+    "onlineActivity": "En línea"
   },
   "ar": {
     "browse": "تصفح",
@@ -2119,7 +2128,8 @@
     "openProgramPage": "افتح صفحة البرنامج",
     "addToCalendar": "أضف إلى التقويم",
     "layoutReviewBanner": "معاينة التخطيط · قوائم نموذجية خاصة بالتطبيق",
-    "ageGuide": "دليل العمر"
+    "ageGuide": "دليل العمر",
+    "onlineActivity": "عبر الإنترنت"
   },
   "fa": {
     "browse": "مرور",
@@ -2322,7 +2332,8 @@
     "openProgramPage": "باز کردن صفحه برنامه",
     "addToCalendar": "افزودن به تقویم",
     "layoutReviewBanner": "پیش‌نمایش چیدمان · نمونه‌های متعلق به برنامه",
-    "ageGuide": "راهنمای سن"
+    "ageGuide": "راهنمای سن",
+    "onlineActivity": "برخط"
   },
   "hi": {
     "browse": "ब्राउज़",
@@ -2525,7 +2536,8 @@
     "openProgramPage": "कार्यक्रम का पेज खोलें",
     "addToCalendar": "कैलेंडर में जोड़ें",
     "layoutReviewBanner": "लेआउट पूर्वावलोकन · ऐप की अपनी नमूना सूचियाँ",
-    "ageGuide": "उम्र का मार्गदर्शन"
+    "ageGuide": "उम्र का मार्गदर्शन",
+    "onlineActivity": "ऑनलाइन"
   },
   "pt": {
     "browse": "Explorar",
@@ -2728,7 +2740,8 @@
     "openProgramPage": "Abrir a página do programa",
     "addToCalendar": "Adicionar ao calendário",
     "layoutReviewBanner": "Prévia · exemplos próprios do aplicativo",
-    "ageGuide": "Faixa etária sugerida"
+    "ageGuide": "Faixa etária sugerida",
+    "onlineActivity": "Na internet"
   },
   "gu": {
     "browse": "બ્રાઉઝ",
@@ -2931,7 +2944,8 @@
     "openProgramPage": "કાર્યક્રમનું પૃષ્ઠ ખોલો",
     "addToCalendar": "કૅલેન્ડરમાં ઉમેરો",
     "layoutReviewBanner": "લેઆઉટ પૂર્વાવલોકન · ઍપના પોતાના નમૂનાઓ",
-    "ageGuide": "ઉંમર માર્ગદર્શન"
+    "ageGuide": "ઉંમર માર્ગદર્શન",
+    "onlineActivity": "ઑનલાઇન"
   },
   "bn": {
     "browse": "ব্রাউজ",
@@ -3134,7 +3148,8 @@
     "openProgramPage": "কর্মসূচির পৃষ্ঠা খুলুন",
     "addToCalendar": "ক্যালেন্ডারে যোগ করুন",
     "layoutReviewBanner": "লেআউট প্রিভিউ · অ্যাপের নিজস্ব নমুনা তালিকা",
-    "ageGuide": "বয়স নির্দেশনা"
+    "ageGuide": "বয়স নির্দেশনা",
+    "onlineActivity": "অনলাইনে"
   },
   "ja": {
     "browse": "探す",
@@ -3337,7 +3352,8 @@
     "openProgramPage": "プログラムのページを開く",
     "addToCalendar": "カレンダーに追加",
     "layoutReviewBanner": "レイアウト確認 · アプリ独自のサンプル一覧",
-    "ageGuide": "年齢の目安"
+    "ageGuide": "年齢の目安",
+    "onlineActivity": "オンライン"
   },
   "ko": {
     "browse": "둘러보기",
@@ -3540,7 +3556,8 @@
     "openProgramPage": "프로그램 페이지 열기",
     "addToCalendar": "캘린더에 추가",
     "layoutReviewBanner": "레이아웃 미리보기 · 앱 자체 샘플 목록",
-    "ageGuide": "연령 안내"
+    "ageGuide": "연령 안내",
+    "onlineActivity": "온라인"
   },
   "hu": {
     "browse": "Bongeszés",
@@ -3743,6 +3760,7 @@
     "openProgramPage": "Programoldal megnyitása",
     "addToCalendar": "Hozzáadás a naptárhoz",
     "layoutReviewBanner": "Elrendezési előnézet · az alkalmazás saját mintái",
-    "ageGuide": "Korosztályi tájékoztató"
+    "ageGuide": "Korosztályi tájékoztató",
+    "onlineActivity": "Internetes"
   }
 }

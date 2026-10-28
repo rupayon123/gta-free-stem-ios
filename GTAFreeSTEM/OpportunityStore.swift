@@ -509,7 +509,7 @@ final class OpportunityStore: ObservableObject {
                 // as "18+". Migrate that saved selection to the corrected
                 // adult-program bucket instead of restoring an invalid picker value.
                 age: record.age == "18" ? "18+" : record.age,
-                language: record.language,
+                language: "all",
                 latitude: record.latitude,
                 longitude: record.longitude,
                 distanceKm: record.distanceKm,
@@ -703,7 +703,7 @@ final class OpportunityStore: ObservableObject {
                 record.city = filters.city
                 record.category = filters.category
                 record.age = filters.age
-                record.language = filters.language
+                record.language = "all"
                 record.latitude = filters.latitude
                 record.longitude = filters.longitude
                 record.distanceKm = filters.distanceKm

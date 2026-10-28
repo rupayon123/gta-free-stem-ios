@@ -66,7 +66,8 @@ enum LocalOpportunitySnapshot {
                 let maxAge = opportunity.ageMax ?? 99
                 guard opportunity.ageMin <= normalizedAge, normalizedAge <= maxAge else { return false }
             }
-            guard languagesMatch(opportunity.language, selected: filters.language) else { return false }
+            // Feed language defaults do not establish program delivery language.
+            // Ignore legacy selections in all search, hunt and alert matching.
             if filters.hasLocation,
                let latitude = filters.latitude,
                let longitude = filters.longitude {
@@ -227,14 +228,6 @@ enum LocalOpportunitySnapshot {
 
     private static func matchesScholarship(_ opportunity: Opportunity, language: AppLanguage) -> Bool {
         containsAny(opportunity, ["scholarship", "bursary", "grant", "award", "financial aid"], language: language)
-    }
-
-    private static func languagesMatch(_ opportunityLanguages: [String], selected language: String) -> Bool {
-        guard language != "all" else { return true }
-        guard let normalizedSelected = AppLanguage.supportedLanguage(for: language) else { return false }
-        return opportunityLanguages.contains {
-            AppLanguage.supportedLanguage(for: $0) == normalizedSelected
-        }
     }
 
     private static func sort(
