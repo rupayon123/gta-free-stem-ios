@@ -3081,6 +3081,14 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(violations.isEmpty, "Hardcoded visible SwiftUI strings must use session.text/AppText:\n\(violations.joined(separator: "\n"))")
     }
 
+    @MainActor
+    func testDiscoveryAgeGuideOmitsUnknownBoundsWithoutChangingGenuineRanges() {
+        XCTAssertNil(OpportunityRow.ageGuideRange(for: opportunity(id: "unknown", title: "Unknown age", ageMin: 0, ageMax: nil)))
+        XCTAssertEqual(OpportunityRow.ageGuideRange(for: opportunity(id: "bounded", title: "Bounded age", ageMin: 0, ageMax: 12)), "0–12")
+        XCTAssertEqual(OpportunityRow.ageGuideRange(for: opportunity(id: "adult", title: "Adult age", ageMin: 18, ageMax: nil)), "18+")
+        XCTAssertEqual(OpportunityRow.ageGuideRange(for: opportunity(id: "youth", title: "Youth age", ageMin: 10, ageMax: 18)), "10–18")
+    }
+
     func testOpportunityRowsExposeLocalizedOpenDetailsHint() throws {
         let repoRoot = testRepositoryRoot
         let browseView = repoRoot.appendingPathComponent("GTAFreeSTEM/BrowseView.swift")

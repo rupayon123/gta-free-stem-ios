@@ -715,7 +715,9 @@ struct OpportunityRow: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 FlowLabels {
-                    Text("\(session.text("ageGuide")): \(opportunity.ageMin)\(opportunity.ageMax.map { "–\($0)" } ?? "+")")
+                    if let ageGuide = Self.ageGuideRange(for: opportunity) {
+                        Text("\(session.text("ageGuide")): \(ageGuide)")
+                    }
                     Label(opportunity.localizedCost(language: session.language), systemImage: "ticket")
                     if opportunity.status == "needs_review" || opportunity.isNewFind == true {
                         Label(session.text("newFind"), systemImage: "sparkles")
@@ -747,15 +749,23 @@ struct OpportunityRow: View {
         .accessibilityHint(session.text("openDetailsHint"))
     }
 
+    static func ageGuideRange(for opportunity: Opportunity) -> String? {
+        // A zero lower bound without an upper bound can be an unknown fallback,
+        // not provider-confirmed eligibility for every age.
+        guard opportunity.ageMin > 0 || opportunity.ageMax != nil else { return nil }
+        return "\(opportunity.ageMin)\(opportunity.ageMax.map { "–\($0)" } ?? "+")"
+    }
+
     private var accessibilityLabel: String {
-        let ageRange = "\(opportunity.ageMin)\(opportunity.ageMax.map { "–\($0)" } ?? "+")"
         var parts = [
             "\(session.text("details")): \(session.title(for: opportunity))",
             "\(session.text("category")): \(session.categoryName(for: opportunity))",
             "\(session.text("hostOrgName")): \(session.organization(for: opportunity))",
-            "\(session.text("ageGuide")) \(ageRange)",
             "\(session.text("city")) \(session.city(for: opportunity))"
         ]
+        if let ageGuide = Self.ageGuideRange(for: opportunity) {
+            parts.append("\(session.text("ageGuide")) \(ageGuide)")
+        }
         parts.append(opportunity.localizedCost(language: session.language))
         if opportunity.status == "needs_review" || opportunity.isNewFind == true {
             parts.append(session.text("newFind"))
