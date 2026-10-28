@@ -178,6 +178,10 @@ struct BrowseView: View {
                     .font(.headline.weight(.bold))
                     .foregroundStyle(Brand.outline(for: colorScheme))
                     .fixedSize(horizontal: false, vertical: true)
+                Text("\(session.text("loadedFrom")) \(localizedDataSource)")
+                    .font(.caption)
+                    .foregroundStyle(Brand.mutedText(for: colorScheme))
+                    .fixedSize(horizontal: false, vertical: true)
                 if let lastUpdated = store.lastUpdated {
                     Text("\(session.text("date")): \(session.formattedDate(lastUpdated))")
                         .font(.caption)
