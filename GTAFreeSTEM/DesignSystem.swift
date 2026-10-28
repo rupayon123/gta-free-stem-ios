@@ -196,6 +196,37 @@ struct StickerBadge: View {
     }
 }
 
+/// Existing SF Symbols identify categories; this is not an event photograph or
+/// an invented provider illustration. The same mark follows a listing into Saved.
+struct ActivityCategoryMark: View {
+    let category: String
+    var size: CGFloat = 48
+
+    private var symbol: String {
+        if category.localizedCaseInsensitiveContains("coding") { return "curlybraces" }
+        if category.localizedCaseInsensitiveContains("science") { return "atom" }
+        if category.localizedCaseInsensitiveContains("maker") { return "paintpalette.fill" }
+        if category.localizedCaseInsensitiveContains("digital") { return "sparkles" }
+        return "book.closed.fill"
+    }
+
+    private var tint: Color {
+        if category.localizedCaseInsensitiveContains("coding") { return Brand.sun }
+        if category.localizedCaseInsensitiveContains("science") { return Brand.sky }
+        if category.localizedCaseInsensitiveContains("maker") { return Brand.orange }
+        return Brand.lavender
+    }
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: size * 0.46, weight: .semibold))
+            .foregroundStyle(Brand.navy)
+            .frame(width: size, height: size)
+            .background(tint, in: RoundedRectangle(cornerRadius: size * 0.27))
+            .accessibilityHidden(true)
+    }
+}
+
 struct BrandLogoImage: View {
     @Environment(\.colorScheme) private var colorScheme
     var size: CGFloat = 156

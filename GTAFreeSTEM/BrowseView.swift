@@ -69,13 +69,7 @@ struct BrowseView: View {
                 ScrollViewReader { scrollProxy in
                 ScrollView {
                     VStack(spacing: AppSpacing.standard) {
-                        if displayMode == .list && dynamicTypeSize.isAccessibilitySize {
-                            Text("\(store.activeCount) \(session.text("visible")) · \(session.text("freeShort"))")
-                                .font(.footnote.weight(.semibold))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        } else if displayMode == .list {
-                            hero
-                        }
+                        if displayMode == .list { hero }
                         searchControls
 
                         // A phone's first viewport should answer the question the user came
@@ -89,7 +83,6 @@ struct BrowseView: View {
                             huntPanel
                             resultsContent
                         }
-                        if displayMode == .list && dynamicTypeSize.isAccessibilitySize { hero }
                     }
                     .frame(maxWidth: 880)
                     .frame(maxWidth: .infinity)
@@ -177,53 +170,27 @@ struct BrowseView: View {
     }
 
     private var hero: some View {
-        ZStack(alignment: .topTrailing) {
-            HStack(alignment: .top, spacing: AppSpacing.medium) {
-                BrandLogoImage(size: surface == .highSchool ? 54 : 60)
-                    .accessibilityHidden(true)
-
-                VStack(alignment: .leading, spacing: 7) {
-                    HStack(alignment: .top, spacing: 8) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(surface == .highSchool ? session.text("highSchool") : Brand.compactName)
-                                .font(.title2.weight(.semibold))
-                                .foregroundStyle(Brand.outline(for: colorScheme))
-                                .fixedSize(horizontal: false, vertical: true)
-
-                            Text(surface == .highSchool ? highSchoolSummary : session.text("mission"))
-                                .font(.footnote)
-                                .foregroundStyle(Brand.mutedText(for: colorScheme))
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-
-                        if store.isLoading {
-                            ProgressView()
-                                .tint(Brand.lake)
-                        }
-                    }
-
-                    FlowLabels {
-                        StickerBadge(text: "\(store.activeCount) \(session.text("visible"))", color: Brand.sky, systemImage: "sparkle.magnifyingglass")
-                        StickerBadge(text: session.text("freeShort"), color: Brand.sun, systemImage: "heart.fill")
-                    }
-
-                    Text("\(session.text("loadedFrom")) \(localizedDataSource)")
+        HStack(alignment: .center, spacing: 10) {
+            BrandLogoImage(size: 38)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(OpportunityResultCountText.string(store.activeCount, language: session.language))
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(Brand.outline(for: colorScheme))
+                    .fixedSize(horizontal: false, vertical: true)
+                if let lastUpdated = store.lastUpdated {
+                    Text("\(session.text("date")): \(session.formattedDate(lastUpdated))")
                         .font(.caption)
                         .foregroundStyle(Brand.mutedText(for: colorScheme))
-                    if let lastUpdated = store.lastUpdated {
-                        Label("\(session.text("date")): \(session.formattedDate(lastUpdated))", systemImage: "calendar")
-                            .font(.caption2)
-                            .foregroundStyle(Brand.mutedText(for: colorScheme))
-                            .accessibilityIdentifier("feed-last-updated")
-                    }
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("feed-last-updated")
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.trailing, 44)
-
+            Spacer(minLength: 4)
+            if store.isLoading { ProgressView().tint(Brand.lake) }
             ThemeToolbarButton(showLabel: false)
         }
-        .cardSurface(padding: AppSpacing.standard, cornerRadius: AppRadius.card)
+        .padding(.vertical, 4)
     }
 
     private var searchControls: some View {
@@ -266,7 +233,7 @@ struct BrowseView: View {
             }
             .pickerStyle(.segmented)
         }
-        .cardSurface(padding: AppSpacing.medium, cornerRadius: AppRadius.card)
+        .padding(.bottom, 2)
     }
 
     private var modeButtons: some View {
@@ -276,8 +243,7 @@ struct BrowseView: View {
                 Task { await store.refresh(cache: persistenceContext) }
             } label: {
                 Text(modeTitle(for: mode))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.80)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .buttonStyle(SelectionChipStyle(isSelected: store.mode == mode))
             .accessibilityLabel("\(session.text(surface.titleKey)): \(modeTitle(for: mode))")
@@ -391,7 +357,7 @@ struct BrowseView: View {
     }
 
     private var opportunityList: some View {
-        LazyVStack(spacing: 10) {
+        LazyVStack(spacing: 0) {
             ForEach(store.opportunities) { opportunity in
                 VStack(alignment: .leading, spacing: 8) {
                     NavigationLink(value: opportunity) {
@@ -404,18 +370,25 @@ struct BrowseView: View {
                             .overlay(Brand.surfaceStroke(for: colorScheme))
 
                         Link(destination: sourceURL) {
-                            Label(session.text("source"), systemImage: "arrow.up.right.square")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(Brand.lake)
-                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                                .contentShape(Rectangle())
+                            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                Label(session.text("source"), systemImage: "arrow.up.right.square")
+                                    .font(.subheadline.weight(.semibold))
+                                Spacer(minLength: 0)
+                                Text(session.text("openProgramPage"))
+                                    .font(.caption)
+                                    .multilineTextAlignment(.trailing)
+                            }
+                            .foregroundStyle(Brand.lake)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("\(session.text("source")): \(session.title(for: opportunity))")
                         .accessibilityHint(session.text("sourceDetails"))
                     }
                 }
-                .cardSurface(padding: AppSpacing.standard, cornerRadius: AppRadius.card)
+                .padding(.vertical, 16)
+                .overlay(alignment: .bottom) { Divider() }
             }
         }
     }
@@ -424,7 +397,7 @@ struct BrowseView: View {
     private var emptyOpportunityState: some View {
         if store.isLoading {
             ContentUnavailableView(session.text("huntingNow"), systemImage: "hourglass")
-                .cardSurface()
+                .padding(.vertical, AppSpacing.large)
         } else {
             ContentUnavailableView {
                 Label(
@@ -460,7 +433,7 @@ struct BrowseView: View {
                         .buttonStyle(.borderedProminent)
                 }
             }
-            .cardSurface()
+            .padding(.vertical, AppSpacing.large)
         }
     }
 
@@ -708,54 +681,60 @@ struct BrowseView: View {
 
 struct OpportunityRow: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.openURL) private var openURL
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @EnvironmentObject private var session: SessionStore
     let opportunity: Opportunity
+    var showsDisclosure = true
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                StickerBadge(text: session.categoryName(for: opportunity), color: categoryColor, systemImage: categoryIcon)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Brand.mutedText(for: colorScheme))
-                    .accessibilityHidden(true)
+        HStack(alignment: .top, spacing: 12) {
+            if !dynamicTypeSize.isAccessibilitySize {
+                ActivityCategoryMark(category: opportunity.category)
             }
-
-            Text(session.title(for: opportunity))
-                .font(.headline.weight(.semibold))
-                .foregroundStyle(Brand.outline(for: colorScheme))
-                .fixedSize(horizontal: false, vertical: true)
-            Text("\(session.organization(for: opportunity)) · \(session.city(for: opportunity))")
-                .font(.subheadline)
-                .foregroundStyle(Brand.mutedText(for: colorScheme))
-
-            if let scheduleText = session.formattedSchedule(start: opportunity.startDate, end: opportunity.endDate) {
-                Label(scheduleText, systemImage: "calendar")
-                    .font(.caption.weight(.medium))
+            VStack(alignment: .leading, spacing: 7) {
+                Text(session.categoryName(for: opportunity))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Brand.lake)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(session.title(for: opportunity))
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(Brand.outline(for: colorScheme))
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("\(session.organization(for: opportunity)) · \(session.city(for: opportunity))")
+                    .font(.subheadline)
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
                     .fixedSize(horizontal: false, vertical: true)
+                if let schedule = session.formattedSchedule(start: opportunity.startDate, end: opportunity.endDate) {
+                    Label(schedule, systemImage: "calendar")
+                        .font(.caption)
+                        .foregroundStyle(Brand.mutedText(for: colorScheme))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                FlowLabels {
+                    Text("\(session.text("ageGuide")): \(opportunity.ageMin)\(opportunity.ageMax.map { "–\($0)" } ?? "+")")
+                    Label(opportunity.localizedCost(language: session.language), systemImage: "ticket")
+                    if opportunity.status == "needs_review" || opportunity.isNewFind == true {
+                        Label(session.text("newFind"), systemImage: "sparkles")
+                    }
+                    if let distanceKm = opportunity.distanceKm {
+                        Label(session.text("distanceRadius").replacingOccurrences(of: "{km}", with: String(format: "%.1f", distanceKm)), systemImage: "mappin.and.ellipse")
+                    }
+                    if opportunity.volunteerHoursEligible {
+                        Label(session.text("volunteerHours"), systemImage: "checkmark.seal")
+                    }
+                    if opportunity.coopEligible {
+                        Label(session.text("coop"), systemImage: "briefcase")
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(Brand.mutedText(for: colorScheme))
             }
-
-            FlowLabels {
-                StickerBadge(text: "\(session.text("ages")) \(opportunity.ageMin)\(opportunity.ageMax.map { "–\($0)" } ?? "+")", color: Brand.sky, systemImage: "person.2")
-                if opportunity.status == "needs_review" || opportunity.isNewFind == true {
-                    StickerBadge(text: session.text("newFind"), color: Brand.sun, systemImage: "sparkles")
-                }
-                if let distanceKm = opportunity.distanceKm {
-                    StickerBadge(
-                        text: session.text("distanceRadius").replacingOccurrences(of: "{km}", with: String(format: "%.1f", distanceKm)),
-                        color: Brand.lavender,
-                        systemImage: "mappin.and.ellipse"
-                    )
-                }
-                if opportunity.volunteerHoursEligible {
-                    StickerBadge(text: session.text("volunteerHours"), color: Brand.moss, systemImage: "checkmark.seal")
-                }
-                if opportunity.coopEligible {
-                    StickerBadge(text: session.text("coop"), color: Brand.lavender, systemImage: "briefcase")
-                }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if showsDisclosure {
+                Image(systemName: "chevron.forward")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Brand.mutedText(for: colorScheme))
+                    .accessibilityHidden(true)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -764,31 +743,16 @@ struct OpportunityRow: View {
         .accessibilityHint(session.text("openDetailsHint"))
     }
 
-    private var categoryIcon: String {
-        if opportunity.coopEligible { return "briefcase.fill" }
-        if opportunity.volunteerHoursEligible { return "checkmark.seal.fill" }
-        if opportunity.category.localizedCaseInsensitiveContains("coding") { return "chevron.left.forwardslash.chevron.right" }
-        if opportunity.category.localizedCaseInsensitiveContains("science") { return "atom" }
-        return "star.fill"
-    }
-
-    private var categoryColor: Color {
-        if opportunity.coopEligible { return Brand.lavender }
-        if opportunity.volunteerHoursEligible { return Brand.moss }
-        if opportunity.category.localizedCaseInsensitiveContains("science") { return Brand.sky }
-        if opportunity.category.localizedCaseInsensitiveContains("competition") { return Brand.coral }
-        return Brand.sun
-    }
-
     private var accessibilityLabel: String {
         let ageRange = "\(opportunity.ageMin)\(opportunity.ageMax.map { "–\($0)" } ?? "+")"
         var parts = [
             "\(session.text("details")): \(session.title(for: opportunity))",
             "\(session.text("category")): \(session.categoryName(for: opportunity))",
             "\(session.text("hostOrgName")): \(session.organization(for: opportunity))",
-            "\(session.text("ages")) \(ageRange)",
+            "\(session.text("ageGuide")) \(ageRange)",
             "\(session.text("city")) \(session.city(for: opportunity))"
         ]
+        parts.append(opportunity.localizedCost(language: session.language))
         if opportunity.status == "needs_review" || opportunity.isNewFind == true {
             parts.append(session.text("newFind"))
         }

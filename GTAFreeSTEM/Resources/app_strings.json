@@ -291,7 +291,8 @@
     "websiteUnavailable": "The website could not be opened on this device.",
     "openProgramPage": "Open program page",
     "addToCalendar": "Add to calendar",
-    "layoutReviewBanner": "Layout preview · app-owned sample listings"
+    "layoutReviewBanner": "Layout preview · app-owned sample listings",
+    "ageGuide": "Age guide"
   },
   "fr": {
     "browse": "Parcourir",
@@ -493,7 +494,8 @@
     "websiteUnavailable": "Impossible d’ouvrir le site Web sur cet appareil.",
     "openProgramPage": "Ouvrir la page du programme",
     "addToCalendar": "Ajouter au calendrier",
-    "layoutReviewBanner": "Aperçu · exemples créés par l’application"
+    "layoutReviewBanner": "Aperçu · exemples créés par l’application",
+    "ageGuide": "Âge indicatif"
   },
   "zh": {
     "browse": "浏览",
@@ -695,7 +697,8 @@
     "websiteUnavailable": "无法在此设备上打开网站。",
     "openProgramPage": "打开活动页面",
     "addToCalendar": "添加到日历",
-    "layoutReviewBanner": "布局预览 · 应用自有示例活动"
+    "layoutReviewBanner": "布局预览 · 应用自有示例活动",
+    "ageGuide": "年龄参考"
   },
   "yue": {
     "browse": "瀏覽",
@@ -897,7 +900,8 @@
     "websiteUnavailable": "無法喺呢部裝置開啟網站。",
     "openProgramPage": "開啟活動頁面",
     "addToCalendar": "加入行事曆",
-    "layoutReviewBanner": "版面預覽 · 應用程式自有示例活動"
+    "layoutReviewBanner": "版面預覽 · 應用程式自有示例活動",
+    "ageGuide": "年齡參考"
   },
   "pa": {
     "browse": "ਬ੍ਰਾਊਜ਼",
@@ -1099,7 +1103,8 @@
     "websiteUnavailable": "ਇਸ ਡਿਵਾਈਸ ਉੱਤੇ ਵੈੱਬਸਾਈਟ ਨਹੀਂ ਖੁੱਲ੍ਹ ਸਕੀ।",
     "openProgramPage": "ਪ੍ਰੋਗਰਾਮ ਪੰਨਾ ਖੋਲ੍ਹੋ",
     "addToCalendar": "ਕੈਲੰਡਰ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ",
-    "layoutReviewBanner": "ਲੇਆਉਟ ਝਲਕ · ਐਪ ਦੇ ਆਪਣੇ ਨਮੂਨੇ"
+    "layoutReviewBanner": "ਲੇਆਉਟ ਝਲਕ · ਐਪ ਦੇ ਆਪਣੇ ਨਮੂਨੇ",
+    "ageGuide": "ਉਮਰ ਲਈ ਸੇਧ"
   },
   "ur": {
     "browse": "دیکھیں",
@@ -1301,7 +1306,8 @@
     "websiteUnavailable": "اس آلے پر ویب سائٹ نہیں کھل سکی۔",
     "openProgramPage": "پروگرام کا صفحہ کھولیں",
     "addToCalendar": "کیلنڈر میں شامل کریں",
-    "layoutReviewBanner": "لے آؤٹ کا پیش منظر · ایپ کی اپنی نمونہ فہرستیں"
+    "layoutReviewBanner": "لے آؤٹ کا پیش منظر · ایپ کی اپنی نمونہ فہرستیں",
+    "ageGuide": "عمر کی رہنمائی"
   },
   "ta": {
     "browse": "உலாவு",
@@ -1503,7 +1509,8 @@
     "websiteUnavailable": "இந்தச் சாதனத்தில் இணையதளத்தைத் திறக்க முடியவில்லை.",
     "openProgramPage": "நிகழ்ச்சிப் பக்கத்தைத் திறக்கவும்",
     "addToCalendar": "நாள்காட்டியில் சேர்க்கவும்",
-    "layoutReviewBanner": "தளவமைப்பு முன்னோட்டம் · செயலியின் மாதிரிப் பட்டியல்கள்"
+    "layoutReviewBanner": "தளவமைப்பு முன்னோட்டம் · செயலியின் மாதிரிப் பட்டியல்கள்",
+    "ageGuide": "வயது வழிகாட்டி"
   },
   "tl": {
     "browse": "Mag-browse",
@@ -1705,7 +1712,8 @@
     "websiteUnavailable": "Hindi mabuksan ang website sa device na ito.",
     "openProgramPage": "Buksan ang pahina ng programa",
     "addToCalendar": "Idagdag sa kalendaryo",
-    "layoutReviewBanner": "Preview ng layout · sariling mga halimbawa ng app"
+    "layoutReviewBanner": "Preview ng layout · sariling mga halimbawa ng app",
+    "ageGuide": "Gabay sa edad"
   },
   "es": {
     "browse": "Explorar",
@@ -1907,7 +1915,8 @@
     "websiteUnavailable": "No se pudo abrir el sitio web en este dispositivo.",
     "openProgramPage": "Abrir la página del programa",
     "addToCalendar": "Añadir al calendario",
-    "layoutReviewBanner": "Vista previa · ejemplos propios de la aplicación"
+    "layoutReviewBanner": "Vista previa · ejemplos propios de la aplicación",
+    "ageGuide": "Edad orientativa"
   },
   "ar": {
     "browse": "تصفح",
@@ -2109,7 +2118,8 @@
     "websiteUnavailable": "تعذّر فتح الموقع الإلكتروني على هذا الجهاز.",
     "openProgramPage": "افتح صفحة البرنامج",
     "addToCalendar": "أضف إلى التقويم",
-    "layoutReviewBanner": "معاينة التخطيط · قوائم نموذجية خاصة بالتطبيق"
+    "layoutReviewBanner": "معاينة التخطيط · قوائم نموذجية خاصة بالتطبيق",
+    "ageGuide": "دليل العمر"
   },
   "fa": {
     "browse": "مرور",
@@ -2311,7 +2321,8 @@
     "websiteUnavailable": "وب‌سایت در این دستگاه باز نشد.",
     "openProgramPage": "باز کردن صفحه برنامه",
     "addToCalendar": "افزودن به تقویم",
-    "layoutReviewBanner": "پیش‌نمایش چیدمان · نمونه‌های متعلق به برنامه"
+    "layoutReviewBanner": "پیش‌نمایش چیدمان · نمونه‌های متعلق به برنامه",
+    "ageGuide": "راهنمای سن"
   },
   "hi": {
     "browse": "ब्राउज़",
@@ -2513,7 +2524,8 @@
     "websiteUnavailable": "इस डिवाइस पर वेबसाइट नहीं खुल सकी।",
     "openProgramPage": "कार्यक्रम का पेज खोलें",
     "addToCalendar": "कैलेंडर में जोड़ें",
-    "layoutReviewBanner": "लेआउट पूर्वावलोकन · ऐप की अपनी नमूना सूचियाँ"
+    "layoutReviewBanner": "लेआउट पूर्वावलोकन · ऐप की अपनी नमूना सूचियाँ",
+    "ageGuide": "उम्र का मार्गदर्शन"
   },
   "pt": {
     "browse": "Explorar",
@@ -2715,7 +2727,8 @@
     "websiteUnavailable": "Não foi possível abrir o site neste dispositivo.",
     "openProgramPage": "Abrir a página do programa",
     "addToCalendar": "Adicionar ao calendário",
-    "layoutReviewBanner": "Prévia · exemplos próprios do aplicativo"
+    "layoutReviewBanner": "Prévia · exemplos próprios do aplicativo",
+    "ageGuide": "Faixa etária sugerida"
   },
   "gu": {
     "browse": "બ્રાઉઝ",
@@ -2917,7 +2930,8 @@
     "websiteUnavailable": "આ ઉપકરણ પર વેબસાઇટ ખોલી શકાઈ નથી.",
     "openProgramPage": "કાર્યક્રમનું પૃષ્ઠ ખોલો",
     "addToCalendar": "કૅલેન્ડરમાં ઉમેરો",
-    "layoutReviewBanner": "લેઆઉટ પૂર્વાવલોકન · ઍપના પોતાના નમૂનાઓ"
+    "layoutReviewBanner": "લેઆઉટ પૂર્વાવલોકન · ઍપના પોતાના નમૂનાઓ",
+    "ageGuide": "ઉંમર માર્ગદર્શન"
   },
   "bn": {
     "browse": "ব্রাউজ",
@@ -3119,7 +3133,8 @@
     "websiteUnavailable": "এই ডিভাইসে ওয়েবসাইট খোলা যায়নি।",
     "openProgramPage": "কর্মসূচির পৃষ্ঠা খুলুন",
     "addToCalendar": "ক্যালেন্ডারে যোগ করুন",
-    "layoutReviewBanner": "লেআউট প্রিভিউ · অ্যাপের নিজস্ব নমুনা তালিকা"
+    "layoutReviewBanner": "লেআউট প্রিভিউ · অ্যাপের নিজস্ব নমুনা তালিকা",
+    "ageGuide": "বয়স নির্দেশনা"
   },
   "ja": {
     "browse": "探す",
@@ -3321,7 +3336,8 @@
     "websiteUnavailable": "このデバイスではウェブサイトを開けませんでした。",
     "openProgramPage": "プログラムのページを開く",
     "addToCalendar": "カレンダーに追加",
-    "layoutReviewBanner": "レイアウト確認 · アプリ独自のサンプル一覧"
+    "layoutReviewBanner": "レイアウト確認 · アプリ独自のサンプル一覧",
+    "ageGuide": "年齢の目安"
   },
   "ko": {
     "browse": "둘러보기",
@@ -3523,7 +3539,8 @@
     "websiteUnavailable": "이 기기에서 웹사이트를 열 수 없습니다.",
     "openProgramPage": "프로그램 페이지 열기",
     "addToCalendar": "캘린더에 추가",
-    "layoutReviewBanner": "레이아웃 미리보기 · 앱 자체 샘플 목록"
+    "layoutReviewBanner": "레이아웃 미리보기 · 앱 자체 샘플 목록",
+    "ageGuide": "연령 안내"
   },
   "hu": {
     "browse": "Bongeszés",
@@ -3725,6 +3742,7 @@
     "websiteUnavailable": "A weboldal nem nyitható meg ezen az eszközön.",
     "openProgramPage": "Programoldal megnyitása",
     "addToCalendar": "Hozzáadás a naptárhoz",
-    "layoutReviewBanner": "Elrendezési előnézet · az alkalmazás saját mintái"
+    "layoutReviewBanner": "Elrendezési előnézet · az alkalmazás saját mintái",
+    "ageGuide": "Korosztályi tájékoztató"
   }
 }

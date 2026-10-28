@@ -441,7 +441,7 @@ struct HomeView: View {
             ZStack {
                 StorybookBackground()
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: 18) {
                         masthead
                         searchSection
                         interestStrip
@@ -468,37 +468,26 @@ struct HomeView: View {
     private var homeAccent: Color { colorScheme == .dark ? Brand.ice : Brand.lake }
 
     private var masthead: some View {
-        VStack(alignment: .leading, spacing: 13) {
-            Rectangle()
-                .fill(Brand.sun)
-                .frame(width: 52, height: 5)
+        HStack(spacing: 12) {
+            BrandLogoImage(size: 50)
                 .accessibilityHidden(true)
-
-            HStack(alignment: .center, spacing: 12) {
-                BrandLogoImage(size: 70)
-                    .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
                 Text(Brand.compactName)
-                    .font(.title2.weight(.bold))
+                    .font(.headline.weight(.bold))
                     .foregroundStyle(Brand.outline(for: colorScheme))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                ThemeToolbarButton(showLabel: false)
+                Text(session.text("navOpportunities"))
+                    .font(.subheadline)
+                    .foregroundStyle(Brand.mutedText(for: colorScheme))
             }
-
-            Text(session.text("mission"))
-                .font(.body)
-                .foregroundStyle(Brand.outline(for: colorScheme))
-                .fixedSize(horizontal: false, vertical: true)
+            .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 4)
+            ThemeToolbarButton(showLabel: false)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var searchSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(session.text("search"))
-                .font(.title3.weight(.bold))
-                .foregroundStyle(Brand.outline(for: colorScheme))
-
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(homeAccent)
@@ -536,15 +525,7 @@ struct HomeView: View {
             }
             .buttonStyle(StoryButtonStyle(kind: .primary))
 
-            Button {
-                openPathway(.highSchool)
-            } label: {
-                Label(session.text("highSchool"), systemImage: "graduationcap.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(minHeight: 44)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(homeAccent)
+
         }
     }
 
@@ -563,12 +544,10 @@ struct HomeView: View {
     }
 
     private var interestStrip: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 9) {
-                interestButton(category: "Science & Engineering", icon: "atom", color: Brand.sky)
-                interestButton(category: "Coding & Robotics", icon: "curlybraces", color: Brand.sun)
-                interestButton(category: "Makerspace & Fabrication", icon: "paintpalette.fill", color: Brand.coral)
-            }
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: dynamicTypeSize.isAccessibilitySize ? 1 : 3), spacing: 10) {
+            interestButton(category: "Science & Engineering")
+            interestButton(category: "Coding & Robotics")
+            interestButton(category: "Makerspace & Fabrication")
         }
     }
 
@@ -587,22 +566,26 @@ struct HomeView: View {
         .accessibilityIdentifier("home-category-filter")
     }
 
-    private func interestButton(category: String, icon: String, color: Color) -> some View {
+    private func interestButton(category: String) -> some View {
         Button {
             store.filters.category = category
             openResults()
         } label: {
-            HStack(spacing: 7) {
-                Label(session.categoryName(category), systemImage: icon)
+            VStack(spacing: 8) {
+                ActivityCategoryMark(category: category, size: 42)
+                Text(session.categoryName(category))
+                    .font(.caption.weight(.semibold))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
                 if store.filters.category == category {
-                    Image(systemName: "checkmark.circle.fill").accessibilityHidden(true)
+                    Image(systemName: "checkmark.circle.fill")
+                        .accessibilityHidden(true)
                 }
             }
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Brand.outline(for: colorScheme))
-                .padding(.horizontal, 12)
-                .frame(minHeight: 44)
-                .background(color.opacity(colorScheme == .dark ? 0.28 : 0.22), in: Capsule())
+            .foregroundStyle(Brand.outline(for: colorScheme))
+            .frame(maxWidth: .infinity, minHeight: 88, alignment: .top)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
         }
         .buttonStyle(SpringPressButtonStyle())
         .accessibilityAddTraits(store.filters.category == category ? .isSelected : [])
@@ -642,12 +625,12 @@ struct HomeView: View {
         }
         .foregroundStyle(Brand.outline(for: colorScheme))
         .padding(.horizontal, 11)
-        .frame(minHeight: 54)
+        .frame(minHeight: 48)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Brand.cardFill(for: colorScheme), in: RoundedRectangle(cornerRadius: 12))
         .overlay {
             RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Brand.outline(for: colorScheme).opacity(0.28), lineWidth: 1)
+                .strokeBorder(Brand.outline(for: colorScheme).opacity(0.16), lineWidth: 1)
         }
     }
 
@@ -693,48 +676,8 @@ struct HomeView: View {
     }
 
     private func activityRow(_ opportunity: Opportunity) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: categorySymbol(opportunity.category))
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(Brand.navy)
-                .frame(width: 40, height: 40)
-                .background(Brand.sun.opacity(0.66), in: RoundedRectangle(cornerRadius: 10))
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 5) {
-                Text(opportunity.localizedTitle(language: session.language))
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(Brand.outline(for: colorScheme))
-                    .fixedSize(horizontal: false, vertical: true)
-                Text("\(opportunity.localizedOrganization(language: session.language)) · \(opportunity.city)")
-                    .font(.subheadline)
-                    .foregroundStyle(Brand.mutedText(for: colorScheme))
-                    .fixedSize(horizontal: false, vertical: true)
-                if let schedule = session.formattedSchedule(start: opportunity.startDate, end: opportunity.endDate) {
-                    Label(schedule, systemImage: "calendar")
-                        .font(.caption)
-                        .foregroundStyle(Brand.mutedText(for: colorScheme))
-                }
-            }
-            Spacer(minLength: 0)
-            Image(systemName: "chevron.forward")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(homeAccent)
-                .accessibilityHidden(true)
-        }
-        .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
-        .padding(.vertical, 12)
-        .accessibilityElement(children: .combine)
-        .accessibilityHint(session.text("openDetailsHint"))
-    }
-
-    private func categorySymbol(_ category: String) -> String {
-        let lower = category.lowercased()
-        if lower.contains("coding") || lower.contains("robot") || lower.contains("digital") { return "curlybraces" }
-        if lower.contains("nature") || lower.contains("environment") { return "leaf.fill" }
-        if lower.contains("art") || lower.contains("maker") { return "paintpalette.fill" }
-        if lower.contains("science") || lower.contains("stem") { return "atom" }
-        return "book.closed.fill"
+        OpportunityRow(opportunity: opportunity)
+            .padding(.vertical, 14)
     }
 
     private var pathwayGrid: some View {
@@ -781,12 +724,12 @@ struct HomeView: View {
 
     private var sourceFootnote: some View {
         HStack(alignment: .top, spacing: 6) {
-            Image(systemName: "checkmark.seal.fill")
+            Image(systemName: "info.circle")
                 .foregroundStyle(Brand.moss)
                 .accessibilityHidden(true)
-            Text(session.text("freeShort"))
+            Text(session.text("sourceDetails"))
             if let lastUpdated = store.lastUpdated {
-                Text(verbatim: "· \(session.text("lastVerified")) \(session.formattedDate(lastUpdated))")
+                Text(verbatim: "· \(session.text("date")) \(session.formattedDate(lastUpdated))")
             }
         }
         .font(.caption)

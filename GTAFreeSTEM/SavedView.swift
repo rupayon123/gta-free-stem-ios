@@ -111,7 +111,7 @@ struct SavedView: View {
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .cardSurface(padding: AppSpacing.large, cornerRadius: AppRadius.feature)
+        .padding(.vertical, AppSpacing.large)
         .frame(maxWidth: 560)
         .padding(AppSpacing.standard)
     }
@@ -180,16 +180,7 @@ private struct SavedOpportunityRow: View {
     let opportunity: Opportunity
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(session.title(for: opportunity))
-                .font(.headline.weight(.semibold))
-            Text(session.organization(for: opportunity))
-                .font(.subheadline)
-                .foregroundStyle(Brand.lake)
-            Label("\(session.city(for: opportunity)), \(session.region(for: opportunity))", systemImage: "mappin.and.ellipse")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 4)
+        OpportunityRow(opportunity: opportunity, showsDisclosure: false)
+            .padding(.vertical, 8)
     }
 }
