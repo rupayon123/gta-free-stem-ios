@@ -8,7 +8,7 @@ enum BrowseSurface {
 
     var titleKey: String {
         switch self {
-        case .opportunities: "navOpportunities"
+        case .opportunities: "browse"
         case .highSchool: "highSchool"
         }
     }
