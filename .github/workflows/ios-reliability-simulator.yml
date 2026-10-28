@@ -51,10 +51,10 @@ jobs:
           shasum -a 256 -c .github/native-ci-source.sha256
           shasum -a 256 -c <<'HASHES'
           8f8b063f873be3cd3ba2c9055931637a0006d14cf99e3ed5408ad5887b7df835  GTAFreeSTEM/APIClient.swift
-          fe4c7acecf31a64e2bfc2826a49aa94521a937294c8c7674de3506e4c81d36f4  GTAFreeSTEM/Models.swift
-          da7a342188fb9cbf9cba2e7b3d3c3d5989bfe88f447f3c18519ae4f4e513a36f  GTAFreeSTEM/OpportunityStore.swift
-          90297d73766303fb1a8f1a2f307b9f9aca96f01fd2c04be1e6626d8e4901fbd7  GTAFreeSTEM/LocalOpportunitySnapshot.swift
-          1feb697e5684f2e30702edb63762ff6edb23153197e585ff7c865d8764ec9915  GTAFreeSTEMTests/APIClientTests.swift
+          53d2d925b09b768235de45e8a2b4737537fe2ac646043376138454f046001346  GTAFreeSTEM/Models.swift
+          d4ea6dbf05c4930c357c528493dba197d1ab35dbec581195216f66f5756bb5bd  GTAFreeSTEM/OpportunityStore.swift
+          077c365047628e38b1ae80e7a4319c0144429ac9a31de509b6fffab2cca59bc0  GTAFreeSTEM/LocalOpportunitySnapshot.swift
+          b2b0464f68cdc1c1069896a86fbd915109b1b3af4896112b80df385eca54d88c  GTAFreeSTEMTests/APIClientTests.swift
           c61ed81737815ad1543df966f382c8e2672fe2cb28b7d8f6f68cfc3ef39fd391  GTAFreeSTEM/Resources/opportunities.json
           06181e9494ed5cf7b5bcd672fba62f674dbed03320de8455c48aa57e92b79da3  docs/scripts/validate-feed-content-rights.py
           HASHES
