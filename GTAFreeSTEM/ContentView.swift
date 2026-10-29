@@ -1,3 +1,5 @@
+import Accessibility
+import SwiftData
 import SwiftUI
 
 enum AppTab: Hashable, CaseIterable {
@@ -49,7 +51,7 @@ enum AppTab: Hashable, CaseIterable {
     var titleKey: String {
         switch self {
         case .home: "home"
-        case .opportunities: "navOpportunities"
+        case .opportunities: "browse"
         case .highSchool: "highSchool"
         case .support: "support"
         case .account: "account"
@@ -72,6 +74,8 @@ enum AppLaunchConfiguration {
     static let screenshotModeEnvironmentKey = "GTA_FREE_STEM_SCREENSHOT_MODE"
     static let screenshotReadyNonceEnvironmentKey = "GTA_FREE_STEM_SCREENSHOT_READY_NONCE"
     static let screenshotReadyMarkerFilename = "gta-free-stem-screenshot-ready"
+    static let screenshotModeArgument = "-screenshot-mode"
+    static let screenshotReadyNonceArgument = "-screenshot-ready-nonce"
 
     static func screenshotQuery(arguments: [String], environment: [String: String] = [:]) -> String? {
         if let optionIndex = arguments.firstIndex(where: { $0.caseInsensitiveCompare("-screenshot-query") == .orderedSame }),
@@ -87,7 +91,13 @@ enum AppLaunchConfiguration {
         screenshotQuery(arguments: ProcessInfo.processInfo.arguments, environment: ProcessInfo.processInfo.environment)
     }
 
-    static func isScreenshotCapture(environment: [String: String] = [:]) -> Bool {
+    static func isScreenshotCapture(
+        arguments: [String] = [],
+        environment: [String: String] = [:]
+    ) -> Bool {
+        if arguments.contains(where: { $0.caseInsensitiveCompare(screenshotModeArgument) == .orderedSame }) {
+            return true
+        }
         guard let value = environment[screenshotModeEnvironmentKey]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
@@ -98,21 +108,30 @@ enum AppLaunchConfiguration {
     }
 
     static var isScreenshotCapture: Bool {
-        isScreenshotCapture(environment: ProcessInfo.processInfo.environment)
+        isScreenshotCapture(
+            arguments: ProcessInfo.processInfo.arguments,
+            environment: ProcessInfo.processInfo.environment
+        )
     }
 
     static func markScreenshotReady(
         _ isReady: Bool,
+        arguments: [String] = ProcessInfo.processInfo.arguments,
         environment: [String: String] = ProcessInfo.processInfo.environment,
         fileManager: FileManager = .default
     ) {
         guard isReady,
-              let nonce = normalizedScreenshotNonce(environment[screenshotReadyNonceEnvironmentKey]),
+              let nonce = screenshotReadyNonce(arguments: arguments, environment: environment),
               let cachesDirectory = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first
         else {
             return
         }
 
+#if DEBUG
+        if AppRuntime.isFrontendLayoutReview {
+            FileHandle.standardOutput.write(Data(("GTA_LAYOUT_REVIEW_READY " + nonce + "\n").utf8))
+        }
+#endif
         let marker = cachesDirectory.appendingPathComponent(screenshotReadyMarkerFilename, isDirectory: false)
         try? Data(nonce.utf8).write(to: marker, options: .atomic)
     }
@@ -129,10 +148,26 @@ enum AppLaunchConfiguration {
         guard !nonce.isEmpty, nonce.count <= 200 else { return nil }
         return nonce
     }
+
+    private static func screenshotReadyNonce(
+        arguments: [String],
+        environment: [String: String]
+    ) -> String? {
+        if let optionIndex = arguments.firstIndex(where: {
+            $0.caseInsensitiveCompare(screenshotReadyNonceArgument) == .orderedSame
+        }), arguments.indices.contains(optionIndex + 1),
+           let nonce = normalizedScreenshotNonce(arguments[optionIndex + 1]) {
+            return nonce
+        }
+        return normalizedScreenshotNonce(environment[screenshotReadyNonceEnvironmentKey])
+    }
 }
 
 struct ContentView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appStorageAccess) private var storageAccess
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var session: SessionStore
@@ -149,7 +184,33 @@ struct ContentView: View {
         }
         .tint(Brand.lake)
         .accessibilityIdentifier("app-root")
-        .animation(.easeInOut(duration: 0.20), value: selectedTab)
+        .onAppear {
+#if DEBUG
+            // A smoke capture must observe the real shell after the unchanged
+            // launch animation hands over, rather than photographing a timer.
+            let args = ProcessInfo.processInfo.arguments
+            if let index = args.firstIndex(of: "-runtime-ready-nonce"),
+               args.indices.contains(index + 1), UUID(uuidString: args[index + 1]) != nil {
+                FileHandle.standardOutput.write(Data(("GTA_RUNTIME_SHELL_READY " + args[index + 1] + "\n").utf8))
+            }
+#endif
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if !storageAccess.allowsPersistentChanges {
+                StorageRecoveryBanner()
+            }
+        }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.20), value: selectedTab)
+        .onChange(of: accessibilityStatus) { oldStatus, newStatus in
+            guard voiceOverEnabled,
+                  oldStatus != newStatus,
+                  let message = accessibilityAnnouncement(for: newStatus)
+            else { return }
+
+            // Announcements describe asynchronous updates without moving the
+            // VoiceOver cursor away from the control the person is using.
+            AccessibilityNotification.Announcement(message).post()
+        }
         .onChange(of: selectedTab) { _, newTab in
             configureStore(for: newTab)
         }
@@ -162,8 +223,9 @@ struct ContentView: View {
             guard !AppRuntime.isRunningTests else { return }
             applyScreenshotConfigurationIfNeeded()
             if AppLaunchConfiguration.isScreenshotCapture {
-                // App Store capture must render the exact bundled release data,
-                // not race a public request whose timing can vary by machine.
+                // App Store capture uses the exact release UI with app-owned,
+                // clearly labelled sample content. Static marketing images
+                // cannot carry third-party providers' required clickable links.
                 // Browse destinations own their readiness signal because their
                 // surface mode and query must be applied before capture.
                 if selectedTab != .opportunities && selectedTab != .highSchool {
@@ -171,7 +233,7 @@ struct ContentView: View {
                     AppLaunchConfiguration.markScreenshotReady(isReady)
                 }
             } else {
-                await store.bootstrap(cache: modelContext)
+                await store.bootstrap(cache: persistenceContext)
             }
         }
         .onChange(of: scenePhase) { _, phase in
@@ -179,7 +241,7 @@ struct ContentView: View {
                   !AppRuntime.isRunningTests,
                   !AppLaunchConfiguration.isScreenshotCapture
             else { return }
-            Task { await store.refreshIfStale(cache: modelContext) }
+            Task { await store.refreshIfStale(cache: persistenceContext) }
         }
     }
 
@@ -242,7 +304,11 @@ struct ContentView: View {
         case .support:
             SubmitView()
         case .account:
-            SettingsView()
+            if AppRuntime.isFrontendSavedLayoutReview {
+                SavedView()
+            } else {
+                SettingsView()
+            }
         }
     }
 
@@ -254,14 +320,53 @@ struct ContentView: View {
         #endif
     }
 
+    private var accessibilityStatus: OpportunityAccessibilityStatus {
+        guard selectedTab == .home || selectedTab == .opportunities || selectedTab == .highSchool else {
+            return .inactive
+        }
+        if store.isLoading {
+            return .loading
+        }
+        if let errorMessage = store.errorMessage {
+            return .error(errorMessage)
+        }
+        if store.huntPhase == .offline {
+            return .offline(resultCount: store.opportunities.count)
+        }
+        return .results(count: store.opportunities.count)
+    }
+
+    private func accessibilityAnnouncement(for status: OpportunityAccessibilityStatus) -> String? {
+        switch status {
+        case .inactive:
+            nil
+        case .loading:
+            session.text("huntingNow")
+        case let .error(message):
+            message
+        case let .offline(resultCount):
+            "\(session.text("offlinePreview")). \(localizedResultCount(resultCount))"
+        case let .results(count):
+            localizedResultCount(count)
+        }
+    }
+
+    private var persistenceContext: ModelContext? {
+        storageAccess.allowsPersistentChanges ? modelContext : nil
+    }
+
+    private func localizedResultCount(_ count: Int) -> String {
+        OpportunityResultCountText.string(count, language: session.language)
+    }
+
     private func configureStore(for tab: AppTab) {
         store.mode = AppNavigationModePolicy.mode(for: tab, currentMode: store.mode)
         guard !AppLaunchConfiguration.isScreenshotCapture else { return }
         switch tab {
         case .opportunities:
-            Task { await store.refreshIfStale(cache: modelContext) }
+            Task { await store.refreshIfStale(cache: persistenceContext) }
         case .highSchool:
-            Task { await store.refreshIfStale(cache: modelContext) }
+            Task { await store.refreshIfStale(cache: persistenceContext) }
         case .home, .support, .account:
             break
         }
@@ -272,6 +377,38 @@ struct ContentView: View {
 
         store.query = screenshotQuery
         store.mode = selectedTab == .highSchool ? .highSchool : .all
+    }
+}
+
+private struct StorageRecoveryBanner: View {
+    @EnvironmentObject private var session: SessionStore
+
+    var body: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(session.text("localStorageUnavailableTitle"))
+                    .font(.footnote.weight(.bold))
+                Text(session.text("localStorageUnavailableMessage"))
+                    .font(.caption)
+            }
+        } icon: {
+            Image(systemName: "externaldrive.badge.exclamationmark")
+                .foregroundStyle(Brand.coral)
+        }
+        // This banner deliberately keeps a fixed paper surface in both schemes;
+        // fixed dark ink preserves critical recovery-copy contrast in dark mode.
+        .foregroundStyle(Brand.ink)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, AppSpacing.standard)
+        .padding(.vertical, AppSpacing.small)
+        .background(Brand.cream)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Brand.coral)
+                .frame(height: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("storage-read-only-notice")
     }
 }
 
@@ -290,236 +427,262 @@ enum AppNavigationModePolicy {
 
 struct HomeView: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.appStorageAccess) private var storageAccess
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
     @Binding var selectedTab: AppTab
+    @State private var deletingSearch: NamedSavedSearch?
+    @State private var deletionNotice = false
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                StorybookBackground()
-
-                ScrollView {
-                    VStack(spacing: AppSpacing.standard) {
-                        heroCard
-                        searchEntryCard
-                        statusCard
-                        pathwayGrid
+            ScrollView {
+                VStack(alignment: .leading, spacing: 28) {
+                    masthead
+                    Text(session.text("homePurpose"))
+                        .font(.largeTitle.weight(.bold))
+                        .foregroundStyle(Brand.outline(for: colorScheme))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                    if !store.savedSearches.isEmpty { savedSearchSection }
+                    topicSection
+                    Button(action: openResults) {
+                        Label(session.text("browseAllActivities"), systemImage: "arrow.forward")
+                            .frame(maxWidth: .infinity, minHeight: 44)
                     }
-                    .frame(maxWidth: 780)
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, AppSpacing.standard)
-                    .padding(.top, AppSpacing.small)
-                    .padding(.bottom, 88)
+                    .buttonStyle(StoryButtonStyle(kind: .primary))
+                    if store.savedSearches.isEmpty { savedSearchSection }
+                    if let error = store.savedSearchError {
+                        Text(error).font(.callout).foregroundStyle(Brand.coral)
+                    }
+                    if deletionNotice {
+                        Label(session.text("searchDeleted"), systemImage: "checkmark.circle")
+                            .font(.callout).foregroundStyle(Brand.mutedText(for: colorScheme))
+                            .accessibilityIdentifier("saved-search-deleted")
+                    }
+                    pathwayGrid
+                    sourceFootnote
                 }
+                .frame(maxWidth: 720)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 100)
             }
+            .background(Brand.contentCanvas(for: colorScheme).ignoresSafeArea())
             .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
+            .confirmationDialog(session.text("deleteSavedSearch"), isPresented: Binding(
+                get: { deletingSearch != nil }, set: { if !$0 { deletingSearch = nil } }
+            ), titleVisibility: .visible) {
+                Button(session.text("deleteSavedSearch"), role: .destructive) {
+                    if let search = deletingSearch { Task { deletionNotice = await store.deleteNamedSearch(search.id) } }
+                    deletingSearch = nil
+                }
+            } message: { Text(deletingSearch?.name ?? "") }
         }
     }
 
-    private var heroCard: some View {
-        ZStack(alignment: .topTrailing) {
-            VStack(spacing: AppSpacing.medium) {
-                BrandLogoImage(size: 158)
-                    .accessibilityHidden(true)
-
-                Text(session.text("brand"))
-                    .font(.title.weight(.bold))
-                    .foregroundStyle(Brand.outline(for: colorScheme))
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(session.text("mission"))
-                    .font(.body)
-                    .foregroundStyle(Brand.mutedText(for: colorScheme))
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 560)
-
-                StickerBadge(text: session.text("freeOnly"), color: Brand.sun, systemImage: "heart.fill")
-            }
-            .frame(maxWidth: .infinity)
-
+    private var masthead: some View {
+        HStack(spacing: 12) {
+            BrandLogoImage(size: 48).accessibilityHidden(true)
+            Text(Brand.compactName).font(.headline.weight(.bold))
+                .foregroundStyle(Brand.outline(for: colorScheme))
+            Spacer(minLength: 4)
             ThemeToolbarButton(showLabel: false)
         }
-        .cardSurface(padding: AppSpacing.large, cornerRadius: AppRadius.feature)
     }
 
-    private var searchEntryCard: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            StorySectionTitle(text: session.text("search"), systemImage: "sparkle.magnifyingglass")
-
-            HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass")
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(Brand.lake)
-                TextField(session.text("searchPlaceholder"), text: $store.query)
-                    .textInputAutocapitalization(.never)
-                    .submitLabel(.search)
-                    .onSubmit {
-                        store.mode = .all
+    private var topicSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(session.text("exploreTopics")).font(.title2.weight(.bold))
+                .foregroundStyle(Brand.outline(for: colorScheme))
+                .accessibilityAddTraits(.isHeader)
+            if store.homeTopics.isEmpty {
+                Text(session.text(store.isLoading ? "preparingOpportunities" : "noOpportunities"))
+                    .foregroundStyle(Brand.mutedText(for: colorScheme))
+            }
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: dynamicTypeSize.isAccessibilitySize ? 1 : 2), spacing: 12) {
+                ForEach(store.homeTopics, id: \.self) { category in
+                    Button {
+                        store.beginNewSearch(category: category)
                         selectedTab = .opportunities
-                        Task { await store.refresh(cache: modelContext) }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 14) {
+                            ActivityCategoryMark(category: category, size: 42)
+                            HStack(alignment: .top, spacing: 6) {
+                                Text(session.categoryName(category)).font(.headline)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Spacer(minLength: 0)
+                                Image(systemName: "arrow.up.forward").font(.caption.weight(.bold)).accessibilityHidden(true)
+                            }
+                        }
+                        .foregroundStyle(Brand.outline(for: colorScheme))
+                        .padding(16)
+                        .frame(maxWidth: .infinity, minHeight: 130, alignment: .topLeading)
+                        .background(Brand.topicFill(category: category, scheme: colorScheme), in: RoundedRectangle(cornerRadius: 18))
+                        .contentShape(RoundedRectangle(cornerRadius: 18))
                     }
+                    .buttonStyle(SpringPressButtonStyle())
+                    .accessibilityIdentifier("home-topic-\(category)")
+                }
             }
-            .storyField()
-
-            searchActions
         }
-        .cardSurface()
     }
 
-    private var statusCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 14) {
-                Image(systemName: store.isLoading ? "arrow.triangle.2.circlepath.circle.fill" : "checkmark.seal.fill")
-                    .font(.system(size: 28, weight: .semibold))
-                    .foregroundStyle(store.isLoading ? Brand.lake : Brand.moss)
-                    .symbolEffect(.pulse, value: store.isLoading)
-                    .accessibilityHidden(true)
-
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("\(store.activeCount) \(session.text("visible"))")
-                        .font(.headline.weight(.semibold))
-                        .foregroundStyle(Brand.outline(for: colorScheme))
-                    Text("\(session.text("loadedFrom")) \(localizedDataSource)")
-                        .font(.subheadline)
+    private var savedSearchSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(session.text("mySavedSearches")).font(.title2.weight(.bold))
+                .foregroundStyle(Brand.outline(for: colorScheme)).accessibilityAddTraits(.isHeader)
+            if store.savedSearches.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Image(systemName: "bookmark").font(.title2).foregroundStyle(Brand.lake).accessibilityHidden(true)
+                    Text(session.text("savedSearchEmpty")).font(.body)
                         .foregroundStyle(Brand.mutedText(for: colorScheme))
-                    if let lastUpdated = store.lastUpdated {
-                        Label("\(session.text("date")): \(session.formattedDate(lastUpdated))", systemImage: "calendar")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Brand.mutedText(for: colorScheme))
-                            .accessibilityIdentifier("feed-last-updated")
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(18)
+                .background(Brand.topicFill(category: "Science & Engineering", scheme: colorScheme), in: RoundedRectangle(cornerRadius: 18))
+            } else {
+                ForEach(store.savedSearches) { search in
+                    VStack(alignment: .leading, spacing: 12) {
+                        Button {
+                            Task {
+                                if await store.openNamedSearch(search.id, acknowledge: storageAccess.allowsPersistentChanges) {
+                                    selectedTab = search.criteria.mode == .all ? .opportunities : .highSchool
+                                }
+                            }
+                        } label: {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack(alignment: .firstTextBaseline) {
+                                    Text(search.name).font(.headline)
+                                    Spacer(minLength: 4)
+                                    Image(systemName: "arrow.forward").accessibilityHidden(true)
+                                }
+                                Text(NamedSearchSummary.text(search.criteria, session: session))
+                                    .font(.subheadline).foregroundStyle(Brand.mutedText(for: colorScheme))
+                                if let count = search.matchedCount {
+                                    Text(OpportunityResultCountText.string(count, language: session.language)).font(.subheadline.weight(.semibold))
+                                } else {
+                                    Text(session.text("savedSearchPending")).font(.subheadline)
+                                }
+                                if !search.unreadIDs.isEmpty {
+                                    Text(session.text("newSinceViewed").replacingOccurrences(of: "{count}", with: "\(search.unreadIDs.count)"))
+                                        .font(.subheadline.weight(.semibold)).foregroundStyle(Brand.lake)
+                                }
+                                if let checked = search.checkedAt {
+                                    Text("\(session.text("lastChecked")): \(checked.formatted(date: .abbreviated, time: .omitted))")
+                                        .font(.caption).foregroundStyle(Brand.mutedText(for: colorScheme))
+                                }
+                            }
+                            .foregroundStyle(Brand.outline(for: colorScheme))
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(SpringPressButtonStyle())
+                        .accessibilityIdentifier("open-saved-search-\(search.id)")
+                        HStack {
+                            if !search.unreadIDs.isEmpty {
+                                Button(session.text("markRead")) { Task { await store.markNamedSearchRead(search.id) } }
+                                    .frame(minHeight: 44)
+                            }
+                            Spacer()
+                            Button(session.text("deleteSavedSearch"), role: .destructive) { deletingSearch = search }
+                                .frame(minHeight: 44)
+                        }
+                        .font(.subheadline).disabled(!storageAccess.allowsPersistentChanges)
+                        Divider()
                     }
                 }
-
-                Spacer()
-
-                Button {
-                    Task { await store.refresh(cache: modelContext) }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.headline.weight(.semibold))
-                        .frame(width: 20, height: 20)
-                }
-                .buttonStyle(StoryButtonStyle(kind: .quiet))
-                .accessibilityLabel(session.text("refreshResearch"))
-            }
-            .cardSurface()
-
-            if let message = store.errorMessage {
-                Label(message, systemImage: "exclamationmark.triangle.fill")
-                    .font(.footnote)
-                    .foregroundStyle(Brand.coral)
-                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
 
     private var pathwayGrid: some View {
-        LazyVGrid(
-            columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())],
-            spacing: 12
-        ) {
-            HomeActionTile(title: session.text("volunteerHours"), icon: "checkmark.seal.fill", color: Brand.moss) {
-                store.mode = .volunteer
-                selectedTab = .highSchool
-                Task { await store.refresh(cache: modelContext) }
+        VStack(alignment: .leading, spacing: 0) {
+            if store.availableHomePathwayModes.contains(.volunteer) {
+                pathwayRow(session.text("volunteerHours"), icon: "hands.sparkles") { openPathway(.volunteer) }
             }
-            HomeActionTile(title: session.text("coop"), icon: "briefcase.fill", color: Brand.lavender) {
-                store.mode = .coop
-                selectedTab = .highSchool
-                Task { await store.refresh(cache: modelContext) }
+            if store.availableHomePathwayModes.contains(.coop) {
+                pathwayRow(session.text("coop"), icon: "briefcase") { openPathway(.coop) }
             }
-            HomeActionTile(title: session.text("mentorship"), icon: "person.2.wave.2.fill", color: Brand.sky) {
-                store.mode = .mentorship
-                selectedTab = .highSchool
-                Task { await store.refresh(cache: modelContext) }
+            if store.availableHomePathwayModes.contains(.mentorship) {
+                pathwayRow(session.text("mentorship"), icon: "person.2") { openPathway(.mentorship) }
             }
-            HomeActionTile(title: session.text("feedback"), icon: "bubble.left.and.bubble.right.fill", color: Brand.coral) {
-                selectedTab = .support
-            }
+            pathwayRow(session.text("feedback"), icon: "bubble.left") { selectedTab = .support }
         }
     }
 
-    private var searchActions: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 10) {
-                allOpportunitiesButton
-                highSchoolButton
+    private func pathwayRow(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon).font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+        }
+        .foregroundStyle(Brand.lake).buttonStyle(SpringPressButtonStyle())
+    }
+
+    private var sourceFootnote: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(session.text("homeCatalogNote"))
+            if let lastUpdated = store.lastUpdated {
+                Text("\(session.text("date")): \(session.formattedDate(lastUpdated))")
+                    .accessibilityIdentifier("feed-last-updated")
             }
-
-            VStack(spacing: 10) {
-                allOpportunitiesButton
-                highSchoolButton
-            }
         }
+        .font(.footnote).foregroundStyle(Brand.mutedText(for: colorScheme))
+        .fixedSize(horizontal: false, vertical: true)
     }
 
-    private var allOpportunitiesButton: some View {
-        Button {
-            store.mode = .all
-            selectedTab = .opportunities
-            Task { await store.refresh(cache: modelContext) }
-        } label: {
-            Label(session.text("search"), systemImage: "magnifyingglass")
-                .lineLimit(1)
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(StoryButtonStyle(kind: .primary))
+    private func openResults() {
+        store.beginNewSearch()
+        selectedTab = .opportunities
     }
 
-    private var highSchoolButton: some View {
-        Button {
-            store.mode = .highSchool
-            selectedTab = .highSchool
-            Task { await store.refresh(cache: modelContext) }
-        } label: {
-            Label(session.text("highSchool"), systemImage: "graduationcap.fill")
-                .lineLimit(1)
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(StoryButtonStyle(kind: .secondary))
-    }
-
-    private var localizedDataSource: String {
-        switch store.dataSourceLabel {
-        case DataSource.publicLiveFeed:
-            session.text("publicLiveFeed")
-        case DataSource.previewDatabase:
-            session.text("previewDatabase")
-        case DataSource.savedAppCache:
-            session.text("savedAppCache")
-        }
+    private func openPathway(_ mode: SearchMode) {
+        store.beginNewSearch()
+        store.mode = mode
+        selectedTab = .highSchool
     }
 }
 
-private struct HomeActionTile: View {
-    @Environment(\.colorScheme) private var colorScheme
-    let title: String
-    let icon: String
-    let color: Color
-    let action: () -> Void
+@MainActor
+enum NamedSearchSummary {
+    static func text(_ criteria: NamedSearchCriteria, session: SessionStore) -> String {
+        var parts: [String] = []
+        if !criteria.query.isEmpty { parts.append(criteria.query) }
+        if !criteria.filters.city.isEmpty { parts.append(criteria.filters.city) }
+        if criteria.filters.category != "All" { parts.append(session.categoryName(criteria.filters.category)) }
+        if !criteria.filters.age.isEmpty { parts.append("\(session.text("age")): \(criteria.filters.age)") }
+        if criteria.mode != .all { parts.append(session.text(criteria.mode.textKey)) }
+        if criteria.filters.region != "All" { parts.append(criteria.filters.region) }
+        if criteria.filters.volunteerHours { parts.append(session.text("volunteerHours")) }
+        if criteria.filters.coop { parts.append(session.text("coop")) }
+        if criteria.filters.mentorship { parts.append(session.text("mentorship")) }
+        if criteria.filters.scholarships { parts.append(session.categoryName("Scholarships")) }
+        if criteria.filters.hasLocation { parts.append(session.text("distanceRadius").replacingOccurrences(of: "{km}", with: "\(Int(criteria.filters.distanceKm))")) }
+        return parts.isEmpty ? session.text("allCategories") : parts.joined(separator: " · ")
+    }
+}
 
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 12) {
-                Image(systemName: icon)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(colorScheme == .dark ? Brand.ice : Brand.navy)
-                    .frame(width: 42, height: 42)
-                    .background(color.opacity(colorScheme == .dark ? 0.28 : 0.18), in: Circle())
-                Text(title)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(Brand.outline(for: colorScheme))
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .frame(maxWidth: .infinity, minHeight: 108, alignment: .topLeading)
-        }
-        .buttonStyle(.plain)
-        .cardSurface(padding: 14, cornerRadius: AppRadius.card)
+private enum OpportunityAccessibilityStatus: Equatable {
+    case inactive
+    case loading
+    case error(String)
+    case offline(resultCount: Int)
+    case results(count: Int)
+}
+
+enum OpportunityResultCountText {
+    static func string(_ count: Int, language: AppLanguage) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = Locale(identifier: language.localeIdentifier)
+        let formattedCount = formatter.string(from: NSNumber(value: count)) ?? String(count)
+        let key = count == 1 ? "resultCountOne" : "resultCountMany"
+        return AppText.shared.string(key, language: language)
+            .replacingOccurrences(of: "{count}", with: formattedCount)
     }
 }

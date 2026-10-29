@@ -94,7 +94,8 @@ final class APIClient: @unchecked Sendable {
             meta: OpportunityListResponse.Metadata(
                 activeCount: filtered.count,
                 lastUpdated: response.meta?.lastUpdated
-            )
+            ),
+            publicationRevision: response.publicationRevision
         )
     }
 
@@ -102,8 +103,10 @@ final class APIClient: @unchecked Sendable {
         var lastError: Error?
 
         for source in [feedURL] + fallbackFeedURLs {
+            try Task.checkCancellation()
             do {
                 let response: OpportunityListResponse = try await get(source)
+                try Task.checkCancellation()
                 guard FeedFreshness.isCurrent(response.meta?.lastUpdated, now: now()) else {
                     throw APIError.invalidResponse
                 }
@@ -113,11 +116,19 @@ final class APIClient: @unchecked Sendable {
                 guard !response.data.isEmpty else {
                     throw APIError.invalidResponse
                 }
-                guard response.hasValidUniqueIDs, response.hasHealthyDeclaredSources else {
+                guard response.hasValidUniqueIDs, response.hasHealthyDeclaredSources,
+                      response.hasValidPublicationRevision(now: now()) else {
+                    throw APIError.invalidResponse
+                }
+                guard response.hasReleaseReadyContentRights(now: now()) else {
                     throw APIError.invalidResponse
                 }
                 return applyBundledTranslations(from: response)
             } catch {
+                try Task.checkCancellation()
+                if error is CancellationError || (error as? URLError)?.code == .cancelled {
+                    throw error
+                }
                 lastError = error
             }
         }
@@ -130,7 +141,9 @@ final class APIClient: @unchecked Sendable {
         return OpportunityListResponse(
             data: mergedData,
             meta: response.meta,
-            sourceHealth: response.sourceHealth
+            sourceHealth: response.sourceHealth,
+            contentRights: response.contentRights,
+            publicationRevision: response.publicationRevision
         )
     }
 
@@ -138,11 +151,18 @@ final class APIClient: @unchecked Sendable {
         guard let bundled = Self.bundledTranslationIndex[opportunity.id] else {
             return opportunity
         }
+        return Self.mergingBundledTranslations(bundled, into: opportunity)
+    }
+
+    static func mergingBundledTranslations(_ bundled: [String: OpportunityTranslation], into opportunity: Opportunity) -> Opportunity {
         var translations = bundled
         for (key, remoteTranslation) in opportunity.translations {
-            let fallback = bundled[key] ?? bundled[AppLanguage.normalized(key).rawValue]
+            let supportedLanguage = AppLanguage.supportedLanguage(for: key)
+            let fallback = bundled[key] ?? supportedLanguage.flatMap { bundled[$0.rawValue] }
             translations[key] = remoteTranslation.merged(with: fallback)
-            translations[AppLanguage.normalized(key).rawValue] = translations[key]
+            if let supportedLanguage {
+                translations[supportedLanguage.rawValue] = translations[key]
+            }
         }
         let mergedTranslations = translations.compactMapValues { $0.hasContent ? $0 : nil }
         return Opportunity(
@@ -173,16 +193,53 @@ final class APIClient: @unchecked Sendable {
             distanceKm: opportunity.distanceKm,
             isNewFind: opportunity.isNewFind,
             sourceConfidence: opportunity.sourceConfidence,
-            translations: mergedTranslations
+            translations: mergedTranslations,
+            virtual: opportunity.virtual
         )
     }
 
     private func get<T: Decodable>(_ url: URL) async throws -> T {
+        try Task.checkCancellation()
         guard Self.isTrustedTransport(url) else { throw APIError.insecureConnection }
-        let (data, response) = try await session.data(from: url)
-        guard data.count <= Self.maxResponseBytes else { throw APIError.invalidResponse }
-        guard let http = response as? HTTPURLResponse, 200..<300 ~= http.statusCode else { throw APIError.invalidResponse }
-        return try JSONDecoder().decode(T.self, from: data)
+        let (bytes, response) = try await session.bytes(from: url)
+        let responseTask = bytes.task
+        do {
+            return try await withTaskCancellationHandler {
+                try Task.checkCancellation()
+                guard let http = response as? HTTPURLResponse, 200..<300 ~= http.statusCode else {
+                    throw APIError.invalidResponse
+                }
+                guard let finalURL = http.url, Self.isTrustedTransport(finalURL) else {
+                    throw APIError.insecureConnection
+                }
+                guard response.expectedContentLength <= Int64(Self.maxResponseBytes) else {
+                    throw APIError.invalidResponse
+                }
+
+                var data = Data()
+                if response.expectedContentLength > 0 {
+                    data.reserveCapacity(Int(response.expectedContentLength))
+                }
+                for try await byte in bytes {
+                    // Unknown or understated lengths still cannot grow the
+                    // retained payload beyond the cap while the body arrives.
+                    guard data.count < Self.maxResponseBytes else { throw APIError.invalidResponse }
+                    data.append(byte)
+                    if data.count.isMultiple(of: 65_536) {
+                        try Task.checkCancellation()
+                    }
+                }
+                try Task.checkCancellation()
+                return try JSONDecoder().decode(T.self, from: data)
+            } onCancel: {
+                responseTask.cancel()
+            }
+        } catch {
+            // Header rejection and byte overflow must stop the transfer, not
+            // leave a response downloading after the caller moves to a mirror.
+            responseTask.cancel()
+            throw error
+        }
     }
 
     private static func isTrustedTransport(_ url: URL) -> Bool {

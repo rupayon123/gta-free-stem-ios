@@ -1,6 +1,6 @@
 # TestFlight Guide
 
-This guide covers the current GTA FREE STEM build, 1.0 (12).
+This guide covers the current internal GTA FREE STEM candidate, **1.0 (15)**. Its verified app source and exact exported IPA are recorded in [the current release handoff](CURRENT_RELEASE_HANDOFF.md). Xcode confirmed upload; do not assume that build 15 is processed, available to testers or installed. Reuse the recorded verified export for delivery rather than rebuilding it from a documentation-only follow-up commit.
 
 ## Prerequisites
 
@@ -30,21 +30,21 @@ The opt-in provisioning flag may register the selected device and create or refr
 ## Archive, Verify, And Upload
 
 ```bash
-ARCHIVE_PATH="$PWD/build/GTAFreeSTEM-build12.xcarchive" \
+ARCHIVE_PATH="$PWD/build/GTAFreeSTEM-build15.xcarchive" \
   bash docs/scripts/archive-release-candidate.sh ios
 
 bash docs/scripts/verify-app-store-archive.sh \
-  build/GTAFreeSTEM-build12.xcarchive
+  build/GTAFreeSTEM-build15.xcarchive
 
 xcodebuild -exportArchive \
-  -archivePath build/GTAFreeSTEM-build12.xcarchive \
+  -archivePath build/GTAFreeSTEM-build15.xcarchive \
   -exportOptionsPlist docs/AppStoreExportOptions.plist \
-  -exportPath build/export-build12 \
+  -exportPath build/export-build15 \
   -allowProvisioningUpdates
 
 bash docs/scripts/verify-app-store-ipa.sh \
-  build/export-build12/GTAFreeSTEM.ipa \
-  build/GTAFreeSTEM-build12.xcarchive
+  build/export-build15/GTAFreeSTEM.ipa \
+  build/GTAFreeSTEM-build15.xcarchive
 ```
 
 The helper first proves the app, Watch, Xcode project, and `project.yml` bytes match one exact Git commit, then embeds that commit in both signed bundles. The first verifier establishes that the archive is a trusted export source and checks that provenance. With automatic signing, that archive is normally Apple Development signed; its signed main and Watch entitlements must use the exact identifiers. Only a namespace-scoped terminal wildcard such as `FE33NM88XX.com.rupayonhaldar.*` may appear inside a development provisioning profile; the team-wide `FE33NM88XX.*` form is rejected. No wildcard is accepted as final distribution evidence.
@@ -57,9 +57,9 @@ If automatic signing fails, fix the reported Apple account/team/certificate/prof
 
 ## Get The Update On Your Phone
 
-After App Store Connect shows build 12 as processed:
+After App Store Connect shows build 15 as processed:
 
-1. In App Store Connect > TestFlight, make sure your Apple ID is in an internal tester group. After build 12 finishes processing, add that build to the same group; adding a tester to the group alone does not make a build installable.
+1. In App Store Connect > TestFlight, make sure your Apple ID is in an internal tester group. After build 15 finishes processing, add that build to the same group; adding a tester to the group alone does not make a build installable.
 2. On your iPhone, open the TestFlight app, pull to refresh, and tap Update beside GTA FREE STEM.
 3. Open the app once online, then follow `docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md`.
 4. Use TestFlight screenshots and notes for feedback; the app's Support tab does not send forms online.

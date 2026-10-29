@@ -4,35 +4,69 @@ I'm building GTA FREE STEM to make free STEM programs easier to find across the 
 
 [Android app](https://github.com/rupayon123/gta-free-stem-android) | [Web app](https://github.com/rupayon123/gta-free-stem-opportunities) | [Try the website](https://gta-free-stem.pages.dev/)
 
-## The iPhone experience
+> **Version 1.0 (17) is available through owner-only TestFlight.** The update fixes the reported build 16 scene-render crash and adds a Saved filters dropdown inside Filters with clearer native controls. See the [candidate status](docs/DEVELOPMENT_CANDIDATE.md).
+
+## Saved filters in build 17
+
+Choose a named filter directly inside the Filters panel. Its fields and matching-result count update together. Edits stay unsaved until you choose Save filter or Update filter.
 
 <table>
-<tr><th width="50%">Start on Home</th><th width="50%">Browse real activities</th></tr>
-<tr><td align="center"><a href="docs/showcase/ios-home-simulator-2026-10-25.jpg"><img src="docs/showcase/ios-home-simulator-2026-10-25.jpg" alt="iPhone simulator home showing Search, High School, and a public live feed status" width="300"></a></td><td align="center"><a href="docs/showcase/ios-browse-simulator-2026-10-27.jpg"><img src="docs/showcase/ios-browse-simulator-2026-10-27.jpg" alt="iPhone simulator Browse screen showing search, filters, list and map switch, and a Toronto Public Library activity" width="300"></a></td></tr>
+<tr><th width="50%">Filters and live matches</th><th width="50%">Choose a saved filter</th></tr>
+<tr><td align="center"><img src="docs/showcase/2026-10-29/corrected-filters-normal.png" alt="Filters panel with padded Reset and Done controls, saved-filter selector and matching-result count" width="300"></td><td align="center"><img src="docs/showcase/2026-10-29/corrected-preset-dropdown.png" alt="Saved-filter dropdown with example Age four and All activities presets" width="300"></td></tr>
 </table>
 
-These unretouched **iPhone simulator** captures use the `a6b1a54` app source in normal runtime. Home was captured October 25 with 1,882 public-feed listings. Browse was captured October 27 after 20 seconds, with 1,856 listings and a real Toronto Public Library result. Counts change; these captures do not prove physical-device performance or the later build 14. [Capture details and older screenshots](docs/showcase/README.md).
+Unmodified simulator screenshots from actual interactions in build17 source `4f2e40b`. The menu example uses simulator test presets and has iOS Show Borders enabled. These are development previews, not physical-phone or public App Store acceptance. [Capture evidence](docs/showcase/2026-10-29/capture-receipt.json).
 
-## Find and save an activity
+## New Home in development
 
-1. Open **Search** or **Opportunities**, then enter an interest, library, or city. Use **Filters** to narrow by age, category, place, and other available fields.
-2. Open a listing to review its age range, schedule, location, and original provider. Use the provider link to confirm availability and any registration steps.
-3. Save an activity to return to it later on this device. Use **High School** for volunteer hours, co-op, SHSM, mentorship, and related pathways.
-4. If the app opens from an offline backup, check the source and last-checked date, then refresh when connected.
+<table>
+<tr><th width="50%">Topic-led Home</th><th width="50%">Native map</th></tr>
+<tr><td align="center"><a href="docs/showcase/2026-10-28/normal-home.jpg"><img src="docs/showcase/2026-10-28/normal-home.jpg" alt="Native development Home with colourful topics and saved filters" width="300"></a></td><td align="center"><a href="docs/showcase/2026-10-28/ios-map-overview-light.jpg"><img src="docs/showcase/2026-10-28/ios-map-overview-light.jpg" alt="Native development map showing physical venue groups" width="300"></a></td></tr>
+</table>
+
+Actual simulator captures from source `692bdcd81e6bd091d920b35698b30fb4658f2dd7`, using the public feed. Home offers topic choices and a clear Browse entry. Save separately named filters for different ages or interests. The current build17 candidate adds the in-panel saved-filter selection shown above; Home also shows matching-event updates. These local filters need no account and do not automatically enable notifications. [Capture provenance and hashes](docs/showcase/2026-10-28/capture-receipt.json). These are source-bound simulator previews of the new Home, not phone acceptance or final App Store screenshots.
+
+<details>
+<summary>Previous build 15: October 27 screenshots</summary>
+
+<table>
+<tr><th width="50%">Home</th><th width="50%">Native map</th></tr>
+<tr><td align="center"><a href="docs/showcase/2026-10-27/normal-home.jpg"><img src="docs/showcase/2026-10-27/normal-home.jpg" alt="Native simulator Home with 1,877 current results" width="300"></a></td><td align="center"><a href="docs/showcase/2026-10-27/ios-map-overview-light.jpg"><img src="docs/showcase/2026-10-27/ios-map-overview-light.jpg" alt="Native simulator map with clustered physical venues" width="300"></a></td></tr>
+</table>
+
+Captured from source `08c172d20060ec0748fccae2677c7554c3fe8145` in the [October 27 simulator CI run](https://github.com/rupayon123/gta-free-stem-ios/actions/runs/40521124677). These are normal-runtime captures using the public feed, not sample layout fixtures: Home shows 1,877 available results at capture time; the map shows 94 physical venues containing 1,832 opportunities. [Capture provenance and image hashes](docs/showcase/2026-10-27/capture-receipt.json). These resized JPEG exports are repository previews, not physical-device acceptance or the final App Store screenshot package.
+
+
+</details>
+
+<details>
+<summary>Historical build 12 screenshots, captured September 11</summary>
+
+<table>
+<tr><th width="50%">Home</th><th width="50%">Search</th></tr>
+<tr><td align="center"><a href="docs/showcase/home.png"><img src="docs/showcase/home.png" alt="Home" width="300"></a></td><td align="center"><a href="docs/showcase/search.png"><img src="docs/showcase/search.png" alt="Search" width="300"></a></td></tr>
+<tr><th>High School Search</th><th>Profile</th></tr>
+<tr><td align="center"><a href="docs/showcase/hs-search.png"><img src="docs/showcase/hs-search.png" alt="High School Search" width="300"></a></td><td align="center"><a href="docs/showcase/profile.png"><img src="docs/showcase/profile.png" alt="Profile" width="300"></a></td></tr>
+</table>
+
+The source revision of that installed build was not established. [Historical capture notes](docs/showcase/README.md).
+</details>
 
 ## About the app
 
-Search by location, age, category, and language, or use the High School section for volunteer hours, co-op, and mentorship. Open a program's source page, get directions with Apple Maps, and keep a shortlist on your device.
+Search by location, age and category in your chosen interface language, or use the High School section for volunteer hours, co-op, and mentorship. Open a program's source page, get directions with Apple Maps, and keep a shortlist on your device.
 
-There's no account to create. Your profile, saved opportunities, searches, and settings stay on-device. Nearby search requests your location only when you ask for it. The app has no ads, purchases, or third-party analytics.
+There's no account to create. Your profile, saved opportunities, filters, and settings stay on-device. Nearby search requests your location only when you ask for it. The app has no ads, purchases, or third-party analytics.
 
 The app reads the public opportunity feed from the web repository and keeps a local cache for offline browsing. The feed pipeline handles source collection and updates; the native app doesn't crawl provider websites.
 
 ## Development status
 
-Version **1.0 (14)** has processed successfully and is available to existing internal TestFlight testers. The public App Store release is still in preparation. Current work includes responsiveness fixes, complete description translations, and further device testing.
+**Version 1.0 (17) has uploaded for owner-only TestFlight.** It includes a window-construction fix and clearer Saved filters / Save filter / Update filter actions. All **193/193 tests** passed locally and in the final source’s remote test stage. Actual simulator checks covered saved-filter switching, Reset, explicit updates, large text, accessibility borders and Arabic layout. The signed archive and retained uploaded package passed **52/52** and **62/62** checks. Apple confirms Internal Testing and reports the owner Installed 1.0 (17). Directly observed phone core-use acceptance remains separate. [Current candidate and evidence](docs/DEVELOPMENT_CANDIDATE.md).
 
-The screenshots above show the same interface from an earlier source capture. They are simulator images; physical-device performance remains a separate check.
+The previous owner-only internal iPhone upload was **1.0 (16)**, from source `1338441b5daa7d7281d0d22d6d5e7da552a88f54`. App Store Connect shows Internal Testing for the sole-owner group and reports the owner installed 1.0 (16). Physical-device launch and core-use acceptance remain unverified. Its archive and retained uploaded IPA passed 52/52 and 62/62 strict checks. All 187 test stages passed, while the remote screenshot stage failed; 31 reviewed local native frames match the delivered UI. [Build 16 evidence and limitations](docs/DEVELOPMENT_CANDIDATE.md).
+
+Public App Store release is **not complete**. Full catalogue/translation work, final screenshot automation, physical iPhone/iPad, paired Watch and Mac acceptance, and existing public-release gates remain separate work. External tester sharing stays on hold until the owner's visual review. [The prior build 15 record](docs/CURRENT_RELEASE_HANDOFF.md) preserves its historical upload evidence; the owner has since installed15.
 
 [Release runbook](docs/PUBLIC_RELEASE_RUNBOOK.md) | [TestFlight setup](docs/TESTFLIGHT.md) | [Device signoff](docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md)
 

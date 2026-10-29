@@ -1,6 +1,10 @@
 # Release Readiness
 
-Last updated: August 6, 2026
+Current internal candidate: **1.0 (15)**, source `08c172d20060ec0748fccae2677c7554c3fe8145`. See the [October 27 current release handoff](CURRENT_RELEASE_HANDOFF.md) for CI, archive/export, website and capture evidence. Internal TestFlight upload is in progress; availability is not confirmed here. Public release and fresh physical iPhone/iPad, Watch and Mac signoff are not complete.
+
+The remainder of this document is the **historical August 6, 2026 build 12 readiness record**. Its artifact paths, counts, hosting URLs and pending statuses describe that earlier candidate; they do not certify build 15. The public release packet and platform requirements are preserved, not marked complete by the current internal upload.
+
+Historical record last updated: August 6, 2026
 
 ## Candidate
 

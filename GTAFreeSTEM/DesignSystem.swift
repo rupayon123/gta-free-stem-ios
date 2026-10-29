@@ -1,4 +1,8 @@
 import SwiftUI
+import UIKit
+#if DEBUG
+import SwiftData
+#endif
 
 /// The app's single visual source of truth.
 ///
@@ -11,20 +15,28 @@ enum Brand {
 
     // MARK: Core brand colours
 
-    static let ink = Color(red: 0.05, green: 0.09, blue: 0.11)
+    static let ink = Color(red: 16/255, green: 52/255, blue: 82/255)
     static let cream = Color(red: 0.98, green: 0.97, blue: 0.92)
     static let paper = Color(red: 0.99, green: 0.99, blue: 0.97)
     static let sky = Color(red: 0.45, green: 0.75, blue: 0.80)
-    static let lake = Color(red: 0.05, green: 0.40, blue: 0.45)
-    static let navy = Color(red: 0.04, green: 0.18, blue: 0.28)
+    static let lake = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.31, green: 0.78, blue: 0.77, alpha: 1)
+            : UIColor(red: 8/255, green: 119/255, blue: 124/255, alpha: 1)
+    })
+    static let navy = Color(red: 16/255, green: 52/255, blue: 82/255)
     static let deepOcean = Color(red: 0.03, green: 0.10, blue: 0.14)
     static let nightBlue = Color(red: 0.06, green: 0.16, blue: 0.20)
     static let electricBlue = Color(red: 0.31, green: 0.78, blue: 0.77)
     static let ice = Color(red: 0.94, green: 0.98, blue: 0.97)
     static let mintFoam = Color(red: 0.84, green: 0.94, blue: 0.90)
     static let moss = Color(red: 0.39, green: 0.65, blue: 0.43)
-    static let sun = Color(red: 0.96, green: 0.70, blue: 0.22)
-    static let coral = Color(red: 0.82, green: 0.28, blue: 0.20)
+    static let sun = Color(red: 244/255, green: 196/255, blue: 49/255)
+    static let coral = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 1, green: 0.706, blue: 0.671, alpha: 1)
+            : UIColor(red: 183/255, green: 55/255, blue: 44/255, alpha: 1)
+    })
     static let orange = Color(red: 0.91, green: 0.48, blue: 0.20)
     static let lavender = Color(red: 0.55, green: 0.50, blue: 0.78)
     static let night = Color(red: 0.025, green: 0.065, blue: 0.085)
@@ -37,22 +49,33 @@ enum Brand {
 
     // MARK: Semantic colours
 
+    // Content-only colours: the original loader's canvas and gradient stay unchanged.
+    static func contentCanvas(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? night : Color(red: 0.98, green: 0.99, blue: 1.0)
+    }
+
+    static func topicFill(category: String, scheme: ColorScheme) -> Color {
+        if scheme == .dark { return nightCard }
+        if category.contains("Coding") { return Color(red: 1, green: 0.94, blue: 0.70) }
+        if category.contains("Maker") || category.contains("Arts") { return Color(red: 1, green: 0.88, blue: 0.84) }
+        if category.contains("Career") { return Color(red: 0.87, green: 0.89, blue: 1) }
+        return Color(red: 0.83, green: 0.94, blue: 1)
+    }
+
     static func canvas(for scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? night
-            : Color(red: 0.965, green: 0.973, blue: 0.955)
+        contentCanvas(for: scheme)
     }
 
     static func cardFill(for scheme: ColorScheme) -> Color {
         scheme == .dark
             ? nightCard
-            : Color(red: 0.995, green: 0.995, blue: 0.985)
+            : Color.white
     }
 
     static func raisedFill(for scheme: ColorScheme) -> Color {
         scheme == .dark
             ? Color(red: 0.075, green: 0.18, blue: 0.21)
-            : Color(red: 0.925, green: 0.95, blue: 0.93)
+            : Color(red: 0.91, green: 0.96, blue: 1)
     }
 
     static func outline(for scheme: ColorScheme) -> Color {
@@ -133,31 +156,14 @@ struct StorybookBackground: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        ZStack {
-            Brand.pageGradient(for: colorScheme)
-                .ignoresSafeArea()
-
-            // One quiet discovery field carries the brand across screens without
-            // competing with text, cards, maps, or native navigation controls.
-            Circle()
-                .fill(Brand.sky.opacity(colorScheme == .dark ? 0.07 : 0.10))
-                .frame(width: 340, height: 340)
-                .blur(radius: 28)
-                .offset(x: 180, y: -320)
-
-            Circle()
-                .fill(Brand.sun.opacity(colorScheme == .dark ? 0.035 : 0.07))
-                .frame(width: 280, height: 280)
-                .blur(radius: 32)
-                .offset(x: -190, y: 380)
-        }
-        .accessibilityHidden(true)
+        Brand.canvas(for: colorScheme)
+            .ignoresSafeArea()
+            .accessibilityHidden(true)
     }
 }
 
 struct CardSurface: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     var padding: CGFloat = AppSpacing.standard
     var cornerRadius: CGFloat = AppRadius.card
 
@@ -165,20 +171,8 @@ struct CardSurface: ViewModifier {
         content
             .padding(padding)
             .background(
-                reduceTransparency
-                    ? Brand.cardFill(for: colorScheme)
-                    : Brand.cardFill(for: colorScheme).opacity(0.97),
+                Brand.cardFill(for: colorScheme),
                 in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Brand.surfaceStroke(for: colorScheme), lineWidth: 0.75)
-            }
-            .shadow(
-                color: Brand.deepOcean.opacity(colorScheme == .dark ? 0.18 : 0.07),
-                radius: colorScheme == .dark ? 10 : 14,
-                x: 0,
-                y: colorScheme == .dark ? 5 : 7
             )
     }
 }
@@ -198,8 +192,7 @@ struct StickerBadge: View {
             Text(text)
         }
         .font(.caption.weight(.semibold))
-        .lineLimit(1)
-        .minimumScaleFactor(0.82)
+        .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(
@@ -211,6 +204,37 @@ struct StickerBadge: View {
                 .strokeBorder(color.opacity(colorScheme == .dark ? 0.42 : 0.28), lineWidth: 0.75)
         }
         .foregroundStyle(Brand.outline(for: colorScheme))
+    }
+}
+
+/// Existing SF Symbols identify categories; this is not an event photograph or
+/// an invented provider illustration. The same mark follows a listing into Saved.
+struct ActivityCategoryMark: View {
+    let category: String
+    var size: CGFloat = 48
+
+    private var symbol: String {
+        if category.localizedCaseInsensitiveContains("coding") { return "curlybraces" }
+        if category.localizedCaseInsensitiveContains("science") { return "atom" }
+        if category.localizedCaseInsensitiveContains("maker") { return "paintpalette.fill" }
+        if category.localizedCaseInsensitiveContains("digital") { return "sparkles" }
+        return "book.closed.fill"
+    }
+
+    private var tint: Color {
+        if category.localizedCaseInsensitiveContains("coding") { return Brand.sun }
+        if category.localizedCaseInsensitiveContains("science") { return Brand.sky }
+        if category.localizedCaseInsensitiveContains("maker") { return Brand.orange }
+        return Brand.lavender
+    }
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: size * 0.46, weight: .semibold))
+            .foregroundStyle(Brand.navy)
+            .frame(width: size, height: size)
+            .background(tint, in: RoundedRectangle(cornerRadius: size * 0.27))
+            .accessibilityHidden(true)
     }
 }
 
@@ -371,7 +395,7 @@ struct StoryButtonStyle: ButtonStyle {
             }
             .contentShape(RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
-            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .spring(response: 0.30, dampingFraction: 0.78), value: configuration.isPressed)
     }
 
     private var background: Color {
@@ -442,7 +466,7 @@ struct SelectionChipStyle: ButtonStyle {
             }
             .opacity(configuration.isPressed ? 0.78 : 1)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
-            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .spring(response: 0.30, dampingFraction: 0.78), value: configuration.isPressed)
     }
 }
 
@@ -644,3 +668,172 @@ extension View {
         modifier(StoryPickerRowModifier())
     }
 }
+
+/// Native discovery illustration informed by Hairline's isometric loupe.
+/// Reference: lucasmarkes/hairline @ 37d2e78 (MIT, Lucas Marques).
+/// Original GTA geometry; no DOM, pointer listener, timer, or idle animation.
+struct DiscoveryLoupeScene: View, Animatable {
+    @Environment(\.colorScheme) private var colorScheme
+    nonisolated var progress: CGFloat = 0
+    nonisolated var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    var body: some View {
+        Canvas { context, size in
+            var drawing = context
+            let scale = min(size.width / 260, size.height / 160)
+            drawing.translateBy(x: (size.width - 260 * scale) / 2, y: (size.height - 160 * scale) / 2)
+            drawing.scaleBy(x: scale, y: scale)
+            let ink = Brand.outline(for: colorScheme)
+            let paper = Brand.cardFill(for: colorScheme)
+            let stroke = StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
+            func path(_ points: [CGPoint], close: Bool = false) -> Path {
+                Path { p in
+                    guard let first = points.first else { return }
+                    p.move(to: first)
+                    for point in points.dropFirst() { p.addLine(to: point) }
+                    if close { p.closeSubpath() }
+                }
+            }
+            let sheet = path([CGPoint(x: 20, y: 91), CGPoint(x: 150, y: 46), CGPoint(x: 241, y: 91), CGPoint(x: 110, y: 143)], close: true)
+            drawing.fill(sheet, with: .color(Brand.raisedFill(for: colorScheme)))
+            drawing.stroke(sheet, with: .color(ink), style: stroke)
+            for row in 0..<5 {
+                let y = CGFloat(row) * 9
+                drawing.stroke(path([CGPoint(x: 48 + y, y: 87 + y * 0.48), CGPoint(x: 151 + y, y: 52 + y * 0.48)]), with: .color(Brand.lake), style: StrokeStyle(lineWidth: 1))
+            }
+            // Toronto's tower and a few blocks form a place, rather than a generic spinner.
+            let skyline = path([CGPoint(x: 156, y: 87), CGPoint(x: 156, y: 67), CGPoint(x: 168, y: 67), CGPoint(x: 168, y: 83), CGPoint(x: 179, y: 79), CGPoint(x: 179, y: 57), CGPoint(x: 192, y: 57), CGPoint(x: 192, y: 74), CGPoint(x: 205, y: 69)])
+            drawing.stroke(skyline, with: .color(ink), style: stroke)
+            drawing.stroke(path([CGPoint(x: 139, y: 87), CGPoint(x: 139, y: 25)]), with: .color(ink), style: stroke)
+            drawing.fill(Path(ellipseIn: CGRect(x: 130, y: 43, width: 18, height: 7)), with: .color(Brand.sun))
+            drawing.stroke(Path(ellipseIn: CGRect(x: 130, y: 43, width: 18, height: 7)), with: .color(ink), style: stroke)
+            let x = 85 + min(1, max(0, progress)) * 50
+            let y: CGFloat = 81
+            // Three feet, a solid rim, and a bounded lens: all remain inside this scene.
+            for foot in [CGPoint(x: -31, y: 22), CGPoint(x: 29, y: 23), CGPoint(x: 20, y: -9)] {
+                drawing.stroke(path([CGPoint(x: x + foot.x, y: y + foot.y), CGPoint(x: x + foot.x * 0.7, y: y - 20 + foot.y * 0.35)]), with: .color(ink), style: stroke)
+            }
+            let lens = Path(ellipseIn: CGRect(x: x - 32, y: y - 43, width: 64, height: 39))
+            drawing.fill(lens, with: .color(paper))
+            var magnified = drawing
+            magnified.clip(to: lens)
+            for row in 0..<5 {
+                magnified.stroke(path([CGPoint(x: x - 33, y: y - 22 + CGFloat(row) * 9), CGPoint(x: x + 35, y: y - 43 + CGFloat(row) * 9)]), with: .color(ink), style: StrokeStyle(lineWidth: 1.5))
+            }
+            drawing.stroke(lens, with: .color(Brand.lake), style: StrokeStyle(lineWidth: 4))
+            drawing.fill(Path(ellipseIn: CGRect(x: 213, y: 33, width: 14, height: 14)), with: .color(Brand.sun))
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 144)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Press feedback transforms only the drawing; layout and touch bounds stay fixed.
+struct SpringPressButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.975 : 1)
+            .opacity(configuration.isPressed ? 0.86 : 1)
+            .animation(reduceMotion ? nil : .spring(response: 0.30, dampingFraction: 0.78), value: configuration.isPressed)
+    }
+}
+
+#if DEBUG
+/// CI-only layout review of real screens with clearly labelled, app-owned samples.
+/// The separate model container and defaults never replace personal saved data.
+struct FrontendLayoutReview: View {
+    @StateObject private var session: SessionStore
+    @StateObject private var store: OpportunityStore
+    @State private var ready = false
+    @State private var container: ModelContainer
+    private let screen = Self.option("-review-screen") ?? "home"
+    private let followsSystemTheme = ProcessInfo.processInfo.arguments.contains("-review-system-theme")
+    private let isDark = ProcessInfo.processInfo.arguments.contains("-review-dark")
+    private let largeText = ProcessInfo.processInfo.arguments.contains("-review-large-text")
+
+    init() {
+        let defaults = UserDefaults(suiteName: "GTAFreeSTEM.LayoutReview.\(UUID().uuidString)")!
+        let reviewSession = SessionStore(defaults: defaults, preferredLanguages: [Self.option("-review-language") ?? "en"])
+        reviewSession.preferredTheme = ProcessInfo.processInfo.arguments.contains("-review-system-theme") ? "System" : (ProcessInfo.processInfo.arguments.contains("-review-dark") ? "Dark" : "Light")
+        _session = StateObject(wrappedValue: reviewSession)
+        _store = StateObject(wrappedValue: OpportunityStore(api: APIClient(), defaults: defaults))
+        let schema = Schema([OpportunityCacheRecord.self, SavedHuntRecord.self, SeenOpportunityRecord.self, SavedOpportunityRecord.self])
+        do {
+            _container = State(initialValue: try ModelContainer(for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
+        } catch {
+            preconditionFailure("Unable to create the isolated layout-review store: \(error)")
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text(session.text("layoutReviewBanner"))
+                .font(.caption.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(8)
+                .foregroundStyle(Brand.navy)
+                .background(Brand.sun)
+            reviewContent
+        }
+        .environmentObject(session)
+        .environmentObject(store)
+        .modelContainer(container)
+        .environment(\.appStorageAccess, .persistent)
+        .environment(\.locale, Locale(identifier: session.language.localeIdentifier))
+        .environment(\.layoutDirection, session.language.layoutDirection)
+        .environment(\.dynamicTypeSize, largeText ? .accessibility3 : .large)
+        .preferredColorScheme(followsSystemTheme ? nil : (isDark ? .dark : .light))
+        .task {
+            guard !ready else { return }
+            let prepared = await store.prepareScreenshotSnapshot()
+            guard prepared else { return }
+            if screen == "home-saved" { await store.prepareNamedSearchLayoutReview() }
+            if screen == "saved" {
+                // The query and fixture must share the retained main context.
+                // A temporary context resets its registered models on deinit.
+                let context = container.mainContext
+                do {
+                    for opportunity in store.opportunities.prefix(3) {
+                        context.insert(try SavedOpportunityRecord(opportunity: opportunity))
+                    }
+                    try context.save()
+                    guard try context.fetchCount(FetchDescriptor<SavedOpportunityRecord>()) == 3 else {
+                        preconditionFailure("The saved-layout fixture did not contain all three app-owned samples.")
+                    }
+                } catch {
+                    preconditionFailure("Unable to seed the isolated saved-layout fixture: \(error)")
+                }
+            }
+            ready = true
+            // This marker proves fixture preparation only; the capture script waits for drawing.
+            AppLaunchConfiguration.markScreenshotReady(true)
+        }
+    }
+
+    private var reviewContent: some View {
+        Group {
+            if ready {
+                if screen == "calendar", let sample = store.opportunities.first {
+                    NavigationStack { OpportunityDetailView(opportunity: sample) }
+                } else {
+                    ContentView()
+                }
+            } else {
+                ProgressView("Preparing app-owned layout samples")
+            }
+        }
+    }
+
+    private static func option(_ flag: String) -> String? {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let index = arguments.firstIndex(of: flag), arguments.indices.contains(index + 1) else { return nil }
+        return arguments[index + 1]
+    }
+}
+#endif

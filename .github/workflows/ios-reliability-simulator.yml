@@ -1,0 +1,148 @@
+# Availability evidence: actions/runner-images@4f94a804ccf6254bfc5c7fd90a213db4b21814cd
+name: iOS native reliability and screen review
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      expected_source_sha:
+        description: Full reviewed commit SHA containing this workflow and frozen source
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-focused-reliability-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  simulator-reliability:
+    # Fail closed on private repositories; standard public runner compute is free.
+    if: github.event.repository.visibility == 'public' && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: macos-26
+    timeout-minutes: 35
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the dispatched commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify reviewed commit and frozen backend sources
+        timeout-minutes: 2
+        env:
+          EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha || github.event.pull_request.head.sha }}
+          CANDIDATE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
+          test "$CANDIDATE_SOURCE_SHA" = "$EXPECTED_SOURCE_SHA"
+          test -z "$(git status --porcelain)"
+          shasum -a 256 -c .github/native-ci-source.sha256
+          shasum -a 256 -c <<'HASHES'
+          8f8b063f873be3cd3ba2c9055931637a0006d14cf99e3ed5408ad5887b7df835  GTAFreeSTEM/APIClient.swift
+          8f119888d0bd820a9abe4d58fcffa5bad9173e599edadc6a012e8f0f697ea14d  GTAFreeSTEM/Models.swift
+          6edd57e54b54e619a5c096b4cc0a5d5883790d425e3bbcbab1dfe60924e57483  GTAFreeSTEM/OpportunityStore.swift
+          077c365047628e38b1ae80e7a4319c0144429ac9a31de509b6fffab2cca59bc0  GTAFreeSTEM/LocalOpportunitySnapshot.swift
+          2ac5ed9435d3ae994cd01cd4868987ac10b48233a0c91d784f532945f76a65af  GTAFreeSTEMTests/APIClientTests.swift
+          c61ed81737815ad1543df966f382c8e2672fe2cb28b7d8f6f68cfc3ef39fd391  GTAFreeSTEM/Resources/opportunities.json
+          06181e9494ed5cf7b5bcd672fba62f674dbed03320de8455c48aa57e92b79da3  docs/scripts/validate-feed-content-rights.py
+          HASHES
+          printf 'Reviewed source: `%s`\n' "$EXPECTED_SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify Xcode and resolve the exact available simulator
+        id: simulator
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          test -d "$DEVELOPER_DIR"
+          xcodebuild -version | tee "$RUNNER_TEMP/xcode-version.txt"
+          grep -Fx 'Xcode 26.6' "$RUNNER_TEMP/xcode-version.txt"
+          grep -Fx 'Build version 17F113' "$RUNNER_TEMP/xcode-version.txt"
+          xcodebuild -showsdks | tee "$RUNNER_TEMP/xcode-sdks.txt"
+          grep -F 'iphonesimulator26.5' "$RUNNER_TEMP/xcode-sdks.txt"
+          xcrun simctl list devices available --json > "$RUNNER_TEMP/simulator-devices.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          devices = json.loads((Path(os.environ['RUNNER_TEMP']) / 'simulator-devices.json').read_text())['devices']
+          runtime = 'com.apple.CoreSimulator.SimRuntime.iOS-26-5'
+          matches = [device for device in devices.get(runtime, [])
+                     if device.get('name') == 'iPhone 17 Pro' and device.get('isAvailable') is True]
+          if len(matches) != 1:
+              raise SystemExit('Required iPhone 17 Pro / iOS 26.5 simulator is absent or ambiguous; no silent fallback.')
+          destination = 'platform=iOS Simulator,id=' + matches[0]['udid']
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('destination=' + destination + '\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('Runner: macos-26; Xcode 26.6 (17F113); simulator: iPhone 17 Pro / iOS 26.5\n')
+              summary.write('Destination: `' + destination + '`\n')
+          print(destination)
+          PY
+
+      - name: Run the full iOS reliability target
+        id: tests
+        timeout-minutes: 25
+        env:
+          TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}
+          CANDIDATE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project GTAFreeSTEM.xcodeproj \
+            -scheme GTAFreeSTEM \
+            -configuration Debug \
+            -destination "$TEST_DESTINATION" \
+            -destination-timeout 60 \
+            -parallel-testing-enabled NO \
+            -maximum-concurrent-test-simulator-destinations 1 \
+            -derivedDataPath "$RUNNER_TEMP/GTAFreeSTEM-derived-data" \
+            -resultBundlePath "$RUNNER_TEMP/GTAFreeSTEM-reliability.xcresult" \
+            CODE_SIGNING_ALLOWED=NO \
+            GTA_RELEASE_SOURCE_COMMIT="$CANDIDATE_SOURCE_SHA" \
+            2>&1 | tee "$RUNNER_TEMP/xcodebuild-reliability.log"
+
+      - name: Verify all iOS reliability tests passed
+        if: always() && steps.tests.outcome != 'skipped'
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          test -d "$RUNNER_TEMP/GTAFreeSTEM-reliability.xcresult"
+          xcrun xcresulttool get test-results summary \
+            --path "$RUNNER_TEMP/GTAFreeSTEM-reliability.xcresult" \
+            > "$RUNNER_TEMP/reliability-summary.json"
+          cat "$RUNNER_TEMP/reliability-summary.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          summary = json.loads((Path(os.environ['RUNNER_TEMP']) / 'reliability-summary.json').read_text())
+          expected = {'result': 'Passed', 'totalTestCount': 193, 'passedTests': 193,
+                      'failedTests': 0, 'skippedTests': 0, 'expectedFailures': 0}
+          for key, value in expected.items():
+              if summary.get(key) != value:
+                  raise SystemExit('Full reliability receipt differs: ' + key + ' = ' + repr(summary.get(key)))
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
+              output.write('Full iOS reliability target passed: 193 executed, 193 passed, 0 failed, 0 skipped.\n')
+              output.write('This is Debug iPhone simulator evidence only; full release gates remain separate.\n')
+          PY
+
+      - name: Capture bounded native screen review in ordinary job logs
+        if: steps.simulator.outcome == 'success' && steps.tests.outcome == 'success'
+        timeout-minutes: 9
+        env:
+          TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}
+          CANDIDATE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 .github/scripts/capture-native-ui-review.py
+
+      # No upload-artifact or cache action: only ordinary job logs/summary persist.
+      # The local .xcresult and raw log disappear with this disposable runner.

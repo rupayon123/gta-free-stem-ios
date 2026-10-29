@@ -4,7 +4,7 @@ enum LocalOpportunitySnapshot {
     /// Decodes the retained feed without applying a hunt. Keeping this separate
     /// lets the store do disk I/O and JSON decoding off the main actor, then
     /// instantly re-filter the same complete set when a user edits a search.
-    static func loadFull() throws -> OpportunityListResponse {
+    static func loadFull(now: Date = .now) throws -> OpportunityListResponse {
         guard let url = AppResources.url(forResource: "opportunities", withExtension: "json") else {
             throw APIError.invalidResponse
         }
@@ -13,7 +13,8 @@ enum LocalOpportunitySnapshot {
         let response = try JSONDecoder().decode(OpportunityListResponse.self, from: data)
         guard !response.data.isEmpty,
               response.hasValidUniqueIDs,
-              response.hasHealthyDeclaredSources
+              response.hasHealthyDeclaredSources,
+              response.hasValidPublicationRevision(now: now)
         else {
             throw APIError.invalidResponse
         }
@@ -28,7 +29,8 @@ enum LocalOpportunitySnapshot {
             meta: OpportunityListResponse.Metadata(
                 activeCount: filtered.count,
                 lastUpdated: response.meta?.lastUpdated
-            )
+            ),
+            publicationRevision: response.publicationRevision
         )
     }
 
@@ -38,7 +40,8 @@ enum LocalOpportunitySnapshot {
         mode: SearchMode,
         filters: OpportunityFilters,
         displayLanguage: AppLanguage = preferredLanguage,
-        now: Date = .now
+        now: Date = .now,
+        preparedSearchIndex: [String: String]? = nil
     ) -> [Opportunity] {
         let normalizedTerms = normalizedSearchTerms(query)
         let selectedAge = filters.age.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -63,7 +66,8 @@ enum LocalOpportunitySnapshot {
                 let maxAge = opportunity.ageMax ?? 99
                 guard opportunity.ageMin <= normalizedAge, normalizedAge <= maxAge else { return false }
             }
-            guard languagesMatch(opportunity.language, selected: filters.language) else { return false }
+            // Feed language defaults do not establish program delivery language.
+            // Ignore legacy selections in all search, hunt and alert matching.
             if filters.hasLocation,
                let latitude = filters.latitude,
                let longitude = filters.longitude {
@@ -78,7 +82,7 @@ enum LocalOpportunitySnapshot {
                 guard distanceKm(fromLatitude: latitude, longitude: longitude, toLatitude: opportunityLatitude, longitude: opportunityLongitude) <= filters.distanceKm else { return false }
             }
             if !normalizedTerms.isEmpty {
-                let searchable = searchableText(for: opportunity, language: displayLanguage)
+                let searchable = preparedSearchIndex?[opportunity.id] ?? searchableText(for: opportunity, language: displayLanguage)
                 guard normalizedTerms.allSatisfy({ searchable.contains($0) }) else { return false }
             }
             if filters.blackFocused {
@@ -106,12 +110,20 @@ enum LocalOpportunitySnapshot {
                 guard matchesScholarship(opportunity, language: displayLanguage) else { return false }
             }
 
-            let tags = searchableTags(for: opportunity, language: displayLanguage)
+            // Every non-"All" mode is a high-school pathway surface. Keep its
+            // inventory honest by excluding adult-only and younger-child-only
+            // listings before applying the mode's existing pathway matcher.
+            // Explicit age filters above keep their exact behavior, and the
+            // general .all directory remains available to every age range.
+            if mode != .all {
+                guard isHighSchoolPathwayEligible(opportunity) else { return false }
+            }
 
             switch mode {
             case .all:
                 return true
             case .highSchool:
+                let tags = searchableTags(for: opportunity, language: displayLanguage)
                 return matchesVolunteerHours(opportunity, language: displayLanguage) ||
                     matchesCoop(opportunity, language: displayLanguage) ||
                     matchesMentorship(opportunity, language: displayLanguage) ||
@@ -135,6 +147,15 @@ enum LocalOpportunitySnapshot {
             displayLanguage: displayLanguage,
             now: now
         )
+    }
+
+    /// A conservative high-school overlap shared by the High School surface,
+    /// its pathway modes, and Home promotion inventory. Programs may start
+    /// younger or remain open-ended, but an adult-only 18+ listing is not a
+    /// high-school pathway promotion.
+    static func isHighSchoolPathwayEligible(_ opportunity: Opportunity) -> Bool {
+        guard opportunity.ageMin <= 17 else { return false }
+        return opportunity.ageMax.map { $0 >= 14 } ?? true
     }
 
     private static var preferredLanguage: AppLanguage {
@@ -209,12 +230,6 @@ enum LocalOpportunitySnapshot {
         containsAny(opportunity, ["scholarship", "bursary", "grant", "award", "financial aid"], language: language)
     }
 
-    private static func languagesMatch(_ opportunityLanguages: [String], selected language: String) -> Bool {
-        guard language != "all" else { return true }
-        let normalizedSelected = AppLanguage.normalized(language).rawValue
-        return opportunityLanguages.contains { AppLanguage.normalized($0).rawValue == normalizedSelected }
-    }
-
     private static func sort(
         _ opportunities: [Opportunity],
         queryTerms: [String],
@@ -224,33 +239,53 @@ enum LocalOpportunitySnapshot {
     ) -> [Opportunity] {
         switch filters.sort {
         case .date:
-            return opportunities.sorted { dateValue($0, now: now) < dateValue($1, now: now) }
+            return sortedByDate(opportunities, now: now)
         case .distance:
             guard filters.hasLocation,
                   let latitude = filters.latitude,
                   let longitude = filters.longitude
             else {
-                return opportunities.sorted { dateValue($0, now: now) < dateValue($1, now: now) }
+                return sortedByDate(opportunities, now: now)
             }
-            return opportunities.sorted {
-                distanceValue($0, latitude: latitude, longitude: longitude) < distanceValue($1, latitude: latitude, longitude: longitude)
-            }
+            return opportunities.map {
+                (opportunity: $0, distance: distanceValue($0, latitude: latitude, longitude: longitude))
+            }.sorted { $0.distance < $1.distance }.map(\.opportunity)
         case .relevance:
             guard !queryTerms.isEmpty else {
-                return opportunities.sorted { dateValue($0, now: now) < dateValue($1, now: now) }
+                return sortedByDate(opportunities, now: now)
             }
-            return opportunities.sorted {
-                let lhs = relevance($0, queryTerms: queryTerms, language: displayLanguage)
-                let rhs = relevance($1, queryTerms: queryTerms, language: displayLanguage)
-                return lhs == rhs ? dateValue($0, now: now) < dateValue($1, now: now) : lhs > rhs
+            let ranked: [(opportunity: Opportunity, score: Int, date: Date)] = opportunities.map { opportunity in
+                let score = relevance(opportunity, queryTerms: queryTerms, language: displayLanguage)
+                let date = dateValue(opportunity, now: now)
+                return (opportunity: opportunity, score: score, date: date)
             }
+            let ordered = ranked.sorted { lhs, rhs in
+                lhs.score == rhs.score ? lhs.date < rhs.date : lhs.score > rhs.score
+            }
+            return ordered.map { $0.opportunity }
         }
+    }
+
+    /// Parse each record's key once, rather than repeatedly inside O(n log n)
+    /// comparisons. Swift's stable sort preserves the source order for ties.
+    private static func sortedByDate(_ opportunities: [Opportunity], now: Date) -> [Opportunity] {
+        opportunities.map {
+            (opportunity: $0, date: dateValue($0, now: now))
+        }.sorted { $0.date < $1.date }.map(\.opportunity)
     }
 
     private static func normalizedSearchTerms(_ query: String) -> [String] {
         normalizedText(query)
             .split(whereSeparator: \.isWhitespace)
             .map(String.init)
+    }
+
+    /// The retained feed has validated unique IDs. Build this immutable index
+    /// once per feed and display language, off the UI actor, then reuse it.
+    static func prepareSearchIndex(_ opportunities: [Opportunity], displayLanguage: AppLanguage) -> [String: String] {
+        Dictionary(opportunities.map {
+            ($0.id, searchableText(for: $0, language: displayLanguage))
+        }, uniquingKeysWith: { first, _ in first })
     }
 
     private static func searchableText(for opportunity: Opportunity, language: AppLanguage) -> String {
@@ -426,6 +461,9 @@ private final class OpportunityDateParser: @unchecked Sendable {
     private let fractionalISO8601: ISO8601DateFormatter
     private let standardISO8601: ISO8601DateFormatter
     private let dateOnly: DateFormatter
+    private struct CachedDate { let value: Date? }
+    private var parsedDates: [String: CachedDate] = [:]
+    private let maximumCachedDates = 4_096
 
     init() {
         let fractionalISO8601 = ISO8601DateFormatter()
@@ -449,8 +487,16 @@ private final class OpportunityDateParser: @unchecked Sendable {
     func date(from value: String) -> Date? {
         lock.lock()
         defer { lock.unlock() }
-        return fractionalISO8601.date(from: value) ??
+        if let cached = parsedDates[value] { return cached.value }
+        let parsed = fractionalISO8601.date(from: value) ??
             standardISO8601.date(from: value) ??
             dateOnly.date(from: value)
+        // Only the deterministic parse is cached, never time-dependent event
+        // eligibility. Bound both entry count and key bytes across feed updates.
+        if value.utf8.count <= 64 {
+            if parsedDates.count >= maximumCachedDates { parsedDates.removeAll(keepingCapacity: true) }
+            parsedDates[value] = CachedDate(value: parsed)
+        }
+        return parsed
     }
 }

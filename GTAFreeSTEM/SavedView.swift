@@ -4,6 +4,7 @@ import SwiftUI
 struct SavedView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appStorageAccess) private var storageAccess
     @EnvironmentObject private var session: SessionStore
     @Query(sort: \SavedOpportunityRecord.savedAt, order: .reverse) private var savedRecords: [SavedOpportunityRecord]
     @State private var saveErrorMessage: String?
@@ -27,16 +28,16 @@ struct SavedView: View {
             ZStack {
                 StorybookBackground()
 
-                if savedEntries.isEmpty {
+                if !storageAccess.allowsPersistentChanges {
+                    storageRecoveryState
+                } else if savedEntries.isEmpty {
                     emptyState
                 } else {
                     List {
                         if !currentEntries.isEmpty {
                             Section {
                                 ForEach(currentEntries) { entry in
-                                    NavigationLink(value: entry.opportunity) {
-                                        SavedOpportunityRow(opportunity: entry.opportunity)
-                                    }
+                                    SavedOpportunityListItem(opportunity: entry.opportunity)
                                 }
                                 .onDelete { remove(at: $0, from: currentEntries) }
                             } header: {
@@ -47,9 +48,7 @@ struct SavedView: View {
                         if !archivedEntries.isEmpty {
                             Section {
                                 ForEach(archivedEntries) { entry in
-                                    NavigationLink(value: entry.opportunity) {
-                                        SavedOpportunityRow(opportunity: entry.opportunity)
-                                    }
+                                    SavedOpportunityListItem(opportunity: entry.opportunity)
                                 }
                                 .onDelete { remove(at: $0, from: archivedEntries) }
                             } header: {
@@ -71,6 +70,20 @@ struct SavedView: View {
                     .background(.clear)
                     .tint(Brand.lake)
                 }
+            }
+            .task {
+#if DEBUG
+                if AppRuntime.isFrontendSavedLayoutReview {
+                    // A saved-screen marker follows a real query and a rendered turn,
+                    // rather than merely acknowledging fixture preparation.
+                    guard savedRecords.count == 3 else { return }
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    let args = ProcessInfo.processInfo.arguments
+                    if let index = args.firstIndex(of: "-screenshot-ready-nonce"), args.indices.contains(index + 1) {
+                        FileHandle.standardOutput.write(Data(("GTA_SAVED_REVIEW_READY " + args[index + 1] + "\n").utf8))
+                    }
+                }
+#endif
             }
             .navigationTitle(session.text("saved"))
             .navigationDestination(for: Opportunity.self) { opportunity in
@@ -98,12 +111,24 @@ struct SavedView: View {
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
+        .padding(.vertical, AppSpacing.large)
+        .frame(maxWidth: 560)
+        .padding(AppSpacing.standard)
+    }
+
+    private var storageRecoveryState: some View {
+        ContentUnavailableView(
+            session.text("localStorageUnavailableTitle"),
+            systemImage: "externaldrive.badge.exclamationmark",
+            description: Text(session.text("localStorageUnavailableMessage"))
+        )
         .cardSurface(padding: AppSpacing.large, cornerRadius: AppRadius.feature)
         .frame(maxWidth: 560)
         .padding(AppSpacing.standard)
     }
 
     private func remove(at offsets: IndexSet, from entries: [SavedOpportunityEntry]) {
+        guard storageAccess.allowsPersistentChanges else { return }
         for index in offsets {
             modelContext.delete(entries[index].record)
         }
@@ -124,21 +149,38 @@ private struct SavedOpportunityEntry: Identifiable {
     var id: String { record.opportunityID }
 }
 
+private struct SavedOpportunityListItem: View {
+    @EnvironmentObject private var session: SessionStore
+    let opportunity: Opportunity
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            NavigationLink(value: opportunity) {
+                SavedOpportunityRow(opportunity: opportunity)
+            }
+
+            if let sourceURL = ExternalOpportunityURL.make(from: opportunity.sourceUrl) {
+                Link(destination: sourceURL) {
+                    Label(session.text("source"), systemImage: "arrow.up.right.square")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Brand.lake)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(session.text("source")): \(session.title(for: opportunity))")
+                .accessibilityHint(session.text("sourceDetails"))
+            }
+        }
+    }
+}
+
 private struct SavedOpportunityRow: View {
     @EnvironmentObject private var session: SessionStore
     let opportunity: Opportunity
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(session.title(for: opportunity))
-                .font(.headline.weight(.semibold))
-            Text(session.organization(for: opportunity))
-                .font(.subheadline)
-                .foregroundStyle(Brand.lake)
-            Label("\(session.city(for: opportunity)), \(session.region(for: opportunity))", systemImage: "mappin.and.ellipse")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 4)
+        OpportunityRow(opportunity: opportunity, showsDisclosure: false)
+            .padding(.vertical, 8)
     }
 }
