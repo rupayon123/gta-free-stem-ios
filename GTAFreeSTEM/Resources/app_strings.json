@@ -310,7 +310,11 @@
     "updateSearch": "Update filter",
     "saveAsNew": "Save as a new filter",
     "homeCatalogNote": "For every age and interest. Check the provider’s page for eligibility and registration.",
-    "savedSearchWriteError": "Couldn’t save your filter. Try again or delete an unused filter."
+    "savedSearchWriteError": "Couldn’t save your filter. Try again or delete an unused filter.",
+    "newFilter": "New filter",
+    "filterModified": "Unsaved changes",
+    "updatingFilterResults": "Updating results…",
+    "noCompatibleFilters": "No saved filters for this view. Choose your options below, then save a filter."
   },
   "fr": {
     "browse": "Parcourir",
@@ -531,7 +535,11 @@
     "updateSearch": "Mettre à jour le filtre",
     "saveAsNew": "Enregistrer un nouveau filtre",
     "homeCatalogNote": "Pour tous les âges et intérêts. Consultez les conditions et inscriptions sur le site du fournisseur.",
-    "savedSearchWriteError": "Impossible d’enregistrer le filtre. Réessayez ou supprimez un filtre inutilisé."
+    "savedSearchWriteError": "Impossible d’enregistrer le filtre. Réessayez ou supprimez un filtre inutilisé.",
+    "newFilter": "Nouveau filtre",
+    "filterModified": "Modifications non enregistrées",
+    "updatingFilterResults": "Mise à jour des résultats…",
+    "noCompatibleFilters": "Aucun filtre enregistré pour cette vue. Choisissez vos options ci-dessous, puis enregistrez un filtre."
   },
   "zh": {
     "browse": "浏览",
@@ -752,7 +760,11 @@
     "updateSearch": "更新筛选",
     "saveAsNew": "另存为新筛选",
     "homeCatalogNote": "适合不同年龄和兴趣。请查看主办方网页了解资格及报名。",
-    "savedSearchWriteError": "无法保存筛选。请重试或删除不再使用的筛选。"
+    "savedSearchWriteError": "无法保存筛选。请重试或删除不再使用的筛选。",
+    "newFilter": "新筛选条件",
+    "filterModified": "有未保存的更改",
+    "updatingFilterResults": "正在更新结果…",
+    "noCompatibleFilters": "此视图没有已保存的筛选条件。请在下方选择选项，然后保存。"
   },
   "yue": {
     "browse": "瀏覽",
@@ -973,7 +985,11 @@
     "updateSearch": "更新篩選",
     "saveAsNew": "另存新篩選",
     "homeCatalogNote": "適合唔同年齡同興趣。資格同報名詳情請睇主辦方網頁。",
-    "savedSearchWriteError": "儲存唔到篩選。請再試，或刪除唔再用嘅篩選。"
+    "savedSearchWriteError": "儲存唔到篩選。請再試，或刪除唔再用嘅篩選。",
+    "newFilter": "新篩選條件",
+    "filterModified": "有未儲存嘅更改",
+    "updatingFilterResults": "正在更新結果…",
+    "noCompatibleFilters": "呢個畫面未有已儲存嘅篩選條件。請喺下面揀選項，再儲存。"
   },
   "pa": {
     "browse": "ਬ੍ਰਾਊਜ਼",
@@ -1194,7 +1210,11 @@
     "updateSearch": "ਫਿਲਟਰ ਅੱਪਡੇਟ ਕਰੋ",
     "saveAsNew": "ਨਵੇਂ ਫਿਲਟਰ ਵਜੋਂ ਸੰਭਾਲੋ",
     "homeCatalogNote": "ਹਰ ਉਮਰ ਅਤੇ ਰੁਚੀ ਲਈ। ਯੋਗਤਾ ਅਤੇ ਰਜਿਸਟ੍ਰੇਸ਼ਨ ਲਈ ਪ੍ਰਦਾਤਾ ਦਾ ਪੰਨਾ ਵੇਖੋ।",
-    "savedSearchWriteError": "ਫਿਲਟਰ ਸੰਭਾਲਿਆ ਨਹੀਂ ਜਾ ਸਕਿਆ। ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ ਜਾਂ ਨਾ ਵਰਤਿਆ ਫਿਲਟਰ ਮਿਟਾਓ।"
+    "savedSearchWriteError": "ਫਿਲਟਰ ਸੰਭਾਲਿਆ ਨਹੀਂ ਜਾ ਸਕਿਆ। ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ ਜਾਂ ਨਾ ਵਰਤਿਆ ਫਿਲਟਰ ਮਿਟਾਓ।",
+    "newFilter": "ਨਵਾਂ ਫਿਲਟਰ",
+    "filterModified": "ਬਦਲਾਅ ਸੁਰੱਖਿਅਤ ਨਹੀਂ ਕੀਤੇ",
+    "updatingFilterResults": "ਨਤੀਜੇ ਅੱਪਡੇਟ ਹੋ ਰਹੇ ਹਨ…",
+    "noCompatibleFilters": "ਇਸ ਦ੍ਰਿਸ਼ ਲਈ ਕੋਈ ਸੁਰੱਖਿਅਤ ਫਿਲਟਰ ਨਹੀਂ ਹੈ। ਹੇਠਾਂ ਵਿਕਲਪ ਚੁਣੋ, ਫਿਰ ਫਿਲਟਰ ਸੁਰੱਖਿਅਤ ਕਰੋ।"
   },
   "ur": {
     "browse": "دیکھیں",
@@ -1415,7 +1435,11 @@
     "updateSearch": "فلٹر تازہ کریں",
     "saveAsNew": "نئے فلٹر کے طور پر محفوظ کریں",
     "homeCatalogNote": "ہر عمر اور دلچسپی کے لیے۔ اہلیت اور اندراج کے لیے فراہم کنندہ کا صفحہ دیکھیں۔",
-    "savedSearchWriteError": "فلٹر محفوظ نہیں ہو سکا۔ دوبارہ کوشش کریں یا غیر استعمال شدہ فلٹر حذف کریں۔"
+    "savedSearchWriteError": "فلٹر محفوظ نہیں ہو سکا۔ دوبارہ کوشش کریں یا غیر استعمال شدہ فلٹر حذف کریں۔",
+    "newFilter": "نیا فلٹر",
+    "filterModified": "تبدیلیاں محفوظ نہیں ہوئیں",
+    "updatingFilterResults": "نتائج اپ ڈیٹ ہو رہے ہیں…",
+    "noCompatibleFilters": "اس منظر کے لیے کوئی محفوظ فلٹر نہیں۔ نیچے اختیارات منتخب کریں، پھر فلٹر محفوظ کریں۔"
   },
   "ta": {
     "browse": "உலாவு",
@@ -1636,7 +1660,11 @@
     "updateSearch": "வடிகட்டியைப் புதுப்பிக்கவும்",
     "saveAsNew": "புதிய வடிகட்டியாகச் சேமிக்கவும்",
     "homeCatalogNote": "எல்லா வயதினருக்கும் ஆர்வங்களுக்கும். தகுதி மற்றும் பதிவுக்கு வழங்குநரின் பக்கத்தைப் பார்க்கவும்.",
-    "savedSearchWriteError": "வடிகட்டியைச் சேமிக்க முடியவில்லை. மீண்டும் முயலவும் அல்லது பயன்படுத்தாத வடிகட்டியை நீக்கவும்."
+    "savedSearchWriteError": "வடிகட்டியைச் சேமிக்க முடியவில்லை. மீண்டும் முயலவும் அல்லது பயன்படுத்தாத வடிகட்டியை நீக்கவும்.",
+    "newFilter": "புதிய வடிகட்டி",
+    "filterModified": "சேமிக்கப்படாத மாற்றங்கள்",
+    "updatingFilterResults": "முடிவுகள் புதுப்பிக்கப்படுகின்றன…",
+    "noCompatibleFilters": "இந்தக் காட்சிக்கு சேமித்த வடிகட்டிகள் இல்லை. கீழே விருப்பங்களைத் தேர்ந்தெடுத்து வடிகட்டியைச் சேமிக்கவும்."
   },
   "tl": {
     "browse": "Mag-browse",
@@ -1857,7 +1885,11 @@
     "updateSearch": "I-update ang filter",
     "saveAsNew": "I-save bilang bagong filter",
     "homeCatalogNote": "Para sa lahat ng edad at interes. Tingnan ang pahina ng tagapagbigay para sa kwalipikasyon at pagpaparehistro.",
-    "savedSearchWriteError": "Hindi ma-save ang filter. Subukan muli o tanggalin ang hindi ginagamit na filter."
+    "savedSearchWriteError": "Hindi ma-save ang filter. Subukan muli o tanggalin ang hindi ginagamit na filter.",
+    "newFilter": "Bagong filter",
+    "filterModified": "Hindi pa nai-save ang mga pagbabago",
+    "updatingFilterResults": "Ina-update ang mga resulta…",
+    "noCompatibleFilters": "Walang naka-save na filter para sa view na ito. Piliin ang mga opsyon sa ibaba, pagkatapos ay i-save ang filter."
   },
   "es": {
     "browse": "Explorar",
@@ -2078,7 +2110,11 @@
     "updateSearch": "Actualizar filtro",
     "saveAsNew": "Guardar como nuevo filtro",
     "homeCatalogNote": "Para todas las edades e intereses. Consulta la página del organizador para los requisitos y la inscripción.",
-    "savedSearchWriteError": "No se pudo guardar el filtro. Inténtalo de nuevo o elimina un filtro que no uses."
+    "savedSearchWriteError": "No se pudo guardar el filtro. Inténtalo de nuevo o elimina un filtro que no uses.",
+    "newFilter": "Nuevo filtro",
+    "filterModified": "Cambios sin guardar",
+    "updatingFilterResults": "Actualizando resultados…",
+    "noCompatibleFilters": "No hay filtros guardados para esta vista. Elige las opciones de abajo y guarda un filtro."
   },
   "ar": {
     "browse": "تصفح",
@@ -2299,7 +2335,11 @@
     "updateSearch": "تحديث الفلتر",
     "saveAsNew": "حفظ كفلتر جديد",
     "homeCatalogNote": "لجميع الأعمار والاهتمامات. راجع صفحة المنظم لمعرفة الأهلية والتسجيل.",
-    "savedSearchWriteError": "تعذّر حفظ الفلتر. حاول مجددًا أو احذف فلترًا غير مستخدم."
+    "savedSearchWriteError": "تعذّر حفظ الفلتر. حاول مجددًا أو احذف فلترًا غير مستخدم.",
+    "newFilter": "فلتر جديد",
+    "filterModified": "تغييرات غير محفوظة",
+    "updatingFilterResults": "جارٍ تحديث النتائج…",
+    "noCompatibleFilters": "لا توجد فلاتر محفوظة لهذا العرض. اختر الخيارات أدناه، ثم احفظ الفلتر."
   },
   "fa": {
     "browse": "مرور",
@@ -2520,7 +2560,11 @@
     "updateSearch": "به‌روزرسانی فیلتر",
     "saveAsNew": "ذخیره به‌عنوان فیلتر جدید",
     "homeCatalogNote": "برای همهٔ سنین و علاقه‌ها. شرایط و ثبت‌نام را در صفحهٔ برگزارکننده ببینید.",
-    "savedSearchWriteError": "فیلتر ذخیره نشد. دوباره تلاش کنید یا یک فیلتر بدون استفاده را حذف کنید."
+    "savedSearchWriteError": "فیلتر ذخیره نشد. دوباره تلاش کنید یا یک فیلتر بدون استفاده را حذف کنید.",
+    "newFilter": "فیلتر جدید",
+    "filterModified": "تغییرات ذخیره‌نشده",
+    "updatingFilterResults": "در حال به‌روزرسانی نتایج…",
+    "noCompatibleFilters": "فیلتری برای این نما ذخیره نشده است. گزینه‌های زیر را انتخاب و سپس فیلتر را ذخیره کنید."
   },
   "hi": {
     "browse": "ब्राउज़",
@@ -2741,7 +2785,11 @@
     "updateSearch": "फ़िल्टर अपडेट करें",
     "saveAsNew": "नए फ़िल्टर के रूप में सहेजें",
     "homeCatalogNote": "हर उम्र और रुचि के लिए। पात्रता और पंजीकरण के लिए आयोजक का पृष्ठ देखें।",
-    "savedSearchWriteError": "फ़िल्टर सहेजा नहीं जा सका। फिर कोशिश करें या कोई अनुपयोगी फ़िल्टर हटाएँ।"
+    "savedSearchWriteError": "फ़िल्टर सहेजा नहीं जा सका। फिर कोशिश करें या कोई अनुपयोगी फ़िल्टर हटाएँ।",
+    "newFilter": "नया फ़िल्टर",
+    "filterModified": "बदलाव सहेजे नहीं गए",
+    "updatingFilterResults": "नतीजे अपडेट हो रहे हैं…",
+    "noCompatibleFilters": "इस दृश्य के लिए कोई सहेजा हुआ फ़िल्टर नहीं है। नीचे विकल्प चुनें, फिर फ़िल्टर सहेजें।"
   },
   "pt": {
     "browse": "Explorar",
@@ -2962,7 +3010,11 @@
     "updateSearch": "Atualizar filtro",
     "saveAsNew": "Salvar como novo filtro",
     "homeCatalogNote": "Para todas as idades e interesses. Consulte a página do organizador para requisitos e inscrição.",
-    "savedSearchWriteError": "Não foi possível salvar o filtro. Tente novamente ou exclua um filtro que não usa."
+    "savedSearchWriteError": "Não foi possível salvar o filtro. Tente novamente ou exclua um filtro que não usa.",
+    "newFilter": "Novo filtro",
+    "filterModified": "Alterações não guardadas",
+    "updatingFilterResults": "A atualizar resultados…",
+    "noCompatibleFilters": "Não há filtros guardados para esta vista. Escolha as opções abaixo e guarde um filtro."
   },
   "gu": {
     "browse": "બ્રાઉઝ",
@@ -3183,7 +3235,11 @@
     "updateSearch": "ફિલ્ટર અપડેટ કરો",
     "saveAsNew": "નવા ફિલ્ટર તરીકે સાચવો",
     "homeCatalogNote": "દરેક ઉંમર અને રુચિ માટે. પાત્રતા અને નોંધણી માટે આયોજકનું પાનું જુઓ.",
-    "savedSearchWriteError": "ફિલ્ટર સાચવી શકાયું નથી. ફરી પ્રયાસ કરો અથવા ન વપરાતું ફિલ્ટર કાઢી નાખો."
+    "savedSearchWriteError": "ફિલ્ટર સાચવી શકાયું નથી. ફરી પ્રયાસ કરો અથવા ન વપરાતું ફિલ્ટર કાઢી નાખો.",
+    "newFilter": "નવું ફિલ્ટર",
+    "filterModified": "ફેરફારો સાચવ્યા નથી",
+    "updatingFilterResults": "પરિણામો અપડેટ થઈ રહ્યાં છે…",
+    "noCompatibleFilters": "આ દૃશ્ય માટે કોઈ સાચવેલું ફિલ્ટર નથી. નીચે વિકલ્પો પસંદ કરો, પછી ફિલ્ટર સાચવો."
   },
   "bn": {
     "browse": "ব্রাউজ",
@@ -3404,7 +3460,11 @@
     "updateSearch": "ফিল্টার হালনাগাদ করুন",
     "saveAsNew": "নতুন ফিল্টার হিসেবে সংরক্ষণ করুন",
     "homeCatalogNote": "সব বয়স ও আগ্রহের জন্য। যোগ্যতা ও নিবন্ধনের জন্য আয়োজকের পৃষ্ঠা দেখুন।",
-    "savedSearchWriteError": "ফিল্টার সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন অথবা অব্যবহৃত ফিল্টার মুছুন।"
+    "savedSearchWriteError": "ফিল্টার সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন অথবা অব্যবহৃত ফিল্টার মুছুন।",
+    "newFilter": "নতুন ফিল্টার",
+    "filterModified": "পরিবর্তন সংরক্ষণ করা হয়নি",
+    "updatingFilterResults": "ফলাফল আপডেট হচ্ছে…",
+    "noCompatibleFilters": "এই দৃশ্যের জন্য কোনো সংরক্ষিত ফিল্টার নেই। নিচে বিকল্প বেছে নিয়ে ফিল্টার সংরক্ষণ করুন।"
   },
   "ja": {
     "browse": "探す",
@@ -3625,7 +3685,11 @@
     "updateSearch": "フィルターを更新",
     "saveAsNew": "新しいフィルターとして保存",
     "homeCatalogNote": "あらゆる年齢や興味に。参加条件や申込みは主催者のページをご確認ください。",
-    "savedSearchWriteError": "フィルターを保存できませんでした。再試行するか、使わないフィルターを削除してください。"
+    "savedSearchWriteError": "フィルターを保存できませんでした。再試行するか、使わないフィルターを削除してください。",
+    "newFilter": "新しいフィルター",
+    "filterModified": "未保存の変更",
+    "updatingFilterResults": "結果を更新中…",
+    "noCompatibleFilters": "この画面には保存済みフィルターがありません。以下の項目を選択して、フィルターを保存してください。"
   },
   "ko": {
     "browse": "둘러보기",
@@ -3846,7 +3910,11 @@
     "updateSearch": "필터 업데이트",
     "saveAsNew": "새 필터로 저장",
     "homeCatalogNote": "모든 연령과 관심사를 위해. 참가 자격과 등록은 주최자 페이지를 확인하세요.",
-    "savedSearchWriteError": "필터를 저장할 수 없습니다. 다시 시도하거나 사용하지 않는 필터를 삭제하세요."
+    "savedSearchWriteError": "필터를 저장할 수 없습니다. 다시 시도하거나 사용하지 않는 필터를 삭제하세요.",
+    "newFilter": "새 필터",
+    "filterModified": "저장하지 않은 변경 사항",
+    "updatingFilterResults": "결과 업데이트 중…",
+    "noCompatibleFilters": "이 화면에 저장된 필터가 없습니다. 아래에서 옵션을 선택한 후 필터를 저장하세요."
   },
   "hu": {
     "browse": "Bongeszés",
@@ -4067,6 +4135,10 @@
     "updateSearch": "Szűrő frissítése",
     "saveAsNew": "Mentés új szűrőként",
     "homeCatalogNote": "Minden korosztálynak és érdeklődésnek. A feltételeket és jelentkezést a szervező oldalán ellenőrizd.",
-    "savedSearchWriteError": "A szűrő mentése nem sikerült. Próbáld újra, vagy törölj egy nem használt szűrőt."
+    "savedSearchWriteError": "A szűrő mentése nem sikerült. Próbáld újra, vagy törölj egy nem használt szűrőt.",
+    "newFilter": "Új szűrő",
+    "filterModified": "Nem mentett módosítások",
+    "updatingFilterResults": "Találatok frissítése…",
+    "noCompatibleFilters": "Ehhez a nézethez nincs mentett szűrő. Válassza ki az alábbi beállításokat, majd mentse a szűrőt."
   }
 }

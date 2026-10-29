@@ -173,7 +173,6 @@ struct ContentView: View {
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
     @State private var selectedTab: AppTab = AppTab.launchDefault
-    @State private var savedFiltersRequested = false
 
     var body: some View {
         Group {
@@ -297,11 +296,11 @@ struct ContentView: View {
     private func tabContent(for tab: AppTab) -> some View {
         switch tab {
         case .home:
-            HomeView(selectedTab: $selectedTab, savedFiltersRequested: $savedFiltersRequested)
+            HomeView(selectedTab: $selectedTab)
         case .opportunities:
-            BrowseView(surface: .opportunities, showSavedFilters: openSavedFilters)
+            BrowseView(surface: .opportunities)
         case .highSchool:
-            BrowseView(surface: .highSchool, showSavedFilters: openSavedFilters)
+            BrowseView(surface: .highSchool)
         case .support:
             SubmitView()
         case .account:
@@ -311,11 +310,6 @@ struct ContentView: View {
                 SettingsView()
             }
         }
-    }
-
-    private func openSavedFilters() {
-        savedFiltersRequested = true
-        selectedTab = .home
     }
 
     private var usesSidebarNavigation: Bool {
@@ -438,13 +432,11 @@ struct HomeView: View {
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
     @Binding var selectedTab: AppTab
-    @Binding var savedFiltersRequested: Bool
     @State private var deletingSearch: NamedSavedSearch?
     @State private var deletionNotice = false
 
     var body: some View {
         NavigationStack {
-            ScrollViewReader { scrollProxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
                     masthead
@@ -477,19 +469,6 @@ struct HomeView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
                 .padding(.bottom, 100)
-            }
-            .onAppear {
-                if savedFiltersRequested {
-                    scrollProxy.scrollTo("saved-filters", anchor: .top)
-                    savedFiltersRequested = false
-                }
-            }
-            .onChange(of: savedFiltersRequested) { _, requested in
-                if requested {
-                    scrollProxy.scrollTo("saved-filters", anchor: .top)
-                    savedFiltersRequested = false
-                }
-            }
             }
             .background(Brand.contentCanvas(for: colorScheme).ignoresSafeArea())
             .navigationTitle("")
@@ -620,7 +599,6 @@ struct HomeView: View {
                 }
             }
         }
-        .id("saved-filters")
     }
 
     private var pathwayGrid: some View {

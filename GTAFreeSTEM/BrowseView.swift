@@ -42,7 +42,6 @@ struct BrowseView: View {
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
     let surface: BrowseSurface
-    let showSavedFilters: () -> Void
     @StateObject private var locationManager = HuntLocationManager()
     @State private var saveSearchPresented = false
     @State private var filtersPresented = false
@@ -54,9 +53,8 @@ struct BrowseView: View {
     @State private var mapResetRevision = 0
     @State private var coincidentVenueIDs: Set<String> = []
 
-    init(surface: BrowseSurface = .opportunities, showSavedFilters: @escaping () -> Void = {}) {
+    init(surface: BrowseSurface = .opportunities) {
         self.surface = surface
-        self.showSavedFilters = showSavedFilters
 #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-review-map") {
             _displayMode = State(initialValue: .map)
@@ -109,10 +107,6 @@ struct BrowseView: View {
             }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button(action: showSavedFilters) {
-                        Label(session.text("mySavedSearches"), systemImage: "line.3.horizontal.decrease.circle")
-                    }
-                    .accessibilityIdentifier("show-saved-filters")
                     Button {
                         filtersPresented = true
                     } label: {
@@ -136,13 +130,13 @@ struct BrowseView: View {
             .sheet(isPresented: $filtersPresented) {
                 OpportunityFilterSheet(
                     filters: $store.filters,
+                    surface: surface,
                     apply: {
                         filtersPresented = false
                         Task { await store.refresh(cache: persistenceContext) }
                     },
                     reset: {
                         store.resetFilters()
-                        Task { await store.refresh(cache: persistenceContext) }
                     }
                 )
                 .environmentObject(session)
@@ -817,10 +811,13 @@ struct OpportunityFilterSheet: View {
     @EnvironmentObject private var store: OpportunityStore
     @State private var saveFilterPresented = false
     @State private var savedFilterConfirmed = false
+    @State private var previewing = false
+    @State private var previewRevision = UUID()
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.openURL) private var openURL
     @EnvironmentObject private var session: SessionStore
     @Binding var filters: OpportunityFilters
+    let surface: BrowseSurface
     let apply: () -> Void
     let reset: () -> Void
 
@@ -840,6 +837,7 @@ struct OpportunityFilterSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                savedFiltersSection
                 Section(session.text("region")) {
                     Picker(session.text("region"), selection: $filters.region) {
                         Text(session.text("allGta")).tag("All")
@@ -942,17 +940,120 @@ struct OpportunityFilterSheet: View {
                 SaveNamedSearchSheet(onSaved: { savedFilterConfirmed = true })
                     .environmentObject(session).environmentObject(store)
             }
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(session.text("reset"), action: reset)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                ViewThatFits(in: .horizontal) {
+                    HStack { resetButton; Spacer(minLength: 16); doneButton }
+                    VStack(spacing: 8) { resetButton; doneButton }
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(session.text("done"), action: apply)
-                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(.bar)
+            }
+            .onChange(of: criteria) { _, _ in
+                savedFilterConfirmed = false
+                previewRevision = UUID()
+            }
+            .task(id: previewRevision) {
+                previewing = true
+                await store.previewCurrentFilters()
+                guard !Task.isCancelled else { return }
+                previewing = false
             }
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+    }
+
+    private var criteria: NamedSearchCriteria {
+        NamedSearchCriteria(query: store.query, mode: store.mode, filters: filters)
+    }
+
+    private var selectedPreset: NamedSavedSearch? {
+        store.savedSearches.first { $0.id == store.activeSavedSearchID }
+    }
+
+    private var compatiblePresets: [NamedSavedSearch] {
+        store.savedSearches.filter { surface.modes.contains($0.criteria.mode) }
+    }
+
+    private var savedFiltersSection: some View {
+        Section(session.text("mySavedSearches")) {
+            if compatiblePresets.isEmpty {
+                Text(session.text("noCompatibleFilters"))
+                    .foregroundStyle(.secondary)
+            } else {
+                Menu {
+                    Button(session.text("newFilter"), action: startNewFilter)
+                    ForEach(compatiblePresets) { preset in
+                        Button {
+                            savedFilterConfirmed = false
+                            Task { await store.openNamedSearch(preset.id, acknowledge: false) }
+                        } label: {
+                            if store.activeSavedSearchID == preset.id {
+                                Label(preset.name, systemImage: "checkmark")
+                            } else { Text(preset.name) }
+                        }
+                    }
+                } label: {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(selectedPreset?.name ?? session.text("newFilter"))
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 12)
+                        Image(systemName: "chevron.up.chevron.down")
+                    }
+                    .frame(minHeight: 44)
+                }
+                .accessibilityLabel(session.text("mySavedSearches"))
+                .accessibilityValue(selectedPreset?.name ?? session.text("newFilter"))
+                .accessibilityIdentifier("saved-filter-picker")
+            }
+            if let preset = selectedPreset, preset.criteria != criteria {
+                Text(session.text("filterModified")).font(.callout).foregroundStyle(.secondary)
+            }
+            TextField(session.text("searchPlaceholder"), text: $store.query)
+                .accessibilityIdentifier("filter-query")
+            if previewing {
+                ProgressView(session.text("updatingFilterResults"))
+            } else {
+                Text(session.text(store.opportunities.count == 1 ? "resultCountOne" : "resultCountMany")
+                    .replacingOccurrences(of: "{count}", with: store.opportunities.count.formatted()))
+                    .font(.headline)
+                    .accessibilityIdentifier("filter-result-count")
+            }
+        }
+    }
+
+    private func startNewFilter() {
+        store.clearActiveSavedSearch()
+        store.query = ""
+        store.mode = surface.defaultMode
+        reset()
+        savedFilterConfirmed = false
+        previewRevision = UUID()
+    }
+
+    private var resetButton: some View {
+        Button(action: startNewFilter) {
+            Text(session.text("reset"))
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 12)
+                .frame(minWidth: 72, minHeight: 44)
+        }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.roundedRectangle(radius: 14))
+        .accessibilityIdentifier("reset-filters")
+    }
+
+    private var doneButton: some View {
+        Button(action: apply) {
+            Text(session.text("done"))
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 12)
+                .frame(minWidth: 72, minHeight: 44)
+        }
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.roundedRectangle(radius: 14))
+        .accessibilityIdentifier("done-filters")
     }
 
 }
