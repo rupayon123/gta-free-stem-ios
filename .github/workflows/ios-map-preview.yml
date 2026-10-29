@@ -29,9 +29,9 @@ jobs:
           test -z "$(git status --porcelain)"
           shasum -a 256 -c .github/native-ci-source.sha256
           shasum -a 256 -c <<'HASHES'
-          b43447d78fb72d4bc068d175808d125f4e804fbe317c3531a416cb6df2e1e7b9  GTAFreeSTEM/GTAFreeSTEMApp.swift
+          49fdcef35e1604b4afccbd60202dd1ecca75e70e6c76502ae4b369bf07157328  GTAFreeSTEM/GTAFreeSTEMApp.swift
           8f8b063f873be3cd3ba2c9055931637a0006d14cf99e3ed5408ad5887b7df835  GTAFreeSTEM/APIClient.swift
-          ed73387435ea68469cf8efa36d94b3cae8b2c190787339d5f91c959613fbca58  GTAFreeSTEM/OpportunityStore.swift
+          ed73387435ea68469cf8efa36d94b3cae8b2c187787339d5f91c959613fbca58  GTAFreeSTEM/OpportunityStore.swift
           077c365047628e38b1ae80e7a4319c0144429ac9a31de509b6fffab2cca59bc0  GTAFreeSTEM/LocalOpportunitySnapshot.swift
           c61ed81737815ad1543df966f382c8e2672fe2cb28b7d8f6f68cfc3ef39fd391  GTAFreeSTEM/Resources/opportunities.json
           HASHES
