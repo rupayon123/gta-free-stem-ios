@@ -914,6 +914,7 @@ struct OpportunityFilterSheet: View {
             .background(Brand.canvas(for: colorScheme))
             .tint(Brand.lake)
             .navigationTitle(session.text("filters"))
+            .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 8) {
                 if savedFilterConfirmed {
@@ -964,7 +965,7 @@ struct OpportunityFilterSheet: View {
                 previewing = false
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.large])
         .presentationDragIndicator(.visible)
     }
 
