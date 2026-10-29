@@ -44,6 +44,14 @@ Search falls back to a native SwiftUI TextField in existing scroll content: the 
 
 Before accepting this prototype: build the frozen source, verify installed bytes, inspect all five tabs in light/dark at normal and maximum text while scrolling Home CTA and Profile red controls; verify readable tab labels without underlying words/colour; exercise search focus/type/clear/refocus/Return/dismiss on Browse and High School with hardware and on-screen keyboards, RTL and CJK; verify saved-filter selection/edit/Reset/update/relaunch semantics; and run the full suite only after the production UI treatment is settled. Original offline/Reduce Motion/device gates remain open.
 
+### Prototype runtime result: visual approval still withheld
+
+Frozen `fb6d4b6807b70cc26c73a6fceb05294f2c9c1d7a` built successfully with one job and matched all 81 installed app files and the full embedded source SHA. The app-owned query field rendered correctly at normal/max text, including RTL icon/clear ordering, focus/clear/type/Return and tab changes. The same named preset identity and Robot/age-four criteria remained present. These are simulator observations, not physical-device acceptance.
+
+The public tab appearance treatment stopped content bleed but produced an oversized default white/black backing above the floating pill, reducing the content viewport and missing the semantic dark surface. That geometry is a visual failure. Arabic maximum text also exposed a separate Hunt label breaking inside a word because the horizontal `ViewThatFits` row permits text wrapping. Neither is accepted. Full on-screen keyboard layout, the full five-role/theme matrix, the 193-test repeat on final production source and the original offline/motion/device gates remain pending.
+
+The nine source-bound screenshots, successful build log, installed-byte binding and failed visual receipt are preserved in `outputs/ios-v3-prototype-20261029/`. English/Light/large were restored, keyboard capture and Reduce Motion left unchanged, the owned simulator shut down, and the runtime slot released. The next proposed diagnosis measures public tab/container geometry and compares only `isTranslucent` in a DEBUG-controlled launch; the proposed Arabic treatment stacks the two actions at accessibility sizes without shrinking text. No further prototype build is implied by these proposals.
+
 ### Historical initial smoke
 
 Actual tested Swift source checkpoint: `f9339c98472d8bedb0bacc0202a081bd8fdbb518` (includes a DEBUG-only typography diagnostic inside the existing isolated FrontendLayoutReview). The diagnostic is excluded from Release by the existing `#if DEBUG` boundary and does not replace personal defaults or model storage. The build inputs stayed frozen while compiling; only the source-pin manifest was refreshed afterward before committing that checkpoint.
