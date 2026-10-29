@@ -52,6 +52,7 @@ struct BrowseView: View {
     @StateObject private var mapProjection = OpportunityMapPresentation()
     @State private var mapResetRevision = 0
     @State private var coincidentVenueIDs: Set<String> = []
+    @FocusState private var searchFocused: Bool
 
     init(surface: BrowseSurface = .opportunities) {
         self.surface = surface
@@ -70,6 +71,7 @@ struct BrowseView: View {
                 ScrollViewReader { scrollProxy in
                 ScrollView {
                     VStack(spacing: AppSpacing.standard) {
+                        queryField
                         if displayMode == .list { hero }
                         searchControls
 
@@ -91,6 +93,7 @@ struct BrowseView: View {
                     .padding(.top, AppSpacing.small)
                     .padding(.bottom, 104)
                 }
+                .scrollDismissesKeyboard(.interactively)
                 .onChange(of: selectedVenueID) { _, newID in
                     if newID != nil { scrollProxy.scrollTo("map-selected-location", anchor: .top) }
                 }
@@ -101,10 +104,6 @@ struct BrowseView: View {
             }
             .navigationTitle(session.text(surface.titleKey))
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $store.query, prompt: Text(session.text("searchPlaceholder")).foregroundStyle(Brand.mutedText(for: colorScheme)))
-            .onSubmit(of: .search) {
-                Task { await store.refresh(cache: persistenceContext) }
-            }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
@@ -166,7 +165,10 @@ struct BrowseView: View {
                 mapProjection.prepare(records)
             }
             .onAppear { mapProjection.resumeIfInterrupted(store.opportunities) }
-            .onDisappear { mapProjection.cancel() }
+            .onDisappear {
+                searchFocused = false
+                mapProjection.cancel()
+            }
             .onReceive(locationManager.$coordinate.compactMap { $0 }) { coordinate in
                 store.useCurrentLocation(coordinate)
                 Task { await store.refresh(cache: persistenceContext) }
@@ -176,6 +178,44 @@ struct BrowseView: View {
 
     private var prioritizesResultsOnCompactLayout: Bool {
         horizontalSizeClass == .compact
+    }
+
+    private var queryField: some View {
+        HStack(spacing: AppSpacing.small) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 20))
+                .frame(width: 24, height: 24)
+                .foregroundStyle(Brand.mutedText(for: colorScheme))
+                .accessibilityHidden(true)
+
+            TextField(session.text("searchPlaceholder"), text: $store.query)
+                .font(PortfolioTypography.body)
+                .focused($searchFocused)
+                .submitLabel(.search)
+                .accessibilityLabel(session.text("search"))
+                .accessibilityHint(session.text("searchPlaceholder"))
+                .accessibilityIdentifier("browse-query")
+                .onSubmit {
+                    searchFocused = false
+                    Task { await store.refresh(cache: persistenceContext) }
+                }
+
+            if !store.query.isEmpty {
+                Button {
+                    store.query = ""
+                    searchFocused = true
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 18))
+                        .frame(minWidth: 44, minHeight: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(session.text("clearSearch"))
+                .accessibilityIdentifier("browse-query-clear")
+            }
+        }
+        .padding(.vertical, AppSpacing.xSmall)
+        .modifier(StoryFieldModifier())
     }
 
     @ViewBuilder

@@ -264,8 +264,11 @@ struct ContentView: View {
                 tabContent(for: tab)
                     // Keep scrolling content and destructive colours out of the
                     // navigation labels, including at accessibility text sizes.
-                    .toolbarBackground(Brand.cardFill(for: colorScheme), for: .tabBar)
-                    .toolbarBackground(.visible, for: .tabBar)
+                    .background {
+                        PortfolioTabBarBackground(scheme: colorScheme)
+                            .frame(width: 0, height: 0)
+                            .accessibilityHidden(true)
+                    }
                     .tabItem {
                         Label {
                             Text(session.text(tab.titleKey))

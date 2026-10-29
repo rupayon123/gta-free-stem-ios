@@ -151,6 +151,56 @@ enum PortfolioArtwork {
     }
 }
 
+/// Configures only the enclosing app tab bar through public containment APIs.
+/// The native bar continues to own selection, layout, focus and accessibility.
+struct PortfolioTabBarBackground: UIViewControllerRepresentable {
+    let scheme: ColorScheme
+
+    func makeUIViewController(context: Context) -> Controller {
+        Controller()
+    }
+
+    func updateUIViewController(_ controller: Controller, context: Context) {
+        controller.fill = UIColor(Brand.cardFill(for: scheme))
+        controller.applyBackground()
+    }
+
+    final class Controller: UIViewController {
+        var fill: UIColor = .systemBackground
+
+        override func loadView() {
+            view = UIView()
+            view.isUserInteractionEnabled = false
+            view.backgroundColor = .clear
+        }
+
+        override func didMove(toParent parent: UIViewController?) {
+            super.didMove(toParent: parent)
+            applyBackground()
+        }
+
+        override func viewWillAppear(_ animated: Bool) {
+            super.viewWillAppear(animated)
+            applyBackground()
+        }
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            applyBackground()
+        }
+
+        func applyBackground() {
+            guard let bar = tabBarController?.tabBar else { return }
+            let appearance = UITabBarAppearance(barAppearance: bar.standardAppearance)
+            appearance.configureWithOpaqueBackground()
+            appearance.backgroundColor = fill
+            bar.standardAppearance = appearance
+            bar.scrollEdgeAppearance = appearance
+            bar.isTranslucent = false
+        }
+    }
+}
+
 enum AppSpacing {
     static let xSmall: CGFloat = 4
     static let small: CGFloat = 8
