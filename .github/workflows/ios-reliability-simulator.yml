@@ -52,9 +52,9 @@ jobs:
           shasum -a 256 -c <<'HASHES'
           8f8b063f873be3cd3ba2c9055931637a0006d14cf99e3ed5408ad5887b7df835  GTAFreeSTEM/APIClient.swift
           8f119888d0bd820a9abe4d58fcffa5bad9173e599edadc6a012e8f0f697ea14d  GTAFreeSTEM/Models.swift
-          ed73387435ea68469cf8efa36d94b3cae8b2c187787339d5f91c959613fbca58  GTAFreeSTEM/OpportunityStore.swift
+          6edd57e54b54e619a5c096b4cc0a5d5883790d425e3bbcbab1dfe60924e57483  GTAFreeSTEM/OpportunityStore.swift
           077c365047628e38b1ae80e7a4319c0144429ac9a31de509b6fffab2cca59bc0  GTAFreeSTEM/LocalOpportunitySnapshot.swift
-          cee62d1761199aa61d3e3699cffe26dbd4fd0ecab5aa6bb20dc25ea551b2df4f  GTAFreeSTEMTests/APIClientTests.swift
+          2ac5ed9435d3ae994cd01cd4868987ac10b48233a0c91d784f532945f76a65af  GTAFreeSTEMTests/APIClientTests.swift
           c61ed81737815ad1543df966f382c8e2672fe2cb28b7d8f6f68cfc3ef39fd391  GTAFreeSTEM/Resources/opportunities.json
           06181e9494ed5cf7b5bcd672fba62f674dbed03320de8455c48aa57e92b79da3  docs/scripts/validate-feed-content-rights.py
           HASHES
@@ -126,13 +126,13 @@ jobs:
           import json, os
           from pathlib import Path
           summary = json.loads((Path(os.environ['RUNNER_TEMP']) / 'reliability-summary.json').read_text())
-          expected = {'result': 'Passed', 'totalTestCount': 190, 'passedTests': 190,
+          expected = {'result': 'Passed', 'totalTestCount': 193, 'passedTests': 193,
                       'failedTests': 0, 'skippedTests': 0, 'expectedFailures': 0}
           for key, value in expected.items():
               if summary.get(key) != value:
                   raise SystemExit('Full reliability receipt differs: ' + key + ' = ' + repr(summary.get(key)))
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
-              output.write('Full iOS reliability target passed: 190 executed, 190 passed, 0 failed, 0 skipped.\n')
+              output.write('Full iOS reliability target passed: 193 executed, 193 passed, 0 failed, 0 skipped.\n')
               output.write('This is Debug iPhone simulator evidence only; full release gates remain separate.\n')
           PY
 

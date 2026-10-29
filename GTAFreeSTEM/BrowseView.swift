@@ -674,6 +674,7 @@ struct BrowseView: View {
     @discardableResult
     private func prepareSurface() -> Bool {
         if !surface.modes.contains(store.mode) {
+            store.clearActiveSavedSearch()
             store.mode = surface.defaultMode
             return true
         }
@@ -955,6 +956,9 @@ struct OpportunityFilterSheet: View {
             }
             .task(id: previewRevision) {
                 previewing = true
+                // Coalesce typing without delaying the preset selection itself.
+                try? await Task.sleep(for: .milliseconds(150))
+                guard !Task.isCancelled else { return }
                 await store.previewCurrentFilters()
                 guard !Task.isCancelled else { return }
                 previewing = false
@@ -969,7 +973,7 @@ struct OpportunityFilterSheet: View {
     }
 
     private var selectedPreset: NamedSavedSearch? {
-        store.savedSearches.first { $0.id == store.activeSavedSearchID }
+        compatiblePresets.first { $0.id == store.activeSavedSearchID }
     }
 
     private var compatiblePresets: [NamedSavedSearch] {
@@ -1007,7 +1011,7 @@ struct OpportunityFilterSheet: View {
                 .accessibilityValue(selectedPreset?.name ?? session.text("newFilter"))
                 .accessibilityIdentifier("saved-filter-picker")
             }
-            if let preset = selectedPreset, preset.criteria != criteria {
+            if let preset = selectedPreset, NamedSearchCriteria(query: preset.criteria.query, mode: preset.criteria.mode, filters: preset.criteria.filters) != criteria {
                 Text(session.text("filterModified")).font(.callout).foregroundStyle(.secondary)
             }
             TextField(session.text("searchPlaceholder"), text: $store.query)
