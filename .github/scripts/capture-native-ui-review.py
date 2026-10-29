@@ -41,17 +41,47 @@ def require_alive():
         except ProcessLookupError as error:
             raise SystemExit("The app exited before native screen capture; PID " + str(activePid)) from error
 
+# At most one screenshot-command recovery for the entire capture job. This is
+# IPC recovery, not permission to accept an unready or blank framebuffer.
+screenshotTimeoutRetryUsed = False
+
+def capture_native_png(png, timeout=20):
+    global screenshotTimeoutRetryUsed
+    for commandAttempt in range(2):
+        require_alive()
+        temporary = png.with_name(png.stem + ".capture-" + str(commandAttempt) + ".png")
+        temporary.unlink(missing_ok=True)
+        args = ("xcrun", "simctl", "io", device, "screenshot", "--type=png", str(temporary))
+        try:
+            subprocess.run(args, check=True, timeout=timeout, text=True,
+                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            temporary.replace(png)
+            return
+        except subprocess.TimeoutExpired as error:
+            temporary.unlink(missing_ok=True)
+            require_alive()
+            if screenshotTimeoutRetryUsed or commandAttempt == 1:
+                raise SystemExit("Native screenshot command timed out; bounded recovery exhausted: " + str(png)) from error
+            screenshotTimeoutRetryUsed = True
+            print("NATIVE_SCREENSHOT_TIMEOUT_RETRY " + json.dumps(dict(name=png.name, seconds=timeout, maximumJobRetries=1)), flush=True)
+        except subprocess.CalledProcessError as error:
+            temporary.unlink(missing_ok=True)
+            raise SystemExit("Native screenshot command failed: " + (error.stdout or "")[-4000:]) from error
+
 def export(name, mode, **details):
     png = output / (name + ".png")
     jpg = output / (name + ".jpg")
     require_alive()
-    # Retry a transient blank framebuffer only while the actual app process survives.
+    # The first IPC capture has its own 20s limit and at most one job-wide retry.
+    # Keep the original 15s/20-attempt pixel settling gate after that command.
+    capture_native_png(png)
     deadline = time.monotonic() + 15
     for attempt in range(20):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise SystemExit("Native content did not settle before capture: " + name)
-        run("xcrun", "simctl", "io", device, "screenshot", "--type=png", str(png), timeout=min(remaining, 10))
+        if attempt > 0:
+            capture_native_png(png, timeout=min(remaining, 20))
         verifyArgs = [str(frameVerifier), str(png)]
         if not details.get("systemCalendarPresentationOnly"):
             verifyArgs.append("dark" if details.get("dark") else "light")
