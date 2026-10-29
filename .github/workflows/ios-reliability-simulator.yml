@@ -1,4 +1,4 @@
-# Availability evidence: actions/runner-images@4f94a804ccf6254bfc5c7fd90a213db4b21874cd
+# Availability evidence: actions/runner-images@4f94a804ccf6254bfc5c7fd90a213db4b21814cd
 name: iOS native reliability and screen review
 
 on:
@@ -31,7 +31,7 @@ jobs:
         shell: bash
     steps:
       - name: Check out the dispatched commit
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c187273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
