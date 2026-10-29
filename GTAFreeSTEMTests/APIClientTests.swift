@@ -5136,6 +5136,9 @@ final class OpportunityStoreTests: XCTestCase {
 
     @MainActor
     func testClearingPersonalHistoryKeepsPublicCacheButRemovesHuntAndSeenRecords() async throws {
+        let suiteName = "GTAFreeSTEMTests.ClearPersonalHistory.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
         let context = try makeInMemoryContext()
         let opportunity = opportunity(
             id: "cached-public-opportunity",
@@ -5151,7 +5154,7 @@ final class OpportunityStoreTests: XCTestCase {
         try context.save()
 
         let client = APIClient(feedURL: URL(string: "https://example.com/opportunities.json")!, session: makeURLSessionForStub())
-        let store = OpportunityStore(api: client)
+        let store = OpportunityStore(api: client, defaults: defaults)
         store.query = "robotics"
         try await store.clearPersonalHistory(in: context)
 
