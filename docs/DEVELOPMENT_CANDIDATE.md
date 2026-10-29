@@ -1,6 +1,6 @@
 # Owner-only development update: 1.0 (16)
 
-Uploaded October 29, 2026 through **TestFlight Internal Only**, from source `1338441b5daa7d7281d0d22d6d5e7da552a88f54`. Apple currently shows **Processing**; installable Testing availability and installation have not yet been verified. External sharing remains on hold pending the owner's visual review.
+Uploaded October 29, 2026 through **TestFlight Internal Only**, from source `1338441b5daa7d7281d0d22d6d5e7da552a88f54`. App Store Connect now shows **Internal Testing** in the sole-owner Zenin group and reports the owner **Installed 1.0 (16)** on October 29. This Apple status confirms delivery availability and reported installation, not a directly observed physical-device launch or core-use journey. External sharing remains on hold pending the owner's visual review.
 
 Home is a bright topic-led landing page with independently named saved searches and per-search new-event updates. Browse contains the search/filter tools. The original GTA logo and loading animation remain intact. This update also retains the responsiveness, unknown-age, full original provider text, virtual-location and legacy event-language fixes. The experimental complete-library adapter and full-description translation trial are excluded.
 

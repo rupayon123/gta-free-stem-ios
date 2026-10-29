@@ -4,7 +4,7 @@ I'm building GTA FREE STEM to make free STEM programs easier to find across the 
 
 [Android app](https://github.com/rupayon123/gta-free-stem-android) | [Web app](https://github.com/rupayon123/gta-free-stem-opportunities) | [Try the website](https://gta-free-stem.pages.dev/)
 
-> Owner-only development update **1.0 (16) is uploaded and processing**. The new Home introduces topics and independently saved searches; Browse keeps the search tools. See the [candidate status](docs/DEVELOPMENT_CANDIDATE.md).
+> Owner-only development update **1.0 (16) is available in TestFlight**. The new Home introduces topics and independently saved searches; Browse keeps the search tools. See the [candidate status](docs/DEVELOPMENT_CANDIDATE.md).
 
 ## New Home in development
 
@@ -51,7 +51,7 @@ The app reads the public opportunity feed from the web repository and keeps a lo
 
 ## Development status
 
-The latest owner-only internal iPhone upload is **1.0 (16)**, from source `1338441b5daa7d7281d0d22d6d5e7da552a88f54`. Apple shows Processing; availability and installation remain unverified. Its archive and retained uploaded IPA passed 52/52 and 62/62 strict checks. All 187 test stages passed, while the remote screenshot stage failed; 31 reviewed local native frames match the delivered UI. [Build 16 evidence and limitations](docs/DEVELOPMENT_CANDIDATE.md).
+The latest owner-only internal iPhone upload is **1.0 (16)**, from source `1338441b5daa7d7281d0d22d6d5e7da552a88f54`. App Store Connect shows Internal Testing for the sole-owner group and reports the owner installed 1.0 (16). Physical-device launch and core-use acceptance remain unverified. Its archive and retained uploaded IPA passed 52/52 and 62/62 strict checks. All 187 test stages passed, while the remote screenshot stage failed; 31 reviewed local native frames match the delivered UI. [Build 16 evidence and limitations](docs/DEVELOPMENT_CANDIDATE.md).
 
 Public App Store release is **not complete**. Full catalogue/translation work, final screenshot automation, physical iPhone/iPad, paired Watch and Mac acceptance, and existing public-release gates remain separate work. External tester sharing stays on hold until the owner's visual review. [The prior build 15 record](docs/CURRENT_RELEASE_HANDOFF.md) preserves its historical upload evidence; the owner has since installed15.
 
