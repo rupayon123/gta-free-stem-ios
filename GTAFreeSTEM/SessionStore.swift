@@ -11,6 +11,9 @@ final class SessionStore: ObservableObject {
                 return
             }
             defaults.set(normalized, forKey: AppLanguage.preferredLanguageDefaultsKey)
+#if os(iOS) && !targetEnvironment(macCatalyst)
+            WatchSavedOpportunitySync.shared.preferredLanguageDidChange(to: normalized)
+#endif
             if !hasLocalProfile {
                 displayName = AppText.shared.string("guest", language: AppLanguage.normalized(normalized))
             }
@@ -107,6 +110,10 @@ final class SessionStore: ObservableObject {
         return localized == key ? category : localized
     }
 
+    func fullDescription(for opportunity: Opportunity) -> String {
+        opportunity.localizedDescription(language: language)
+    }
+
     func summary(for opportunity: Opportunity) -> String {
         opportunity.localizedSummary(language: language)
     }
@@ -137,44 +144,41 @@ final class SessionStore: ObservableObject {
         ).string(from: date)
     }
 
+    /// GTA program times are shown in Toronto, including the offset on the event day.
+    /// Date-only values remain calendar dates; a missing schedule remains missing.
+    func formattedLocalEventDateTime(_ value: String?) -> String {
+        guard let raw = value?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return "" }
+        guard let date = FeedFreshness.date(from: raw) else { return raw }
+        if Self.isDateOnlyValue(raw) { return formattedEventDateTime(raw) }
+        let zone = TimeZone(identifier: "America/Toronto")!
+        let text = Self.eventDateFormatter(for: language, includesTime: true, timeZone: zone).string(from: date)
+        return "\(text) \(zone.abbreviation(for: date) ?? "Toronto")"
+    }
+
     func formattedSchedule(start: String?, end: String?) -> String? {
-        let startText = formattedEventDateTime(start)
-        let endText = formattedEventDateTime(end)
+        let startText = formattedLocalEventDateTime(start)
+        let endText = formattedLocalEventDateTime(end)
         switch (startText.isEmpty, endText.isEmpty) {
-        case (true, true):
-            return nil
-        case (false, true):
-            return startText
-        case (true, false):
-            return endText
+        case (true, true): return nil
+        case (false, true): return startText
+        case (true, false): return endText
         case (false, false):
             guard startText != endText else { return startText }
             guard let startValue = start?.trimmingCharacters(in: .whitespacesAndNewlines),
                   let endValue = end?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  !Self.isDateOnlyValue(startValue),
-                  !Self.isDateOnlyValue(endValue),
+                  !Self.isDateOnlyValue(startValue), !Self.isDateOnlyValue(endValue),
                   let startDate = FeedFreshness.date(from: startValue),
-                  let endDate = FeedFreshness.date(from: endValue),
-                  let startZone = Self.encodedTimeZone(from: startValue),
-                  let endZone = Self.encodedTimeZone(from: endValue),
-                  startZone.secondsFromGMT(for: startDate) == endZone.secondsFromGMT(for: endDate)
-            else {
-                return "\(startText) – \(endText)"
-            }
-
+                  let endDate = FeedFreshness.date(from: endValue)
+            else { return "\(startText) – \(endText)" }
+            let zone = TimeZone(identifier: "America/Toronto")!
             var calendar = Calendar(identifier: .gregorian)
-            calendar.timeZone = startZone
-            guard calendar.isDate(startDate, inSameDayAs: endDate) else {
-                return "\(startText) – \(endText)"
-            }
-
-            let dateText = Self.eventDateFormatter(
-                for: language,
-                includesTime: false,
-                timeZone: startZone
-            ).string(from: startDate)
-            let timeFormatter = Self.eventTimeFormatter(for: language, timeZone: startZone)
-            return "\(dateText) · \(timeFormatter.string(from: startDate))–\(timeFormatter.string(from: endDate))"
+            calendar.timeZone = zone
+            guard calendar.isDate(startDate, inSameDayAs: endDate),
+                  zone.secondsFromGMT(for: startDate) == zone.secondsFromGMT(for: endDate)
+            else { return "\(startText) – \(endText)" }
+            let dateText = Self.eventDateFormatter(for: language, includesTime: false, timeZone: zone).string(from: startDate)
+            let times = Self.eventTimeFormatter(for: language, timeZone: zone)
+            return "\(dateText) · \(times.string(from: startDate))–\(times.string(from: endDate)) \(zone.abbreviation(for: endDate) ?? "Toronto")"
         }
     }
 

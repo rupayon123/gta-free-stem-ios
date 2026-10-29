@@ -51,10 +51,9 @@ final class FreeOpportunityEligibilityTests: XCTestCase {
     }
 
     func testBundledFeedKeepsAllCurrentExplicitlyFreeListings() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let bundleURL = repoRoot.appendingPathComponent("GTAFreeSTEM/Resources/opportunities.json")
+        let bundleURL = try XCTUnwrap(
+            AppResources.url(forResource: "opportunities", withExtension: "json")
+        )
         let data = try Data(contentsOf: bundleURL)
         let rawFeed = try XCTUnwrap(
             JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -98,4 +97,46 @@ final class FreeOpportunityEligibilityTests: XCTestCase {
             sourceConfidence: nil
         )
     }
+}
+
+@MainActor
+final class NativeScheduleDisplayTests: XCTestCase {
+    private func session() -> SessionStore {
+        SessionStore(defaults: UserDefaults(suiteName: "ScheduleDisplayTests.\(UUID().uuidString)")!, preferredLanguages: ["en-CA"])
+    }
+    func testNovemberUtcRangeUsesTorontoStandardTime() throws {
+        let text = try XCTUnwrap(session().formattedSchedule(start: "2026-11-01T19:00:00Z", end: "2026-11-01T20:00:00Z"))
+        XCTAssertTrue(text.contains("2:00"), text)
+        XCTAssertTrue(text.contains("3:00"), text)
+        XCTAssertTrue(text.contains("EST"), text)
+    }
+    func testRepeatedDstHourRetainsBothOffsets() throws {
+        let text = try XCTUnwrap(session().formattedSchedule(start: "2026-11-01T05:30:00Z", end: "2026-11-01T06:30:00Z"))
+        XCTAssertTrue(text.contains("EDT"), text)
+        XCTAssertTrue(text.contains("EST"), text)
+    }
+    func testDateOnlyAndMissingScheduleDoNotGainTimes() throws {
+        let store = session()
+        XCTAssertNil(store.formattedSchedule(start: nil, end: nil))
+        let date = try XCTUnwrap(store.formattedSchedule(start: "2026-11-01", end: "2026-11-01"))
+        XCTAssertFalse(date.contains(":"), date)
+        XCTAssertTrue(date.contains("Nov 1"), date)
+    }
+    func testCalendarDraftKeepsSuppliedTimesAndLeavesMissingScheduleEmpty() {
+        let draft = NativeCalendarDraft(start: "2026-11-01T19:00:00Z", end: "2026-11-01T20:00:00Z")
+        XCTAssertEqual(draft.start, FeedFreshness.date(from: "2026-11-01T19:00:00Z"))
+        XCTAssertEqual(draft.end, FeedFreshness.date(from: "2026-11-01T20:00:00Z"))
+        XCTAssertFalse(draft.allDay)
+        let missing = NativeCalendarDraft(start: nil, end: nil)
+        XCTAssertNil(missing.start)
+        XCTAssertNil(missing.end)
+    }
+    func testCalendarDateOnlyDraftUsesExclusiveNextLocalDayAcrossDst() throws {
+        let draft = NativeCalendarDraft(start: "2026-11-01", end: "2026-11-01")
+        XCTAssertTrue(draft.allDay)
+        let start = try XCTUnwrap(draft.start)
+        let end = try XCTUnwrap(draft.end)
+        XCTAssertEqual(end.timeIntervalSince(start), 25 * 3600)
+    }
+
 }

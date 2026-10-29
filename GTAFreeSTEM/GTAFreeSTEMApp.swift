@@ -7,6 +7,22 @@ enum AppRuntime {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
+    static var isFrontendLayoutReview: Bool {
+#if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-frontend-layout-review")
+#else
+        false
+#endif
+    }
+
+    static var isFrontendSavedLayoutReview: Bool {
+        guard isFrontendLayoutReview,
+              let index = ProcessInfo.processInfo.arguments.firstIndex(of: "-review-screen"),
+              ProcessInfo.processInfo.arguments.indices.contains(index + 1)
+        else { return false }
+        return ProcessInfo.processInfo.arguments[index + 1] == "saved"
+    }
+
     /// Lets screenshot QA hold each genuine readiness milestone long enough to
     /// inspect it. Production builds compile the pause out completely.
     static func pauseForLaunchReview() async {
@@ -17,12 +33,62 @@ enum AppRuntime {
     }
 }
 
+struct AppModelContainerResolution {
+    let container: ModelContainer
+    let usesEphemeralFallback: Bool
+    let persistentInitializationErrorDescription: String?
+
+    var storageAccess: AppStorageAccess {
+        usesEphemeralFallback ? .readOnlyRecovery : .persistent
+    }
+
+    static func resolve(
+        persistent: () throws -> ModelContainer,
+        ephemeralFallback: () throws -> ModelContainer
+    ) throws -> AppModelContainerResolution {
+        do {
+            return AppModelContainerResolution(
+                container: try persistent(),
+                usesEphemeralFallback: false,
+                persistentInitializationErrorDescription: nil
+            )
+        } catch {
+            let persistentErrorDescription = String(describing: error)
+            return AppModelContainerResolution(
+                container: try ephemeralFallback(),
+                usesEphemeralFallback: true,
+                persistentInitializationErrorDescription: persistentErrorDescription
+            )
+        }
+    }
+}
+
+enum AppStorageAccess: Equatable, Sendable {
+    case persistent
+    case readOnlyRecovery
+
+    var allowsPersistentChanges: Bool {
+        self == .persistent
+    }
+}
+
+private struct AppStorageAccessEnvironmentKey: EnvironmentKey {
+    static let defaultValue = AppStorageAccess.persistent
+}
+
+extension EnvironmentValues {
+    var appStorageAccess: AppStorageAccess {
+        get { self[AppStorageAccessEnvironmentKey.self] }
+        set { self[AppStorageAccessEnvironmentKey.self] = newValue }
+    }
+}
+
 @main
 struct GTAFreeSTEMApp: App {
     nonisolated private static let appRefreshIdentifier = "com.rupayonhaldar.gtafreestem.hunt.refresh"
     nonisolated private static let refreshMinInterval: TimeInterval = 60 * 60 * 3
     nonisolated private static let scheduleMinInterval: TimeInterval = 60 * 15
-    nonisolated private static let sharedModelContainer: ModelContainer = {
+    nonisolated fileprivate static let modelContainerResolution: AppModelContainerResolution = {
         let schema = Schema([
             OpportunityCacheRecord.self,
             SavedHuntRecord.self,
@@ -30,116 +96,63 @@ struct GTAFreeSTEMApp: App {
             SavedOpportunityRecord.self
         ])
         do {
-            return try ModelContainer(for: schema)
+            if AppRuntime.isFrontendLayoutReview {
+                let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+                return AppModelContainerResolution(
+                    container: try ModelContainer(for: schema, configurations: configuration),
+                    usesEphemeralFallback: false,
+                    persistentInitializationErrorDescription: nil
+                )
+            }
+            let resolution = try AppModelContainerResolution.resolve(
+                persistent: {
+                    try ModelContainer(for: schema)
+                },
+                ephemeralFallback: {
+                    let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+                    return try ModelContainer(for: schema, configurations: configuration)
+                }
+            )
+            if let errorDescription = resolution.persistentInitializationErrorDescription {
+                NSLog("GTA FREE STEM persistent storage unavailable; using an in-memory fallback: %@", errorDescription)
+            }
+            return resolution
         } catch {
-            fatalError("Failed to initialize shared model container: \(error)")
+            fatalError("Failed to initialize persistent and fallback model containers: \(error)")
         }
     }()
+    nonisolated fileprivate static var sharedModelContainer: ModelContainer {
+        modelContainerResolution.container
+    }
     private static let scheduleState = AppRefreshScheduleState()
 
-    @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var session = SessionStore()
     @StateObject private var opportunities = OpportunityStore(api: APIClient())
-    @State private var isShowingLaunchExperience = !AppRuntime.isRunningTests
-    @State private var launchProgress = 0.0
 
     init() {
 #if os(iOS) && !targetEnvironment(macCatalyst)
-        WatchSavedOpportunitySync.shared.configure(container: Self.sharedModelContainer)
+        if Self.modelContainerResolution.storageAccess.allowsPersistentChanges {
+            if !AppRuntime.isFrontendLayoutReview {
+                WatchSavedOpportunitySync.shared.configure(container: Self.sharedModelContainer)
+            }
+        }
 #endif
     }
 
     var body: some Scene {
-        WindowGroup {
-            ZStack {
-                // Match the launch storyboard and cover both branches so the
-                // handoff can never expose the window's default white surface.
-                Brand.ice
-                    .ignoresSafeArea()
-
-                // Keep the launch art and the interactive app mutually exclusive.
-                // A cross-fade here let a partially loaded home screen show through
-                // the loader on slower devices.
-                if isShowingLaunchExperience {
-                    AppLaunchExperience(
-                        title: session.text("brand"),
-                        mission: session.text("mission"),
-                        loadingText: session.text("preparingOpportunities"),
-                        progress: launchProgress
-                    )
-                } else {
-                    ContentView()
-                        .environmentObject(session)
-                        .environmentObject(opportunities)
-                        .environment(\.locale, Locale(identifier: session.language.localeIdentifier))
-                        .environment(\.layoutDirection, session.language.layoutDirection)
-                        .preferredColorScheme(session.colorScheme)
-                        .modelContainer(Self.sharedModelContainer)
-                }
+        WindowGroup(makeContent: makeAppWindowRoot)
+            .environmentObject(session)
+            .environmentObject(opportunities)
+            .backgroundTask(.appRefresh(Self.appRefreshIdentifier)) {
+                let context = Self.modelContainerResolution.storageAccess.allowsPersistentChanges
+                    ? ModelContext(Self.sharedModelContainer)
+                    : nil
+                await opportunities.refresh(cache: context, notifyOnNewMatches: true)
+                Self.scheduleAppRefresh()
             }
-            .task {
-                guard isShowingLaunchExperience else { return }
-                withAnimation(.easeOut(duration: 0.24)) {
-                    launchProgress = 0.16
-                }
-                await Task.yield()
-                await AppRuntime.pauseForLaunchReview()
-
-                // Prepare the best available local snapshot before handoff. A
-                // bundled or saved snapshot is immediately usable; if both are
-                // unavailable, the interactive view owns its honest loading or
-                // error state while it attempts the live refresh.
-                let context = ModelContext(Self.sharedModelContainer)
-                withAnimation(.easeInOut(duration: 0.24)) {
-                    launchProgress = 0.38
-                }
-                await AppRuntime.pauseForLaunchReview()
-                let initialSnapshotIsReady = await opportunities.prepareInitialSnapshot(cache: context)
-#if os(iOS) && !targetEnvironment(macCatalyst)
-                WatchSavedOpportunitySync.shared.sync(in: context)
-#endif
-                guard !Task.isCancelled else { return }
-
-                // A damaged or missing bundled file must not trap the launch
-                // screen behind network timeouts. The interactive shell owns its
-                // normal live refresh and presents its honest empty/error state.
-                withAnimation(.easeInOut(duration: 0.32)) {
-                    launchProgress = initialSnapshotIsReady ? 0.90 : 0.84
-                }
-                await Task.yield()
-                await AppRuntime.pauseForLaunchReview()
-                guard !Task.isCancelled else { return }
-
-                // Completion is tied to the real readiness checkpoint above; the
-                // bar never loops or restarts independently of app work.
-                withAnimation(.easeOut(duration: 0.26)) {
-                    launchProgress = 1
-                }
-                // Let the completed state register before the prepared app takes
-                // over. Reduced Motion skips the decorative interpolation.
-                try? await Task.sleep(nanoseconds: reduceMotion ? 35_000_000 : 600_000_000)
-                guard !Task.isCancelled else { return }
-                isShowingLaunchExperience = false
-            }
-            .onChange(of: scenePhase) { _, phase in
-                if phase == .background {
-                    Self.scheduleAppRefresh()
-                } else if phase == .active {
-#if os(iOS) && !targetEnvironment(macCatalyst)
-                    WatchSavedOpportunitySync.shared.sync(in: ModelContext(Self.sharedModelContainer))
-#endif
-                }
-            }
-        }
-        .backgroundTask(.appRefresh(Self.appRefreshIdentifier)) {
-            let context = ModelContext(Self.sharedModelContainer)
-            await opportunities.refresh(cache: context, notifyOnNewMatches: true)
-            Self.scheduleAppRefresh()
-        }
     }
 
-    nonisolated private static func scheduleAppRefresh() {
+    nonisolated fileprivate static func scheduleAppRefresh() {
         let now = Date()
         Task {
             guard await Self.scheduleState.claimSubmission(now: now, minimumInterval: Self.scheduleMinInterval) else {
@@ -153,6 +166,136 @@ struct GTAFreeSTEMApp: App {
             } catch {
                 await Self.scheduleState.clearSubmission(at: now)
                 return
+            }
+        }
+    }
+}
+
+// The scene's deferred builder must not inherit the App body's main-actor
+// isolation: SwiftUI can enter it while updating the view graph off-main.
+// Its only job is to construct a view; state and UI work belong to that view.
+nonisolated func makeAppWindowRoot() -> AppWindowRoot {
+    AppWindowRoot()
+}
+
+struct AppWindowRoot: View {
+    nonisolated init() {}
+
+    var body: some View {
+        AppWindowContent()
+    }
+}
+
+private struct AppWindowContent: View {
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @EnvironmentObject private var session: SessionStore
+    @EnvironmentObject private var opportunities: OpportunityStore
+    @State private var isShowingLaunchExperience = !AppRuntime.isRunningTests
+    @State private var isShowingStorageWarning: Bool
+    @State private var launchProgress = 0.0
+
+    init() {
+        _isShowingStorageWarning = State(initialValue: GTAFreeSTEMApp.modelContainerResolution.usesEphemeralFallback)
+    }
+
+    var body: some View {
+        ZStack {
+            // Match the launch storyboard and cover both branches so the
+            // handoff can never expose the window's default white surface.
+            Brand.ice
+                .ignoresSafeArea()
+
+            // Keep the launch art and the interactive app mutually exclusive.
+            // A cross-fade here let a partially loaded home screen show through
+            // the loader on slower devices.
+            if AppRuntime.isFrontendLayoutReview {
+#if DEBUG
+                FrontendLayoutReview()
+#endif
+            } else if isShowingLaunchExperience {
+                AppLaunchExperience(
+                    title: session.text("brand"),
+                    mission: session.text("mission"),
+                    loadingText: session.text("preparingOpportunities"),
+                    progress: launchProgress
+                )
+            } else {
+                ContentView()
+                    .environmentObject(session)
+                    .environmentObject(opportunities)
+                    .preferredColorScheme(session.colorScheme)
+                    .modelContainer(GTAFreeSTEMApp.sharedModelContainer)
+            }
+        }
+        // The stored language belongs to the complete window, including the
+        // launch experience, so RTL users never see an LTR-first handoff.
+        .environment(\.locale, Locale(identifier: session.language.localeIdentifier))
+        .environment(\.layoutDirection, session.language.layoutDirection)
+        .environment(\.appStorageAccess, GTAFreeSTEMApp.modelContainerResolution.storageAccess)
+        .alert(session.text("localStorageUnavailableTitle"), isPresented: $isShowingStorageWarning) {
+            Button(session.text("ok"), role: .cancel) {}
+        } message: {
+            Text(session.text("localStorageUnavailableMessage"))
+        }
+        .task {
+            guard isShowingLaunchExperience else { return }
+            guard !AppRuntime.isFrontendLayoutReview else { return }
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.24)) {
+                launchProgress = 0.16
+            }
+            await Task.yield()
+            await AppRuntime.pauseForLaunchReview()
+
+            // Prepare the best available local snapshot before handoff. A
+            // bundled or saved snapshot is immediately usable; if both are
+            // unavailable, the interactive view owns its honest loading or
+            // error state while it attempts the live refresh.
+            let context = GTAFreeSTEMApp.modelContainerResolution.storageAccess.allowsPersistentChanges
+                ? ModelContext(GTAFreeSTEMApp.sharedModelContainer)
+                : nil
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.24)) {
+                launchProgress = 0.38
+            }
+            await AppRuntime.pauseForLaunchReview()
+            let initialSnapshotIsReady = await opportunities.prepareInitialSnapshot(cache: context)
+#if os(iOS) && !targetEnvironment(macCatalyst)
+            if let context {
+                WatchSavedOpportunitySync.shared.sync(in: context)
+            }
+#endif
+            guard !Task.isCancelled else { return }
+
+            // A damaged or missing bundled file must not trap the launch
+            // screen behind network timeouts. The interactive shell owns its
+            // normal live refresh and presents its honest empty/error state.
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.32)) {
+                launchProgress = initialSnapshotIsReady ? 0.90 : 0.84
+            }
+            await Task.yield()
+            await AppRuntime.pauseForLaunchReview()
+            guard !Task.isCancelled else { return }
+
+            // Completion is tied to the real readiness checkpoint above; the
+            // bar never loops or restarts independently of app work.
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.26)) {
+                launchProgress = 1
+            }
+            // Let the completed state register before the prepared app takes
+            // over. Reduced Motion skips the decorative interpolation.
+            try? await Task.sleep(nanoseconds: reduceMotion ? 35_000_000 : 600_000_000)
+            guard !Task.isCancelled else { return }
+            isShowingLaunchExperience = false
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background {
+                GTAFreeSTEMApp.scheduleAppRefresh()
+            } else if phase == .active {
+#if os(iOS) && !targetEnvironment(macCatalyst)
+                if GTAFreeSTEMApp.modelContainerResolution.storageAccess.allowsPersistentChanges {
+                    WatchSavedOpportunitySync.shared.sync(in: ModelContext(GTAFreeSTEMApp.sharedModelContainer))
+                }
+#endif
             }
         }
     }

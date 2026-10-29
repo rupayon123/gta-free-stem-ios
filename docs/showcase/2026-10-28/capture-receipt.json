@@ -1,0 +1,52 @@
+{
+  "capturedDate": "2026-10-28",
+  "runtimeSource": "692bdcd81e6bd091d920b35698b30fb4658f2dd7",
+  "kind": "Native simulator development previews; unmodified JPEG exports of actual frames",
+  "frames": [
+    {
+      "name": "normal-home",
+      "mode": "normal-runtime",
+      "commit": "692bdcd81e6bd091d920b35698b30fb4658f2dd7",
+      "exportMaximumDimension": 1100,
+      "format": "jpeg",
+      "quality": 76,
+      "bytes": 93032,
+      "sha256": "2c1acd23d084f6e875469257badd324582a467190fdc49c4a9b18114d64a3697",
+      "nativePngSha256": "dc8b4040f07dee0ec2672c61dff52a927e70f97944a8644fcbb8f5cf1b481264",
+      "shellObservedAfterSeconds": 6.083663083000005,
+      "dataAcceptance": false,
+      "performanceAcceptance": false,
+      "readiness": "actual-shell-onAppear"
+    },
+    {
+      "readinessObservation": "latest-state-after-two-second-quiet-interval",
+      "mode": "normal-source-native-runtime",
+      "dark": false,
+      "largeText": false,
+      "venues": 95,
+      "mapped": 1858,
+      "filtered": 1900,
+      "selectedState": false,
+      "detailState": false,
+      "virtualDetailState": false,
+      "selectionEnteredByDebugFlag": false,
+      "automatedTouchInteraction": false,
+      "releaseAcceptance": false,
+      "physicalDeviceAcceptance": false,
+      "name": "ios-map-overview-light",
+      "commit": "692bdcd81e6bd091d920b35698b30fb4658f2dd7",
+      "sha256": "b7c34b96b71680a81fa6022c5719c9dcde036a1b88218509b3756bba35a15a16",
+      "nativePngSha256": "5b7b82892f3740f1d8123855a1a4c6c72a54b982c7fde692733d1603180bb477",
+      "bytes": 115326,
+      "format": "jpeg",
+      "exportMaximumDimension": 1100,
+      "quality": 74
+    }
+  ],
+  "limitations": [
+    "These development screens are not the uploaded build15.",
+    "Home is a normal-runtime screen using the public feed; map uses an explicit native map presentation route.",
+    "No physical-device acceptance or build16 upload is established.",
+    "The native complete-library catalogue and qualified full-provider translations remain unfinished."
+  ]
+}

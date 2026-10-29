@@ -2,14 +2,15 @@ import SwiftUI
 import SwiftData
 
 enum AppLegalLinks {
-    static let privacyPolicy = URL(string: "https://gta-free-stem.vercel.app/privacy/")!
-    static let termsOfUse = URL(string: "https://gta-free-stem.vercel.app/terms/")!
-    static let support = URL(string: "https://gta-free-stem.vercel.app/support/")!
+    static let privacyPolicy = URL(string: "https://gta-free-stem.pages.dev/privacy/")!
+    static let termsOfUse = URL(string: "https://gta-free-stem.pages.dev/terms/")!
+    static let support = URL(string: "https://gta-free-stem.pages.dev/support/")!
 }
 
 struct SettingsView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appStorageAccess) private var storageAccess
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var opportunities: OpportunityStore
     @State private var profileNameDraft = ""
@@ -24,6 +25,9 @@ struct SettingsView: View {
 
                 ScrollView {
                     VStack(spacing: AppSpacing.standard) {
+                        if !storageAccess.allowsPersistentChanges {
+                            storageRecoveryCard
+                        }
                         accountCard
                         savedCard
                         preferencesCard
@@ -42,6 +46,8 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $profileEditorPresented) {
             profileEditor
+                .environment(\.layoutDirection, session.language.layoutDirection)
+                .environment(\.locale, Locale(identifier: session.language.localeIdentifier))
         }
         .confirmationDialog(
             session.text(session.hasLocalProfile ? "deleteAccountConfirmation" : "deleteLocalData"),
@@ -59,11 +65,11 @@ struct SettingsView: View {
             StorySectionTitle(text: session.text("account"), systemImage: "person.crop.circle.fill")
             if session.hasLocalProfile {
                 Text("\(session.text("name")): \(session.displayName)")
-                    .font(.headline.weight(.semibold))
+                    .font(PortfolioTypography.headline.weight(.semibold))
                     .foregroundStyle(Brand.outline(for: colorScheme))
 
                 Text(session.text("profileOnDevice"))
-                    .font(.subheadline)
+                    .font(PortfolioTypography.subheadline)
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
 
                 ViewThatFits(in: .horizontal) {
@@ -79,12 +85,12 @@ struct SettingsView: View {
                 }
             } else {
                 Text(session.text("guest"))
-                    .font(.headline.weight(.semibold))
+                    .font(PortfolioTypography.headline.weight(.semibold))
                     .foregroundStyle(Brand.outline(for: colorScheme))
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 Text(session.text("profileOnDevice"))
-                    .font(.subheadline)
+                    .font(PortfolioTypography.subheadline)
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
 
                 Button(session.text("account")) {
@@ -117,6 +123,12 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(StoryButtonStyle(kind: .destructive))
+        .disabled(!storageAccess.allowsPersistentChanges)
+        .accessibilityHint(
+            storageAccess.allowsPersistentChanges
+                ? ""
+                : session.text("localStorageUnavailableMessage")
+        )
     }
 
     private var guestDataDeletionButton: some View {
@@ -127,16 +139,22 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(StoryButtonStyle(kind: .destructive))
+        .disabled(!storageAccess.allowsPersistentChanges)
+        .accessibilityHint(
+            storageAccess.allowsPersistentChanges
+                ? ""
+                : session.text("localStorageUnavailableMessage")
+        )
     }
 
     private var savedCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             StorySectionTitle(text: session.text("saved"), systemImage: "bookmark.fill")
             Text(session.text("savedEmpty"))
-                .font(.headline.weight(.semibold))
+                .font(PortfolioTypography.headline.weight(.semibold))
                 .foregroundStyle(Brand.outline(for: colorScheme))
             Text(session.text("savedArchiveNote"))
-                .font(.subheadline)
+                .font(PortfolioTypography.subheadline)
                 .foregroundStyle(Brand.mutedText(for: colorScheme))
             NavigationLink {
                 SavedView()
@@ -145,7 +163,30 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(StoryButtonStyle(kind: .secondary))
+            .disabled(!storageAccess.allowsPersistentChanges)
+            .accessibilityHint(
+                storageAccess.allowsPersistentChanges
+                    ? session.text("savedArchiveNote")
+                    : session.text("localStorageUnavailableMessage")
+            )
         }
+        .cardSurface()
+    }
+
+    private var storageRecoveryCard: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(session.text("localStorageUnavailableTitle"))
+                    .font(PortfolioTypography.headline.weight(.semibold))
+                Text(session.text("localStorageUnavailableMessage"))
+                    .font(PortfolioTypography.subheadline)
+            }
+        } icon: {
+            Image(systemName: "externaldrive.badge.exclamationmark")
+                .foregroundStyle(Brand.coral)
+        }
+        .foregroundStyle(Brand.outline(for: colorScheme))
+        .frame(maxWidth: .infinity, alignment: .leading)
         .cardSurface()
     }
 
@@ -161,7 +202,7 @@ struct SettingsView: View {
             .storyPickerRow()
 
             Text(session.text("theme"))
-                .font(.headline.weight(.semibold))
+                .font(PortfolioTypography.headline.weight(.semibold))
                 .foregroundStyle(Brand.outline(for: colorScheme))
             Picker(session.text("theme"), selection: $session.preferredTheme) {
                 Text(session.text("system")).tag("System")
@@ -177,7 +218,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 14) {
             StorySectionTitle(text: session.text("termsTitle"), systemImage: "doc.text.fill")
             Text(session.text("termsBody"))
-                .font(.subheadline)
+                .font(PortfolioTypography.subheadline)
                 .foregroundStyle(Brand.mutedText(for: colorScheme))
 
             Link(destination: AppLegalLinks.privacyPolicy) {
@@ -203,7 +244,7 @@ struct SettingsView: View {
 
     private func messageCard(_ text: String) -> some View {
         Text(text)
-            .font(.subheadline.weight(.medium))
+            .font(PortfolioTypography.subheadline.weight(.medium))
             .foregroundStyle(Brand.outline(for: colorScheme))
             .frame(maxWidth: .infinity, alignment: .leading)
             .cardSurface()
@@ -225,17 +266,26 @@ struct SettingsView: View {
                         .textInputAutocapitalization(.words)
                 }
             }
-            .tint(Brand.lake)
+            .tint(Brand.actionFill(for: colorScheme))
             .navigationTitle(session.text("account"))
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(session.text("done")) {
-                        session.saveLocalProfile(named: profileNameDraft)
-                        accountMessage = nil
-                        profileEditorPresented = false
-                    }
-                    .disabled(profileNameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .navigationBarTitleDisplayMode(.inline)
+            .safeAreaInset(edge: .bottom) {
+                Button {
+                    session.saveLocalProfile(named: profileNameDraft)
+                    accountMessage = nil
+                    profileEditorPresented = false
+                } label: {
+                    Text(session.text("done"))
+                        .foregroundStyle(Brand.actionForeground(for: colorScheme))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .padding(.horizontal, 12)
                 }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.roundedRectangle(radius: 14))
+                .disabled(profileNameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .padding()
+                .background(.bar)
             }
         }
     }
@@ -250,6 +300,10 @@ struct SettingsView: View {
     }
 
     private func clearLocalProfileAndSaves() {
+        guard storageAccess.allowsPersistentChanges else {
+            accountMessage = session.text("localStorageUnavailableMessage")
+            return
+        }
         let hadLocalProfile = session.hasLocalProfile
         Task {
             do {

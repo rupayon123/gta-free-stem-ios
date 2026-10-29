@@ -1,8 +1,172 @@
 import XCTest
+import Combine
+import CoreLocation
+import MapKit
+import SwiftUI
 @testable import GTAFreeSTEM
 import SwiftData
 
+private func makeAppTestModelContainer() throws -> ModelContainer {
+    let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+    let schema = Schema([
+        OpportunityCacheRecord.self,
+        SavedHuntRecord.self,
+        SeenOpportunityRecord.self,
+        SavedOpportunityRecord.self
+    ])
+    return try ModelContainer(for: schema, configurations: configuration)
+}
+
+private func bundledSnapshotTestNow() throws -> Date {
+    let bundled = try LocalOpportunitySnapshot.loadFull()
+    let dataTime = try XCTUnwrap(FeedFreshness.date(from: bundled.meta?.lastUpdated)).addingTimeInterval(3_600)
+    let publicationTime = FeedPublicationRevision.date(from: bundled.publicationRevision)?.addingTimeInterval(60) ?? dataTime
+    return max(dataTime, publicationTime)
+}
+
 final class APIClientTests: XCTestCase {
+    func testWindowRootFactoryCanBeCalledOffMainThread() async {
+        let wasMainThread = await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                _ = makeAppWindowRoot()
+                continuation.resume(returning: Thread.isMainThread)
+            }
+        }
+        XCTAssertFalse(wasMainThread)
+    }
+
+    @MainActor
+    func testWindowRootBodyCanBeConstructedOnMainActor() {
+        MainActor.preconditionIsolated()
+        _ = makeAppWindowRoot().body
+    }
+
+    func testWindowSceneUsesStatelessFactoryAndSharedStores() throws {
+        let path = testRepositoryRoot.appendingPathComponent("GTAFreeSTEM/GTAFreeSTEMApp.swift")
+        let source = String(decoding: try Data(contentsOf: path), as: UTF8.self)
+        XCTAssertTrue(source.contains("WindowGroup(makeContent: makeAppWindowRoot)"))
+        XCTAssertTrue(source.contains(".environmentObject(session)"))
+        XCTAssertTrue(source.contains(".environmentObject(opportunities)"))
+        let start = try XCTUnwrap(source.range(of: "struct AppWindowRoot: View"))
+        let end = try XCTUnwrap(source.range(of: "private struct AppWindowContent: View", range: start.upperBound..<source.endIndex))
+        let factoryView = String(source[start.lowerBound..<end.lowerBound])
+        XCTAssertFalse(factoryView.contains("@State"))
+        XCTAssertFalse(factoryView.contains("@Environment"))
+        XCTAssertTrue(factoryView.contains("nonisolated init()"))
+    }
+
+    @MainActor
+    func testRealCatalogueResponsivenessDiagnostic() throws {
+        let clock = { ProcessInfo.processInfo.systemUptime }
+        let start = clock()
+        let feed = try LocalOpportunitySnapshot.loadFull()
+        print("GTA_PERF decode_validate_ms=\((clock()-start)*1000) records=\(feed.data.count)")
+        XCTAssertGreaterThan(feed.data.count, 1000)
+        let now = max(try XCTUnwrap(FeedFreshness.date(from: feed.meta?.lastUpdated)), FeedPublicationRevision.date(from: feed.publicationRevision) ?? .distantPast).addingTimeInterval(60)
+        for pass in 0..<3 {
+            for query in ["", "robotics", "library", "volunteer", "science"] {
+                let begin = clock()
+                let result = LocalOpportunitySnapshot.filter(feed.data, query: query, mode: .all, filters: OpportunityFilters(), now: now)
+                print("GTA_PERF pass=\(pass) query=\(query.isEmpty ? "ALL" : query) filter_ms=\((clock()-begin)*1000) results=\(result.count)")
+            }
+            let begin = clock()
+            let modes = HomePathwayInventory.availableModes(in: feed.data, now: now)
+            print("GTA_PERF pass=\(pass) home_inventory_ms=\((clock()-begin)*1000) modes=\(modes.count)")
+        }
+        let indexStart = clock()
+        let index = LocalOpportunitySnapshot.prepareSearchIndex(feed.data, displayLanguage: .en)
+        print("GTA_PERF prepared_index_build_ms=\((clock()-indexStart)*1000) entries=\(index.count)")
+        for query in ["robotics", "library", "volunteer", "science"] {
+            let begin = clock()
+            let indexed = LocalOpportunitySnapshot.filter(feed.data, query: query, mode: .all, filters: OpportunityFilters(), displayLanguage: .en, now: now, preparedSearchIndex: index)
+            print("GTA_PERF indexed_query=\(query) filter_ms=\((clock()-begin)*1000) results=\(indexed.count)")
+            let original = LocalOpportunitySnapshot.filter(feed.data, query: query, mode: .all, filters: OpportunityFilters(), displayLanguage: .en, now: now)
+            XCTAssertEqual(indexed.map(\.id), original.map(\.id), "Indexing must preserve complete source matches and sort order")
+        }
+        let begin = clock()
+        let bytes = try JSONEncoder().encode(feed)
+        print("GTA_PERF cache_encode_ms=\((clock()-begin)*1000) bytes=\(bytes.count)")
+    }
+
+    @MainActor
+    func testRealCataloguePreparationKeepsTheMainActorResponsiveAndLatestQueryWins() async throws {
+        let now = try bundledSnapshotTestNow()
+        let suite = "GTAFreeSTEMTests.Responsiveness.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = OpportunityStore(api: APIClient(), defaults: defaults, now: { now })
+        var beats = 0
+        var maximumGap = 0.0
+        let heartbeat = Task { @MainActor in
+            var last = ProcessInfo.processInfo.systemUptime
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 10_000_000)
+                let current = ProcessInfo.processInfo.systemUptime
+                maximumGap = max(maximumGap, current - last)
+                last = current
+                beats += 1
+            }
+        }
+        defer { heartbeat.cancel() }
+        await Task.yield()
+        let ready = await store.prepareInitialSnapshot(cache: nil)
+        XCTAssertTrue(ready)
+        try await Task.sleep(nanoseconds: 20_000_000)
+        print("GTA_PERF actual_store_main_actor_max_gap_ms=\(maximumGap*1000) heartbeat_count=\(beats)")
+        XCTAssertGreaterThan(beats, 5, "The UI actor must run during catalogue preparation")
+        XCTAssertLessThan(maximumGap, 0.75, "Catalogue work must not block UI interactions for a second")
+        store.query = "robotics"
+        let earlierSearch = Task { @MainActor in await store.prepareInitialSnapshot(cache: nil) }
+        await Task.yield()
+        store.query = "volunteer"
+        let latestSearch = Task { @MainActor in await store.prepareInitialSnapshot(cache: nil) }
+        _ = await earlierSearch.value
+        _ = await latestSearch.value
+        let expected = try await Task.detached(priority: .userInitiated) {
+            try LocalOpportunitySnapshot.loadFull().data
+        }.value
+        let expectedIDs = await Task.detached(priority: .userInitiated) {
+            LocalOpportunitySnapshot.filter(expected, query: "volunteer", mode: .all, filters: OpportunityFilters(), now: now).map(\.id)
+        }.value
+        let expectedCities = Set(expected.filter {
+            $0.isExplicitlyFree && LocalOpportunitySnapshot.isCurrentlyAvailable($0, on: now)
+        }.map(\.city)).sorted()
+        XCTAssertEqual(store.availableFilterCities, expectedCities)
+        let expectedCategories = Set(expected.filter {
+            $0.isExplicitlyFree && LocalOpportunitySnapshot.isCurrentlyAvailable($0, on: now)
+        }.map(\.category)).sorted()
+        XCTAssertEqual(store.availableFilterCategories, expectedCategories,
+                       "Home must show categories from the retained full feed even after a narrow search.")
+        XCTAssertEqual(store.query, "volunteer")
+        XCTAssertEqual(store.opportunities.map(\.id), expectedIDs, "A slower earlier search cannot replace the latest results")
+        store.useCurrentLocation(CLLocationCoordinate2D(latitude: 43.6532, longitude: -79.3832))
+        store.filters.region = "York"
+        store.filters.age = "12"
+        store.useCity("Toronto")
+        XCTAssertEqual(store.filters.city, "Toronto")
+        XCTAssertEqual(store.filters.region, "All")
+        XCTAssertNil(store.filters.latitude)
+        XCTAssertNil(store.filters.longitude)
+        XCTAssertEqual(store.filters.sort, .date)
+        XCTAssertEqual(store.filters.age, "12", "Choosing a city preserves the chosen age")
+        XCTAssertEqual(store.query, "volunteer")
+    }
+
+    private var testRepositoryRoot: URL {
+        let fixtureRoot = Bundle(for: APIClientTests.self)
+            .resourceURL?
+            .appendingPathComponent("SourceFixtures", isDirectory: true)
+        guard
+            let fixtureRoot,
+            FileManager.default.fileExists(
+                atPath: fixtureRoot.appendingPathComponent(".complete").path
+            )
+        else {
+            preconditionFailure("The current-source contract fixtures were not staged into the test bundle.")
+        }
+        return fixtureRoot
+    }
+
     @MainActor
     func testLocalProfilePersistsAcrossLaunchesAndDeletesCleanly() throws {
         let suiteName = "GTAFreeSTEMTests.LocalProfile.\(UUID().uuidString)"
@@ -43,9 +207,7 @@ final class APIClientTests: XCTestCase {
     }
 
     func testClearProfileActionDoesNotUseTheDestructiveSavedDataPath() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let source = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/SettingsView.swift"))
         let buttonStart = try XCTUnwrap(source.range(of: "private var signOutButton"))
         let buttonEnd = try XCTUnwrap(source.range(of: "private var deleteAccountButton", range: buttonStart.lowerBound..<source.endIndex))
@@ -56,9 +218,7 @@ final class APIClientTests: XCTestCase {
     }
 
     func testGuestSettingsExposeBulkPersonalDataDeletion() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let source = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/SettingsView.swift"))
         let accountCardStart = try XCTUnwrap(source.range(of: "private var accountCard"))
         let accountCardEnd = try XCTUnwrap(
@@ -113,9 +273,7 @@ final class APIClientTests: XCTestCase {
             }
         }
 
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let source = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/SettingsView.swift"))
         XCTAssertTrue(source.contains("session.hasLocalProfile ? \"deleteAccountConfirmation\" : \"deleteLocalData\""))
         XCTAssertTrue(source.contains("session.hasLocalProfile ? \"deleteAccount\" : \"deleteLocalData\""))
@@ -194,9 +352,7 @@ final class APIClientTests: XCTestCase {
     }
 
     func testLaunchUsesBrandedStoryboardInsteadOfBlankGeneratedScreen() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let project = try String(contentsOf: repoRoot.appendingPathComponent("project.yml"))
         let info = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/Info.plist"))
 
@@ -209,9 +365,7 @@ final class APIClientTests: XCTestCase {
     }
 
     func testLaunchStoryboardAvoidsDuplicateAnimatedContentDuringHandoff() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let launchStoryboard = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/LaunchScreen.storyboard"))
         let appSource = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/GTAFreeSTEMApp.swift"))
 
@@ -245,9 +399,7 @@ final class APIClientTests: XCTestCase {
     }
 
     func testLaunchProgressCompletesAfterTheInitialSnapshotIsPrepared() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let appSource = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/GTAFreeSTEMApp.swift"))
         let storeSource = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/OpportunityStore.swift"))
 
@@ -284,7 +436,7 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(storeSource.contains("decodeCachedFullResponse"))
         XCTAssertTrue(storeSource.contains("guard let payload = cachedPayload(from: context)"))
         XCTAssertTrue(
-            storeSource.contains("guard let cached = await Self.decodeCachedFullResponse(payload)"),
+            storeSource.contains("guard let cached = await Self.decodeCachedFullResponse(payload, now: self.now())"),
             "A repeat launch must copy the SwiftData payload on the main actor and decode it off-main so loader motion stays responsive."
         )
         XCTAssertFalse(appSource.contains("scanPosition"))
@@ -302,6 +454,33 @@ final class APIClientTests: XCTestCase {
             launchTask.contains("360_000_000") || launchTask.contains("320_000_000"),
             "Launch progress should represent readiness instead of staged display delays."
         )
+    }
+
+    func testLaunchAndTabAnimationsHonorReduceMotionAndLaunchUsesStoredDirection() throws {
+        let repoRoot = testRepositoryRoot
+        let appSource = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/GTAFreeSTEMApp.swift"))
+        let contentSource = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/ContentView.swift"))
+
+        XCTAssertTrue(appSource.contains("withAnimation(reduceMotion ? nil : .easeOut(duration: 0.24))"))
+        XCTAssertTrue(appSource.contains("withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.24))"))
+        XCTAssertTrue(appSource.contains("withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.32))"))
+        XCTAssertTrue(appSource.contains("withAnimation(reduceMotion ? nil : .easeOut(duration: 0.26))"))
+        XCTAssertTrue(contentSource.contains(".animation(reduceMotion ? nil : .easeInOut(duration: 0.20), value: selectedTab)"))
+        let designSource = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/DesignSystem.swift"))
+        XCTAssertTrue(contentSource.contains(".buttonStyle(SpringPressButtonStyle())"))
+        let pressStyle = try XCTUnwrap(designSource.range(of: "struct SpringPressButtonStyle: ButtonStyle"))
+        let pressSource = String(designSource[pressStyle.lowerBound...].prefix(800))
+        XCTAssertTrue(pressSource.contains("@Environment(\\.accessibilityReduceMotion)"))
+        XCTAssertTrue(pressSource.contains("configuration.isPressed && !reduceMotion"))
+        XCTAssertTrue(pressSource.contains(".animation(reduceMotion ? nil : .spring("))
+
+        let launchBranch = try XCTUnwrap(appSource.range(of: "if isShowingLaunchExperience"))
+        let localeEnvironment = try XCTUnwrap(appSource.range(of: ".environment(\\.locale"))
+        let layoutEnvironment = try XCTUnwrap(appSource.range(of: ".environment(\\.layoutDirection"))
+        XCTAssertLessThan(launchBranch.lowerBound, localeEnvironment.lowerBound)
+        XCTAssertLessThan(launchBranch.lowerBound, layoutEnvironment.lowerBound)
+        XCTAssertTrue(appSource.contains("Locale(identifier: session.language.localeIdentifier)"))
+        XCTAssertTrue(appSource.contains("session.language.layoutDirection"))
     }
 
     func testScreenshotQueryLaunchOptionIsExplicitAndSafe() {
@@ -327,6 +506,8 @@ final class APIClientTests: XCTestCase {
     func testScreenshotCaptureModeRequiresAnExplicitEnvironmentFlag() {
         XCTAssertEqual(AppLaunchConfiguration.screenshotReadyNonceEnvironmentKey, "GTA_FREE_STEM_SCREENSHOT_READY_NONCE")
         XCTAssertEqual(AppLaunchConfiguration.screenshotReadyMarkerFilename, "gta-free-stem-screenshot-ready")
+        XCTAssertEqual(AppLaunchConfiguration.screenshotModeArgument, "-screenshot-mode")
+        XCTAssertEqual(AppLaunchConfiguration.screenshotReadyNonceArgument, "-screenshot-ready-nonce")
         XCTAssertTrue(
             AppLaunchConfiguration.isScreenshotCapture(
                 environment: [AppLaunchConfiguration.screenshotModeEnvironmentKey: "1"]
@@ -338,6 +519,9 @@ final class APIClientTests: XCTestCase {
             )
         )
         XCTAssertFalse(AppLaunchConfiguration.isScreenshotCapture(environment: [:]))
+        XCTAssertTrue(
+            AppLaunchConfiguration.isScreenshotCapture(arguments: ["GTAFreeSTEM", "-screenshot-mode"])
+        )
         XCTAssertFalse(
             AppLaunchConfiguration.isScreenshotCapture(
                 environment: [AppLaunchConfiguration.screenshotModeEnvironmentKey: "0"]
@@ -346,7 +530,7 @@ final class APIClientTests: XCTestCase {
     }
 
     @MainActor
-    func testScreenshotSnapshotUsesBundledFeedWithoutStartingNetwork() async {
+    func testScreenshotSnapshotUsesOnlyAppOwnedSampleListingsWithoutStartingNetwork() async {
         URLProtocolStub.reset()
         defer { URLProtocolStub.reset() }
 
@@ -362,6 +546,11 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(store.huntPhase, .cached)
         XCTAssertFalse(store.isLoading)
         XCTAssertEqual(URLProtocolStub.requestCount, 0)
+        XCTAssertEqual(store.opportunities.count, 4)
+        XCTAssertTrue(store.opportunities.allSatisfy { $0.title.hasPrefix("Sample:") })
+        XCTAssertTrue(store.opportunities.allSatisfy { $0.organization == "GTA FREE STEM Sample Studio" })
+        XCTAssertTrue(store.opportunities.allSatisfy { $0.sourceUrl == "https://gta-free-stem.pages.dev/support/" })
+        XCTAssertFalse(store.opportunities.contains { $0.organization.contains("Library") })
     }
 
     func testDefaultClientUsesTheCurrentPublicFeedSource() {
@@ -380,11 +569,28 @@ final class APIClientTests: XCTestCase {
         let session = makeURLSessionForStub()
         let client = APIClient(feedURL: feedURL, session: session)
         let largeDescription = String(repeating: "fresh STEM opportunity ", count: 260_000)
+        let rightsTimestamp = currentFeedTimestamp()
         let payload = try JSONEncoder().encode(
             OpportunityListResponse(
-                data: [opportunity(id: "production-sized", title: "Production Feed", description: largeDescription)],
+                data: [
+                    approvedProviderOpportunity(
+                        id: "production-sized",
+                        title: "Production Feed",
+                        description: largeDescription
+                    )
+                ],
                 meta: OpportunityListResponse.Metadata(activeCount: 1, lastUpdated: currentFeedTimestamp()),
-                sourceHealth: sourceHealth(publishedCount: 1)
+                sourceHealth: sourceHealth(publishedCount: 1),
+                contentRights: OpportunityListResponse.ContentRights(
+                    termsVerifiedAt: rightsTimestamp,
+                    sources: [
+                        approvedProviderRightsSource(
+                            records: 1,
+                            termsVerifiedAt: rightsTimestamp
+                        )
+                    ],
+                    restrictedOpportunityIDs: []
+                )
             )
         )
 
@@ -406,6 +612,292 @@ final class APIClientTests: XCTestCase {
         XCTAssertFalse(FeedFreshness.isCurrent(nil, now: now))
         XCTAssertFalse(FeedFreshness.isCurrent("not-a-date", now: now))
         XCTAssertFalse(FeedFreshness.isCurrent(future, now: now))
+    }
+
+    func testSourceHealthRejectsZeroSuccessAndInvalidThresholds() throws {
+        let baseline = try encodedFeed(id: "health-validation", lastUpdated: "2026-08-20T12:00:00Z")
+        let invalidReports: [(String, [String: Any])] = [
+            ("library", ["successfulPages": 0, "pageSuccessRatio": 0, "minimumPageSuccessRatio": 0]),
+            ("library", ["minimumPageSuccessRatio": -0.1]),
+            ("library", ["minimumPageSuccessRatio": 1.1, "pageSuccessRatio": 1.1]),
+            ("library", ["pageSuccessRatio": 1.1]),
+            ("library", ["minimumAcceptedListings": 0]),
+            ("library", ["minimumAcceptedListings": -1]),
+            ("discovery", ["successfulSources": 0, "sourceSuccessRatio": 0, "minimumSourceSuccessRatio": 0]),
+            ("discovery", ["minimumSourceSuccessRatio": -0.1]),
+            ("discovery", ["minimumSourceSuccessRatio": 1.1, "sourceSuccessRatio": 1.1]),
+            ("discovery", ["sourceSuccessRatio": 1.1])
+        ]
+
+        for (section, changes) in invalidReports {
+            var envelope = try XCTUnwrap(JSONSerialization.jsonObject(with: baseline) as? [String: Any])
+            var health = try XCTUnwrap(envelope["sourceHealth"] as? [String: Any])
+            var report = try XCTUnwrap(health[section] as? [String: Any])
+            report.merge(changes) { _, replacement in replacement }
+            health[section] = report
+            envelope["sourceHealth"] = health
+            let response = try JSONDecoder().decode(
+                OpportunityListResponse.self,
+                from: JSONSerialization.data(withJSONObject: envelope)
+            )
+
+            XCTAssertFalse(response.hasHealthyDeclaredSources, "Invalid \(section) report: \(changes)")
+            XCTAssertFalse(response.permitsDestructiveSavedReconciliation)
+        }
+        let valid = try JSONDecoder().decode(OpportunityListResponse.self, from: baseline)
+        XCTAssertTrue(valid.hasHealthyDeclaredSources)
+    }
+
+    func testChunkedOversizedFeedCancelsBeforeEOFAndUsesFallback() async throws {
+        URLProtocolStub.reset()
+        defer { URLProtocolStub.reset() }
+        let now = FeedFreshness.date(from: "2026-08-20T12:00:00Z")!
+        let primary = URL(string: "https://primary.example/chunked.json")!
+        let fallback = URL(string: "https://fallback.example/chunked.json")!
+        let client = APIClient(feedURL: primary, fallbackFeedURLs: [fallback], session: makeURLSessionForStub(), now: { now })
+        URLProtocolStub.register(
+            responseFor: primary,
+            chunks: Array(repeating: Data(repeating: 32, count: 2_000_000), count: 5) + [Data([32])],
+            holdCompletion: true
+        )
+        URLProtocolStub.register(responseFor: fallback, statusCode: 200, body: try encodedFeed(id: "bounded-fallback", lastUpdated: "2026-08-20T12:00:00Z"))
+        let finished = expectation(description: "Oversized input is rejected without waiting for EOF")
+        let request = Task {
+            defer { finished.fulfill() }
+            return try await client.opportunityFeed()
+        }
+
+        await fulfillment(of: [finished], timeout: 10)
+        let stoppedBeforeEOF = URLProtocolStub.stopCount(for: primary) > 0 && !URLProtocolStub.didFinish(for: primary)
+        // Release even on failure so a buffering implementation cannot leak a task.
+        URLProtocolStub.releaseCompletion(for: primary)
+        let response = try await request.value
+
+        XCTAssertTrue(stoppedBeforeEOF)
+        XCTAssertEqual(response.data.map(\.id), ["bounded-fallback"])
+        XCTAssertEqual(URLProtocolStub.requestCount(for: fallback), 1)
+    }
+
+    func testOversizedDeclaredLengthCancelsBeforeReadingBody() async throws {
+        URLProtocolStub.reset()
+        defer { URLProtocolStub.reset() }
+        let now = FeedFreshness.date(from: "2026-08-20T12:00:00Z")!
+        let primary = URL(string: "https://primary.example/declared-length.json")!
+        let fallback = URL(string: "https://fallback.example/declared-length.json")!
+        let client = APIClient(feedURL: primary, fallbackFeedURLs: [fallback], session: makeURLSessionForStub(), now: { now })
+        URLProtocolStub.register(responseFor: primary, statusCode: 200, body: Data("unexpected body".utf8), headers: ["Content-Type": "application/json", "Content-Length": "10000001"], holdBody: true)
+        URLProtocolStub.register(responseFor: fallback, statusCode: 200, body: try encodedFeed(id: "header-fallback", lastUpdated: "2026-08-20T12:00:00Z"))
+        let finished = expectation(description: "Oversized declared length is rejected before the body")
+        let request = Task {
+            defer { finished.fulfill() }
+            return try await client.opportunityFeed()
+        }
+
+        await fulfillment(of: [finished], timeout: 5)
+        let stoppedBeforeBody = URLProtocolStub.stopCount(for: primary) > 0 && URLProtocolStub.deliveredBytes(for: primary) == 0
+        URLProtocolStub.releaseBody(for: primary)
+        let response = try await request.value
+
+        XCTAssertTrue(stoppedBeforeBody)
+        XCTAssertEqual(response.data.map(\.id), ["header-fallback"])
+    }
+
+    func testInsecureFinalResponseURLUsesSecureFallback() async throws {
+        URLProtocolStub.reset()
+        defer { URLProtocolStub.reset() }
+        let now = FeedFreshness.date(from: "2026-08-20T12:00:00Z")!
+        let primary = URL(string: "https://primary.example/final-url.json")!
+        let fallback = URL(string: "https://fallback.example/final-url.json")!
+        let client = APIClient(feedURL: primary, fallbackFeedURLs: [fallback], session: makeURLSessionForStub(), now: { now })
+        URLProtocolStub.register(
+            responseFor: primary,
+            statusCode: 200,
+            body: try encodedFeed(id: "insecure-response", lastUpdated: "2026-08-20T12:00:00Z"),
+            finalResponseURL: URL(string: "http://primary.example/redirected.json")!
+        )
+        URLProtocolStub.register(responseFor: fallback, statusCode: 200, body: try encodedFeed(id: "secure-fallback", lastUpdated: "2026-08-20T12:00:00Z"))
+
+        let response = try await client.opportunityFeed()
+
+        XCTAssertEqual(response.data.map(\.id), ["secure-fallback"])
+        XCTAssertEqual(URLProtocolStub.requestCount(for: fallback), 1)
+    }
+
+    func testCancelledPrimaryRequestDoesNotTryMirror() async throws {
+        URLProtocolStub.reset()
+        defer { URLProtocolStub.reset() }
+        let primary = URL(string: "https://primary.example/cancelled.json")!
+        let fallback = URL(string: "https://fallback.example/cancelled.json")!
+        let client = APIClient(feedURL: primary, fallbackFeedURLs: [fallback], session: makeURLSessionForStub())
+        URLProtocolStub.register(responseFor: primary, errorCode: .cancelled)
+        URLProtocolStub.register(responseFor: fallback, statusCode: 200, body: try encodedFeed(id: "must-not-load", lastUpdated: currentFeedTimestamp()))
+
+        do {
+            _ = try await client.opportunityFeed()
+            XCTFail("Cancellation must propagate without retrieving the mirror.")
+        } catch {
+            XCTAssertTrue(error is CancellationError || (error as? URLError)?.code == .cancelled)
+        }
+        XCTAssertEqual(URLProtocolStub.requestCount(for: primary), 1)
+        XCTAssertEqual(URLProtocolStub.requestCount(for: fallback), 0)
+    }
+
+    func testCancellationBeforeStartingDoesNotCreateARequest() async throws {
+        URLProtocolStub.reset()
+        defer { URLProtocolStub.reset() }
+        let primary = URL(string: "https://primary.example/pre-cancelled.json")!
+        let fallback = URL(string: "https://fallback.example/pre-cancelled.json")!
+        let client = APIClient(feedURL: primary, fallbackFeedURLs: [fallback], session: makeURLSessionForStub())
+        let gate = APIRequestStartGate()
+        let request = Task {
+            await gate.wait()
+            return try await client.opportunityFeed()
+        }
+        request.cancel()
+        await gate.release()
+        do {
+            _ = try await request.value
+            XCTFail("A pre-cancelled operation must not start transport.")
+        } catch {
+            XCTAssertTrue(error is CancellationError || (error as? URLError)?.code == .cancelled)
+        }
+        XCTAssertEqual(URLProtocolStub.requestCount, 0)
+    }
+
+    func testCancellationAndCompletionRaceFinishesOnceWithoutMirror() async throws {
+        URLProtocolStub.reset()
+        defer { URLProtocolStub.reset() }
+        let now = FeedFreshness.date(from: "2026-08-20T12:00:00Z")!
+        for index in 0..<18 {
+            let primary = URL(string: "https://primary.example/race-\(index).json")!
+            let fallback = URL(string: "https://fallback.example/race-\(index).json")!
+            let expectedID = "race-\(index)"
+            let client = APIClient(feedURL: primary, fallbackFeedURLs: [fallback], session: makeURLSessionForStub(), now: { now })
+            URLProtocolStub.register(responseFor: primary, statusCode: 200, body: try encodedFeed(id: expectedID, lastUpdated: "2026-08-20T12:00:00Z"), holdResponse: true)
+            URLProtocolStub.register(responseFor: fallback, statusCode: 200, body: try encodedFeed(id: "must-not-load", lastUpdated: "2026-08-20T12:00:00Z"))
+            let finished = expectation(description: "Race \(index) finishes exactly once")
+            finished.assertForOverFulfill = true
+            let request = Task {
+                defer { finished.fulfill() }
+                return try await client.opportunityFeed()
+            }
+            let clock = ContinuousClock()
+            let deadline = clock.now.advanced(by: .seconds(3))
+            while URLProtocolStub.requestCount(for: primary) == 0 && clock.now < deadline { await Task.yield() }
+            XCTAssertEqual(URLProtocolStub.requestCount(for: primary), 1)
+            if index % 3 == 0 {
+                request.cancel()
+                // Keep headers held until cancellation finishes; only the third
+                // control intentionally races cancellation with response delivery.
+                await fulfillment(of: [finished], timeout: 5)
+                URLProtocolStub.releaseResponse(for: primary)
+            } else if index % 3 == 1 {
+                URLProtocolStub.releaseResponse(for: primary)
+                await fulfillment(of: [finished], timeout: 5)
+                request.cancel()
+            } else {
+                await withTaskGroup(of: Void.self) { group in
+                    group.addTask { request.cancel() }
+                    group.addTask { URLProtocolStub.releaseResponse(for: primary) }
+                    await group.waitForAll()
+                }
+            }
+            if index % 3 == 2 { await fulfillment(of: [finished], timeout: 5) }
+            do {
+                let response = try await request.value
+                XCTAssertEqual(response.data.map(\.id), [expectedID])
+                XCTAssertNotEqual(index % 3, 0, "Cancellation-first control must not succeed.")
+            } catch {
+                XCTAssertTrue(error is CancellationError || (error as? URLError)?.code == .cancelled)
+                XCTAssertNotEqual(index % 3, 1, "Completion-first control must succeed.")
+            }
+            XCTAssertEqual(URLProtocolStub.requestCount(for: fallback), 0)
+        }
+    }
+
+    func testMalformedSuppliedScheduleAndStatusFieldsRejectTheFeed() throws {
+        let baseline = try encodedFeed(id: "schedule-validation", lastUpdated: "2026-08-20T12:00:00Z")
+        let malformedValues: [(String, Any)] = [
+            ("startDate", 123), ("endDate", false), ("deadline", ["date": "2026-08-20"]),
+            ("startDate", ""), ("endDate", "not-a-date"), ("deadline", "2026-02-30"),
+            ("endDate", "2026-02-30T12:00:00Z"), ("endDate", "2026-08-20T25:00:00Z"),
+            ("status", 123), ("status", NSNull()), ("status", "   ")
+        ]
+
+        for (field, value) in malformedValues {
+            var envelope = try XCTUnwrap(JSONSerialization.jsonObject(with: baseline) as? [String: Any])
+            var rows = try XCTUnwrap(envelope["data"] as? [[String: Any]])
+            rows[0][field] = value
+            envelope["data"] = rows
+            let malformed = try JSONSerialization.data(withJSONObject: envelope)
+
+            XCTAssertThrowsError(
+                try JSONDecoder().decode(OpportunityListResponse.self, from: malformed),
+                "Malformed supplied \(field) must not become an active undated record."
+            )
+        }
+    }
+
+    func testAbsentSchedulesAndValidExpiryValuesRemainSupported() throws {
+        let baseline = try encodedFeed(id: "valid-schedule", lastUpdated: "2026-08-20T12:00:00Z")
+        var envelope = try XCTUnwrap(JSONSerialization.jsonObject(with: baseline) as? [String: Any])
+        var rows = try XCTUnwrap(envelope["data"] as? [[String: Any]])
+        for field in ["startDate", "endDate", "deadline", "status"] {
+            rows[0].removeValue(forKey: field)
+        }
+        envelope["data"] = rows
+        let absent = try JSONDecoder().decode(
+            OpportunityListResponse.self,
+            from: JSONSerialization.data(withJSONObject: envelope)
+        )
+        XCTAssertNil(absent.data.first?.endDate)
+        XCTAssertEqual(absent.data.first?.status, "active")
+
+        rows[0]["startDate"] = NSNull()
+        rows[0]["deadline"] = NSNull()
+        rows[0]["endDate"] = "2026-11-01"
+        envelope["data"] = rows
+        let dateOnly = try JSONDecoder().decode(
+            OpportunityListResponse.self,
+            from: JSONSerialization.data(withJSONObject: envelope)
+        )
+        let event = try XCTUnwrap(dateOnly.data.first)
+        XCTAssertNil(event.startDate)
+        XCTAssertNil(event.deadline)
+        XCTAssertTrue(LocalOpportunitySnapshot.isCurrentlyAvailable(event, on: FeedFreshness.date(from: "2026-11-02T04:59:59Z")!))
+        XCTAssertFalse(LocalOpportunitySnapshot.isCurrentlyAvailable(event, on: FeedFreshness.date(from: "2026-11-02T05:00:00Z")!))
+
+        rows[0]["endDate"] = "2026-11-01T01:30:00-04:00"
+        envelope["data"] = rows
+        let timestamp = try JSONDecoder().decode(
+            OpportunityListResponse.self,
+            from: JSONSerialization.data(withJSONObject: envelope)
+        )
+        XCTAssertEqual(timestamp.data.first?.endDate, "2026-11-01T01:30:00-04:00")
+        XCTAssertFalse(LocalOpportunitySnapshot.isCurrentlyAvailable(
+            try XCTUnwrap(timestamp.data.first), on: FeedFreshness.date(from: "2026-11-01T05:30:01Z")!
+        ))
+
+        rows[0]["startDate"] = "2026-11-01T05:30:00.123Z"
+        rows[0]["deadline"] = "2026-11-01T05:30:00.123Z"
+        rows[0]["endDate"] = "2026-11-03T05:30:00.123Z"
+        envelope["data"] = rows
+        let ongoing = try JSONDecoder().decode(
+            OpportunityListResponse.self,
+            from: JSONSerialization.data(withJSONObject: envelope)
+        )
+        let ongoingEvent = try XCTUnwrap(ongoing.data.first)
+        XCTAssertEqual(ongoingEvent.startDate, "2026-11-01T05:30:00.123Z")
+        XCTAssertFalse(LocalOpportunitySnapshot.hasDistinctRegistrationDeadline(ongoingEvent))
+        XCTAssertTrue(LocalOpportunitySnapshot.isCurrentlyAvailable(ongoingEvent, on: FeedFreshness.date(from: "2026-11-02T12:00:00Z")!))
+
+        rows[0]["status"] = "unknown-future-status"
+        envelope["data"] = rows
+        let unavailable = try JSONDecoder().decode(
+            OpportunityListResponse.self,
+            from: JSONSerialization.data(withJSONObject: envelope)
+        )
+        XCTAssertFalse(LocalOpportunitySnapshot.isCurrentlyAvailable(try XCTUnwrap(unavailable.data.first)))
     }
 
     func testStalePrimaryFeedUsesFreshFallback() async throws {
@@ -595,6 +1087,40 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(URLProtocolStub.requestCount, 2)
     }
 
+    func testPrimaryFeedMissingContentRightsUsesFreshFallback() async throws {
+        URLProtocolStub.reset()
+        defer { URLProtocolStub.reset() }
+
+        let now = FeedFreshness.date(from: "2026-08-06T12:00:00Z")!
+        let primary = URL(string: "https://primary.example/missing-rights-opportunities.json")!
+        let fallback = URL(string: "https://fallback.example/missing-rights-opportunities.json")!
+        let client = APIClient(
+            feedURL: primary,
+            fallbackFeedURLs: [fallback],
+            session: makeURLSessionForStub(),
+            now: { now }
+        )
+        let missingRights = try JSONEncoder().encode(
+            OpportunityListResponse(
+                data: [opportunity(id: "without-rights", title: "Missing Rights")],
+                meta: OpportunityListResponse.Metadata(activeCount: 1, lastUpdated: "2026-08-06T12:00:00Z"),
+                sourceHealth: sourceHealth(publishedCount: 1)
+            )
+        )
+
+        URLProtocolStub.register(responseFor: primary, statusCode: 200, body: missingRights)
+        URLProtocolStub.register(
+            responseFor: fallback,
+            statusCode: 200,
+            body: try encodedFeed(id: "valid-fallback", lastUpdated: "2026-08-06T12:00:00Z")
+        )
+
+        let response = try await client.opportunityFeed()
+
+        XCTAssertEqual(response.data.map(\.id), ["valid-fallback"])
+        XCTAssertEqual(URLProtocolStub.requestCount, 2)
+    }
+
     func testMissingFreshnessMetadataDoesNotCountAsALivePrimaryFeed() async throws {
         URLProtocolStub.reset()
         defer { URLProtocolStub.reset() }
@@ -733,6 +1259,119 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(AppText.shared.string("openDetailsHint", language: .es), "Abre los detalles de la oportunidad.")
     }
 
+    func testMissionClaimMatchesExactRightsClearedBundledInventoryScope() throws {
+        let catalogURL = try XCTUnwrap(
+            AppResources.url(forResource: "app_strings", withExtension: "json")
+        )
+        let catalogData = try Data(contentsOf: catalogURL)
+        let catalog = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: catalogData) as? [String: Any]
+        )
+        let english = try XCTUnwrap(catalog["en"] as? [String: String])
+        let mission = try XCTUnwrap(english["mission"])
+
+        XCTAssertEqual(
+            mission,
+            "Find free STEM programs and library events for children, families and adults in Toronto and Markham."
+        )
+
+        let feedURL = try XCTUnwrap(
+            AppResources.url(forResource: "opportunities", withExtension: "json")
+        )
+        let feed = try JSONDecoder().decode(
+            OpportunityListResponse.self,
+            from: Data(contentsOf: feedURL)
+        )
+        let feedUpdated = try XCTUnwrap(feed.meta?.lastUpdated)
+        let feedDate = try XCTUnwrap(FeedFreshness.date(from: feedUpdated))
+        let exactCities: Set<String> = ["Toronto", "Markham"]
+        let exactLibrarySources: Set<String> = [
+            "Markham Public Library\u{001F}markham.bibliocommons.com",
+            "Toronto Public Library\u{001F}tpl.bibliocommons.com"
+        ]
+        let observedLibrarySources = Set(feed.data.compactMap { opportunity -> String? in
+            guard let host = URL(string: opportunity.sourceUrl)?.host?.lowercased() else {
+                return nil
+            }
+            return "\(opportunity.organization)\u{001F}\(host)"
+        })
+
+        // These three exact branches are listed by Markham Public Library:
+        // https://markhampubliclibrary.ca/locations/TV/ (10 Colborne Street)
+        // https://markhampubliclibrary.ca/locations/TC/ (7755 Bayview Avenue)
+        // https://markhampubliclibrary.ca/locations/UL/ (15 Library Lane)
+        // Retain their district labels while checking municipal mission scope.
+        let markhamDistrictBranches: [String: Set<String>] = [
+            "Thornhill": ["Thornhill Comm. Ctr. Branch, 7755 Bayview Avenue, Thornhill, Ontario, L3T 4P1", "Thornhill Village Branch, 10 Colborne Street, Thornhill, Ontario, L3T 1Z6"],
+            "Unionville": ["Unionville Branch, 15 Library Lane, Unionville, Ontario, L3R 5C4"]
+        ]
+        let municipalities = feed.data.map { opportunity -> String in
+            guard let addresses = markhamDistrictBranches[opportunity.city] else { return opportunity.city }
+            XCTAssertEqual(opportunity.organization, "Markham Public Library")
+            XCTAssertEqual(URL(string: opportunity.sourceUrl)?.host, "markham.bibliocommons.com")
+            XCTAssertTrue(addresses.contains(opportunity.address ?? ""))
+            return "Markham"
+        }
+        XCTAssertEqual(Set(feed.data.map(\.city)), ["Toronto", "Markham", "Thornhill", "Unionville"])
+        XCTAssertEqual(Set(municipalities), exactCities)
+        XCTAssertEqual(observedLibrarySources, exactLibrarySources)
+        XCTAssertEqual(feed.meta?.activeCount, feed.data.count)
+        XCTAssertTrue(feed.hasReleaseReadyContentRights(now: feedDate))
+        XCTAssertTrue(feed.data.allSatisfy(\.isExplicitlyFree))
+        XCTAssertTrue(feed.data.allSatisfy {
+            $0.registrationUrl == $0.sourceUrl && !$0.volunteerHoursEligible && !$0.coopEligible
+        })
+        for city in exactCities {
+            XCTAssertTrue(mission.contains(city), "The mission must name the published city \(city).")
+        }
+
+        let unavailableClaims = [
+            "across the gta", "gta-wide", "volunteer", "co-op", "shsm", "mentorship", "scholarship"
+        ]
+        for claim in unavailableClaims {
+            XCTAssertFalse(
+                mission.lowercased().contains(claim),
+                "The English mission must not promise unavailable \(claim) inventory."
+            )
+        }
+    }
+
+    func testEnglishBrowseClaimsDoNotPromiseUniversalEligibilityOrGTAWideCoverage() throws {
+        let catalogURL = try XCTUnwrap(
+            AppResources.url(forResource: "app_strings", withExtension: "json")
+        )
+        let catalogData = try Data(contentsOf: catalogURL)
+        let catalog = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: catalogData) as? [String: Any]
+        )
+        let english = try XCTUnwrap(catalog["en"] as? [String: String])
+        let freeOnly = try XCTUnwrap(english["freeOnly"])
+        let freeShort = try XCTUnwrap(english["freeShort"])
+        let allRegions = try XCTUnwrap(english["allGta"])
+        let availableRegions = try XCTUnwrap(english["acrossGTA"])
+
+        XCTAssertEqual(freeOnly, "Every listing is verified free of charge.")
+        XCTAssertTrue(freeOnly.lowercased().contains("verified"))
+        XCTAssertTrue(freeOnly.lowercased().contains("free of charge"))
+        XCTAssertFalse(freeOnly.lowercased().contains("for everyone"))
+
+        XCTAssertEqual(freeShort, "Verified free")
+        XCTAssertFalse(freeShort.lowercased().contains("everyone"))
+        XCTAssertEqual(allRegions, "All regions")
+        XCTAssertEqual(availableRegions, "across available regions")
+        XCTAssertFalse(allRegions.lowercased().contains("gta"))
+        XCTAssertFalse(availableRegions.lowercased().contains("gta"))
+    }
+
+    func testInterfaceCatalogDoesNotPromiseUnimplementedCalendarAction() throws {
+        let url = try XCTUnwrap(AppResources.url(forResource: "app_strings", withExtension: "json"))
+        let data = try Data(contentsOf: url)
+        let catalog = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let english = try XCTUnwrap(catalog["en"] as? [String: String])
+
+        XCTAssertNil(english["calendar"])
+    }
+
     func testPreferredLanguageUsesStoredLanguageBeforeSystemLanguage() {
         let defaults = makeIsolatedDefaults()
         defaults.set("es", forKey: AppLanguage.preferredLanguageDefaultsKey)
@@ -752,6 +1391,110 @@ final class APIClientTests: XCTestCase {
         )
         XCTAssertEqual(AppLanguage.preferredSystemLanguage(from: ["pt-BR"]), .pt)
         XCTAssertEqual(AppLanguage.preferredSystemLanguage(from: ["fil-PH"]), .tl)
+    }
+
+    func testTraditionalChineseDoesNotSilentlySelectSimplifiedMandarin() {
+        XCTAssertEqual(AppLanguage.preferredSystemLanguage(from: ["zh-Hans-CN"]), .zh)
+        XCTAssertEqual(AppLanguage.preferredSystemLanguage(from: ["zh-Hant-TW", "en-CA"]), .en)
+        XCTAssertEqual(AppLanguage.preferredSystemLanguage(from: ["zh-TW", "fr-CA"]), .fr)
+        XCTAssertEqual(AppLanguage.preferredSystemLanguage(from: ["zh-TW-u-nu-hanidec", "en-CA"]), .en)
+        XCTAssertEqual(AppLanguage.preferredSystemLanguage(from: ["yue-Hant-HK"]), .yue)
+        XCTAssertEqual(AppLanguage.preferredSystemLanguage(from: ["zh-yue-Hant"]), .yue)
+        XCTAssertEqual(AppLanguage.normalized("zh-Hant-TW"), .en)
+        XCTAssertNil(AppLanguage.supportedLanguage(for: "zh-Hant-TW"))
+        XCTAssertNil(AppLanguage.supportedLanguage(for: "zh-TW-u-nu-hanidec"))
+        XCTAssertEqual(AppLanguage.supportedLanguage(for: "zh-yue-Hant"), .yue)
+        XCTAssertEqual(AppText.shared.languageName(.zh), "简体中文 - Mandarin (Simplified)")
+        XCTAssertEqual(AppText.shared.languageName(.es), "Español - Spanish")
+        XCTAssertEqual(AppText.shared.languageName(.pt), "Português - Portuguese")
+    }
+
+    func testUnsupportedTranslationKeyNeverAliasesToEnglish() {
+        let opportunity = opportunity(
+            id: "traditional-key",
+            title: "English base title",
+            translations: [
+                "zh-Hant-TW": OpportunityTranslation(title: "繁體中文標題")
+            ]
+        )
+
+        XCTAssertEqual(opportunity.localizedTitle(language: .en), "English base title")
+        XCTAssertEqual(opportunity.translations["zh-Hant-TW"]?.title, "繁體中文標題")
+        XCTAssertNil(opportunity.translations[AppLanguage.en.rawValue])
+    }
+
+    func testResultCountAnnouncementsUseLocalizedSingularAndPluralTemplates() {
+        XCTAssertEqual(OpportunityResultCountText.string(1, language: .en), "1 result")
+        XCTAssertEqual(OpportunityResultCountText.string(2, language: .en), "2 results")
+        XCTAssertEqual(OpportunityResultCountText.string(1, language: .fr), "1 résultat")
+        XCTAssertTrue(OpportunityResultCountText.string(12, language: .ja).hasSuffix("件"))
+    }
+
+    func testModelContainerResolutionUsesPersistentContainerWhenAvailable() throws {
+        let persistent = try makeAppTestModelContainer()
+        var fallbackWasRequested = false
+
+        let resolution = try AppModelContainerResolution.resolve(
+            persistent: { persistent },
+            ephemeralFallback: {
+                fallbackWasRequested = true
+                return try makeAppTestModelContainer()
+            }
+        )
+
+        XCTAssertTrue(resolution.container === persistent)
+        XCTAssertFalse(resolution.usesEphemeralFallback)
+        XCTAssertTrue(resolution.storageAccess.allowsPersistentChanges)
+        XCTAssertNil(resolution.persistentInitializationErrorDescription)
+        XCTAssertFalse(fallbackWasRequested)
+    }
+
+    func testModelContainerResolutionPreservesLaunchWithEphemeralFallback() throws {
+        struct PersistentStoreFailure: Error {}
+        let fallback = try makeAppTestModelContainer()
+
+        let resolution = try AppModelContainerResolution.resolve(
+            persistent: { throw PersistentStoreFailure() },
+            ephemeralFallback: { fallback }
+        )
+
+        XCTAssertTrue(resolution.container === fallback)
+        XCTAssertTrue(resolution.usesEphemeralFallback)
+        XCTAssertFalse(resolution.storageAccess.allowsPersistentChanges)
+        XCTAssertNotNil(resolution.persistentInitializationErrorDescription)
+    }
+
+    func testReadOnlyRecoveryModeBlocksPersistentUIAndWatchPublishing() throws {
+        let repoRoot = testRepositoryRoot
+        let app = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/GTAFreeSTEMApp.swift"))
+        let content = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/ContentView.swift"))
+        let details = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/OpportunityDetailView.swift"))
+        let models = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/Models.swift"))
+        let saved = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/SavedView.swift"))
+        let settings = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/SettingsView.swift"))
+
+        XCTAssertTrue(app.contains(".environment(\\.appStorageAccess"))
+        XCTAssertTrue(app.contains("storageAccess.allowsPersistentChanges"))
+        XCTAssertTrue(content.contains("storageAccess.allowsPersistentChanges ? modelContext : nil"))
+        XCTAssertTrue(content.contains("StorageRecoveryBanner()"))
+        XCTAssertTrue(content.contains(".foregroundStyle(Brand.ink)"))
+        XCTAssertTrue(content.contains(".background(Brand.cream)"))
+        XCTAssertTrue(details.contains(".disabled(!storageAccess.allowsPersistentChanges)"))
+        XCTAssertTrue(models.contains("guard isConfigured else { return }"))
+        XCTAssertTrue(saved.contains("if !storageAccess.allowsPersistentChanges"))
+        XCTAssertTrue(settings.contains("guard storageAccess.allowsPersistentChanges else"))
+
+        func relativeLuminance(_ color: [Double]) -> Double {
+            let linear = color.map { channel in
+                channel <= 0.04045
+                    ? channel / 12.92
+                    : pow((channel + 0.055) / 1.055, 2.4)
+            }
+            return (0.2126 * linear[0]) + (0.7152 * linear[1]) + (0.0722 * linear[2])
+        }
+        let inkLuminance = relativeLuminance([0.05, 0.09, 0.11])
+        let creamLuminance = relativeLuminance([0.98, 0.97, 0.92])
+        XCTAssertGreaterThanOrEqual((creamLuminance + 0.05) / (inkLuminance + 0.05), 4.5)
     }
 
     @MainActor
@@ -795,9 +1538,7 @@ final class APIClientTests: XCTestCase {
     }
 
     func testWatchSourceUsesSavedEventSyncAndHonestTimestamps() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let watchSource = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEMWatch/GTAFreeSTEMWatchApp.swift"))
 
         XCTAssertTrue(watchSource.contains("savedEventsPayload"))
@@ -816,6 +1557,52 @@ final class APIClientTests: XCTestCase {
         )
         XCTAssertFalse(watchSource.contains("expiryDate(from: startDate)"))
         XCTAssertFalse(watchSource.contains("URLSession"), "The Watch companion must use the paired iPhone's saved-event sync rather than its own public network feed.")
+    }
+
+    func testWatchControlsMeetTargetContrastAndReducedMotionRequirements() throws {
+        let repoRoot = testRepositoryRoot
+        let watchSource = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEMWatch/GTAFreeSTEMWatchApp.swift"))
+
+        XCTAssertTrue(watchSource.contains("frame(minWidth: 44, minHeight: 44)"))
+        XCTAssertEqual(
+            watchSource.components(separatedBy: ".watchAccessibleControl()").count - 1,
+            9,
+            "Every explicit Watch button, link, and navigation link should use the shared 44-point target."
+        )
+        XCTAssertTrue(watchSource.contains("@Environment(\\.accessibilityReduceMotion) private var reduceMotion"))
+        XCTAssertTrue(watchSource.contains("if store.isSyncing, !reduceMotion"))
+        XCTAssertFalse(watchSource.contains("repeatForever"))
+        XCTAssertTrue(watchSource.contains("Text(localization.text(.savedEvents))\n                    .font(.title3.weight(.black))\n                    .lineLimit(2)"))
+
+        let cardStart = try XCTUnwrap(watchSource.range(of: "private struct WatchNextEventCard"))
+        let rowStart = try XCTUnwrap(
+            watchSource.range(of: "private struct WatchEventRow", range: cardStart.lowerBound..<watchSource.endIndex)
+        )
+        let cardSource = String(watchSource[cardStart.lowerBound..<rowStart.lowerBound])
+        XCTAssertFalse(cardSource.contains(".foregroundStyle(.white"))
+        XCTAssertEqual(cardSource.components(separatedBy: ".foregroundStyle(WatchTheme.ink)").count - 1, 3)
+        XCTAssertTrue(cardSource.contains("colors: [WatchTheme.coral, WatchTheme.orange]"))
+
+        func relativeLuminance(_ color: [Double]) -> Double {
+            let linear = color.map { channel in
+                channel <= 0.04045
+                    ? channel / 12.92
+                    : pow((channel + 0.055) / 1.055, 2.4)
+            }
+            return (0.2126 * linear[0]) + (0.7152 * linear[1]) + (0.0722 * linear[2])
+        }
+
+        func contrastRatio(_ first: [Double], _ second: [Double]) -> Double {
+            let firstLuminance = relativeLuminance(first)
+            let secondLuminance = relativeLuminance(second)
+            let lighter = max(firstLuminance, secondLuminance)
+            let darker = min(firstLuminance, secondLuminance)
+            return (lighter + 0.05) / (darker + 0.05)
+        }
+
+        let ink = [0.05, 0.07, 0.08]
+        XCTAssertGreaterThanOrEqual(contrastRatio(ink, [0.95, 0.34, 0.22]), 4.5)
+        XCTAssertGreaterThanOrEqual(contrastRatio(ink, [1.00, 0.49, 0.19]), 4.5)
     }
 
     func testWatchSavedTransferCarriesTheIPhoneArchivePolicy() {
@@ -896,10 +1683,99 @@ final class APIClientTests: XCTestCase {
         XCTAssertLessThanOrEqual(boundedPayload.count, WatchSavedEventsPayloadBuilder.maximumEncodedPayloadBytes)
     }
 
+    func testWatchPayloadCarriesPreferredLanguageAndDecodesLegacyEnvelope() throws {
+        let payload = try XCTUnwrap(
+            WatchSavedEventsPayloadBuilder.makePayload(
+                totalSavedCount: 0,
+                prioritizedEvents: [],
+                syncedAt: Date(timeIntervalSince1970: 123),
+                preferredLanguageCode: AppLanguage.fr.rawValue
+            )
+        )
+        let current = try JSONDecoder().decode(WatchSavedEventsTransfer.self, from: payload)
+        XCTAssertEqual(current.preferredLanguageCode, AppLanguage.fr.rawValue)
+
+        var legacyObject = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: payload) as? [String: Any]
+        )
+        legacyObject.removeValue(forKey: "preferredLanguageCode")
+        let legacyPayload = try JSONSerialization.data(withJSONObject: legacyObject)
+        let legacy = try JSONDecoder().decode(WatchSavedEventsTransfer.self, from: legacyPayload)
+
+        XCTAssertNil(legacy.preferredLanguageCode)
+        XCTAssertEqual(legacy.schemaVersion, WatchSavedEventsTransfer.currentSchemaVersion)
+        XCTAssertEqual(legacy.totalSavedCount, 0)
+    }
+
+    func testWatchLocalizationCatalogCoversEveryKeyAndLanguageAndIsBundled() throws {
+        let repoRoot = testRepositoryRoot
+        let watchSource = try String(
+            contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEMWatch/GTAFreeSTEMWatchApp.swift")
+        )
+        let catalogData = try Data(
+            contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEMWatch/WatchStrings.json")
+        )
+        let catalog = try JSONDecoder().decode([String: [String: String]].self, from: catalogData)
+        let expectedLanguages: Set<String> = [
+            "en", "fr", "zh", "yue", "pa", "ur", "ta", "tl", "es",
+            "ar", "fa", "hi", "pt", "gu", "bn", "ja", "ko", "hu"
+        ]
+        XCTAssertEqual(Set(catalog.keys), expectedLanguages)
+
+        let keyPattern = try NSRegularExpression(pattern: #"=\s*\"(watch\.[A-Za-z0-9]+)\""#)
+        let sourceRange = NSRange(watchSource.startIndex..<watchSource.endIndex, in: watchSource)
+        let watchKeys: Set<String> = Set(keyPattern.matches(in: watchSource, range: sourceRange).compactMap { match -> String? in
+            guard let range = Range(match.range(at: 1), in: watchSource) else { return nil }
+            return String(watchSource[range])
+        })
+        let english = try XCTUnwrap(catalog["en"])
+        XCTAssertEqual(Set(english.keys), watchKeys)
+        let cantoneseResolution = try XCTUnwrap(watchSource.range(of: "normalized.hasPrefix(\"zh-yue-\")"))
+        let traditionalMandarinGuard = try XCTUnwrap(watchSource.range(of: "if normalized.hasPrefix(\"zh-\")"))
+        XCTAssertLessThan(cantoneseResolution.lowerBound, traditionalMandarinGuard.lowerBound)
+
+        let tokenPattern = try NSRegularExpression(pattern: #"\{[A-Za-z0-9]+\}"#)
+        func tokens(in value: String) -> Set<String> {
+            let range = NSRange(value.startIndex..<value.endIndex, in: value)
+            return Set(tokenPattern.matches(in: value, range: range).compactMap { match -> String? in
+                guard let tokenRange = Range(match.range, in: value) else { return nil }
+                return String(value[tokenRange])
+            })
+        }
+
+        for language in expectedLanguages.sorted() {
+            let strings = try XCTUnwrap(catalog[language], "Missing Watch catalog for \(language)")
+            XCTAssertEqual(Set(strings.keys), watchKeys, "Watch key mismatch for \(language)")
+            for key in watchKeys {
+                let value = try XCTUnwrap(strings[key])
+                XCTAssertFalse(value.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty)
+                XCTAssertEqual(tokens(in: value), tokens(in: try XCTUnwrap(english[key])), "Token mismatch for \(language).\(key)")
+            }
+        }
+
+        let project = try String(
+            contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM.xcodeproj/project.pbxproj")
+        )
+        let projectDefinition = try String(contentsOf: repoRoot.appendingPathComponent("project.yml"))
+        XCTAssertTrue(project.contains("WatchStrings.json in Resources"))
+        XCTAssertTrue(projectDefinition.contains("- GTAFreeSTEMWatch/WatchStrings.json"))
+    }
+
+    func testCurrentSourceContractFixturesAlwaysRestageBeforeTests() throws {
+        let repoRoot = testRepositoryRoot
+        let projectDefinition = try String(
+            contentsOf: repoRoot.appendingPathComponent("project.yml")
+        )
+        let generatedProject = try String(
+            contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM.xcodeproj/project.pbxproj")
+        )
+
+        XCTAssertTrue(projectDefinition.contains("basedOnDependencyAnalysis: false"))
+        XCTAssertTrue(generatedProject.contains("alwaysOutOfDate = 1;"))
+    }
+
     func testReleaseSourceContainsNoDormantAccountOrLegacyWatchFeedState() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let sessionContents = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/SessionStore.swift"))
         let storeContents = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/OpportunityStore.swift"))
         let watchContents = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEMWatch/GTAFreeSTEMWatchApp.swift"))
@@ -914,6 +1790,9 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(modelContents.contains("maximumEncodedPayloadBytes = 48 * 1_024"))
         XCTAssertTrue(modelContents.contains("lastPublishErrorDescription = error.localizedDescription"))
         XCTAssertTrue(modelContents.contains("updateApplicationContext"))
+        XCTAssertTrue(modelContents.contains("preferredLanguageKey = \"preferredLanguageCode\""))
+        XCTAssertTrue(modelContents.contains("preferredLanguageCode: language.rawValue"))
+        XCTAssertTrue(sessionContents.contains("preferredLanguageDidChange(to: normalized)"))
         XCTAssertFalse(watchContents.contains("URLSession"))
     }
 
@@ -1066,9 +1945,7 @@ final class APIClientTests: XCTestCase {
     }
 
     func testSettingsDoesNotExposeAppleSignInWithoutTokenExchange() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let settingsView = repoRoot.appendingPathComponent("GTAFreeSTEM/SettingsView.swift")
         let sessionStore = repoRoot.appendingPathComponent("GTAFreeSTEM/SessionStore.swift")
 
@@ -1084,23 +1961,21 @@ final class APIClientTests: XCTestCase {
 
     func testLegalAndSupportLinksUseDistinctProductionHTTPSPages() {
         let expected: [(URL, String)] = [
-            (AppLegalLinks.privacyPolicy, "https://gta-free-stem.vercel.app/privacy/"),
-            (AppLegalLinks.termsOfUse, "https://gta-free-stem.vercel.app/terms/"),
-            (AppLegalLinks.support, "https://gta-free-stem.vercel.app/support/")
+            (AppLegalLinks.privacyPolicy, "https://gta-free-stem.pages.dev/privacy/"),
+            (AppLegalLinks.termsOfUse, "https://gta-free-stem.pages.dev/terms/"),
+            (AppLegalLinks.support, "https://gta-free-stem.pages.dev/support/")
         ]
 
         XCTAssertEqual(Set(expected.map(\.0)).count, expected.count)
         for (url, absoluteString) in expected {
             XCTAssertEqual(url.scheme, "https")
-            XCTAssertEqual(url.host, "gta-free-stem.vercel.app")
+            XCTAssertEqual(url.host, "gta-free-stem.pages.dev")
             XCTAssertEqual(url.absoluteString, absoluteString)
         }
     }
 
     func testSupportViewDoesNotCollectOrPersistSubmissionPersonalData() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let submitView = repoRoot.appendingPathComponent("GTAFreeSTEM/SubmitView.swift")
         let contents = try String(contentsOf: submitView)
 
@@ -1112,9 +1987,7 @@ final class APIClientTests: XCTestCase {
     }
 
     func testReleaseAPIClientContainsOnlyReadOnlyFeedRequests() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let apiClient = repoRoot.appendingPathComponent("GTAFreeSTEM/APIClient.swift")
         let contents = try String(contentsOf: apiClient)
 
@@ -1176,9 +2049,7 @@ final class APIClientTests: XCTestCase {
     }
 
     func testWatchPrivacyManifestDeclaresAppOnlyUserDefaultsAccess() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let url = repoRoot.appendingPathComponent("GTAFreeSTEMWatch/PrivacyInfo.xcprivacy")
         let data = try Data(contentsOf: url)
         let plist = try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
@@ -1196,9 +2067,7 @@ final class APIClientTests: XCTestCase {
     }
 
     func testMacCatalystReleaseConfigurationIsSandboxed() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let project = try String(contentsOf: repoRoot.appendingPathComponent("project.yml"))
         let generatedProject = try String(
             contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM.xcodeproj/project.pbxproj")
@@ -1233,23 +2102,21 @@ final class APIClientTests: XCTestCase {
     }
 
     func testWatchCompanionShowsSavedAndArchivedEvents() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let watchApp = repoRoot.appendingPathComponent("GTAFreeSTEMWatch/GTAFreeSTEMWatchApp.swift")
         let contents = try String(contentsOf: watchApp)
 
         XCTAssertTrue(contents.contains("Saved events"))
         XCTAssertTrue(contents.contains("Event archive"))
         XCTAssertTrue(contents.contains("Your past saved events are still available in the archive."))
-        XCTAssertTrue(contents.contains("Showing \\(store.events.count) of \\(store.totalSavedCount) saved events"))
+        XCTAssertTrue(contents.contains(".showingSavedEvents"))
+        XCTAssertTrue(contents.contains("store.events.count"))
+        XCTAssertTrue(contents.contains("store.totalSavedCount"))
         XCTAssertTrue(contents.contains("Open GTA FREE STEM on your iPhone to refresh saved events."))
     }
 
     func testReleaseNavigationAndSupportSurfacesPresentAsFinished() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let designSystem = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/DesignSystem.swift"))
         let contentView = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/ContentView.swift"))
         let settingsView = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/SettingsView.swift"))
@@ -1274,34 +2141,35 @@ final class APIClientTests: XCTestCase {
     }
 
     func testStorefrontCriticalCompactLayoutsAvoidClippedControls() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let browseView = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/BrowseView.swift"))
         let designSystem = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/DesignSystem.swift"))
         let watchView = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEMWatch/GTAFreeSTEMWatchApp.swift"))
 
         XCTAssertTrue(browseView.contains("WrappingHStack("))
         XCTAssertTrue(browseView.contains("layoutDirection: layoutDirection"))
-        XCTAssertTrue(browseView.contains(".minimumScaleFactor(0.80)"))
+        // Controls wrap or stack instead of shrinking large accessibility text.
+        XCTAssertTrue(browseView.contains("ViewThatFits(in: .horizontal)"))
+        XCTAssertTrue(browseView.contains(".fixedSize(horizontal: false, vertical: true)"))
+        XCTAssertTrue(browseView.contains("if !dynamicTypeSize.isAccessibilitySize"))
         XCTAssertTrue(designSystem.contains("struct WrappingHStack: Layout"))
         XCTAssertTrue(designSystem.contains("layoutDirection == .rightToLeft"))
         XCTAssertFalse(watchView.contains("WatchSectionHeading(title: \"NEXT UP\""))
         XCTAssertTrue(watchView.contains("else if store.upcomingEvents.count > 1"))
-        XCTAssertTrue(watchView.contains("Text(event.category.uppercased())"))
+        XCTAssertTrue(watchView.contains("Text(event.category.uppercased(with: localization.locale))"))
         XCTAssertTrue(watchView.contains(".minimumScaleFactor(0.72)"))
         XCTAssertTrue(watchView.contains(".lineLimit(2)"))
         XCTAssertTrue(watchView.contains("$0.trimmingCharacters(in: .whitespacesAndNewlines)"))
     }
 
     func testCompactBrowseLayoutPrioritizesLiveResults() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let browseView = repoRoot.appendingPathComponent("GTAFreeSTEM/BrowseView.swift")
         let contents = try String(contentsOf: browseView)
 
-        XCTAssertTrue(contents.contains("horizontalSizeClass == .compact && displayMode == .list"))
+        XCTAssertTrue(contents.contains("horizontalSizeClass == .compact"))
+        XCTAssertFalse(contents.contains("horizontalSizeClass == .compact && displayMode == .list"),
+                       "Compact map results should also precede the research controls")
         XCTAssertTrue(contents.contains("if prioritizesResultsOnCompactLayout {"))
         XCTAssertTrue(contents.contains("resultsContent\n                            huntPanel"))
     }
@@ -1319,7 +2187,7 @@ final class APIClientTests: XCTestCase {
         }
     }
 
-    func testOpportunitiesApplyBundledTranslationFallbackToSearch() async throws {
+    func testMissingFullTranslationKeepsOriginalSourceTextSearchable() async throws {
         let defaults = UserDefaults.standard
         let previousLanguage = defaults.string(forKey: "preferredLanguageCode")
         defaults.set("fr", forKey: "preferredLanguageCode")
@@ -1334,88 +2202,155 @@ final class APIClientTests: XCTestCase {
 
         let feedURL = URL(string: "https://gta-free-stem.vercel.app/opportunities.json")!
         let session = makeURLSessionForStub()
-        let client = APIClient(feedURL: feedURL, session: session)
-
-        // Exercise translation fallback with a current bundled record. Seasonal
-        // opportunities can disappear when the verified offline feed refreshes.
         let bundled = try LocalOpportunitySnapshot.loadFull()
-        let translated = try XCTUnwrap(bundled.data.first {
-            $0.translations["fr"]?.summary?.isEmpty == false
+        let now = try bundledSnapshotTestNow()
+        let client = APIClient(feedURL: feedURL, session: session, now: { now })
+        let target = try XCTUnwrap(bundled.data.first {
+            LocalOpportunitySnapshot.isCurrentlyAvailable($0, on: now)
         })
-        let frenchSummary = try XCTUnwrap(translated.translations["fr"]?.summary)
-
-        let liveOnly = """
-        {
-          "lastDataChange": "\(currentFeedTimestamp())",
-          "sourceHealth": {
-            "library": {
-              "status": "healthy",
-              "attemptedPages": 1,
-              "successfulPages": 1,
-              "pageSuccessRatio": 1,
-              "minimumPageSuccessRatio": 0.75,
-              "acceptedListings": 1,
-              "minimumAcceptedListings": 1
-            },
-            "discovery": {
-              "status": "healthy",
-              "sourcesChecked": 1,
-              "successfulSources": 1,
-              "sourceSuccessRatio": 1,
-              "minimumSourceSuccessRatio": 0.75
-            }
-          },
-          "opportunities": [{
-            "id": "\(translated.id)",
-            "title": "Conservation Volunteer Day",
-            "organization": "Credit Valley Conservation",
-            "description": "Volunteer in support of conservation projects.",
-            "category": "Volunteer Hours",
-            "city": "Mississauga",
-            "region": "Peel",
-            "ageMin": 14,
-            "ageMax": 18,
-            "language": ["en"],
-            "cost": "Free",
-            "sourceUrl": "https://example.com/cvc",
-            "status": "active",
-            "volunteerHoursEligible": true,
-            "coopEligible": false,
-            "tags": ["volunteer"],
-            "sourceConfidence": "generated"
-          }]
-        }
-        """
+        XCTAssertTrue(target.translations.isEmpty)
+        let expectedDescription = target.description
+        let bundleURL = try XCTUnwrap(AppResources.url(forResource: "opportunities", withExtension: "json"))
+        var liveOnly = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(contentsOf: bundleURL)) as? [String: Any]
+        )
+        let bundledItems = try XCTUnwrap(liveOnly["opportunities"] as? [[String: Any]])
+        var targetItem = try XCTUnwrap(bundledItems.first { $0["id"] as? String == target.id })
+        targetItem["translations"] = [:]
+        liveOnly["opportunities"] = [targetItem]
+        liveOnly["count"] = 1
+        var sourceHealth = try XCTUnwrap(liveOnly["sourceHealth"] as? [String: Any])
+        var libraryHealth = try XCTUnwrap(sourceHealth["library"] as? [String: Any])
+        libraryHealth["acceptedListings"] = 1
+        libraryHealth["minimumAcceptedListings"] = 1
+        sourceHealth["library"] = libraryHealth
+        liveOnly["sourceHealth"] = sourceHealth
+        var contentRights = try XCTUnwrap(liveOnly["contentRights"] as? [String: Any])
+        let rightsSources = try XCTUnwrap(contentRights["sources"] as? [[String: Any]])
+        var targetRights = try XCTUnwrap(
+            rightsSources.first { $0["organization"] as? String == target.organization }
+        )
+        targetRights["records"] = 1
+        contentRights["sources"] = [targetRights]
+        liveOnly["contentRights"] = contentRights
+        let liveOnlyData = try JSONSerialization.data(withJSONObject: liveOnly, options: [.sortedKeys])
 
         URLProtocolStub.register(
             responseFor: feedURL,
             statusCode: 200,
-            body: liveOnly.data(using: .utf8)!
+            body: liveOnlyData
         )
 
-        let response = try await client.opportunities(query: frenchSummary, mode: .all, filters: OpportunityFilters())
+        let response = try await client.opportunities(query: target.title, mode: .all, filters: OpportunityFilters())
 
         XCTAssertEqual(response.data.count, 1)
-        XCTAssertEqual(response.data.first?.id, translated.id)
-        XCTAssertEqual(
-            response.data.first?.localizedSummary(language: .fr),
-            frenchSummary
-        )
-        XCTAssertEqual(response.data.first?.localizedCategory(language: .fr), translated.localizedCategory(language: .fr))
+        XCTAssertEqual(response.data.first?.id, target.id)
+        XCTAssertEqual(response.data.first?.localizedDescription(language: .fr), expectedDescription)
     }
 
-    func testLocalOpportunitySnapshotFiltersByLanguage() throws {
+    func testLocalOpportunitySnapshotIgnoresUnprovenLegacyProgramLanguage() throws {
+        let browseSource = try String(contentsOf: testRepositoryRoot.appendingPathComponent("GTAFreeSTEM/BrowseView.swift"))
+        XCTAssertFalse(browseSource.contains("$filters.language"))
         var filters = OpportunityFilters()
-        filters.language = "en"
+        filters.language = "ja"
 
-        let response = try LocalOpportunitySnapshot.load(query: "", mode: .all, filters: filters)
+        let fullFeed = try LocalOpportunitySnapshot.loadFull()
+        let response = LocalOpportunitySnapshot.filter(fullFeed.data, query: "", mode: .all, filters: filters, now: try bundledSnapshotTestNow())
 
-        XCTAssertFalse(response.data.isEmpty)
-        XCTAssertTrue(response.data.allSatisfy { $0.language.contains("en") })
-        XCTAssertEqual(response.meta?.activeCount, response.data.count)
+        XCTAssertFalse(response.isEmpty)
+        XCTAssertTrue(response.allSatisfy { $0.language.contains("en") })
+        filters.language = "all"
+        let neutral = LocalOpportunitySnapshot.filter(fullFeed.data, query: "", mode: .all, filters: filters, now: try bundledSnapshotTestNow())
+        XCTAssertEqual(response.map(\.id), neutral.map(\.id))
     }
 
-    func testLocalOpportunitySnapshotMatchesLocaleAwareLanguageFilters() {
+    func testBundledSnapshotCarriesReleaseReadyContentRightsManifest() throws {
+        let response = try LocalOpportunitySnapshot.loadFull()
+        let feedDate = try XCTUnwrap(FeedFreshness.date(from: response.meta?.lastUpdated))
+        let restrictedIDs = try XCTUnwrap(response.contentRights?.restrictedOpportunityIDs)
+
+        XCTAssertTrue(
+            response.hasReleaseReadyContentRights(now: feedDate.addingTimeInterval(3_600)),
+            "The exact bundled feed must decode with a complete, internally consistent content-rights manifest."
+        )
+        XCTAssertTrue(Set(restrictedIDs).isDisjoint(with: Set(response.data.map(\.id))))
+    }
+
+    func testContentRightsRejectsSelfDeclaredProviderAndUnreviewedDigest() throws {
+        let bundled = try LocalOpportunitySnapshot.loadFull()
+        let rights = try legacyRights(for: bundled)
+        let source = try XCTUnwrap(rights.sources.first)
+        let feedDate = try XCTUnwrap(FeedFreshness.date(from: bundled.meta?.lastUpdated))
+
+        func response(with changedSource: OpportunityListResponse.ContentRights.Source) -> OpportunityListResponse {
+            OpportunityListResponse(
+                data: bundled.data,
+                meta: bundled.meta,
+                sourceHealth: bundled.sourceHealth,
+                contentRights: OpportunityListResponse.ContentRights(
+                    termsVerifiedAt: rights.termsVerifiedAt,
+                    sources: [changedSource] + Array(rights.sources.dropFirst()),
+                    restrictedOpportunityIDs: rights.restrictedOpportunityIDs
+                )
+            )
+        }
+
+        XCTAssertTrue(response(with: source).hasReleaseReadyContentRights(now: feedDate.addingTimeInterval(3_600)))
+        let unapprovedProvider = OpportunityListResponse.ContentRights.Source(
+            organization: "Unapproved Library",
+            sourceHost: source.sourceHost,
+            records: source.records,
+            status: source.status,
+            basisUrl: source.basisUrl,
+            conditions: source.conditions,
+            termsVerifiedAt: source.termsVerifiedAt,
+            termsVersion: source.termsVersion,
+            termsDigestVersion: source.termsDigestVersion,
+            termsSectionDigest: source.termsSectionDigest
+        )
+        let unreviewedDigest = OpportunityListResponse.ContentRights.Source(
+            organization: source.organization,
+            sourceHost: source.sourceHost,
+            records: source.records,
+            status: source.status,
+            basisUrl: source.basisUrl,
+            conditions: source.conditions,
+            termsVerifiedAt: source.termsVerifiedAt,
+            termsVersion: source.termsVersion,
+            termsDigestVersion: source.termsDigestVersion,
+            termsSectionDigest: "sha256:" + String(repeating: "0", count: 64)
+        )
+
+        // App-authored preview/support links do not authorize provider excerpts
+        // hosted or self-declared on a first-party site.
+        let firstPartyHostClaim = OpportunityListResponse.ContentRights.Source(
+            organization: source.organization,
+            sourceHost: "gta-free-stem.pages.dev",
+            records: source.records,
+            status: source.status,
+            basisUrl: source.basisUrl,
+            conditions: source.conditions,
+            termsVerifiedAt: source.termsVerifiedAt,
+            termsVersion: source.termsVersion,
+            termsDigestVersion: source.termsDigestVersion,
+            termsSectionDigest: source.termsSectionDigest
+        )
+        XCTAssertFalse(
+            response(with: firstPartyHostClaim)
+                .hasReleaseReadyContentRights(now: feedDate.addingTimeInterval(3_600))
+        )
+
+        XCTAssertFalse(
+            response(with: unapprovedProvider)
+                .hasReleaseReadyContentRights(now: feedDate.addingTimeInterval(3_600))
+        )
+        XCTAssertFalse(
+            response(with: unreviewedDigest)
+                .hasReleaseReadyContentRights(now: feedDate.addingTimeInterval(3_600))
+        )
+    }
+
+    func testLocalOpportunitySnapshotIgnoresDeprecatedLocaleAwareLanguageFilter() {
         let results = LocalOpportunitySnapshot.filter(
             [
                 opportunity(id: "enca", title: "Metro STEM Day", language: ["en-CA"]),
@@ -1426,7 +2361,7 @@ final class APIClientTests: XCTestCase {
             filters: { var filters = OpportunityFilters(); filters.language = "en"; return filters }()
         )
 
-        XCTAssertEqual(results.map(\.id), ["enca"])
+        XCTAssertEqual(Set(results.map(\.id)), Set(["enca", "es"]))
     }
 
     func testAdultAgeFilterExcludesYouthOnlyProgramsCappedAtEighteen() {
@@ -1437,14 +2372,19 @@ final class APIClientTests: XCTestCase {
             [
                 opportunity(id: "teen-only", title: "Teen Lab", ageMin: 14, ageMax: 18),
                 opportunity(id: "adult-range", title: "Young Adult Lab", ageMin: 18, ageMax: 25),
-                opportunity(id: "open-adult", title: "Adult Makerspace", ageMin: 21, ageMax: nil)
+                opportunity(id: "open-adult", title: "Adult Makerspace", ageMin: 21, ageMax: nil),
+                opportunity(id: "mixed-six-plus", title: "All-Audience 3D Printing", ageMin: 6, ageMax: nil),
+                opportunity(id: "mixed-thirteen-plus", title: "Teen and Adult Tinkercad", ageMin: 13, ageMax: nil)
             ],
             query: "",
             mode: .all,
             filters: filters
         )
 
-        XCTAssertEqual(Set(results.map(\.id)), Set(["adult-range", "open-adult"]))
+        XCTAssertEqual(
+            Set(results.map(\.id)),
+            Set(["adult-range", "open-adult", "mixed-six-plus", "mixed-thirteen-plus"])
+        )
     }
 
     func testSearchMatchesMultipleTermsAcrossFields() {
@@ -1602,11 +2542,104 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(Set(highSchoolResults.map(\.id)), Set(["volunteer", "coop", "mentor", "scholarship"]))
     }
 
+    func testHighSchoolPathwayEligibilityExcludesAdultOnlyMentorAndHonorsBoundaries() throws {
+        // Eligibility boundaries are stable synthetic facts, independent of
+        // whether an old August event remains in the current published feed.
+        let adultOnlyMentorID = "synthetic-adult-only-arts-mentor"
+        let adultOnlyMentor = opportunity(
+            id: adultOnlyMentorID,
+            title: "Adult Arts Mentor Program",
+            description: "An adults-only arts mentoring program.",
+            startDate: "2026-08-20T10:00:00Z",
+            endDate: "2026-08-21T18:00:00Z",
+            ageMin: 18,
+            ageMax: nil,
+            tags: ["mentor"]
+        )
+        let beforeItsArchiveBoundary = try XCTUnwrap(
+            ISO8601DateFormatter().date(from: "2026-08-20T12:00:00Z")
+        )
+
+        XCTAssertEqual(adultOnlyMentor.ageMin, 18)
+        XCTAssertNil(adultOnlyMentor.ageMax)
+        XCTAssertTrue(
+            LocalOpportunitySnapshot.filter(
+                [adultOnlyMentor],
+                query: "",
+                mode: .all,
+                filters: OpportunityFilters(),
+                now: beforeItsArchiveBoundary
+            ).contains { $0.id == adultOnlyMentorID },
+            "The general Browse directory must retain a current adult-only listing."
+        )
+        var adultAgeFilter = OpportunityFilters()
+        adultAgeFilter.age = "18+"
+        XCTAssertEqual(
+            LocalOpportunitySnapshot.filter(
+                [adultOnlyMentor],
+                query: "",
+                mode: .all,
+                filters: adultAgeFilter,
+                now: beforeItsArchiveBoundary
+            ).map(\.id),
+            [adultOnlyMentorID],
+            "The pathway gate must not alter explicit adult searches in the general directory."
+        )
+        XCTAssertTrue(
+            LocalOpportunitySnapshot.filter(
+                [adultOnlyMentor],
+                query: "",
+                mode: .mentorship,
+                filters: OpportunityFilters(),
+                now: beforeItsArchiveBoundary
+            ).isEmpty,
+            "An adult-only arts mentor listing must not advertise a high-school mentorship pathway."
+        )
+
+        let boundaryRecords = [
+            opportunity(id: "open-at-seventeen", title: "Mentor Program", ageMin: 17, ageMax: nil, tags: ["mentor"]),
+            opportunity(id: "ends-at-fourteen", title: "Mentor Program", ageMin: 10, ageMax: 14, tags: ["mentor"]),
+            opportunity(id: "starts-at-eighteen", title: "Mentor Program", ageMin: 18, ageMax: nil, tags: ["mentor"]),
+            opportunity(id: "ends-at-thirteen", title: "Mentor Program", ageMin: 10, ageMax: 13, tags: ["mentor"])
+        ]
+        let pathwayResults = LocalOpportunitySnapshot.filter(
+            boundaryRecords,
+            query: "",
+            mode: .mentorship,
+            filters: OpportunityFilters(),
+            now: beforeItsArchiveBoundary
+        )
+
+        XCTAssertEqual(Set(pathwayResults.map(\.id)), Set(["open-at-seventeen", "ends-at-fourteen"]))
+        XCTAssertTrue(LocalOpportunitySnapshot.isHighSchoolPathwayEligible(boundaryRecords[0]))
+        XCTAssertTrue(LocalOpportunitySnapshot.isHighSchoolPathwayEligible(boundaryRecords[1]))
+        XCTAssertFalse(LocalOpportunitySnapshot.isHighSchoolPathwayEligible(boundaryRecords[2]))
+        XCTAssertFalse(LocalOpportunitySnapshot.isHighSchoolPathwayEligible(boundaryRecords[3]))
+    }
+
+    func testExactBundledFeedPromotesOnlySourceBackedCurrentPathwayInventory() throws {
+        let bundled = try LocalOpportunitySnapshot.loadFull()
+        let currentFeedMoment = try bundledSnapshotTestNow()
+
+        XCTAssertEqual(bundled.data.count, 1878)
+        XCTAssertEqual(bundled.data.filter(\.virtual).count, 45)
+        XCTAssertEqual(
+            HomePathwayInventory.availableModes(in: bundled.data, now: currentFeedMoment),
+            [.volunteer]
+        )
+        let volunteerRows = LocalOpportunitySnapshot.filter(
+            bundled.data, query: "", mode: .volunteer, filters: OpportunityFilters(), now: currentFeedMoment
+        )
+        XCTAssertEqual(volunteerRows.map(\.id), ["tpl-rss-6ac92852295b3b0033cb1160"])
+        XCTAssertTrue(volunteerRows.allSatisfy { $0.description.contains("volunteer hours") })
+        XCTAssertTrue(volunteerRows.allSatisfy(LocalOpportunitySnapshot.isHighSchoolPathwayEligible))
+    }
+
     func testMapPinsAreSubsetOfFilteredListResults() {
         let opportunities = [
-            opportunity(id: "mapped", title: "Mapped Lab", city: "Toronto", latitude: 43.654, longitude: -79.384, startDate: "2026-07-01T04:00:00.000Z"),
+            opportunity(id: "mapped", title: "Mapped Lab", city: "Toronto", address: "1 College Street", latitude: 43.654, longitude: -79.384, startDate: "2026-07-01T04:00:00.000Z"),
             opportunity(id: "list-only", title: "List Lab", city: "Toronto", startDate: "2026-07-02T04:00:00.000Z"),
-            opportunity(id: "filtered-out", title: "Map Lab", city: "Markham", latitude: 43.856, longitude: -79.337, startDate: "2026-07-03T04:00:00.000Z")
+            opportunity(id: "filtered-out", title: "Map Lab", city: "Markham", address: "2 Main Street", latitude: 43.856, longitude: -79.337, startDate: "2026-07-03T04:00:00.000Z")
         ]
         var filters = OpportunityFilters()
         filters.city = "Toronto"
@@ -1627,11 +2660,11 @@ final class APIClientTests: XCTestCase {
 
     func testMapProjectionRejectsInvalidAndIncompleteCoordinatePairs() {
         let opportunities = [
-            opportunity(id: "valid", title: "Valid Map Lab", latitude: 43.654, longitude: -79.384),
-            opportunity(id: "latitude-out-of-range", title: "Bad Latitude", latitude: 91, longitude: -79.384),
-            opportunity(id: "longitude-out-of-range", title: "Bad Longitude", latitude: 43.654, longitude: -181),
-            opportunity(id: "non-finite", title: "Infinite Coordinate", latitude: .infinity, longitude: -79.384),
-            opportunity(id: "latitude-only", title: "Half Coordinate", latitude: 43.654, longitude: nil)
+            opportunity(id: "valid", title: "Valid Map Lab", address: "1 College Street", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "latitude-out-of-range", title: "Bad Latitude", address: "1 College Street", latitude: 91, longitude: -79.384),
+            opportunity(id: "longitude-out-of-range", title: "Bad Longitude", address: "1 College Street", latitude: 43.654, longitude: -181),
+            opportunity(id: "non-finite", title: "Infinite Coordinate", address: "1 College Street", latitude: .infinity, longitude: -79.384),
+            opportunity(id: "latitude-only", title: "Half Coordinate", address: "1 College Street", latitude: 43.654, longitude: nil)
         ]
 
         XCTAssertEqual(OpportunityMapProjection.pins(from: opportunities).map(\.id), ["valid"])
@@ -1640,6 +2673,225 @@ final class APIClientTests: XCTestCase {
         XCTAssertFalse(OpportunityCoordinate.isValid(latitude: 43.654, longitude: -181))
         XCTAssertFalse(OpportunityCoordinate.isValid(latitude: .nan, longitude: -79.384))
         XCTAssertFalse(OpportunityCoordinate.isValid(latitude: 43.654, longitude: nil))
+    }
+
+    func testMapKeepsMissingAndOnlineAddressesInListOnly() {
+        let records = [
+            opportunity(id: "physical", title: "Physical Lab", address: "1 College Street", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "missing", title: "Unknown Venue", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "blank", title: "Blank Venue", address: "  ", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "online", title: "Online Lab", address: "  ONLINE event", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "virtual", title: "Virtual Lab", address: "Virtual via Zoom", latitude: 43.654, longitude: -79.384)
+        ]
+        XCTAssertEqual(OpportunityMapProjection.pins(from: records).map(\.id), ["physical"])
+        XCTAssertEqual(records.count, 5, "Projection must not remove list-only records from its input")
+    }
+
+    func testExplicitVirtualFlagSurvivesCacheAndArchiveAndPreventsPhysicalPins() throws {
+        let physical = opportunity(id: "physical", title: "Library visit", address: "1 College Street", latitude: 43.654, longitude: -79.384)
+        var wire = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(physical)) as? [String: Any])
+        wire.removeValue(forKey: "virtual")
+        let legacy = try JSONDecoder().decode(Opportunity.self, from: JSONSerialization.data(withJSONObject: wire))
+        XCTAssertFalse(legacy.virtual, "Existing feeds without the optional field remain compatible")
+        wire["id"] = "online-with-provider-address"
+        wire["virtual"] = true
+        let online = try JSONDecoder().decode(Opportunity.self, from: JSONSerialization.data(withJSONObject: wire))
+        XCTAssertTrue(online.virtual)
+        XCTAssertEqual(OpportunityMapProjection.pins(from: [legacy, online]).map(\.id), ["physical"],
+                       "An online event must not become a physical destination merely because its provider has an address")
+        let cached = try JSONDecoder().decode(Opportunity.self, from: JSONEncoder().encode(online))
+        XCTAssertTrue(cached.virtual)
+        XCTAssertTrue(cached.replacingStatus(with: "archived").virtual)
+        let translated = APIClient.mergingBundledTranslations(
+            ["fr": OpportunityTranslation(title: "Atelier en ligne")], into: cached)
+        XCTAssertTrue(translated.virtual, "Translation augmentation must retain online-only venue safety")
+        XCTAssertEqual(translated.translations["fr"]?.title, "Atelier en ligne")
+        XCTAssertEqual(translated.address, cached.address)
+        XCTAssertEqual(translated.description, cached.description)
+        XCTAssertTrue(OpportunityMapProjection.pins(from: [translated]).isEmpty)
+        XCTAssertEqual(cached.description, online.description)
+        wire["virtual"] = "true"
+        XCTAssertThrowsError(try JSONDecoder().decode(Opportunity.self, from: JSONSerialization.data(withJSONObject: wire)),
+                             "A supplied safety-relevant flag must be a boolean")
+    }
+
+    func testMapGroupsOnlyMatchingPhysicalVenueAndCoordinates() {
+        let records = [
+            opportunity(id: "first", title: "First Lab", address: "1 College Street", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "second", title: "Second Lab", address: "  1  COLLEGE Street  ", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "different-address", title: "Elsewhere", address: "2 College Street", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "different-coordinate", title: "Another Branch", address: "1 College Street", latitude: 43.7, longitude: -79.4)
+        ]
+        let venues = OpportunityMapProjection.venues(from: records)
+        XCTAssertEqual(venues.count, 3)
+        XCTAssertEqual(venues[0].opportunities.map(\.id), ["first", "second"])
+        XCTAssertEqual(venues.flatMap(\.opportunities).map(\.id), records.map(\.id))
+        let filtered = OpportunityMapProjection.venues(from: [records[1]])
+        XCTAssertEqual(filtered.count, 1)
+        XCTAssertEqual(filtered[0].id, venues[0].id, "Venue identity stays stable as filters remove events at that venue")
+        XCTAssertEqual(filtered[0].opportunities.map(\.id), ["second"])
+    }
+
+    func testMapSnapshotPreservesDistinctVenuesAtOneCoordinateAndListOnlyRows() {
+        let records = [
+            opportunity(id: "one", title: "First", address: "1 College Street", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "two", title: "Second", address: "2 College Street", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "same-venue", title: "Later session", address: "1 College Street", latitude: 43.654, longitude: -79.384),
+            opportunity(id: "online", title: "Online", address: "Online", latitude: 43.654, longitude: -79.384)
+        ]
+        let snapshot = OpportunityMapProjection.snapshot(from: records)
+        XCTAssertEqual(snapshot.venues.count, 2, "Screen clustering must never merge distinct physical source addresses")
+        XCTAssertEqual(snapshot.mappedCount, 3)
+        XCTAssertEqual(snapshot.venues.map(\.address), ["1 College Street", "2 College Street"])
+        XCTAssertEqual(Set(snapshot.venues.flatMap(\.opportunities).map(\.id)), ["one", "two", "same-venue"])
+        XCTAssertEqual(records.count, 4, "The online event stays available in List")
+    }
+
+    @MainActor
+    func testMapProjectionRefreshesChangedMetadataEvenWhenOpportunityIDIsUnchanged() async {
+        let projection = OpportunityMapPresentation()
+        let first = opportunity(id: "session", title: "Before", address: "1 College Street", latitude: 43.654, longitude: -79.384)
+        let updated = opportunity(id: "session", title: "Updated title", address: "2 College Street", latitude: 43.7, longitude: -79.4)
+        await projection.prepare([first]).value
+        let revision = projection.revision
+        await projection.prepare([updated]).value
+        XCTAssertGreaterThan(projection.revision, revision)
+        XCTAssertEqual(projection.snapshot.venues.first?.address, "2 College Street")
+        XCTAssertEqual(projection.snapshot.venues.first?.latitude, 43.7)
+        XCTAssertEqual(projection.snapshot.venues.first?.opportunities.first?.title, "Updated title")
+        await projection.prepare([]).value
+        XCTAssertTrue(projection.snapshot.venues.isEmpty)
+        XCTAssertEqual(projection.snapshot.mappedCount, 0)
+        XCTAssertNil(projection.snapshot.viewport)
+    }
+
+    @MainActor
+    func testMapProjectionCancelledOldFilterCannotReplaceNewerPins() async {
+        let gate = MapProjectionTestGate()
+        let projection = OpportunityMapPresentation(project: { records in
+            let prepared = OpportunityMapProjection.snapshot(from: records)
+            if records.first?.id == "old" { await gate.hold() }
+            return prepared
+        })
+        let old = opportunity(id: "old", title: "Old filter", address: "1 College Street", latitude: 43.654, longitude: -79.384)
+        let latest = opportunity(id: "latest", title: "Latest filter", address: "2 Main Street", latitude: 43.856, longitude: -79.337)
+        let oldTask = projection.prepare([old])
+        await gate.waitUntilStarted()
+        let latestTask = projection.prepare([latest])
+        await latestTask.value
+        XCTAssertEqual(projection.snapshot.venues.flatMap(\.opportunities).map(\.id), ["latest"])
+        let revision = projection.revision
+        await gate.release()
+        await oldTask.value
+        XCTAssertEqual(projection.revision, revision)
+        XCTAssertEqual(projection.snapshot.venues.flatMap(\.opportunities).map(\.id), ["latest"])
+        XCTAssertFalse(projection.isPreparing)
+    }
+
+    @MainActor
+    func testMapProjectionResumesOnlyInterruptedPreparationWithoutAnotherPublication() async {
+        let gate = MapProjectionTestGate()
+        let projection = OpportunityMapPresentation(project: { records in
+            let result = OpportunityMapProjection.snapshot(from: records)
+            await gate.hold()
+            return result
+        })
+        let row = opportunity(id: "session", title: "Current session", address: "1 College Street", latitude: 43.654, longitude: -79.384)
+        let interrupted = projection.prepare([row])
+        await gate.waitUntilStarted()
+        projection.cancel()
+        projection.cancel() // Repeated disappear must not forget the interrupted work.
+        await gate.release()
+        await interrupted.value
+        XCTAssertTrue(projection.snapshot.venues.isEmpty)
+        let resumed = projection.resumeIfInterrupted([row])
+        XCTAssertNotNil(resumed, "Returning must not depend on another store publication")
+        await resumed?.value
+        XCTAssertEqual(projection.snapshot.venues.flatMap(\.opportunities).map(\.id), ["session"])
+        XCTAssertNil(projection.resumeIfInterrupted([row]), "A completed projection must not restart on appearance")
+        projection.cancel()
+        XCTAssertNil(projection.resumeIfInterrupted([row]), "Leaving a completed map does not invalidate its cache")
+    }
+
+    @MainActor
+    func testNativeMapResetKeepsSelectionFocusedAndShowAllClearsItWithoutInterruptingPan() throws {
+        let first = opportunity(id: "toronto", title: "Toronto Lab", address: "1 College Street", latitude: 43.654, longitude: -79.384)
+        let second = opportunity(id: "markham", title: "Markham Lab", address: "2 Main Street", latitude: 43.856, longitude: -79.337)
+        let snapshot = OpportunityMapProjection.snapshot(from: [first, second])
+        let venue = try XCTUnwrap(snapshot.venues.first)
+        let overview = try XCTUnwrap(snapshot.viewport)
+        func presentation(reset: Int, selected: String?) -> ClusteredOpportunityMap {
+            ClusteredOpportunityMap(
+                snapshot: snapshot, revision: 1, resetRevision: reset,
+                selectedVenueID: .constant(selected), colorScheme: .light,
+                reduceMotion: true, language: .en,
+                venueTitle: { $0.address },
+                clusterTitle: { locations, events in "\(locations) locations, \(events) events" },
+                selectCoincidentVenues: { _ in }, clearCoincidentVenues: {}
+            )
+        }
+        let selected = presentation(reset: 0, selected: venue.id)
+        let coordinator = selected.makeCoordinator()
+        let map = MKMapView(frame: CGRect(x: 0, y: 0, width: 390, height: 340))
+        let configuration = MKStandardMapConfiguration(elevationStyle: .realistic)
+        configuration.pointOfInterestFilter = .excludingAll
+        map.preferredConfiguration = configuration
+        map.isPitchEnabled = true
+        map.isRotateEnabled = true
+        // MapKit may clamp requested pitch on this SDK/device. Measure the same
+        // selected camera directly, then require the coordinator to preserve it.
+        map.setCamera(MKMapCamera(lookingAtCenter: CLLocationCoordinate2D(latitude: venue.latitude, longitude: venue.longitude),
+                                  fromDistance: 2_400, pitch: 55, heading: -12), animated: false)
+        let supportedSelectedPitch = map.camera.pitch
+        XCTAssertGreaterThan(supportedSelectedPitch, 0)
+        XCTAssertLessThanOrEqual(supportedSelectedPitch, 55.01)
+        defer { map.removeAnnotations(map.annotations) }
+        coordinator.update(map)
+        XCTAssertEqual(map.camera.centerCoordinate.latitude, venue.latitude, accuracy: 0.001)
+        XCTAssertEqual(map.camera.centerCoordinate.longitude, venue.longitude, accuracy: 0.001)
+        XCTAssertEqual(map.camera.centerCoordinateDistance, 2_400, accuracy: 100)
+        XCTAssertEqual(map.camera.pitch, supportedSelectedPitch, accuracy: 0.01)
+
+        // A regular SwiftUI update must preserve the user's subsequent pan/tilt.
+        let panned = MKMapCamera(lookingAtCenter: CLLocationCoordinate2D(latitude: 43.7, longitude: -79.43),
+                                 fromDistance: 7_000, pitch: 20, heading: 0)
+        map.setCamera(panned, animated: false)
+        coordinator.update(map)
+        XCTAssertEqual(map.camera.centerCoordinate.latitude, 43.7, accuracy: 0.001)
+        XCTAssertEqual(map.camera.centerCoordinate.longitude, -79.43, accuracy: 0.001)
+        XCTAssertEqual(map.camera.centerCoordinateDistance, 7_000, accuracy: 100)
+        XCTAssertEqual(map.camera.pitch, 20, accuracy: 1)
+
+        // The selection is unchanged, but an overview reset invalidates its old focus.
+        coordinator.parent = presentation(reset: 1, selected: venue.id)
+        coordinator.update(map)
+        XCTAssertEqual(map.camera.centerCoordinate.latitude, venue.latitude, accuracy: 0.001)
+        XCTAssertEqual(map.camera.centerCoordinate.longitude, venue.longitude, accuracy: 0.001)
+        XCTAssertEqual(map.camera.centerCoordinateDistance, 2_400, accuracy: 100)
+        XCTAssertEqual(map.camera.pitch, supportedSelectedPitch, accuracy: 0.01)
+
+        coordinator.parent = presentation(reset: 2, selected: nil)
+        coordinator.update(map)
+        XCTAssertEqual(map.camera.centerCoordinate.latitude, overview.latitude, accuracy: 0.001)
+        XCTAssertEqual(map.camera.centerCoordinate.longitude, overview.longitude, accuracy: 0.001)
+        XCTAssertEqual(map.camera.centerCoordinateDistance, overview.distance, accuracy: 100)
+        XCTAssertTrue(map.selectedAnnotations.isEmpty, "Show all must clear the actual native selection")
+    }
+
+    func testMapCameraFollowsActualFilteredVenueExtent() throws {
+        let first = opportunity(id: "toronto", title: "Toronto Lab", address: "1 College Street", latitude: 43.654, longitude: -79.384)
+        let second = opportunity(id: "markham", title: "Markham Lab", address: "2 Main Street", latitude: 43.856, longitude: -79.337)
+        XCTAssertNil(OpportunityMapProjection.viewport(for: []))
+        let single = try XCTUnwrap(OpportunityMapProjection.viewport(for: OpportunityMapProjection.venues(from: [first])))
+        XCTAssertEqual(single.latitude, 43.654)
+        XCTAssertEqual(single.longitude, -79.384)
+        XCTAssertEqual(single.distance, 2_400)
+        XCTAssertEqual(single.pitch, 55)
+        let broad = try XCTUnwrap(OpportunityMapProjection.viewport(for: OpportunityMapProjection.venues(from: [first, second])))
+        XCTAssertEqual(broad.latitude, 43.755, accuracy: 0.000001)
+        XCTAssertEqual(broad.longitude, -79.3605, accuracy: 0.000001)
+        XCTAssertGreaterThan(broad.distance, single.distance)
+        XCTAssertEqual(broad.pitch, 35)
     }
 
     func testSearchSortsByRelevanceThenDate() {
@@ -1789,9 +3041,7 @@ final class APIClientTests: XCTestCase {
     }
 
     func testFeedStatusShowsTheDeclaredFreshnessDateInBothiOSSurfaces() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let content = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/ContentView.swift"))
         let browse = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/BrowseView.swift"))
 
@@ -1828,9 +3078,7 @@ final class APIClientTests: XCTestCase {
     }
 
     func testSwiftUIViewStringsUseLocalizationHelpers() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let sourceRoot = repoRoot.appendingPathComponent("GTAFreeSTEM")
         let swiftFiles = try FileManager.default.contentsOfDirectory(at: sourceRoot, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension == "swift" }
@@ -1872,10 +3120,32 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(violations.isEmpty, "Hardcoded visible SwiftUI strings must use session.text/AppText:\n\(violations.joined(separator: "\n"))")
     }
 
+    @MainActor
+    func testDetailPresentationRejectsVirtualPhysicalActionsAndUnprovenLanguageClaims() throws {
+        let physical = opportunity(id: "physical", title: "Physical event", address: "1 College Street", latitude: 43.654, longitude: -79.384)
+        let online = opportunity(id: "online", title: "Online event", address: "1 College Street", latitude: 43.654, longitude: -79.384, virtual: true)
+        let addressOnly = opportunity(id: "address-only", title: "Address event", address: "1 College Street")
+        XCTAssertTrue(OpportunityDetailView.canShowPhysicalMap(for: physical))
+        XCTAssertNotNil(OpportunityDetailView.directionsURL(for: physical, language: .en))
+        XCTAssertFalse(OpportunityDetailView.canShowPhysicalMap(for: online), "Valid coordinates must not turn a virtual event into a physical pin")
+        XCTAssertNil(OpportunityDetailView.directionsURL(for: online, language: .en))
+        XCTAssertFalse(OpportunityDetailView.canShowPhysicalMap(for: addressOnly))
+        XCTAssertNotNil(OpportunityDetailView.directionsURL(for: addressOnly, language: .en), "Real address fallback must remain available")
+        let source = try String(contentsOf: testRepositoryRoot.appendingPathComponent("GTAFreeSTEM/OpportunityDetailView.swift"))
+        XCTAssertFalse(source.contains("opportunity.language.map"), "Producer language defaults are not evidence of provider delivery languages")
+        XCTAssertTrue(source.contains("Text(session.fullDescription(for: opportunity))"), "The complete provider body must remain visible")
+    }
+
+    @MainActor
+    func testDiscoveryAgeGuideOmitsUnknownBoundsWithoutChangingGenuineRanges() {
+        XCTAssertNil(OpportunityRow.ageGuideRange(for: opportunity(id: "unknown", title: "Unknown age", ageMin: 0, ageMax: nil)))
+        XCTAssertEqual(OpportunityRow.ageGuideRange(for: opportunity(id: "bounded", title: "Bounded age", ageMin: 0, ageMax: 12)), "0–12")
+        XCTAssertEqual(OpportunityRow.ageGuideRange(for: opportunity(id: "adult", title: "Adult age", ageMin: 18, ageMax: nil)), "18+")
+        XCTAssertEqual(OpportunityRow.ageGuideRange(for: opportunity(id: "youth", title: "Youth age", ageMin: 10, ageMax: 18)), "10–18")
+    }
+
     func testOpportunityRowsExposeLocalizedOpenDetailsHint() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let browseView = repoRoot.appendingPathComponent("GTAFreeSTEM/BrowseView.swift")
         let contents = try String(contentsOf: browseView)
 
@@ -1885,10 +3155,37 @@ final class APIClientTests: XCTestCase {
         )
     }
 
+    func testEverySavedOrBrowseExtractOffersAnOriginalSourceAction() throws {
+        let repoRoot = testRepositoryRoot
+        let browseSource = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/BrowseView.swift"))
+        let savedSource = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/SavedView.swift"))
+        let watchSource = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEMWatch/GTAFreeSTEMWatchApp.swift"))
+
+        XCTAssertTrue(browseSource.contains("ExternalOpportunityURL.make(from: opportunity.sourceUrl)"))
+        XCTAssertTrue(browseSource.contains("Label(session.text(\"source\"), systemImage: \"arrow.up.right.square\")"))
+        XCTAssertTrue(savedSource.contains("ExternalOpportunityURL.make(from: opportunity.sourceUrl)"))
+        XCTAssertTrue(savedSource.contains("Label(session.text(\"source\"), systemImage: \"arrow.up.right.square\")"))
+        XCTAssertTrue(watchSource.contains("private struct WatchOriginalSourceLink: View"))
+        XCTAssertGreaterThanOrEqual(
+            watchSource.components(separatedBy: "WatchOriginalSourceLink(event:").count - 1,
+            3,
+            "Upcoming, additional, and archived Watch extracts each need a direct original-source action."
+        )
+        XCTAssertTrue(watchSource.contains("Link(destination: sourceURL)"))
+        let mapStart = try XCTUnwrap(browseSource.range(of: "private var opportunityMap"))
+        let mapEnd = try XCTUnwrap(browseSource.range(of: "private func venueTitle", range: mapStart.upperBound..<browseSource.endIndex))
+        let mapSource = String(browseSource[mapStart.lowerBound..<mapEnd.lowerBound])
+        XCTAssertTrue(
+            mapSource.contains("ClusteredOpportunityMap(") &&
+            mapSource.contains("selectedVenueID: $selectedVenueID") &&
+            mapSource.contains("ForEach(selected.opportunities)") &&
+            mapSource.contains("NavigationLink(value: opportunity)"),
+            "Native map venues must expose selected opportunity rows that open the source-linked detail view."
+        )
+    }
+
     func testMapExposesLocalizedVisibleResultCountForVoiceOver() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let browseView = repoRoot.appendingPathComponent("GTAFreeSTEM/BrowseView.swift")
         let contents = try String(contentsOf: browseView)
 
@@ -1904,15 +3201,77 @@ final class APIClientTests: XCTestCase {
         )
     }
 
+    func testBrowseEmptyStateHasWorkingResetAndRetryActions() throws {
+        let repoRoot = testRepositoryRoot
+        let browseSource = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/BrowseView.swift"))
+
+        XCTAssertTrue(browseSource.contains("Button(session.text(\"reset\"), action: resetEmptySearch)"))
+        XCTAssertTrue(browseSource.contains("Button(session.text(\"retry\"), action: retryEmptySearch)"))
+        XCTAssertTrue(browseSource.contains("store.query = \"\""))
+        XCTAssertTrue(browseSource.contains("store.resetFilters()"))
+        XCTAssertTrue(browseSource.contains("store.mode = surface.defaultMode"))
+        XCTAssertTrue(browseSource.contains("store.refresh(cache: persistenceContext, force: true)"))
+        XCTAssertTrue(browseSource.contains("if store.opportunities.isEmpty {\n            emptyOpportunityState"))
+        XCTAssertTrue(browseSource.contains("isActive: isLoading && !reduceMotion"))
+    }
+
+    func testChangingOpportunityStatusUsesAnnouncementsWithoutMovingVoiceOverFocus() throws {
+        let repoRoot = testRepositoryRoot
+        let contentSource = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/ContentView.swift"))
+
+        XCTAssertTrue(contentSource.contains("@Environment(\\.accessibilityVoiceOverEnabled)"))
+        XCTAssertTrue(contentSource.contains("AccessibilityNotification.Announcement(message).post()"))
+        XCTAssertTrue(contentSource.contains("case .loading"))
+        XCTAssertTrue(contentSource.contains("case let .error(message)"))
+        XCTAssertTrue(contentSource.contains("case let .offline(resultCount)"))
+        XCTAssertTrue(contentSource.contains("case let .results(count)"))
+        XCTAssertFalse(contentSource.contains("AccessibilityNotification.LayoutChanged"))
+        XCTAssertFalse(contentSource.contains("AccessibilityNotification.ScreenChanged"))
+        XCTAssertFalse(contentSource.contains("accessibilityFocused"))
+    }
+
+    func testHomeAlwaysOffersBrowseAndFeedbackAndGatesPathwayPromotionsByInventory() throws {
+        let repoRoot = testRepositoryRoot
+        let contentSource = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/ContentView.swift"))
+        let gridStart = try XCTUnwrap(contentSource.range(of: "private var pathwayGrid"))
+        let gridEnd = try XCTUnwrap(
+            contentSource.range(of: "private func pathwayRow", range: gridStart.lowerBound..<contentSource.endIndex)
+        )
+        let gridSource = String(contentSource[gridStart.lowerBound..<gridEnd.lowerBound])
+
+        XCTAssertTrue(contentSource.contains("Button(action: openResults)"))
+        XCTAssertTrue(gridSource.contains("pathwayRow(session.text(\"feedback\")"))
+        XCTAssertTrue(gridSource.contains("if store.availableHomePathwayModes.contains(.volunteer)"))
+        XCTAssertTrue(gridSource.contains("if store.availableHomePathwayModes.contains(.coop)"))
+        XCTAssertTrue(gridSource.contains("if store.availableHomePathwayModes.contains(.mentorship)"))
+        XCTAssertTrue(contentSource.contains("store.beginNewSearch"))
+        XCTAssertTrue(contentSource.contains("selectedTab = .opportunities"))
+        let homeStart = try XCTUnwrap(contentSource.range(of: "struct HomeView: View"))
+        let homeSource = String(contentSource[homeStart.lowerBound...])
+        XCTAssertFalse(homeSource.contains("TextField("), "Home is a topic-led landing page; editable search belongs in Browse")
+        XCTAssertTrue(homeSource.contains("store.homeTopics"))
+        XCTAssertTrue(homeSource.contains("store.savedSearches"))
+        XCTAssertTrue(homeSource.contains("store.openNamedSearch"))
+        XCTAssertTrue(homeSource.contains("Brand.contentCanvas"))
+        let browseSource = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/BrowseView.swift"))
+        XCTAssertTrue(browseSource.contains(".sheet(isPresented: $saveSearchPresented)"))
+        XCTAssertTrue(browseSource.contains("store.saveNamedSearch(name: name, updating: id)"))
+        XCTAssertTrue(browseSource.contains(".accessibilityIdentifier(\"confirm-save-search\")"))
+        XCTAssertTrue(browseSource.contains(".accessibilityIdentifier(\"saved-search-name\")"))
+        XCTAssertTrue(browseSource.contains(".dynamicTypeSize(dynamicTypeSize)"), "Save sheet must preserve the current accessibility text size")
+        let sheetStart = try XCTUnwrap(browseSource.range(of: "private struct SaveNamedSearchSheet"))
+        let sheetSource = String(browseSource[sheetStart.lowerBound...])
+        XCTAssertTrue(sheetSource.contains("Brand.contentCanvas(for: colorScheme)"))
+        XCTAssertFalse(sheetSource.contains("session.colorScheme ?? .light"), "System appearance must use the effective sheet environment")
+    }
+
     func testBackgroundRefreshUsesCacheContextAndNewMatchNotifications() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let appFile = repoRoot.appendingPathComponent("GTAFreeSTEM/GTAFreeSTEMApp.swift")
-        let appContents = try String(contentsOf: appFile)
+        let appContents = String(decoding: try Data(contentsOf: appFile), as: UTF8.self)
 
         XCTAssertTrue(appContents.contains(".backgroundTask(.appRefresh(Self.appRefreshIdentifier))"))
-        XCTAssertTrue(appContents.contains("let context = ModelContext(Self.sharedModelContainer)"))
+        XCTAssertTrue(appContents.contains("Self.modelContainerResolution.storageAccess.allowsPersistentChanges"))
         XCTAssertTrue(appContents.contains("await opportunities.refresh(cache: context, notifyOnNewMatches: true)"))
         XCTAssertTrue(appContents.contains("Self.scheduleAppRefresh()"))
 
@@ -1929,9 +3288,7 @@ final class APIClientTests: XCTestCase {
     }
 
     func testLaunchExperienceKeepsInteractiveContentOutOfHierarchyUntilFinished() throws {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repoRoot = testRepositoryRoot
         let appFile = repoRoot.appendingPathComponent("GTAFreeSTEM/GTAFreeSTEMApp.swift")
         let appContents = try String(contentsOf: appFile)
 
@@ -1957,6 +3314,7 @@ final class APIClientTests: XCTestCase {
         category: String = "Coding & Robotics",
         city: String = "Toronto",
         region: String = "Toronto",
+        address: String? = nil,
         latitude: Double? = nil,
         longitude: Double? = nil,
         startDate: String? = nil,
@@ -1970,9 +3328,12 @@ final class APIClientTests: XCTestCase {
         coopEligible: Bool = false,
         tags: [String] = [],
         isNewFind: Bool? = nil,
-        translations: [String: OpportunityTranslation] = [:]
+        translations: [String: OpportunityTranslation] = [:],
+        sourceURL: String? = nil,
+        virtual: Bool = false
     ) -> Opportunity {
-        Opportunity(
+        let resolvedSourceURL = sourceURL ?? "https://example.com/\(id)"
+        return Opportunity(
             id: id,
             title: title,
             organization: organization,
@@ -1981,7 +3342,7 @@ final class APIClientTests: XCTestCase {
             category: category,
             city: city,
             region: region,
-            address: nil,
+            address: address,
             latitude: latitude,
             longitude: longitude,
             startDate: startDate,
@@ -1991,8 +3352,8 @@ final class APIClientTests: XCTestCase {
             ageMax: ageMax,
             language: language,
             cost: "Free",
-            sourceUrl: "https://example.com/\(id)",
-            registrationUrl: nil,
+            sourceUrl: resolvedSourceURL,
+            registrationUrl: resolvedSourceURL,
             status: status,
             volunteerHoursEligible: volunteerHoursEligible,
             coopEligible: coopEligible,
@@ -2000,8 +3361,152 @@ final class APIClientTests: XCTestCase {
             distanceKm: nil,
             isNewFind: isNewFind,
             sourceConfidence: nil,
-            translations: translations
+            translations: translations,
+            virtual: virtual
         )
+    }
+
+    private func approvedProviderOpportunity(
+        id: String,
+        title: String,
+        description: String = "Free STEM program."
+    ) -> Opportunity {
+        opportunity(
+            id: id,
+            title: title,
+            organization: "Markham Public Library",
+            description: description,
+            sourceURL: "https://markham.bibliocommons.com/events/\(id)"
+        )
+    }
+
+    private func approvedProviderRightsSource(
+        records: Int,
+        termsVerifiedAt: String
+    ) -> OpportunityListResponse.ContentRights.Source {
+        .init(
+            organization: "Markham Public Library",
+            sourceHost: "markham.bibliocommons.com",
+            records: records,
+            status: "terms-permitted",
+            basisUrl: "https://markham.bibliocommons.com/info/terms/",
+            conditions: [
+                "Automated access uses the provider's RSS/XML event feed.",
+                "Every displayed extract links to its original BiblioCommons event page.",
+                "GTA FREE STEM is free and does not monetize provider content."
+            ],
+            termsVerifiedAt: termsVerifiedAt,
+            termsVersion: "2018-09-19",
+            termsDigestVersion: "bibliocommons-relevant-sections-v1",
+            termsSectionDigest: "sha256:451e63466c801166653f47336e236d05f9a50a3df45a917fa603e92bcd11c8a0"
+        )
+    }
+
+    func testPublicationRevisionRoundTripsAndRejectsInvalidRepresentations() throws {
+        let raw = try encodedFeed(id: "versioned", lastUpdated: "2026-08-20")
+        let base = try XCTUnwrap(JSONSerialization.jsonObject(with: raw) as? [String: Any])
+        for invalid in ["", "2026-08-20", "2026-08-20T20:00:00Z", 17, true, NSNull()] as [Any] {
+            var json = base
+            json["publicationRevision"] = invalid
+            XCTAssertThrowsError(try JSONDecoder().decode(OpportunityListResponse.self, from: JSONSerialization.data(withJSONObject: json)))
+        }
+        var json = base
+        json["publicationRevision"] = "2026-08-20T20:00:00.000Z"
+        let decoded = try JSONDecoder().decode(OpportunityListResponse.self, from: JSONSerialization.data(withJSONObject: json))
+        let encoded = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(decoded)) as? [String: Any])
+        XCTAssertEqual(encoded["publicationRevision"] as? String, "2026-08-20T20:00:00.000Z")
+        let clock = FeedFreshness.date(from: "2026-08-20T19:55:00Z")!
+        XCTAssertTrue(decoded.hasValidPublicationRevision(now: clock))
+        XCTAssertFalse(decoded.hasValidPublicationRevision(now: clock.addingTimeInterval(-0.001)))
+    }
+
+    func testRevisionMigrationKeepsImmutableTiesAndRejectsLegacyRollback() throws {
+        func response(_ revision: String?) throws -> OpportunityListResponse {
+            var json = try XCTUnwrap(JSONSerialization.jsonObject(with: encodedFeed(id: UUID().uuidString, lastUpdated: "2026-08-20")) as? [String: Any])
+            json["publicationRevision"] = revision
+            return try JSONDecoder().decode(OpportunityListResponse.self, from: JSONSerialization.data(withJSONObject: json))
+        }
+        let legacy = try response(nil)
+        let current = try response("2026-08-20T20:00:00.000Z")
+        let conflict = try response("2026-08-20T20:00:00.000Z")
+        XCTAssertTrue(OpportunityFeedSelection.isOlder(legacy, than: current))
+        XCTAssertTrue(OpportunityFeedSelection.isOlder(conflict, than: current))
+        XCTAssertFalse(OpportunityFeedSelection.isOlder(current, than: legacy))
+        XCTAssertTrue(OpportunityFeedSelection.shouldPrefer(current, over: legacy))
+        XCTAssertFalse(OpportunityFeedSelection.shouldPrefer(conflict, over: current))
+        XCTAssertFalse(OpportunityFeedSelection.isOlder(legacy, than: try response(nil)))
+    }
+
+    func testOwnerPermissionPinsConfirmationAndScope() throws {
+        let bundleURL = try XCTUnwrap(AppResources.url(forResource: "opportunities", withExtension: "json"))
+        let base = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: bundleURL)) as? [String: Any])
+        let clock = try bundledSnapshotTestNow()
+        for (key, value) in [("confirmationID", "invented" as Any), ("confirmedAt", "2026-10-26" as Any), ("scope", ["display-event-listings"] as Any)] {
+            var json = base
+            var rights = try XCTUnwrap(json["contentRights"] as? [String: Any])
+            var sources = try XCTUnwrap(rights["sources"] as? [[String: Any]])
+            var permission = try XCTUnwrap(sources[0]["ownerPermission"] as? [String: Any])
+            permission[key] = value
+            sources[0]["ownerPermission"] = permission
+            rights["sources"] = sources
+            json["contentRights"] = rights
+            let response = try JSONDecoder().decode(OpportunityListResponse.self, from: JSONSerialization.data(withJSONObject: json))
+            XCTAssertFalse(response.hasReleaseReadyContentRights(now: clock))
+        }
+    }
+
+    func testActualFullDescriptionTranslationSurvivesFeedSearchAndProjection() async throws {
+        URLProtocolStub.reset()
+        defer { URLProtocolStub.reset() }
+        let url = URL(string: "https://primary.example/full-translation.json")!
+        let english = "Build a robot, program its motors, and test it on a maze."
+        let french = "Construisez un robot, programmez ses moteurs et testez-le dans un labyrinthe."
+        let complete = OpportunityTranslation(title: "Atelier de robotique", description: french)
+        let merged = OpportunityTranslation(summary: "Programmez un robot.").merged(with: complete)
+        XCTAssertEqual(merged.description, french)
+        XCTAssertEqual(merged.title, "Atelier de robotique")
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: encodedFeed(id: "actual-full-translation", lastUpdated: "2026-08-20")) as? [String: Any])
+        var rows = try XCTUnwrap(json["data"] as? [[String: Any]])
+        rows[0]["description"] = english
+        rows[0]["translations"] = ["fr": ["title": "Atelier de robotique", "summary": "Programmez un robot.", "description": french]]
+        json["data"] = rows
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: try JSONSerialization.data(withJSONObject: json))
+        let client = APIClient(feedURL: url, session: makeURLSessionForStub(), now: { FeedFreshness.date(from: "2026-08-20T12:00:00Z")! })
+        let response = try await client.opportunityFeed()
+        let filtered = LocalOpportunitySnapshot.filter(response.data, query: "labyrinthe", mode: .all, filters: OpportunityFilters(), displayLanguage: .fr, now: FeedFreshness.date(from: "2026-08-20T12:00:00Z")!)
+        XCTAssertEqual(filtered.map(\.id), ["actual-full-translation"])
+        XCTAssertEqual(filtered.first?.localizedDescription(language: .fr), french)
+        XCTAssertEqual(filtered.first?.description, english)
+    }
+
+    func testFuturePublicationRevisionUsesValidFallback() async throws {
+        URLProtocolStub.reset()
+        defer { URLProtocolStub.reset() }
+        let primary = URL(string: "https://primary.example/future-revision.json")!
+        let mirror = URL(string: "https://mirror.example/future-revision.json")!
+        let clock = FeedFreshness.date(from: "2026-08-20T12:00:00Z")!
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: encodedFeed(id: "future", lastUpdated: "2026-08-20")) as? [String: Any])
+        json["publicationRevision"] = "2026-08-20T12:05:00.001Z"
+        URLProtocolStub.register(responseFor: primary, statusCode: 200, body: try JSONSerialization.data(withJSONObject: json))
+        URLProtocolStub.register(responseFor: mirror, statusCode: 200, body: try encodedFeed(id: "safe-fallback", lastUpdated: "2026-08-20"))
+        let response = try await APIClient(feedURL: primary, fallbackFeedURLs: [mirror], session: makeURLSessionForStub(), now: { clock }).opportunityFeed()
+        XCTAssertEqual(response.data.map(\.id), ["safe-fallback"])
+    }
+
+    private func legacyRights(for response: OpportunityListResponse) throws -> OpportunityListResponse.ContentRights {
+        let rights = try XCTUnwrap(response.contentRights)
+        let conditions = ["Automated access uses the provider's RSS/XML event feed.", "Every displayed extract links to its original BiblioCommons event page.", "GTA FREE STEM is free and does not monetize provider content."]
+        let sources = rights.sources.map { source in
+            OpportunityListResponse.ContentRights.Source(
+                organization: source.organization, sourceHost: source.sourceHost, records: source.records,
+                status: "terms-permitted", basisUrl: "https://\(source.sourceHost)/info/terms/", conditions: conditions,
+                termsVerifiedAt: rights.termsVerifiedAt, termsVersion: "2018-09-19", termsDigestVersion: "bibliocommons-relevant-sections-v1",
+                termsSectionDigest: source.sourceHost == "tpl.bibliocommons.com"
+                    ? "sha256:c9b14cbd531afa09533e844274bb9f07f8042883e12b5a3990be3100ca5d4b43"
+                    : "sha256:451e63466c801166653f47336e236d05f9a50a3df45a917fa603e92bcd11c8a0"
+            )
+        }
+        return OpportunityListResponse.ContentRights(termsVerifiedAt: rights.termsVerifiedAt, sources: sources, restrictedOpportunityIDs: rights.restrictedOpportunityIDs)
     }
 
     private func encodedFeed(id: String, lastUpdated: String?) throws -> Data {
@@ -2014,14 +3519,25 @@ final class APIClientTests: XCTestCase {
         sourceHealthStatus: String = "healthy",
         minimumAcceptedListings: Int = 1
     ) throws -> Data {
-        try JSONEncoder().encode(
+        let rightsTimestamp = lastUpdated ?? currentFeedTimestamp()
+        return try JSONEncoder().encode(
             OpportunityListResponse(
-                data: ids.map { opportunity(id: $0, title: $0) },
+                data: ids.map { approvedProviderOpportunity(id: $0, title: $0) },
                 meta: OpportunityListResponse.Metadata(activeCount: ids.count, lastUpdated: lastUpdated),
                 sourceHealth: sourceHealth(
                     publishedCount: ids.count,
                     status: sourceHealthStatus,
                     minimumAcceptedListings: minimumAcceptedListings
+                ),
+                contentRights: OpportunityListResponse.ContentRights(
+                    termsVerifiedAt: rightsTimestamp,
+                    sources: [
+                        approvedProviderRightsSource(
+                            records: ids.count,
+                            termsVerifiedAt: rightsTimestamp
+                        )
+                    ],
+                    restrictedOpportunityIDs: []
                 )
             )
         )
@@ -2101,6 +3617,102 @@ final class OpportunityStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testForcedConcurrentRefreshFailurePreservesResultsAndAllowsRetry() async throws {
+        let suiteName = "GTAFreeSTEMTests.ForcedFailure.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let bundled = try LocalOpportunitySnapshot.loadFull()
+        let now = try bundledSnapshotTestNow()
+        let feedURL = URL(string: "https://example.com/forced-refresh.json")!
+        let store = OpportunityStore(
+            api: APIClient(feedURL: feedURL, session: makeURLSessionForStub(), now: { now }),
+            defaults: defaults,
+            now: { now }
+        )
+        _ = await store.prepareInitialSnapshot(cache: nil)
+        let retainedIDs = store.opportunities.map(\.id)
+        XCTAssertFalse(retainedIDs.isEmpty)
+        URLProtocolStub.register(responseFor: feedURL, errorCode: .notConnectedToInternet, holdResponse: true)
+
+        let first = Task { @MainActor in await store.refresh(cache: nil, force: true) }
+        for _ in 0..<100 where URLProtocolStub.requestCount == 0 {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertEqual(URLProtocolStub.requestCount, 1)
+        let overlapFinished = expectation(description: "An overlapping forced refresh returns without a second request")
+        let overlap = Task { @MainActor in
+            await store.refresh(cache: nil, force: true)
+            overlapFinished.fulfill()
+        }
+        let overlapWait = await XCTWaiter.fulfillment(of: [overlapFinished], timeout: 2)
+        // Always release: a broken overlap gate must fail, rather than deadlock the test.
+        URLProtocolStub.releaseResponse(for: feedURL)
+        await first.value
+        await overlap.value
+
+        XCTAssertEqual(overlapWait, .completed)
+        XCTAssertEqual(URLProtocolStub.requestCount, 1, "Forced calls must exercise the overlap guard, not the time throttle.")
+        XCTAssertEqual(store.opportunities.map(\.id), retainedIDs)
+        XCTAssertEqual(store.huntPhase, .offline)
+        XCTAssertFalse(store.isLoading)
+
+        URLProtocolStub.register(
+            responseFor: feedURL,
+            statusCode: 200,
+            body: Data(makeOpportunitiesJSON([
+                opportunity(id: "recovered", title: "Recovered", organization: "Library", category: "STEM", city: "Toronto")
+            ], lastUpdated: now).utf8)
+        )
+        await store.refresh(cache: nil, force: true)
+
+        XCTAssertEqual(URLProtocolStub.requestCount, 2)
+        XCTAssertEqual(store.opportunities.map(\.id), ["recovered"])
+        XCTAssertEqual(store.huntPhase, .fresh)
+        XCTAssertFalse(store.isLoading)
+    }
+
+    @MainActor
+    func testFailedRefreshCannotReplaceNewerMemoryWithOlderDiskCache() async throws {
+        let suiteName = "GTAFreeSTEMTests.CacheRollback.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let bundled = try LocalOpportunitySnapshot.loadFull()
+        let bundleDate = try XCTUnwrap(FeedFreshness.date(from: bundled.meta?.lastUpdated))
+        let now = bundleDate.addingTimeInterval(2 * 86_400)
+        let feedURL = URL(string: "https://example.com/cache-rollback.json")!
+        let context = try makeInMemoryContext()
+        let older = opportunity(id: "older-disk", title: "Older Disk", organization: "Library", category: "STEM", city: "Toronto")
+        let retained = opportunity(id: "newer-memory", title: "Newer Memory", organization: "Library", category: "STEM", city: "Toronto")
+        context.insert(OpportunityCacheRecord(
+            cacheKey: "latest-opportunities",
+            payload: Data(makeOpportunitiesJSON([older], lastUpdated: bundleDate.addingTimeInterval(86_400)).utf8)
+        ))
+        context.insert(try SavedOpportunityRecord(opportunity: retained))
+        try context.save()
+        let store = OpportunityStore(
+            api: APIClient(feedURL: feedURL, session: makeURLSessionForStub(), now: { now }),
+            defaults: defaults,
+            now: { now }
+        )
+        URLProtocolStub.register(responseFor: feedURL, statusCode: 200, body: Data(makeOpportunitiesJSON([retained], lastUpdated: now).utf8))
+        // A successful refresh without persistence leaves the disk snapshot older.
+        await store.refresh(cache: nil, force: true)
+        XCTAssertEqual(store.opportunities.map(\.id), [retained.id])
+        let liveTimestamp = store.lastUpdated
+
+        URLProtocolStub.register(responseFor: feedURL, errorCode: .timedOut)
+        store.query = "Newer"
+        await store.refresh(cache: context, force: true)
+
+        XCTAssertEqual(store.opportunities.map(\.id), [retained.id])
+        XCTAssertEqual(store.lastUpdated, liveTimestamp)
+        XCTAssertEqual(store.huntPhase, .offline)
+        XCTAssertFalse(store.isLoading)
+        let saved = try context.fetch(FetchDescriptor<SavedOpportunityRecord>())
+        XCTAssertEqual(saved.first?.opportunity?.status, "active")
+    }
+
+    @MainActor
     func testRapidSequentialRefreshReFiltersCurrentResultsWithoutASecondNetworkCall() async throws {
         let feedURL = URL(string: "https://gta-free-stem.vercel.app/opportunities.json")!
         let session = makeURLSessionForStub()
@@ -2164,6 +3776,203 @@ final class OpportunityStoreTests: XCTestCase {
         XCTAssertEqual(secondStore.newMatchesCount, 0)
     }
 
+    @MainActor
+    func testFilteredRefreshRetainsFullFeedIDsSoChangingHuntDoesNotCreateFalseNewMatches() async throws {
+        let suiteName = "GTAFreeSTEMTests.FilteredKnownIDs.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let feedURL = URL(string: "https://gta-free-stem.vercel.app/opportunities.json")!
+        let session = makeURLSessionForStub()
+        let client = APIClient(feedURL: feedURL, session: session)
+        let payload = makeOpportunitiesJSON([
+            opportunity(id: "alpha", title: "Alpha Lab", organization: "STEM Club", category: "Coding & Robotics", city: "Toronto"),
+            opportunity(id: "beta", title: "Beta Lab", organization: "STEM Club", category: "Coding & Robotics", city: "Toronto")
+        ]).data(using: .utf8)!
+        URLProtocolStub.register(responseFor: feedURL, statusCode: 200, body: payload)
+
+        let alphaStore = OpportunityStore(api: client, defaults: defaults)
+        alphaStore.query = "Alpha"
+        await alphaStore.refresh(cache: nil)
+
+        XCTAssertEqual(alphaStore.opportunities.map(\.id), ["alpha"])
+        XCTAssertEqual(alphaStore.newMatchesCount, 1)
+        XCTAssertEqual(Set(defaults.stringArray(forKey: "knownOpportunityIDs") ?? []), ["alpha", "beta"])
+
+        let betaStore = OpportunityStore(api: client, defaults: defaults)
+        betaStore.query = "Beta"
+        await betaStore.refresh(cache: nil)
+
+        XCTAssertEqual(betaStore.opportunities.map(\.id), ["beta"])
+        XCTAssertEqual(betaStore.newMatchesCount, 0)
+    }
+
+    @MainActor
+    func testInitialSnapshotSeedsKnownIDsBeforeBackgroundRefresh() async throws {
+        let now = try bundledSnapshotTestNow()
+        let suiteName = "GTAFreeSTEMTests.InitialKnownIDBaseline.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let bundledFeed = try LocalOpportunitySnapshot.loadFull()
+        let retainedOpportunity = try XCTUnwrap(bundledFeed.data.first)
+        let feedURL = URL(string: "https://gta-free-stem.vercel.app/opportunities.json")!
+        let session = makeURLSessionForStub()
+        let delivery = NewMatchNotificationDeliveryStub(outcomes: [true])
+        let store = OpportunityStore(
+            api: APIClient(feedURL: feedURL, session: session, now: { now }),
+            defaults: defaults,
+            notificationDelivery: delivery,
+            now: { now }
+        )
+        URLProtocolStub.register(
+            responseFor: feedURL,
+            statusCode: 200,
+            body: Data(makeOpportunitiesJSON([retainedOpportunity], lastUpdated: now).utf8)
+        )
+
+        let prepared = await store.prepareInitialSnapshot(cache: nil)
+
+        XCTAssertTrue(prepared)
+        XCTAssertTrue(defaults.stringArray(forKey: "knownOpportunityIDs")?.contains(retainedOpportunity.id) == true)
+
+        await store.refresh(cache: nil, notifyOnNewMatches: true)
+
+        let deliveryCount = await delivery.deliveryCount()
+        XCTAssertEqual(store.newMatchesCount, 0)
+        XCTAssertEqual(deliveryCount, 0)
+        XCTAssertNil(defaults.object(forKey: "lastNewOpportunityNotificationAt"))
+    }
+
+    @MainActor
+    func testBackgroundOnlyLaunchSeedsTrustedBaselineBeforeNotifying() async throws {
+        let now = try bundledSnapshotTestNow()
+        let suiteName = "GTAFreeSTEMTests.BackgroundOnlyKnownIDBaseline.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let bundledFeed = try LocalOpportunitySnapshot.loadFull()
+        let retainedOpportunity = try XCTUnwrap(bundledFeed.data.first)
+        let feedURL = URL(string: "https://gta-free-stem.vercel.app/opportunities.json")!
+        let session = makeURLSessionForStub()
+        let delivery = NewMatchNotificationDeliveryStub(outcomes: [true])
+        let store = OpportunityStore(
+            api: APIClient(feedURL: feedURL, session: session, now: { now }),
+            defaults: defaults,
+            notificationDelivery: delivery,
+            now: { now }
+        )
+        URLProtocolStub.register(
+            responseFor: feedURL,
+            statusCode: 200,
+            body: Data(makeOpportunitiesJSON([retainedOpportunity], lastUpdated: now).utf8)
+        )
+
+        // Model the system launching only the BGAppRefresh task: no WindowGroup
+        // task or prepareInitialSnapshot call runs before the live request.
+        await store.refresh(cache: nil, notifyOnNewMatches: true)
+
+        let deliveryCount = await delivery.deliveryCount()
+        XCTAssertEqual(store.newMatchesCount, 0)
+        XCTAssertEqual(deliveryCount, 0)
+        XCTAssertNil(defaults.object(forKey: "lastNewOpportunityNotificationAt"))
+        XCTAssertTrue(defaults.stringArray(forKey: "knownOpportunityIDs")?.contains(retainedOpportunity.id) == true)
+    }
+
+    @MainActor
+    func testBackgroundOnlyLaunchStillNotifiesForItemNewerThanTrustedBaseline() async throws {
+        let now = try bundledSnapshotTestNow()
+        let suiteName = "GTAFreeSTEMTests.BackgroundOnlyNewMatch.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let bundledFeed = try LocalOpportunitySnapshot.loadFull()
+        let retainedOpportunity = try XCTUnwrap(bundledFeed.data.first)
+        let newOpportunity = opportunity(
+            id: "newer-than-bundled-baseline",
+            title: "New Public Lab",
+            organization: "STEM Club",
+            category: "Coding & Robotics",
+            city: "Toronto"
+        )
+        let feedURL = URL(string: "https://gta-free-stem.vercel.app/opportunities.json")!
+        let session = makeURLSessionForStub()
+        let delivery = NewMatchNotificationDeliveryStub(outcomes: [true])
+        let store = OpportunityStore(
+            api: APIClient(feedURL: feedURL, session: session, now: { now }),
+            defaults: defaults,
+            notificationDelivery: delivery,
+            now: { now }
+        )
+        URLProtocolStub.register(
+            responseFor: feedURL,
+            statusCode: 200,
+            body: Data(makeOpportunitiesJSON([retainedOpportunity, newOpportunity], lastUpdated: now).utf8)
+        )
+
+        await store.refresh(cache: nil, notifyOnNewMatches: true)
+
+        let deliveryCount = await delivery.deliveryCount()
+        XCTAssertEqual(store.newMatchesCount, 1)
+        XCTAssertEqual(deliveryCount, 1)
+        XCTAssertNotNil(defaults.object(forKey: "lastNewOpportunityNotificationAt"))
+    }
+
+    @MainActor
+    func testNotificationThrottleIsRecordedOnlyAfterSuccessfulDelivery() async throws {
+        let suiteName = "GTAFreeSTEMTests.NotificationThrottle.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set(["known-baseline"], forKey: "knownOpportunityIDs")
+
+        let feedURL = URL(string: "https://gta-free-stem.vercel.app/opportunities.json")!
+        let session = makeURLSessionForStub()
+        let delivery = NewMatchNotificationDeliveryStub(outcomes: [false, true, true])
+        let store = OpportunityStore(
+            api: APIClient(feedURL: feedURL, session: session),
+            defaults: defaults,
+            notificationDelivery: delivery
+        )
+
+        URLProtocolStub.register(
+            responseFor: feedURL,
+            statusCode: 200,
+            body: Data(makeOpportunitiesJSON([
+                opportunity(id: "first-new", title: "First New", organization: "STEM Club", category: "Coding & Robotics", city: "Toronto")
+            ]).utf8)
+        )
+        await store.refresh(cache: nil, notifyOnNewMatches: true)
+
+        var deliveryCount = await delivery.deliveryCount()
+        XCTAssertEqual(deliveryCount, 1)
+        XCTAssertNil(defaults.object(forKey: "lastNewOpportunityNotificationAt"))
+
+        URLProtocolStub.register(
+            responseFor: feedURL,
+            statusCode: 200,
+            body: Data(makeOpportunitiesJSON([
+                opportunity(id: "second-new", title: "Second New", organization: "STEM Club", category: "Coding & Robotics", city: "Toronto")
+            ]).utf8)
+        )
+        await store.refresh(cache: nil, notifyOnNewMatches: true, force: true)
+
+        deliveryCount = await delivery.deliveryCount()
+        XCTAssertEqual(deliveryCount, 2)
+        XCTAssertNotNil(defaults.object(forKey: "lastNewOpportunityNotificationAt") as? TimeInterval)
+
+        URLProtocolStub.register(
+            responseFor: feedURL,
+            statusCode: 200,
+            body: Data(makeOpportunitiesJSON([
+                opportunity(id: "third-new", title: "Third New", organization: "STEM Club", category: "Coding & Robotics", city: "Toronto")
+            ]).utf8)
+        )
+        await store.refresh(cache: nil, notifyOnNewMatches: true, force: true)
+
+        deliveryCount = await delivery.deliveryCount()
+        XCTAssertEqual(deliveryCount, 2)
+    }
+
     func testKnownIDRetentionKeepsCurrentFeedStableBeyondHistoryCap() {
         let historical = (0..<2_600).map { "historical-\($0)" }
         let current = ["current-a", "current-b"]
@@ -2186,6 +3995,7 @@ final class OpportunityStoreTests: XCTestCase {
 
     @MainActor
     func testNewerBundledFeedReplacesOlderPersistedCacheAfterAppUpdate() async throws {
+        let now = try bundledSnapshotTestNow()
         let context = try makeInMemoryContext()
         let oldCache = OpportunityListResponse(
             data: [
@@ -2207,10 +4017,11 @@ final class OpportunityStoreTests: XCTestCase {
         )
         try context.save()
 
-        let store = OpportunityStore(api: APIClient())
+        let store = OpportunityStore(api: APIClient(now: { now }), now: { now })
         let prepared = await store.prepareInitialSnapshot(cache: context)
 
         XCTAssertTrue(prepared)
+        XCTAssertFalse(store.opportunities.isEmpty)
         XCTAssertFalse(store.opportunities.contains { $0.id == "old-cache-only" })
         XCTAssertEqual(store.dataSourceLabel, .previewDatabase)
     }
@@ -2247,6 +4058,139 @@ final class OpportunityStoreTests: XCTestCase {
         XCTAssertTrue(prepared)
         XCTAssertEqual(store.opportunities.map(\.id), ["newer-cache"])
         XCTAssertEqual(store.dataSourceLabel, .savedAppCache)
+    }
+
+    func testSameDayPublicationOrderRejectsLaggingMirrorAndAcceptsCorrection() throws {
+        func revised(_ id: String, _ revision: String) throws -> OpportunityListResponse {
+            let row = opportunity(id: id, title: id, organization: "Markham Public Library", category: "STEM", city: "Markham")
+            let data = Data(makeOpportunitiesJSON([row], lastUpdated: FeedFreshness.date(from: "2026-08-20")!).utf8)
+            var json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            json["publicationRevision"] = revision
+            return try JSONDecoder().decode(OpportunityListResponse.self, from: JSONSerialization.data(withJSONObject: json))
+        }
+        let old = try revised("old-mirror", "2026-08-20T16:26:56.721Z")
+        let current = try revised("current-program", "2026-08-20T20:55:11.491Z")
+        XCTAssertTrue(OpportunityFeedSelection.isOlder(old, than: current))
+        XCTAssertFalse(OpportunityFeedSelection.isOlder(current, than: old))
+        XCTAssertTrue(OpportunityFeedSelection.shouldPrefer(current, over: old))
+        XCTAssertFalse(OpportunityFeedSelection.shouldPrefer(old, over: current))
+    }
+
+    @MainActor
+    func testIdenticalPublicationRefreshRecordsOnlineSuccessWithoutRewritingFeed() async throws {
+        let context = try makeInMemoryContext()
+        let clock = try bundledSnapshotTestNow()
+        let url = URL(string: "https://primary.example/identical.json")!
+        let bundleURL = try XCTUnwrap(AppResources.url(forResource: "opportunities", withExtension: "json"))
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: try Data(contentsOf: bundleURL))
+        let store = OpportunityStore(api: APIClient(feedURL: url, session: makeURLSessionForStub(), now: { clock }), now: { clock })
+        _ = await store.prepareInitialSnapshot(cache: context)
+        let accepted = store.opportunities
+        XCTAssertNil(store.lastSuccessfulHuntAt)
+        await store.refresh(cache: context, force: true)
+        XCTAssertEqual(store.opportunities, accepted)
+        XCTAssertEqual(store.lastSuccessfulHuntAt, clock)
+        XCTAssertEqual(store.dataSourceLabel, .publicLiveFeed)
+        XCTAssertEqual(store.huntPhase, .fresh)
+        XCTAssertNil(store.errorMessage)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<OpportunityCacheRecord>()).isEmpty)
+    }
+
+    @MainActor
+    func testConflictingEqualPublicationNeverClaimsIdenticalOnlineSuccess() async throws {
+        let context = try makeInMemoryContext()
+        let clock = try bundledSnapshotTestNow()
+        let url = URL(string: "https://primary.example/conflicting.json")!
+        let bundleURL = try XCTUnwrap(AppResources.url(forResource: "opportunities", withExtension: "json"))
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: bundleURL)) as? [String: Any])
+        var rows = try XCTUnwrap(json["opportunities"] as? [[String: Any]])
+        rows[0]["title"] = "Conflicting equal revision body"
+        json["opportunities"] = rows
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: try JSONSerialization.data(withJSONObject: json))
+        let store = OpportunityStore(api: APIClient(feedURL: url, session: makeURLSessionForStub(), now: { clock }), now: { clock })
+        _ = await store.prepareInitialSnapshot(cache: context)
+        let accepted = store.opportunities
+        await store.refresh(cache: context, force: true)
+        XCTAssertEqual(store.opportunities, accepted)
+        XCTAssertNil(store.lastSuccessfulHuntAt)
+        XCTAssertEqual(store.dataSourceLabel, .previewDatabase)
+        XCTAssertEqual(store.huntPhase, .cached)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<OpportunityCacheRecord>()).isEmpty)
+    }
+
+    @MainActor
+    func testFuturePublicationInPersistedCacheCannotPinTheStore() async throws {
+        let context = try makeInMemoryContext()
+        let clock = try bundledSnapshotTestNow()
+        let row = opportunity(id: "poisoned-future", title: "Future cache", organization: "Markham Public Library", category: "STEM", city: "Markham")
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(makeOpportunitiesJSON([row], lastUpdated: clock).utf8)) as? [String: Any])
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        json["publicationRevision"] = formatter.string(from: clock.addingTimeInterval(86400))
+        context.insert(OpportunityCacheRecord(cacheKey: "latest-opportunities", payload: try JSONSerialization.data(withJSONObject: json)))
+        try context.save()
+        let store = OpportunityStore(api: APIClient(), now: { clock })
+        let prepared = await store.prepareInitialSnapshot(cache: context)
+        XCTAssertTrue(prepared)
+        XCTAssertFalse(store.opportunities.contains { $0.id == "poisoned-future" })
+        XCTAssertFalse(store.opportunities.isEmpty)
+        XCTAssertEqual(store.dataSourceLabel, .previewDatabase)
+    }
+
+    @MainActor
+    func testOlderLiveFeedCannotReplaceNewerRetainedFeedOrRemoveSavedEvents() async throws {
+        let context = try makeInMemoryContext()
+        let retainedSaved = opportunity(
+            id: "retained-newer-saved",
+            title: "Retained Newer Saved Event",
+            organization: "Current Source",
+            category: "Science & Engineering",
+            city: "Toronto"
+        )
+        context.insert(try SavedOpportunityRecord(opportunity: retainedSaved))
+        try context.save()
+
+        let bundled = try LocalOpportunitySnapshot.loadFull()
+        let bundledDate = try XCTUnwrap(FeedFreshness.date(from: bundled.meta?.lastUpdated))
+        let now = try bundledSnapshotTestNow()
+        let expectedBundledIDs = LocalOpportunitySnapshot.filter(
+            bundled.data, query: "", mode: .all, filters: OpportunityFilters(), now: now
+        ).map(\.id)
+        XCTAssertFalse(expectedBundledIDs.isEmpty)
+        let olderLive = opportunity(
+            id: "older-live-only",
+            title: "Older Live Event",
+            organization: "Old Source",
+            category: "Coding & Robotics",
+            city: "Toronto"
+        )
+        let feedURL = URL(string: "https://gta-free-stem.vercel.app/opportunities.json")!
+        URLProtocolStub.register(
+            responseFor: feedURL,
+            statusCode: 200,
+            body: Data(
+                makeOpportunitiesJSON(
+                    [olderLive],
+                    lastUpdated: bundledDate.addingTimeInterval(-86_400)
+                ).utf8
+            )
+        )
+        let store = OpportunityStore(
+            api: APIClient(feedURL: feedURL, session: makeURLSessionForStub(), now: { now }),
+            now: { now }
+        )
+
+        let prepared = await store.prepareInitialSnapshot(cache: context)
+        XCTAssertTrue(prepared)
+        await store.refresh(cache: context, force: true)
+
+        XCTAssertEqual(store.opportunities.map(\.id), expectedBundledIDs,
+                       "An older live feed must preserve every currently available result from the newer full feed")
+        XCTAssertFalse(store.opportunities.contains { $0.id == "older-live-only" })
+        XCTAssertEqual(store.dataSourceLabel, .previewDatabase)
+        XCTAssertEqual(store.huntPhase, .cached)
+        let saved = try context.fetch(FetchDescriptor<SavedOpportunityRecord>())
+        XCTAssertEqual(saved.first { $0.opportunityID == retainedSaved.id }?.opportunity?.status, "active")
     }
 
     @MainActor
@@ -2332,10 +4276,11 @@ final class OpportunityStoreTests: XCTestCase {
 
     @MainActor
     func testRefreshFallsBackToCachedResponse() async throws {
+        let now = try bundledSnapshotTestNow()
         let feedURL = URL(string: "https://gta-free-stem.vercel.app/opportunities.json")!
         let session = makeURLSessionForStub()
-        let client = APIClient(feedURL: feedURL, session: session)
-        let store = OpportunityStore(api: client)
+        let client = APIClient(feedURL: feedURL, session: session, now: { now })
+        let store = OpportunityStore(api: client, now: { now })
         let context = try makeInMemoryContext()
 
         let cached = OpportunityListResponse(
@@ -2350,7 +4295,7 @@ final class OpportunityStoreTests: XCTestCase {
             ],
             meta: OpportunityListResponse.Metadata(
                 activeCount: 1,
-                lastUpdated: ISO8601DateFormatter().string(from: .now)
+                lastUpdated: ISO8601DateFormatter().string(from: now)
             )
         )
         let payload = try JSONEncoder().encode(cached)
@@ -2372,10 +4317,11 @@ final class OpportunityStoreTests: XCTestCase {
 
     @MainActor
     func testFreshEmptyFeedFallsBackToCachedResponse() async throws {
+        let now = try bundledSnapshotTestNow().addingTimeInterval(2 * 86_400)
         let feedURL = URL(string: "https://gta-free-stem.vercel.app/opportunities.json")!
         let session = makeURLSessionForStub()
-        let client = APIClient(feedURL: feedURL, session: session)
-        let store = OpportunityStore(api: client)
+        let client = APIClient(feedURL: feedURL, session: session, now: { now })
+        let store = OpportunityStore(api: client, now: { now })
         let context = try makeInMemoryContext()
         let bundled = try LocalOpportunitySnapshot.loadFull()
         let bundledDate = try XCTUnwrap(FeedFreshness.date(from: bundled.meta?.lastUpdated))
@@ -2399,7 +4345,7 @@ final class OpportunityStoreTests: XCTestCase {
         try context.save()
 
         let emptyPayload = """
-        {"count":0,"lastDataChange":"\(ISO8601DateFormatter().string(from: .now))","opportunities":[]}
+        {"count":0,"lastDataChange":"\(ISO8601DateFormatter().string(from: now))","opportunities":[]}
         """.data(using: .utf8)!
         URLProtocolStub.register(responseFor: feedURL, statusCode: 200, body: emptyPayload)
 
@@ -2456,10 +4402,11 @@ final class OpportunityStoreTests: XCTestCase {
 
     @MainActor
     func testBootstrapShowsBundledSnapshotBeforeSlowLiveRefreshCompletes() async throws {
+        let now = try bundledSnapshotTestNow()
         let feedURL = URL(string: "https://gta-free-stem.vercel.app/opportunities.json")!
         let session = makeURLSessionForStub()
-        let client = APIClient(feedURL: feedURL, session: session)
-        let store = OpportunityStore(api: client)
+        let client = APIClient(feedURL: feedURL, session: session, now: { now })
+        let store = OpportunityStore(api: client, now: { now })
         let live = opportunity(
             id: "slow-live-result",
             title: "Slow Live Result",
@@ -2471,23 +4418,38 @@ final class OpportunityStoreTests: XCTestCase {
         URLProtocolStub.register(
             responseFor: feedURL,
             statusCode: 200,
-            body: Data(makeOpportunitiesJSON([live]).utf8),
-            // The bundle is deliberately decoded off the main actor. Give the
-            // test a genuinely slow source so it validates the intended state
-            // rather than racing against simulator disk and decoder speed.
-            delaySeconds: 3.0
+            body: Data(makeOpportunitiesJSON([live], lastUpdated: now).utf8),
+            holdResponse: true
         )
 
+        // Observe publication, not simulator decode speed. Hold the live source
+        // until the bundled state has actually been asserted; elapsed sleeps can
+        // miss that state entirely on a busy runner.
+        let bundledReady = expectation(description: "Bootstrap publishes bundled results before the held live response")
+        let observation = store.$dataSourceLabel
+            .filter { $0 == .previewDatabase }
+            .first()
+            .sink { _ in bundledReady.fulfill() }
+        defer {
+            observation.cancel()
+            URLProtocolStub.releaseResponse(for: feedURL)
+        }
         let bootstrap = Task { @MainActor in
             await store.bootstrap(cache: nil)
         }
-        for _ in 0..<48 where store.opportunities.isEmpty {
-            try await Task.sleep(nanoseconds: 50_000_000)
-        }
+        await fulfillment(of: [bundledReady], timeout: 10)
 
         XCTAssertGreaterThan(store.opportunities.count, 0)
         XCTAssertEqual(store.dataSourceLabel, .previewDatabase)
+        let expectedBundledIDs = LocalOpportunitySnapshot.filter(
+            try LocalOpportunitySnapshot.loadFull().data,
+            query: "", mode: .all, filters: OpportunityFilters(), now: now
+        ).map(\.id)
+        XCTAssertEqual(store.opportunities.map(\.id), expectedBundledIDs)
+        XCTAssertFalse(store.opportunities.contains { $0.id == live.id })
+        XCTAssertEqual(URLProtocolStub.deliveredBytes(for: feedURL), 0)
 
+        URLProtocolStub.releaseResponse(for: feedURL)
         await bootstrap.value
         XCTAssertEqual(store.opportunities.map(\.id), ["slow-live-result"])
         XCTAssertEqual(store.dataSourceLabel, .publicLiveFeed)
@@ -2495,9 +4457,10 @@ final class OpportunityStoreTests: XCTestCase {
 
     @MainActor
     func testPrepareInitialSnapshotMakesBundledResultsUsableWithoutNetwork() async throws {
+        let now = try bundledSnapshotTestNow()
         let feedURL = URL(string: "https://gta-free-stem.vercel.app/opportunities.json")!
         let session = makeURLSessionForStub()
-        let store = OpportunityStore(api: APIClient(feedURL: feedURL, session: session))
+        let store = OpportunityStore(api: APIClient(feedURL: feedURL, session: session, now: { now }), now: { now })
 
         let prepared = await store.prepareInitialSnapshot(cache: nil)
 
@@ -2507,20 +4470,88 @@ final class OpportunityStoreTests: XCTestCase {
         XCTAssertEqual(store.huntPhase, .cached)
         XCTAssertNil(store.errorMessage)
         XCTAssertEqual(URLProtocolStub.requestCount, 0)
+        XCTAssertEqual(store.availableHomePathwayModes, [.volunteer])
+        let volunteerRows = LocalOpportunitySnapshot.filter(store.opportunities, query: "", mode: .volunteer, filters: OpportunityFilters(), now: now)
+        XCTAssertEqual(volunteerRows.map(\.id), ["tpl-rss-6ac92852295b3b0033cb1160"])
+    }
+
+    @MainActor
+    func testPublishedHomePathwayInventoryUsesRetainedFullFeed() async throws {
+        let feedURL = URL(string: "https://gta-free-stem.vercel.app/opportunities.json")!
+        let store = OpportunityStore(
+            api: APIClient(feedURL: feedURL, session: makeURLSessionForStub())
+        )
+        let feed = [
+            opportunity(
+                id: "volunteer-pathway",
+                title: "Community Hours Lab",
+                organization: "Community Hub",
+                category: "Volunteer Hours",
+                city: "Toronto",
+                volunteerHoursEligible: true
+            ),
+            opportunity(
+                id: "coop-pathway",
+                title: "Student Placement Lab",
+                organization: "Community Hub",
+                category: "Co-op & SHSM",
+                city: "Toronto",
+                coopEligible: true
+            ),
+            opportunity(
+                id: "mentorship-pathway",
+                title: "Youth Mentor Lab",
+                organization: "Community Hub",
+                category: "Career & Mentorship",
+                city: "Toronto",
+                tags: ["mentor"]
+            ),
+            opportunity(
+                id: "adult-mentor",
+                title: "Adult Mentor Workshop",
+                organization: "Community Hub",
+                category: "Career & Mentorship",
+                city: "Toronto",
+                ageMin: 18,
+                ageMax: nil,
+                tags: ["mentor"]
+            )
+        ]
+        URLProtocolStub.register(
+            responseFor: feedURL,
+            statusCode: 200,
+            body: Data(makeOpportunitiesJSON(feed).utf8)
+        )
+
+        await store.refresh(cache: nil)
+
+        XCTAssertEqual(store.availableHomePathwayModes, [.volunteer, .coop, .mentorship])
+
+        store.query = "no retained record matches this hunt"
+        await store.refresh(cache: nil)
+
+        XCTAssertTrue(store.opportunities.isEmpty)
+        XCTAssertEqual(
+            store.availableHomePathwayModes,
+            [.volunteer, .coop, .mentorship],
+            "Home inventory must describe the retained published feed, not the current query's result subset."
+        )
     }
 
     @MainActor
     func testSearchUsesBundledFullFeedWhileLiveRefreshIsInFlight() async throws {
+        let now = try bundledSnapshotTestNow()
         let feedURL = URL(string: "https://gta-free-stem.vercel.app/opportunities.json")!
         let session = makeURLSessionForStub()
-        let client = APIClient(feedURL: feedURL, session: session)
-        let store = OpportunityStore(api: client)
+        let client = APIClient(feedURL: feedURL, session: session, now: { now })
+        let store = OpportunityStore(api: client, now: { now })
         let bundledFeed = try LocalOpportunitySnapshot.loadFull()
         let initiallyVisible = LocalOpportunitySnapshot.filter(
             bundledFeed.data,
             query: "",
             mode: .all,
-            filters: OpportunityFilters()
+            filters: OpportunityFilters(),
+            now: now
         )
         let searchableOpportunity = try XCTUnwrap(initiallyVisible.first)
         let live = opportunity(
@@ -2534,8 +4565,8 @@ final class OpportunityStoreTests: XCTestCase {
         URLProtocolStub.register(
             responseFor: feedURL,
             statusCode: 200,
-            body: Data(makeOpportunitiesJSON([live]).utf8),
-            delaySeconds: 0.70
+            body: Data(makeOpportunitiesJSON([live], lastUpdated: now).utf8),
+            holdResponse: true
         )
 
         // This matches the real launch contract: GTAFreeSTEMApp prepares the
@@ -2547,6 +4578,7 @@ final class OpportunityStoreTests: XCTestCase {
         let liveRefresh = Task { @MainActor in
             await store.refresh(cache: nil)
         }
+        defer { URLProtocolStub.releaseResponse(for: feedURL) }
         try await Task.sleep(nanoseconds: 50_000_000)
         XCTAssertTrue(store.isLoading)
 
@@ -2555,7 +4587,8 @@ final class OpportunityStoreTests: XCTestCase {
             bundledFeed.data,
             query: store.query,
             mode: store.mode,
-            filters: store.filters
+            filters: store.filters,
+            now: now
         ).map(\.id)
         await store.refresh(cache: nil)
 
@@ -2563,6 +4596,7 @@ final class OpportunityStoreTests: XCTestCase {
         XCTAssertEqual(store.dataSourceLabel, .previewDatabase)
         XCTAssertTrue(store.isLoading)
 
+        URLProtocolStub.releaseResponse(for: feedURL)
         await liveRefresh.value
         XCTAssertEqual(URLProtocolStub.requestCount, 1)
         XCTAssertFalse(store.isLoading)
@@ -2570,10 +4604,11 @@ final class OpportunityStoreTests: XCTestCase {
 
     @MainActor
     func testRefreshFallsBackToBundledSnapshotWithoutCache() async throws {
+        let now = try bundledSnapshotTestNow()
         let feedURL = URL(string: "https://gta-free-stem.vercel.app/opportunities.json")!
         let session = makeURLSessionForStub()
-        let client = APIClient(feedURL: feedURL, session: session)
-        let store = OpportunityStore(api: client)
+        let client = APIClient(feedURL: feedURL, session: session, now: { now })
+        let store = OpportunityStore(api: client, now: { now })
 
         URLProtocolStub.register(
             responseFor: feedURL,
@@ -2587,6 +4622,351 @@ final class OpportunityStoreTests: XCTestCase {
         XCTAssertEqual(store.dataSourceLabel, DataSource.previewDatabase)
         XCTAssertEqual(store.huntPhase, .offline)
         XCTAssertNil(store.errorMessage)
+    }
+
+    @MainActor
+    func testLocalFilterPreviewKeepsLatestPresetAndNeverFetchesOrOverwritesSaves() async throws {
+        let suite = "LocalPreview.\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let now = Date()
+        let url = URL(string: "https://named.example/local-preview.json")!
+        let store = OpportunityStore(api: APIClient(feedURL: url, session: makeURLSessionForStub(), now: { now }), defaults: defaults, now: { now })
+        let rows = ["Toronto", "Markham"].map { city in
+            opportunity(id: city, title: "Robotics", organization: "Library", category: "Coding & Robotics", city: city)
+        }
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON(rows, lastUpdated: now).utf8))
+        await store.refresh()
+        for city in ["Toronto", "Markham"] {
+            store.filters.city = city
+            let saved = await store.saveNamedSearch(name: city)
+            XCTAssertTrue(saved)
+        }
+        let saved = store.savedSearches
+        let requests = URLProtocolStub.requestCount
+        let bytes = defaults.data(forKey: OpportunityStore.namedSearchesKey)
+        let gate = MapProjectionTestGate()
+        store.localPreviewCommitGate = { await gate.hold() }
+        let older = Task { @MainActor in await store.openNamedSearch(saved[0].id, acknowledge: false) }
+        await gate.waitUntilStarted()
+        let latest = await store.openNamedSearch(saved[1].id, acknowledge: false)
+        XCTAssertTrue(latest)
+        XCTAssertEqual(store.opportunities.map(\.id), ["Markham"])
+        await gate.release()
+        let stale = await older.value
+        XCTAssertFalse(stale)
+        XCTAssertEqual(store.activeSavedSearchID, saved[1].id)
+        XCTAssertEqual(store.opportunities.map(\.id), ["Markham"])
+        store.filters.city = "Toronto"
+        await store.previewCurrentFilters()
+        XCTAssertEqual(store.activeSavedSearchID, saved[1].id, "Manual modifications keep the preset available for explicit Update")
+        XCTAssertEqual(store.opportunities.map(\.id), ["Toronto"])
+        store.clearActiveSavedSearch()
+        store.filters = OpportunityFilters()
+        await store.previewCurrentFilters()
+        XCTAssertNil(store.activeSavedSearchID)
+        XCTAssertEqual(Set(store.opportunities.map(\.id)), Set(rows.map(\.id)))
+        XCTAssertEqual(store.savedSearches, saved)
+        XCTAssertEqual(defaults.data(forKey: OpportunityStore.namedSearchesKey), bytes)
+        XCTAssertEqual(URLProtocolStub.requestCount, requests)
+    }
+
+    @MainActor
+    func testCancelledLocalFilterPreviewCannotPublish() async throws {
+        let now = Date()
+        let url = URL(string: "https://named.example/cancel-preview.json")!
+        let suite = "CancelledPreview.\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = OpportunityStore(api: APIClient(feedURL: url, session: makeURLSessionForStub(), now: { now }), defaults: defaults, now: { now })
+        let row = opportunity(id: "retained", title: "Robotics", organization: "Library", category: "Coding & Robotics", city: "Toronto")
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([row], lastUpdated: now).utf8))
+        await store.refresh()
+        let requests = URLProtocolStub.requestCount
+        let gate = MapProjectionTestGate()
+        store.localPreviewCommitGate = { await gate.hold() }
+        store.filters.city = "Markham"
+        let preview = Task { @MainActor in await store.previewCurrentFilters() }
+        await gate.waitUntilStarted()
+        preview.cancel()
+        await gate.release()
+        await preview.value
+        XCTAssertEqual(store.opportunities.map(\.id), ["retained"])
+        XCTAssertEqual(URLProtocolStub.requestCount, requests)
+    }
+
+    @MainActor
+    func testOpeningLegacyLanguagePresetNormalizesAppliedControlsWithoutRewritingSave() async throws {
+        let suite = "LegacyLanguagePreview.\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var criteria = NamedSearchCriteria(query: "Robotics", mode: .all, filters: OpportunityFilters())
+        criteria.filters.city = "Toronto"
+        criteria.filters.language = "ja"
+        let saved = NamedSavedSearch(id: UUID(), name: "Legacy", criteria: criteria)
+        let bytes = try JSONEncoder().encode(NamedSearchArchive(searches: [saved]))
+        defaults.set(bytes, forKey: OpportunityStore.namedSearchesKey)
+        let now = Date()
+        let url = URL(string: "https://named.example/legacy-preview.json")!
+        let row = opportunity(id: "legacy-match", title: "Robotics", organization: "Library", category: "Coding & Robotics", city: "Toronto")
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([row], lastUpdated: now).utf8))
+        let store = OpportunityStore(api: APIClient(feedURL: url, session: makeURLSessionForStub(), now: { now }), defaults: defaults, now: { now })
+        await store.refresh()
+        let retained = store.savedSearches
+        let retainedBytes = defaults.data(forKey: OpportunityStore.namedSearchesKey)
+        let opened = await store.openNamedSearch(saved.id, acknowledge: false)
+        XCTAssertTrue(opened)
+        XCTAssertEqual(store.query, "Robotics")
+        XCTAssertEqual(store.filters.city, "Toronto")
+        XCTAssertEqual(store.filters.language, "all")
+        XCTAssertEqual(store.activeSavedSearchID, saved.id)
+        XCTAssertEqual(store.opportunities.map(\.id), ["legacy-match"])
+        XCTAssertEqual(store.savedSearches, retained)
+        XCTAssertEqual(store.savedSearches[0].criteria.filters.language, "ja")
+        XCTAssertEqual(defaults.data(forKey: OpportunityStore.namedSearchesKey), retainedBytes)
+    }
+
+    @MainActor
+    func testNamedSearchesKeepThreeAgesNamesAndExplicitEditsAcrossRelaunch() async throws {
+        let defaults = UserDefaults(suiteName: "NamedSearch.\(UUID())")!
+        let now = Date()
+        let url = URL(string: "https://named.example/catalog.json")!
+        let client = APIClient(feedURL: url, session: makeURLSessionForStub(), now: { now })
+        let store = OpportunityStore(api: client, defaults: defaults, now: { now })
+        let rows = [4, 10, 16].map { age in opportunity(id: "age-\(age)", title: "Robotics", organization: "Library", category: "Coding & Robotics", city: "Toronto", ageMin: age, ageMax: age) }
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON(rows, lastUpdated: now).utf8))
+        await store.refresh()
+        for age in [4, 10, 16] {
+            store.filters.age = "\(age)"
+            store.filters.city = "Toronto"
+            store.filters.category = "Coding & Robotics"
+            store.query = "Robotics"
+            let saved = await store.saveNamedSearch(name: "My choice \(age)")
+            XCTAssertTrue(saved)
+        }
+        XCTAssertEqual(store.savedSearches.count, 3)
+        XCTAssertEqual(store.savedSearches.map(\.matchedCount), [1, 1, 1])
+        XCTAssertTrue(store.savedSearches.allSatisfy { $0.hasBaseline && $0.unreadIDs.isEmpty })
+        let original = store.savedSearches
+        let restored = OpportunityStore(api: client, defaults: defaults, now: { now })
+        XCTAssertEqual(restored.savedSearches, original)
+        let opened = await restored.openNamedSearch(original[0].id)
+        XCTAssertTrue(opened)
+        XCTAssertEqual(restored.filters.age, "4")
+        XCTAssertEqual(restored.filters.city, "Toronto")
+        XCTAssertEqual(restored.filters.category, "Coding & Robotics")
+        XCTAssertEqual(restored.query, "Robotics")
+        restored.filters.age = "16"
+        XCTAssertEqual(restored.savedSearches[0].criteria.filters.age, "4", "Editing Browse does not autosave a named search")
+        let updated = await restored.saveNamedSearch(name: "Changed explicitly", updating: original[0].id)
+        XCTAssertTrue(updated)
+        XCTAssertEqual(restored.savedSearches[0].criteria.filters.age, "16")
+        XCTAssertEqual(restored.savedSearches[1], original[1])
+        XCTAssertEqual(restored.savedSearches[2], original[2])
+        let deleted = await restored.deleteNamedSearch(original[1].id)
+        XCTAssertTrue(deleted)
+        XCTAssertEqual(OpportunityStore(api: client, defaults: defaults).savedSearches.map(\.id), [original[0].id, original[2].id])
+    }
+
+    @MainActor
+    func testNamedSearchNewIDsPersistOnceAndPruneUnreadWithoutForgettingHistory() async throws {
+        let defaults = UserDefaults(suiteName: "NamedUpdates.\(UUID())")!
+        let now = Date()
+        let url = URL(string: "https://named.example/updates.json")!
+        let client = APIClient(feedURL: url, session: makeURLSessionForStub(), now: { now })
+        func rows(_ ids: [String]) -> [Opportunity] { ids.map { opportunity(id: $0, title: "Lab \($0)", organization: "Library", category: "Coding & Robotics", city: "Toronto") } }
+        func register(_ ids: [String], revision: Int) {
+            URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON(rows(ids), lastUpdated: now.addingTimeInterval(Double(revision) - 60)).utf8))
+        }
+        let store = OpportunityStore(api: client, defaults: defaults, now: { now })
+        register(["A", "B"], revision: 0)
+        await store.refresh()
+        let saved = await store.saveNamedSearch(name: "Libraries")
+        XCTAssertTrue(saved)
+        let id = try XCTUnwrap(store.savedSearches.first?.id)
+        XCTAssertEqual(store.savedSearches[0].unreadIDs, [])
+        register(["A", "B", "C"], revision: 1)
+        await store.refresh(force: true)
+        XCTAssertEqual(store.savedSearches[0].unreadIDs, ["C"])
+        let restored = OpportunityStore(api: client, defaults: defaults, now: { now })
+        await restored.refresh()
+        XCTAssertEqual(restored.savedSearches[0].unreadIDs, ["C"], "Restart and unchanged refresh cannot recount or acknowledge C")
+        let beforeFailure = restored.savedSearches
+        URLProtocolStub.register(responseFor: url, errorCode: .notConnectedToInternet)
+        await restored.refresh(force: true)
+        XCTAssertEqual(restored.savedSearches, beforeFailure, "A failed refresh cannot reset the saved baseline or unread IDs")
+        register(["A", "B", "C"], revision: 1)
+        await restored.markNamedSearchRead(id)
+        await restored.refresh(force: true)
+        XCTAssertEqual(restored.savedSearches[0].unreadIDs, [])
+        register(["A", "B", "C", "D"], revision: 2)
+        await restored.refresh(force: true)
+        XCTAssertEqual(restored.savedSearches[0].unreadIDs, ["D"])
+        register(["A", "B"], revision: 3)
+        await restored.refresh(force: true)
+        XCTAssertEqual(restored.savedSearches[0].unreadIDs, [])
+        register(["A", "B", "C", "D"], revision: 4)
+        await restored.refresh(force: true)
+        XCTAssertEqual(restored.savedSearches[0].unreadIDs, [], "A returning known ID is not new")
+        XCTAssertTrue(restored.savedSearches[0].knownIDs.isSuperset(of: ["C", "D"]))
+        let opened = await restored.openNamedSearch(id)
+        XCTAssertTrue(opened)
+        XCTAssertEqual(OpportunityStore(api: client, defaults: defaults).savedSearches[0].unreadIDs, [])
+    }
+
+    @MainActor
+    func testNamedSearchPreviewWaitsForQuietHealthyBaselineIncludingZeroMatches() async throws {
+        let defaults = UserDefaults(suiteName: "NamedPending.\(UUID())")!
+        let now = Date()
+        let url = URL(string: "https://named.example/pending.json")!
+        let client = APIClient(feedURL: url, session: makeURLSessionForStub(), now: { now })
+        let store = OpportunityStore(api: client, defaults: defaults, now: { now })
+        _ = await store.prepareScreenshotSnapshot()
+        store.filters.age = "4"
+        let saved = await store.saveNamedSearch(name: "Age choice")
+        XCTAssertTrue(saved)
+        XCTAssertFalse(store.savedSearches[0].hasBaseline)
+        XCTAssertNil(store.savedSearches[0].matchedCount)
+        let adult = opportunity(id: "adult", title: "Adult", organization: "Library", category: "Science & Engineering", city: "Toronto", ageMin: 18, ageMax: nil)
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([adult], lastUpdated: now.addingTimeInterval(-60)).utf8))
+        await store.refresh()
+        XCTAssertTrue(store.savedSearches[0].hasBaseline)
+        XCTAssertEqual(store.savedSearches[0].matchedCount, 0)
+        XCTAssertTrue(store.savedSearches[0].unreadIDs.isEmpty)
+        let child = opportunity(id: "new-four", title: "Four", organization: "Library", category: "Science & Engineering", city: "Toronto", ageMin: 4, ageMax: 4)
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([adult, child], lastUpdated: now.addingTimeInterval(-59)).utf8))
+        await store.refresh(force: true)
+        XCTAssertEqual(store.savedSearches[0].unreadIDs, [child.id])
+        let updated = await store.saveNamedSearch(name: "Explicit rebase", updating: store.savedSearches[0].id)
+        XCTAssertTrue(updated)
+        XCTAssertTrue(store.savedSearches[0].unreadIDs.isEmpty)
+    }
+
+    func testNamedSearchRejectsEmptyPartialStaleAndRestrictedMatchUpdates() throws {
+        let now = Date()
+        let a = opportunity(id: "A", title: "Lab", organization: "Library", category: "Coding & Robotics", city: "Toronto")
+        let healthy = try JSONDecoder().decode(OpportunityListResponse.self, from: Data(makeOpportunitiesJSON([a], lastUpdated: now).utf8))
+        let search = NamedSavedSearch(id: UUID(), name: "Lab", criteria: .init(query: "", mode: .all, filters: OpportunityFilters()), knownIDs: ["old"], unreadIDs: ["old"], matchedCount: 1, hasBaseline: true, checkedAt: now, publicationDate: FeedFreshness.date(from: healthy.meta?.lastUpdated))
+        let partial = OpportunityListResponse(data: [a], meta: healthy.meta)
+        let empty = OpportunityListResponse(data: [], meta: healthy.meta, sourceHealth: healthy.sourceHealth)
+        let stale = try JSONDecoder().decode(OpportunityListResponse.self, from: Data(makeOpportunitiesJSON([a], lastUpdated: now.addingTimeInterval(-86_400)).utf8))
+        for rejected in [partial, empty, stale] {
+            XCTAssertEqual(NamedSearchMatching.reconcile([search], with: rejected, language: .en, now: now), [search])
+        }
+        let accepted = NamedSearchMatching.reconcile([search], with: healthy, language: .en, now: now)
+        XCTAssertEqual(accepted[0].unreadIDs, ["A"])
+        XCTAssertTrue(accepted[0].knownIDs.contains("old"))
+        let restricted = OpportunityListResponse(data: healthy.data, meta: healthy.meta, sourceHealth: healthy.sourceHealth,
+            contentRights: .init(termsVerifiedAt: ISO8601DateFormatter().string(from: now), sources: [], restrictedOpportunityIDs: ["A"]), publicationRevision: healthy.publicationRevision)
+        let pruned = NamedSearchMatching.reconcile(accepted, with: restricted, language: .en, now: now)
+        XCTAssertTrue(pruned[0].unreadIDs.isEmpty)
+        XCTAssertTrue(pruned[0].knownIDs.contains("A"))
+        let b = opportunity(id: "B", title: "Allowed lab", organization: "Library", category: "Coding & Robotics", city: "Toronto")
+        let allowedFeed = try JSONDecoder().decode(OpportunityListResponse.self, from: Data(makeOpportunitiesJSON([a, b], lastUpdated: now).utf8))
+        let restrictedWithAllowed = OpportunityListResponse(data: allowedFeed.data, meta: allowedFeed.meta, sourceHealth: allowedFeed.sourceHealth,
+            contentRights: .init(termsVerifiedAt: ISO8601DateFormatter().string(from: now), sources: [], restrictedOpportunityIDs: ["A"]), publicationRevision: allowedFeed.publicationRevision)
+        let onlyAllowedNew = NamedSearchMatching.reconcile(accepted, with: restrictedWithAllowed, language: .en, now: now)
+        XCTAssertEqual(onlyAllowedNew[0].unreadIDs, ["B"], "Restricted A must be pruned while allowed B is genuinely new")
+        XCTAssertTrue(onlyAllowedNew[0].knownIDs.contains("A"))
+    }
+
+    @MainActor
+    func testNamedSearchDeleteEditAndReadWinAgainstSuspendedReconciliation() async throws {
+        for operation in ["delete", "edit", "read"] {
+            let defaults = UserDefaults(suiteName: "NamedRace.\(UUID())")!
+            let now = Date()
+            let url = URL(string: "https://named.example/race.json")!
+            let client = APIClient(feedURL: url, session: makeURLSessionForStub(), now: { now })
+            let store = OpportunityStore(api: client, defaults: defaults, now: { now })
+            let a = opportunity(id: "A", title: "Lab", organization: "Library", category: "Coding & Robotics", city: "Toronto")
+            URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([a], lastUpdated: now).utf8))
+            await store.refresh()
+            let saved = await store.saveNamedSearch(name: "Original")
+            XCTAssertTrue(saved)
+            let id = store.savedSearches[0].id
+            let b = opportunity(id: "B", title: "Another lab", organization: "Library", category: "Coding & Robotics", city: "Toronto")
+            URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([a, b], lastUpdated: now).utf8))
+            // Start from a real persisted unread set, then suspend reconciliation
+            // before its CAS commit to exercise read/edit/delete winning the race.
+            let baseline = store.savedSearches[0]
+            var seeded = baseline
+            seeded.knownIDs.insert("B"); seeded.unreadIDs.insert("B")
+            defaults.set(try JSONEncoder().encode(NamedSearchArchive(searches: [seeded])), forKey: OpportunityStore.namedSearchesKey)
+            let raceStore = OpportunityStore(api: client, defaults: defaults, now: { now })
+            await raceStore.refresh()
+            XCTAssertEqual(raceStore.savedSearches[0].unreadIDs, ["B"])
+            let arrived = expectation(description: "\(operation) reaches reconciliation commit boundary")
+            var continuation: CheckedContinuation<Void, Never>?
+            var released = false
+            var reachedGate = false
+            var forceCompleted = false
+            let requestsBeforeForce = URLProtocolStub.requestCount(for: url)
+            @MainActor func traceRace(_ stage: String) {
+                let values: [String: Any] = [
+                    "operation": operation, "stage": stage,
+                    "isLoading": raceStore.isLoading,
+                    "requestDelta": URLProtocolStub.requestCount(for: url) - requestsBeforeForce,
+                    "forceCompleted": forceCompleted, "reachedGate": reachedGate,
+                    "phase": String(describing: raceStore.huntPhase),
+                    "source": String(describing: raceStore.dataSourceLabel),
+                    "error": raceStore.errorMessage ?? "none"
+                ]
+                if let data = try? JSONSerialization.data(withJSONObject: values, options: [.sortedKeys]),
+                   let line = String(data: data, encoding: .utf8) {
+                    FileHandle.standardOutput.write(Data(("GTA_RACE_DIAGNOSTIC " + line + "\n").utf8))
+                }
+            }
+            XCTAssertFalse(raceStore.isLoading, "The forced reconciliation must start from an idle store")
+            traceRace("before-force")
+            raceStore.namedSearchReconciliationGate = {
+                guard !released else { return }
+                reachedGate = true
+                traceRace("gate-arrived")
+                arrived.fulfill()
+                await withCheckedContinuation { continuation = $0 }
+            }
+            let refresh = Task { @MainActor in
+                await raceStore.refresh(force: true)
+                forceCompleted = true
+                traceRace("force-returned")
+            }
+            await fulfillment(of: [arrived], timeout: 10)
+            traceRace("after-gate-wait")
+            if operation == "delete" { let deleted = await raceStore.deleteNamedSearch(id); XCTAssertTrue(deleted) }
+            if operation == "edit" {
+                raceStore.filters.age = "4"
+                let updated = await raceStore.saveNamedSearch(name: "Edited", updating: id)
+                XCTAssertTrue(updated)
+            }
+            if operation == "read" { await raceStore.markNamedSearchRead(id) }
+            released = true
+            continuation?.resume()
+            await refresh.value
+            raceStore.namedSearchReconciliationGate = nil
+            if operation == "delete" { XCTAssertTrue(raceStore.savedSearches.isEmpty) }
+            if operation == "edit" { XCTAssertEqual(raceStore.savedSearches[0].name, "Edited"); XCTAssertEqual(raceStore.savedSearches[0].criteria.filters.age, "4") }
+            if operation == "read" { XCTAssertTrue(raceStore.savedSearches[0].unreadIDs.isEmpty) }
+        }
+    }
+
+    @MainActor
+    func testNamedSearchCorruptArchiveAndCollectionLimitNeverOverwritePersonalBytes() async throws {
+        let defaults = UserDefaults(suiteName: "NamedBounds.\(UUID())")!
+        let future = Data("{\"version\":2,\"searches\":[]}".utf8)
+        defaults.set(future, forKey: OpportunityStore.namedSearchesKey)
+        let blocked = OpportunityStore(api: APIClient(), defaults: defaults)
+        let rejected = await blocked.saveNamedSearch(name: "Do not overwrite")
+        XCTAssertFalse(rejected)
+        XCTAssertEqual(defaults.data(forKey: OpportunityStore.namedSearchesKey), future)
+        XCTAssertNotNil(blocked.savedSearchError)
+        defaults.removeObject(forKey: OpportunityStore.namedSearchesKey)
+        let store = OpportunityStore(api: APIClient(), defaults: defaults)
+        for index in 0..<16 { let saved = await store.saveNamedSearch(name: "Search \(index)"); XCTAssertTrue(saved) }
+        let before = defaults.data(forKey: OpportunityStore.namedSearchesKey)
+        let overflow = await store.saveNamedSearch(name: "One too many")
+        XCTAssertFalse(overflow)
+        XCTAssertEqual(store.savedSearches.count, 16)
+        XCTAssertEqual(defaults.data(forKey: OpportunityStore.namedSearchesKey), before)
     }
 
     @MainActor
@@ -2645,7 +5025,7 @@ final class OpportunityStoreTests: XCTestCase {
                     language: ["es"],
                     cost: "Free",
                     sourceUrl: "https://example.com/restored",
-                    registrationUrl: nil,
+                    registrationUrl: "https://example.com/restored",
                     status: "active",
                     volunteerHoursEligible: true,
                     coopEligible: true,
@@ -2659,14 +5039,49 @@ final class OpportunityStoreTests: XCTestCase {
 
         await store.refresh(cache: context)
 
+        XCTAssertEqual(try context.fetch(FetchDescriptor<SavedHuntRecord>()).first?.language, "all")
+
         let restoredStore = OpportunityStore(api: client)
         await restoredStore.restoreLastHuntIfNeeded(in: context)
 
         XCTAssertEqual(restoredStore.query, "leadership")
         XCTAssertEqual(restoredStore.mode, .mentorship)
+        filters.language = "all"
         XCTAssertEqual(restoredStore.filters, filters)
         XCTAssertEqual(restoredStore.opportunities.map(\.id), ["restored"])
         XCTAssertEqual(restoredStore.dataSourceLabel, DataSource.savedAppCache)
+    }
+
+    @MainActor
+    func testLegacyProgramLanguageRestoresNeutralWithoutChangingDisplayLanguageOrOtherFilters() async throws {
+        let context = try makeInMemoryContext()
+        let suite = "GTA-language-migration-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let displaySession = SessionStore(defaults: defaults, preferredLanguages: ["ja"])
+        var filters = OpportunityFilters()
+        filters.city = "Toronto"
+        filters.category = "Coding & Robotics"
+        filters.age = "12"
+        let record = SavedHuntRecord(cacheKey: "last-hunt", query: "robotics", mode: .all, filters: filters)
+        record.language = "ja" // Reproduce bytes written by a previous version.
+        context.insert(record)
+        let row = opportunity(id: "english-default", title: "Robotics Lab", organization: "Community Library", category: "Coding & Robotics", city: "Toronto")
+        context.insert(OpportunityCacheRecord(cacheKey: "latest-opportunities", payload: Data(makeOpportunitiesJSON([row]).utf8)))
+        try context.save()
+
+        let store = OpportunityStore(api: APIClient())
+        await store.restoreLastHuntIfNeeded(in: context)
+        XCTAssertEqual(store.query, "robotics")
+        XCTAssertEqual(store.mode, .all)
+        XCTAssertEqual(store.filters, filters)
+        XCTAssertEqual(store.opportunities.map(\.id), [row.id])
+        XCTAssertEqual(displaySession.language, .ja)
+        XCTAssertEqual(defaults.string(forKey: AppLanguage.preferredLanguageDefaultsKey), "ja")
+        var legacyOnly = OpportunityFilters()
+        legacyOnly.language = "ja"
+        XCTAssertFalse(legacyOnly.hasActiveFilters)
+        XCTAssertEqual(SavedHuntRecord(cacheKey: "new", query: "", mode: .all, filters: legacyOnly).language, "all")
     }
 
     @MainActor
@@ -2712,7 +5127,45 @@ final class OpportunityStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testRightsRestrictedSavedPayloadIsDeletedWhileOrdinaryArchiveIsPreserved() throws {
+        let context = try makeInMemoryContext()
+        let restricted = opportunity(
+            id: "rights-restricted",
+            title: "Restricted Provider Copy",
+            organization: "Restricted Provider",
+            category: "Science & Engineering",
+            city: "Toronto"
+        )
+        let ordinaryArchive = opportunity(
+            id: "ordinary-archive",
+            title: "Past Saved Event",
+            organization: "Permitted Provider",
+            category: "Coding & Robotics",
+            city: "Toronto",
+            status: "removed"
+        )
+        context.insert(try SavedOpportunityRecord(opportunity: restricted))
+        context.insert(try SavedOpportunityRecord(opportunity: ordinaryArchive))
+        try context.save()
+
+        let mutations = try SavedOpportunityLibrary.reconcile(
+            with: [],
+            in: context,
+            markMissingAsUnavailable: false,
+            restrictedOpportunityIDs: [restricted.id]
+        )
+
+        let retained = try context.fetch(FetchDescriptor<SavedOpportunityRecord>())
+        XCTAssertEqual(mutations, 1)
+        XCTAssertEqual(retained.map(\.opportunityID), [ordinaryArchive.id])
+        XCTAssertEqual(retained.first?.opportunity?.title, ordinaryArchive.title)
+    }
+
+    @MainActor
     func testClearingPersonalHistoryKeepsPublicCacheButRemovesHuntAndSeenRecords() async throws {
+        let suiteName = "GTAFreeSTEMTests.ClearPersonalHistory.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
         let context = try makeInMemoryContext()
         let opportunity = opportunity(
             id: "cached-public-opportunity",
@@ -2728,7 +5181,7 @@ final class OpportunityStoreTests: XCTestCase {
         try context.save()
 
         let client = APIClient(feedURL: URL(string: "https://example.com/opportunities.json")!, session: makeURLSessionForStub())
-        let store = OpportunityStore(api: client)
+        let store = OpportunityStore(api: client, defaults: defaults)
         store.query = "robotics"
         try await store.clearPersonalHistory(in: context)
 
@@ -2966,6 +5419,10 @@ final class OpportunityStoreTests: XCTestCase {
     }
 
     private func makeInMemoryContext() throws -> ModelContext {
+        ModelContext(try makeInMemoryContainer())
+    }
+
+    private func makeInMemoryContainer() throws -> ModelContainer {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let schema = Schema([
             OpportunityCacheRecord.self,
@@ -2973,16 +5430,109 @@ final class OpportunityStoreTests: XCTestCase {
             SeenOpportunityRecord.self,
             SavedOpportunityRecord.self
         ])
-        let container = try ModelContainer(for: schema, configurations: configuration)
-        return ModelContext(container)
+        return try ModelContainer(for: schema, configurations: configuration)
     }
 
-    private func makeOpportunitiesJSON(_ opportunities: [Opportunity]) -> String {
+    private func approvedProviderFixture(_ opportunity: Opportunity) -> Opportunity {
+        let host = URL(string: opportunity.sourceUrl)?.host?.lowercased()
+        if (opportunity.organization == "Markham Public Library" && host == "markham.bibliocommons.com") ||
+            (opportunity.organization == "Toronto Public Library" && host == "tpl.bibliocommons.com") {
+            return opportunity
+        }
+
+        let sourceURL = "https://markham.bibliocommons.com/events/\(opportunity.id)"
+        return Opportunity(
+            id: opportunity.id,
+            title: opportunity.title,
+            organization: "Markham Public Library",
+            description: opportunity.description,
+            summary: opportunity.summary,
+            category: opportunity.category,
+            city: opportunity.city,
+            region: opportunity.region,
+            address: opportunity.address,
+            latitude: opportunity.latitude,
+            longitude: opportunity.longitude,
+            startDate: opportunity.startDate,
+            endDate: opportunity.endDate,
+            deadline: opportunity.deadline,
+            ageMin: opportunity.ageMin,
+            ageMax: opportunity.ageMax,
+            language: opportunity.language,
+            cost: opportunity.cost,
+            sourceUrl: sourceURL,
+            registrationUrl: sourceURL,
+            status: opportunity.status,
+            volunteerHoursEligible: opportunity.volunteerHoursEligible,
+            coopEligible: opportunity.coopEligible,
+            tags: opportunity.tags,
+            distanceKm: opportunity.distanceKm,
+            isNewFind: opportunity.isNewFind,
+            sourceConfidence: opportunity.sourceConfidence,
+            translations: opportunity.translations
+        )
+    }
+
+    private func makeOpportunitiesJSON(
+        _ opportunities: [Opportunity],
+        lastUpdated: Date = .now
+    ) -> String {
+        // Network fixtures must satisfy the same production rights manifest as
+        // a Release build. Preserve already-approved bundled records and map
+        // synthetic store scenarios onto a real approved provider contract.
+        let approvedOpportunities = opportunities.map(approvedProviderFixture)
+        let verifiedDate = DateFormatter()
+        verifiedDate.locale = Locale(identifier: "en_US_POSIX")
+        verifiedDate.timeZone = TimeZone(secondsFromGMT: 0)
+        verifiedDate.dateFormat = "yyyy-MM-dd"
+        let verifiedAt = verifiedDate.string(from: lastUpdated)
+        let groupedSources = Dictionary(grouping: approvedOpportunities) { opportunity in
+            let host = URL(string: opportunity.sourceUrl)?.host?.lowercased() ?? "example.com"
+            return "\(opportunity.organization)\u{001F}\(host)"
+        }
+        let rightsSources = groupedSources.values.compactMap { group -> OpportunityListResponse.ContentRights.Source? in
+            guard let opportunity = group.first,
+                  let host = URL(string: opportunity.sourceUrl)?.host?.lowercased()
+            else {
+                return nil
+            }
+            let evidence: (basisURL: String, digest: String)
+            switch (opportunity.organization, host) {
+            case ("Markham Public Library", "markham.bibliocommons.com"):
+                evidence = (
+                    "https://markham.bibliocommons.com/info/terms/",
+                    "sha256:451e63466c801166653f47336e236d05f9a50a3df45a917fa603e92bcd11c8a0"
+                )
+            case ("Toronto Public Library", "tpl.bibliocommons.com"):
+                evidence = (
+                    "https://tpl.bibliocommons.com/info/terms/",
+                    "sha256:c9b14cbd531afa09533e844274bb9f07f8042883e12b5a3990be3100ca5d4b43"
+                )
+            default:
+                return nil
+            }
+            return OpportunityListResponse.ContentRights.Source(
+                organization: opportunity.organization,
+                sourceHost: host,
+                records: group.count,
+                status: "terms-permitted",
+                basisUrl: evidence.basisURL,
+                conditions: [
+                    "Automated access uses the provider's RSS/XML event feed.",
+                    "Every displayed extract links to its original BiblioCommons event page.",
+                    "GTA FREE STEM is free and does not monetize provider content."
+                ],
+                termsVerifiedAt: verifiedAt,
+                termsVersion: "2018-09-19",
+                termsDigestVersion: "bibliocommons-relevant-sections-v1",
+                termsSectionDigest: evidence.digest
+            )
+        }
         let response = OpportunityListResponse(
-            data: opportunities,
+            data: approvedOpportunities,
             meta: OpportunityListResponse.Metadata(
-                activeCount: opportunities.count,
-                lastUpdated: ISO8601DateFormatter().string(from: .now)
+                activeCount: approvedOpportunities.count,
+                lastUpdated: ISO8601DateFormatter().string(from: lastUpdated)
             ),
             sourceHealth: OpportunityListResponse.SourceHealth(
                 library: .init(
@@ -2991,8 +5541,8 @@ final class OpportunityStoreTests: XCTestCase {
                     successfulPages: 1,
                     pageSuccessRatio: 1,
                     minimumPageSuccessRatio: 0.75,
-                    acceptedListings: opportunities.count,
-                    minimumAcceptedListings: min(1, opportunities.count)
+                    acceptedListings: approvedOpportunities.count,
+                    minimumAcceptedListings: min(1, approvedOpportunities.count)
                 ),
                 discovery: .init(
                     status: "healthy",
@@ -3001,7 +5551,17 @@ final class OpportunityStoreTests: XCTestCase {
                     sourceSuccessRatio: 1,
                     minimumSourceSuccessRatio: 0.75
                 )
-            )
+            ),
+            contentRights: OpportunityListResponse.ContentRights(
+                termsVerifiedAt: verifiedAt,
+                sources: rightsSources,
+                restrictedOpportunityIDs: []
+            ),
+            publicationRevision: {
+                let formatter = ISO8601DateFormatter()
+                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                return formatter.string(from: lastUpdated)
+            }()
         )
         let encoder = JSONEncoder()
         let data = try! encoder.encode(response)
@@ -3016,7 +5576,12 @@ final class OpportunityStoreTests: XCTestCase {
         category: String,
         city: String,
         address: String? = nil,
-        status: String = "active"
+        status: String = "active",
+        ageMin: Int = 10,
+        ageMax: Int? = 18,
+        volunteerHoursEligible: Bool = false,
+        coopEligible: Bool = false,
+        tags: [String] = []
     ) -> Opportunity {
         Opportunity(
             id: id,
@@ -3033,16 +5598,16 @@ final class OpportunityStoreTests: XCTestCase {
             startDate: nil,
             endDate: nil,
             deadline: nil,
-            ageMin: 10,
-            ageMax: 18,
+            ageMin: ageMin,
+            ageMax: ageMax,
             language: ["en"],
             cost: "Free",
             sourceUrl: "https://example.com",
-            registrationUrl: nil,
+            registrationUrl: "https://example.com",
             status: status,
-            volunteerHoursEligible: false,
-            coopEligible: false,
-            tags: [],
+            volunteerHoursEligible: volunteerHoursEligible,
+            coopEligible: coopEligible,
+            tags: tags,
             distanceKm: nil,
             isNewFind: nil,
             sourceConfidence: nil,
@@ -3051,97 +5616,296 @@ final class OpportunityStoreTests: XCTestCase {
     }
 }
 
+private actor NewMatchNotificationDeliveryStub: NewMatchNotificationDelivering {
+    private var outcomes: [Bool]
+    private var deliveredCount = 0
+
+    init(outcomes: [Bool]) {
+        self.outcomes = outcomes
+    }
+
+    func deliverNewMatchNotification(title: String, body: String) async -> Bool {
+        deliveredCount += 1
+        guard !outcomes.isEmpty else { return false }
+        return outcomes.removeFirst()
+    }
+
+    func deliveryCount() -> Int {
+        deliveredCount
+    }
+}
+
 final class URLProtocolStub: URLProtocol {
     struct Response {
         let statusCode: Int
-        let body: Data
+        let chunks: [Data]
         let delaySeconds: TimeInterval
+        let errorCode: URLError.Code?
+        let headers: [String: String]
+        let finalResponseURL: URL?
+        let holdResponse: Bool
+        let holdBody: Bool
+        let holdCompletion: Bool
     }
 
     private final class State: @unchecked Sendable {
         private var responses = [String: Response]()
-        private var requestCount = 0
+        private var requests = [String: Int]()
+        private var bytes = [String: Int]()
+        private var stops = [String: Int]()
+        private var finished = Set<String>()
+        private var heldActions = [String: [DispatchWorkItem]]()
+        private var releasedStages = Set<String>()
         private let lock = NSLock()
 
-        func register(responseFor url: URL, statusCode: Int, body: Data, delaySeconds: TimeInterval) {
+        func register(_ response: Response, for url: URL) {
             lock.lock()
             defer { lock.unlock() }
-            responses[url.absoluteString] = Response(statusCode: statusCode, body: body, delaySeconds: delaySeconds)
+            responses[url.absoluteString] = response
+            releasedStages = Set(releasedStages.filter { !$0.hasPrefix(url.absoluteString + "#") })
         }
 
         func reset() {
             lock.lock()
-            defer { lock.unlock() }
+            let pending = heldActions.values.flatMap { $0 }
             responses.removeAll()
-            requestCount = 0
+            requests.removeAll()
+            bytes.removeAll()
+            stops.removeAll()
+            finished.removeAll()
+            heldActions.removeAll()
+            releasedStages.removeAll()
+            lock.unlock()
+            pending.forEach { $0.cancel() }
         }
 
         func takeResponse(for url: URL) -> Response? {
             lock.lock()
             defer { lock.unlock() }
-            requestCount += 1
+            requests[url.absoluteString, default: 0] += 1
             return responses[url.absoluteString]
         }
 
-        func currentRequestCount() -> Int {
+        func requestCount(for url: URL? = nil) -> Int {
             lock.lock()
             defer { lock.unlock() }
-            return requestCount
+            return url.map { requests[$0.absoluteString, default: 0] } ?? requests.values.reduce(0, +)
+        }
+
+        func recordBytes(_ count: Int, for url: URL) {
+            lock.lock()
+            defer { lock.unlock() }
+            bytes[url.absoluteString, default: 0] += count
+        }
+
+        func deliveredBytes(for url: URL) -> Int {
+            lock.lock()
+            defer { lock.unlock() }
+            return bytes[url.absoluteString, default: 0]
+        }
+
+        func recordStop(for url: URL) {
+            lock.lock()
+            defer { lock.unlock() }
+            stops[url.absoluteString, default: 0] += 1
+        }
+
+        func stopCount(for url: URL) -> Int {
+            lock.lock()
+            defer { lock.unlock() }
+            return stops[url.absoluteString, default: 0]
+        }
+
+        func recordFinish(for url: URL) {
+            lock.lock()
+            defer { lock.unlock() }
+            finished.insert(url.absoluteString)
+        }
+
+        func didFinish(for url: URL) -> Bool {
+            lock.lock()
+            defer { lock.unlock() }
+            return finished.contains(url.absoluteString)
+        }
+
+        func hold(_ action: DispatchWorkItem, for url: URL, stage: String) {
+            lock.lock()
+            let key = url.absoluteString + "#" + stage
+            if releasedStages.contains(key) {
+                lock.unlock()
+                action.perform()
+            } else {
+                heldActions[key, default: []].append(action)
+                lock.unlock()
+            }
+        }
+
+        func release(for url: URL, stage: String) {
+            lock.lock()
+            let key = url.absoluteString + "#" + stage
+            releasedStages.insert(key)
+            let actions = heldActions.removeValue(forKey: key) ?? []
+            lock.unlock()
+            actions.forEach { $0.perform() }
         }
     }
 
     private static let state = State()
+    private let pendingLock = NSLock()
+    private var pendingWorkItems = [DispatchWorkItem]()
+    private var stopped = false
 
-    static var requestCount: Int {
-        state.currentRequestCount()
+    static var requestCount: Int { state.requestCount() }
+    static func requestCount(for url: URL) -> Int { state.requestCount(for: url) }
+    static func deliveredBytes(for url: URL) -> Int { state.deliveredBytes(for: url) }
+    static func stopCount(for url: URL) -> Int { state.stopCount(for: url) }
+    static func didFinish(for url: URL) -> Bool { state.didFinish(for: url) }
+    static func releaseResponse(for url: URL) { state.release(for: url, stage: "response") }
+    static func releaseBody(for url: URL) { state.release(for: url, stage: "body") }
+    static func releaseCompletion(for url: URL) { state.release(for: url, stage: "completion") }
+
+    static func register(
+        responseFor url: URL,
+        statusCode: Int,
+        body: Data,
+        delaySeconds: TimeInterval = 0,
+        headers: [String: String] = [:],
+        finalResponseURL: URL? = nil,
+        holdBody: Bool = false,
+        holdResponse: Bool = false
+    ) {
+        state.register(Response(
+            statusCode: statusCode, chunks: [body], delaySeconds: delaySeconds,
+            errorCode: nil, headers: headers, finalResponseURL: finalResponseURL,
+            holdResponse: holdResponse, holdBody: holdBody, holdCompletion: false
+        ), for: url)
     }
 
-    static func register(responseFor url: URL, statusCode: Int, body: Data, delaySeconds: TimeInterval = 0.0) {
-        state.register(responseFor: url, statusCode: statusCode, body: body, delaySeconds: delaySeconds)
+    static func register(responseFor url: URL, errorCode: URLError.Code, delaySeconds: TimeInterval = 0, holdResponse: Bool = false) {
+        state.register(Response(
+            statusCode: 0, chunks: [], delaySeconds: delaySeconds,
+            errorCode: errorCode, headers: [:], finalResponseURL: nil,
+            holdResponse: holdResponse, holdBody: false, holdCompletion: false
+        ), for: url)
     }
 
-    static func reset() {
-        state.reset()
+    static func register(responseFor url: URL, chunks: [Data], holdCompletion: Bool = false) {
+        state.register(Response(
+            statusCode: 200, chunks: chunks, delaySeconds: 0,
+            errorCode: nil, headers: [:], finalResponseURL: nil,
+            holdResponse: false, holdBody: false, holdCompletion: holdCompletion
+        ), for: url)
     }
 
-    override class func canInit(with request: URLRequest) -> Bool {
-        return request.url?.scheme == "https"
+    static func reset() { state.reset() }
+
+    override class func canInit(with request: URLRequest) -> Bool { request.url?.scheme == "https" }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override class func requestIsCacheEquivalent(_ a: URLRequest, to b: URLRequest) -> Bool { a == b }
+
+    private var hasStopped: Bool {
+        pendingLock.lock()
+        defer { pendingLock.unlock() }
+        return stopped
     }
 
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
-        return request
-    }
-
-    override class func requestIsCacheEquivalent(_ a: URLRequest, to b: URLRequest) -> Bool {
-        return a == b
-    }
-
-    override func startLoading() {
-        guard let url = request.url,
-              let stub = Self.state.takeResponse(for: url) else {
-            client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+    private func enqueue(_ action: DispatchWorkItem, for url: URL, heldStage: String? = nil, delay: TimeInterval = 0) {
+        pendingLock.lock()
+        guard !stopped else {
+            pendingLock.unlock()
+            action.cancel()
             return
         }
-
-        let response = HTTPURLResponse(url: url, statusCode: stub.statusCode, httpVersion: "HTTP/1.1", headerFields: nil)
-        let body = stub.body
-        let delay = stub.delaySeconds
-
-        let action = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            if let response {
-                self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-            }
-            self.client?.urlProtocol(self, didLoad: body)
-            self.client?.urlProtocolDidFinishLoading(self)
-        }
-
-        if delay > 0 {
+        pendingWorkItems.append(action)
+        pendingLock.unlock()
+        if let heldStage {
+            Self.state.hold(action, for: url, stage: heldStage)
+        } else if delay > 0 {
             DispatchQueue.global().asyncAfter(deadline: .now() + delay, execute: action)
         } else {
             action.perform()
         }
     }
 
-    override func stopLoading() {}
+    override func startLoading() {
+        guard let url = request.url, let stub = Self.state.takeResponse(for: url) else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+            return
+        }
+        let action = DispatchWorkItem { [weak self] in
+            guard let self, !self.hasStopped else { return }
+            if let errorCode = stub.errorCode {
+                self.client?.urlProtocol(self, didFailWithError: URLError(errorCode))
+                return
+            }
+            guard let response = HTTPURLResponse(
+                url: stub.finalResponseURL ?? url, statusCode: stub.statusCode,
+                httpVersion: "HTTP/1.1", headerFields: stub.headers
+            ) else { return }
+            self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            let body = DispatchWorkItem { [weak self] in
+                guard let self, !self.hasStopped else { return }
+                for chunk in stub.chunks {
+                    guard !self.hasStopped else { return }
+                    Self.state.recordBytes(chunk.count, for: url)
+                    self.client?.urlProtocol(self, didLoad: chunk)
+                }
+                let finish = DispatchWorkItem { [weak self] in
+                    guard let self, !self.hasStopped else { return }
+                    Self.state.recordFinish(for: url)
+                    self.client?.urlProtocolDidFinishLoading(self)
+                }
+                self.enqueue(finish, for: url, heldStage: stub.holdCompletion ? "completion" : nil)
+            }
+            self.enqueue(body, for: url, heldStage: stub.holdBody ? "body" : nil)
+        }
+        enqueue(action, for: url, heldStage: stub.holdResponse ? "response" : nil, delay: stub.delaySeconds)
+    }
+
+    override func stopLoading() {
+        pendingLock.lock()
+        guard !stopped else { pendingLock.unlock(); return }
+        stopped = true
+        let pending = pendingWorkItems
+        pendingWorkItems.removeAll()
+        pendingLock.unlock()
+        pending.forEach { $0.cancel() }
+        if let url = request.url { Self.state.recordStop(for: url) }
+    }
+}
+
+private actor APIRequestStartGate {
+    private var released = false
+    private var waiters = [CheckedContinuation<Void, Never>]()
+    func wait() async {
+        if released { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+    func release() {
+        released = true
+        let pending = waiters
+        waiters.removeAll()
+        pending.forEach { $0.resume() }
+    }
+}
+
+private actor MapProjectionTestGate {
+    private var started = false
+    private var startWaiters: [CheckedContinuation<Void, Never>] = []
+    private var releaseWaiter: CheckedContinuation<Void, Never>?
+    func hold() async {
+        guard !started else { return }
+        started = true
+        startWaiters.forEach { $0.resume() }
+        startWaiters.removeAll()
+        await withCheckedContinuation { releaseWaiter = $0 }
+    }
+    func waitUntilStarted() async {
+        if started { return }
+        await withCheckedContinuation { startWaiters.append($0) }
+    }
+    func release() {
+        releaseWaiter?.resume()
+        releaseWaiter = nil
+    }
 }

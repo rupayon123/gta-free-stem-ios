@@ -1,4 +1,8 @@
 import SwiftUI
+import UIKit
+#if DEBUG
+import SwiftData
+#endif
 
 /// The app's single visual source of truth.
 ///
@@ -11,20 +15,28 @@ enum Brand {
 
     // MARK: Core brand colours
 
-    static let ink = Color(red: 0.05, green: 0.09, blue: 0.11)
+    static let ink = Color(red: 16/255, green: 52/255, blue: 82/255)
     static let cream = Color(red: 0.98, green: 0.97, blue: 0.92)
     static let paper = Color(red: 0.99, green: 0.99, blue: 0.97)
     static let sky = Color(red: 0.45, green: 0.75, blue: 0.80)
-    static let lake = Color(red: 0.05, green: 0.40, blue: 0.45)
-    static let navy = Color(red: 0.04, green: 0.18, blue: 0.28)
+    static let lake = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.31, green: 0.78, blue: 0.77, alpha: 1)
+            : UIColor(red: 8/255, green: 119/255, blue: 124/255, alpha: 1)
+    })
+    static let navy = Color(red: 16/255, green: 52/255, blue: 82/255)
     static let deepOcean = Color(red: 0.03, green: 0.10, blue: 0.14)
     static let nightBlue = Color(red: 0.06, green: 0.16, blue: 0.20)
     static let electricBlue = Color(red: 0.31, green: 0.78, blue: 0.77)
     static let ice = Color(red: 0.94, green: 0.98, blue: 0.97)
     static let mintFoam = Color(red: 0.84, green: 0.94, blue: 0.90)
     static let moss = Color(red: 0.39, green: 0.65, blue: 0.43)
-    static let sun = Color(red: 0.96, green: 0.70, blue: 0.22)
-    static let coral = Color(red: 0.82, green: 0.28, blue: 0.20)
+    static let sun = Color(red: 244/255, green: 196/255, blue: 49/255)
+    static let coral = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 1, green: 0.706, blue: 0.671, alpha: 1)
+            : UIColor(red: 183/255, green: 55/255, blue: 44/255, alpha: 1)
+    })
     static let orange = Color(red: 0.91, green: 0.48, blue: 0.20)
     static let lavender = Color(red: 0.55, green: 0.50, blue: 0.78)
     static let night = Color(red: 0.025, green: 0.065, blue: 0.085)
@@ -37,50 +49,46 @@ enum Brand {
 
     // MARK: Semantic colours
 
-    static func canvas(for scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? night
-            : Color(red: 0.965, green: 0.973, blue: 0.955)
+    // Content-only colours: the original loader's canvas and gradient stay unchanged.
+    // Approved portfolio v3 content tokens. Loader colours above stay independent.
+    private static func rgb(_ hex: UInt32) -> Color {
+        Color(red: Double((hex >> 16) & 255) / 255,
+              green: Double((hex >> 8) & 255) / 255,
+              blue: Double(hex & 255) / 255)
     }
 
+    static func contentCanvas(for scheme: ColorScheme) -> Color {
+        rgb(scheme == .dark ? 0x14253A : 0xF4F8FD)
+    }
+
+    static func topicFill(category: String, scheme: ColorScheme) -> Color {
+        scheme == .dark ? rgb(0x23364C) : rgb(0xE5F0F7)
+    }
+
+    static func canvas(for scheme: ColorScheme) -> Color { contentCanvas(for: scheme) }
     static func cardFill(for scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? nightCard
-            : Color(red: 0.995, green: 0.995, blue: 0.985)
+        rgb(scheme == .dark ? 0x23364C : 0xFFFFFF)
     }
-
     static func raisedFill(for scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.075, green: 0.18, blue: 0.21)
-            : Color(red: 0.925, green: 0.95, blue: 0.93)
+        rgb(scheme == .dark ? 0x1C2B3E : 0xE5F0F7)
     }
-
     static func outline(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? ice : navy
+        rgb(scheme == .dark ? 0xEFF6FF : 0x19334B)
     }
-
     static func mutedText(for scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.68, green: 0.77, blue: 0.78)
-            : Color(red: 0.29, green: 0.38, blue: 0.39)
+        rgb(scheme == .dark ? 0xAFC3D9 : 0x536B80)
     }
-
     static func surfaceStroke(for scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color.white.opacity(0.14)
-            : navy.opacity(0.12)
+        rgb(scheme == .dark ? 0x8BA3B7 : 0x526F82)
     }
-
     static func actionFill(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? electricBlue : lake
+        rgb(scheme == .dark ? 0xA4D8E2 : 0x2E7184)
     }
-
     static func actionForeground(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? deepOcean : .white
+        scheme == .dark ? rgb(0x142B3C) : .white
     }
-
     static func selectionFill(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? electricBlue.opacity(0.18) : lake.opacity(0.10)
+        rgb(scheme == .dark ? 0x365969 : 0xD1E9EC)
     }
 
     static func pageGradient(for scheme: ColorScheme) -> LinearGradient {
@@ -105,6 +113,51 @@ enum Brand {
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
+    }
+}
+
+/// Exact approved variable font, scaled by SwiftUI's semantic text style.
+/// Core Text supplies system fallback glyphs for scripts absent from Nunito.
+/// Native QA must verify the registered variable face and requested weights.
+enum PortfolioTypography {
+    private static func font(_ size: CGFloat, relativeTo style: Font.TextStyle) -> Font {
+        .custom("Nunito-ExtraLight", size: size, relativeTo: style).weight(.regular)
+    }
+    static var largeTitle: Font { font(34, relativeTo: .largeTitle) }
+    static var title: Font { font(28, relativeTo: .title) }
+    static var title2: Font { font(22, relativeTo: .title2) }
+    static var title3: Font { font(20, relativeTo: .title3) }
+    static var headline: Font { font(17, relativeTo: .headline).weight(.semibold) }
+    static var body: Font { font(17, relativeTo: .body) }
+    static var callout: Font { font(16, relativeTo: .callout) }
+    static var subheadline: Font { font(15, relativeTo: .subheadline) }
+    static var footnote: Font { font(13, relativeTo: .footnote) }
+    static var caption: Font { font(12, relativeTo: .caption) }
+    static var caption2: Font { font(11, relativeTo: .caption2) }
+}
+
+/// Native tab bar icons need a point-sized bitmap, not the 192-pixel source size.
+enum PortfolioArtwork {
+    static func tabImage(_ name: String, scheme: ColorScheme, fallbackSystemImage: String) -> Image {
+        let traits = UITraitCollection(userInterfaceStyle: scheme == .dark ? .dark : .light)
+        guard let artwork = UIImage(named: name, in: .main, compatibleWith: traits) else {
+            return Image(systemName: fallbackSystemImage)
+        }
+        let size = CGSize(width: 26, height: 26)
+        let image = UIGraphicsImageRenderer(size: size).image { _ in
+            artwork.draw(in: CGRect(origin: .zero, size: size))
+        }
+        return Image(uiImage: image.withRenderingMode(.alwaysOriginal))
+    }
+}
+
+struct PortfolioFooterPressStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.75 : 1)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: configuration.isPressed)
     }
 }
 
@@ -133,31 +186,14 @@ struct StorybookBackground: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        ZStack {
-            Brand.pageGradient(for: colorScheme)
-                .ignoresSafeArea()
-
-            // One quiet discovery field carries the brand across screens without
-            // competing with text, cards, maps, or native navigation controls.
-            Circle()
-                .fill(Brand.sky.opacity(colorScheme == .dark ? 0.07 : 0.10))
-                .frame(width: 340, height: 340)
-                .blur(radius: 28)
-                .offset(x: 180, y: -320)
-
-            Circle()
-                .fill(Brand.sun.opacity(colorScheme == .dark ? 0.035 : 0.07))
-                .frame(width: 280, height: 280)
-                .blur(radius: 32)
-                .offset(x: -190, y: 380)
-        }
-        .accessibilityHidden(true)
+        Brand.canvas(for: colorScheme)
+            .ignoresSafeArea()
+            .accessibilityHidden(true)
     }
 }
 
 struct CardSurface: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     var padding: CGFloat = AppSpacing.standard
     var cornerRadius: CGFloat = AppRadius.card
 
@@ -165,21 +201,13 @@ struct CardSurface: ViewModifier {
         content
             .padding(padding)
             .background(
-                reduceTransparency
-                    ? Brand.cardFill(for: colorScheme)
-                    : Brand.cardFill(for: colorScheme).opacity(0.97),
+                Brand.cardFill(for: colorScheme),
                 in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Brand.surfaceStroke(for: colorScheme), lineWidth: 0.75)
+                    .strokeBorder(Brand.surfaceStroke(for: colorScheme), lineWidth: 1.5)
             }
-            .shadow(
-                color: Brand.deepOcean.opacity(colorScheme == .dark ? 0.18 : 0.07),
-                radius: colorScheme == .dark ? 10 : 14,
-                x: 0,
-                y: colorScheme == .dark ? 5 : 7
-            )
     }
 }
 
@@ -198,8 +226,7 @@ struct StickerBadge: View {
             Text(text)
         }
         .font(.caption.weight(.semibold))
-        .lineLimit(1)
-        .minimumScaleFactor(0.82)
+        .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(
@@ -211,6 +238,28 @@ struct StickerBadge: View {
                 .strokeBorder(color.opacity(colorScheme == .dark ? 0.42 : 0.28), lineWidth: 0.75)
         }
         .foregroundStyle(Brand.outline(for: colorScheme))
+    }
+}
+
+/// Approved original category artwork; decorative beside the readable category label.
+struct ActivityCategoryMark: View {
+    let category: String
+    var size: CGFloat = 48
+    private var artwork: String {
+        if category.localizedCaseInsensitiveContains("coding") { return "code" }
+        if category.localizedCaseInsensitiveContains("science") { return "science" }
+        if category.localizedCaseInsensitiveContains("maker") { return "engineering" }
+        if category.localizedCaseInsensitiveContains("digital") { return "ideas" }
+        if category.localizedCaseInsensitiveContains("volunteer") { return "volunteer" }
+        if category.localizedCaseInsensitiveContains("arts") { return "art" }
+        return "library"
+    }
+    var body: some View {
+        Image("gta_\(artwork)_illustration")
+            .resizable()
+            .scaledToFit()
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
     }
 }
 
@@ -357,7 +406,7 @@ struct StoryButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.headline.weight(.semibold))
+            .font(PortfolioTypography.headline.weight(.semibold))
             .padding(.horizontal, 16)
             .frame(minHeight: 48)
             .foregroundStyle(foreground)
@@ -367,11 +416,11 @@ struct StoryButtonStyle: ButtonStyle {
             )
             .overlay {
                 RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
-                    .strokeBorder(border, lineWidth: kind == .primary ? 0 : 0.75)
+                    .strokeBorder(border, lineWidth: 1.5)
             }
             .contentShape(RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
-            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: configuration.isPressed)
     }
 
     private var background: Color {
@@ -400,10 +449,10 @@ struct StoryButtonStyle: ButtonStyle {
 
     private var border: Color {
         switch kind {
-        case .primary, .destructive:
+        case .destructive:
             .clear
-        case .secondary:
-            Brand.lake.opacity(colorScheme == .dark ? 0.42 : 0.24)
+        case .primary, .secondary:
+            Brand.surfaceStroke(for: colorScheme)
         case .quiet:
             Brand.surfaceStroke(for: colorScheme)
         }
@@ -417,7 +466,7 @@ struct SelectionChipStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.subheadline.weight(isSelected ? .semibold : .medium))
+            .font(PortfolioTypography.subheadline.weight(isSelected ? .semibold : .medium))
             .foregroundStyle(
                 isSelected
                     ? Brand.actionFill(for: colorScheme)
@@ -442,7 +491,7 @@ struct SelectionChipStyle: ButtonStyle {
             }
             .opacity(configuration.isPressed ? 0.78 : 1)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
-            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: configuration.isPressed)
     }
 }
 
@@ -554,7 +603,7 @@ struct StoryFieldModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .font(.body)
+            .font(PortfolioTypography.body)
             .padding(.horizontal, 14)
             .frame(minHeight: 48)
             .background(
@@ -574,7 +623,7 @@ struct StoryPickerRowModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .font(.body.weight(.medium))
+            .font(PortfolioTypography.body.weight(.medium))
             .padding(.horizontal, 14)
             .frame(minHeight: 48)
             .background(
@@ -601,7 +650,7 @@ struct StorySectionTitle: View {
                 .foregroundStyle(Brand.lake)
                 .accessibilityHidden(true)
             Text(text)
-                .font(.title3.weight(.semibold))
+                .font(PortfolioTypography.title3.weight(.semibold))
             Spacer(minLength: 8)
         }
         .foregroundStyle(Brand.outline(for: colorScheme))
@@ -644,3 +693,172 @@ extension View {
         modifier(StoryPickerRowModifier())
     }
 }
+
+/// Native discovery illustration informed by Hairline's isometric loupe.
+/// Reference: lucasmarkes/hairline @ 37d2e78 (MIT, Lucas Marques).
+/// Original GTA geometry; no DOM, pointer listener, timer, or idle animation.
+struct DiscoveryLoupeScene: View, Animatable {
+    @Environment(\.colorScheme) private var colorScheme
+    nonisolated var progress: CGFloat = 0
+    nonisolated var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    var body: some View {
+        Canvas { context, size in
+            var drawing = context
+            let scale = min(size.width / 260, size.height / 160)
+            drawing.translateBy(x: (size.width - 260 * scale) / 2, y: (size.height - 160 * scale) / 2)
+            drawing.scaleBy(x: scale, y: scale)
+            let ink = Brand.outline(for: colorScheme)
+            let paper = Brand.cardFill(for: colorScheme)
+            let stroke = StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
+            func path(_ points: [CGPoint], close: Bool = false) -> Path {
+                Path { p in
+                    guard let first = points.first else { return }
+                    p.move(to: first)
+                    for point in points.dropFirst() { p.addLine(to: point) }
+                    if close { p.closeSubpath() }
+                }
+            }
+            let sheet = path([CGPoint(x: 20, y: 91), CGPoint(x: 150, y: 46), CGPoint(x: 241, y: 91), CGPoint(x: 110, y: 143)], close: true)
+            drawing.fill(sheet, with: .color(Brand.raisedFill(for: colorScheme)))
+            drawing.stroke(sheet, with: .color(ink), style: stroke)
+            for row in 0..<5 {
+                let y = CGFloat(row) * 9
+                drawing.stroke(path([CGPoint(x: 48 + y, y: 87 + y * 0.48), CGPoint(x: 151 + y, y: 52 + y * 0.48)]), with: .color(Brand.lake), style: StrokeStyle(lineWidth: 1))
+            }
+            // Toronto's tower and a few blocks form a place, rather than a generic spinner.
+            let skyline = path([CGPoint(x: 156, y: 87), CGPoint(x: 156, y: 67), CGPoint(x: 168, y: 67), CGPoint(x: 168, y: 83), CGPoint(x: 179, y: 79), CGPoint(x: 179, y: 57), CGPoint(x: 192, y: 57), CGPoint(x: 192, y: 74), CGPoint(x: 205, y: 69)])
+            drawing.stroke(skyline, with: .color(ink), style: stroke)
+            drawing.stroke(path([CGPoint(x: 139, y: 87), CGPoint(x: 139, y: 25)]), with: .color(ink), style: stroke)
+            drawing.fill(Path(ellipseIn: CGRect(x: 130, y: 43, width: 18, height: 7)), with: .color(Brand.sun))
+            drawing.stroke(Path(ellipseIn: CGRect(x: 130, y: 43, width: 18, height: 7)), with: .color(ink), style: stroke)
+            let x = 85 + min(1, max(0, progress)) * 50
+            let y: CGFloat = 81
+            // Three feet, a solid rim, and a bounded lens: all remain inside this scene.
+            for foot in [CGPoint(x: -31, y: 22), CGPoint(x: 29, y: 23), CGPoint(x: 20, y: -9)] {
+                drawing.stroke(path([CGPoint(x: x + foot.x, y: y + foot.y), CGPoint(x: x + foot.x * 0.7, y: y - 20 + foot.y * 0.35)]), with: .color(ink), style: stroke)
+            }
+            let lens = Path(ellipseIn: CGRect(x: x - 32, y: y - 43, width: 64, height: 39))
+            drawing.fill(lens, with: .color(paper))
+            var magnified = drawing
+            magnified.clip(to: lens)
+            for row in 0..<5 {
+                magnified.stroke(path([CGPoint(x: x - 33, y: y - 22 + CGFloat(row) * 9), CGPoint(x: x + 35, y: y - 43 + CGFloat(row) * 9)]), with: .color(ink), style: StrokeStyle(lineWidth: 1.5))
+            }
+            drawing.stroke(lens, with: .color(Brand.lake), style: StrokeStyle(lineWidth: 4))
+            drawing.fill(Path(ellipseIn: CGRect(x: 213, y: 33, width: 14, height: 14)), with: .color(Brand.sun))
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 144)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Press feedback transforms only the drawing; layout and touch bounds stay fixed.
+struct SpringPressButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.975 : 1)
+            .opacity(configuration.isPressed ? 0.86 : 1)
+            .animation(reduceMotion ? nil : .spring(response: 0.30, dampingFraction: 0.78), value: configuration.isPressed)
+    }
+}
+
+#if DEBUG
+/// CI-only layout review of real screens with clearly labelled, app-owned samples.
+/// The separate model container and defaults never replace personal saved data.
+struct FrontendLayoutReview: View {
+    @StateObject private var session: SessionStore
+    @StateObject private var store: OpportunityStore
+    @State private var ready = false
+    @State private var container: ModelContainer
+    private let screen = Self.option("-review-screen") ?? "home"
+    private let followsSystemTheme = ProcessInfo.processInfo.arguments.contains("-review-system-theme")
+    private let isDark = ProcessInfo.processInfo.arguments.contains("-review-dark")
+    private let largeText = ProcessInfo.processInfo.arguments.contains("-review-large-text")
+
+    init() {
+        let defaults = UserDefaults(suiteName: "GTAFreeSTEM.LayoutReview.\(UUID().uuidString)")!
+        let reviewSession = SessionStore(defaults: defaults, preferredLanguages: [Self.option("-review-language") ?? "en"])
+        reviewSession.preferredTheme = ProcessInfo.processInfo.arguments.contains("-review-system-theme") ? "System" : (ProcessInfo.processInfo.arguments.contains("-review-dark") ? "Dark" : "Light")
+        _session = StateObject(wrappedValue: reviewSession)
+        _store = StateObject(wrappedValue: OpportunityStore(api: APIClient(), defaults: defaults))
+        let schema = Schema([OpportunityCacheRecord.self, SavedHuntRecord.self, SeenOpportunityRecord.self, SavedOpportunityRecord.self])
+        do {
+            _container = State(initialValue: try ModelContainer(for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
+        } catch {
+            preconditionFailure("Unable to create the isolated layout-review store: \(error)")
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text(session.text("layoutReviewBanner"))
+                .font(.caption.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(8)
+                .foregroundStyle(Brand.navy)
+                .background(Brand.sun)
+            reviewContent
+        }
+        .environmentObject(session)
+        .environmentObject(store)
+        .modelContainer(container)
+        .environment(\.appStorageAccess, .persistent)
+        .environment(\.locale, Locale(identifier: session.language.localeIdentifier))
+        .environment(\.layoutDirection, session.language.layoutDirection)
+        .environment(\.dynamicTypeSize, largeText ? .accessibility3 : .large)
+        .preferredColorScheme(followsSystemTheme ? nil : (isDark ? .dark : .light))
+        .task {
+            guard !ready else { return }
+            let prepared = await store.prepareScreenshotSnapshot()
+            guard prepared else { return }
+            if screen == "home-saved" { await store.prepareNamedSearchLayoutReview() }
+            if screen == "saved" {
+                // The query and fixture must share the retained main context.
+                // A temporary context resets its registered models on deinit.
+                let context = container.mainContext
+                do {
+                    for opportunity in store.opportunities.prefix(3) {
+                        context.insert(try SavedOpportunityRecord(opportunity: opportunity))
+                    }
+                    try context.save()
+                    guard try context.fetchCount(FetchDescriptor<SavedOpportunityRecord>()) == 3 else {
+                        preconditionFailure("The saved-layout fixture did not contain all three app-owned samples.")
+                    }
+                } catch {
+                    preconditionFailure("Unable to seed the isolated saved-layout fixture: \(error)")
+                }
+            }
+            ready = true
+            // This marker proves fixture preparation only; the capture script waits for drawing.
+            AppLaunchConfiguration.markScreenshotReady(true)
+        }
+    }
+
+    private var reviewContent: some View {
+        Group {
+            if ready {
+                if screen == "calendar", let sample = store.opportunities.first {
+                    NavigationStack { OpportunityDetailView(opportunity: sample) }
+                } else {
+                    ContentView()
+                }
+            } else {
+                ProgressView("Preparing app-owned layout samples")
+            }
+        }
+    }
+
+    private static func option(_ flag: String) -> String? {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let index = arguments.firstIndex(of: flag), arguments.indices.contains(index + 1) else { return nil }
+        return arguments[index + 1]
+    }
+}
+#endif

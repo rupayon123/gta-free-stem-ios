@@ -1,0 +1,49 @@
+{
+  "sourceCommit": "08c172d20060ec0748fccae2677c7554c3fe8145",
+  "run": "https://github.com/rupayon123/gta-free-stem-ios/actions/runs/40521124677",
+  "sourceReceiptSha256": "6525aafcb53edf8de6c8a08fd2548cdf373da00f15d79070d57e6b56262a101d",
+  "frames": [
+    {
+      "bytes": 103912,
+      "commit": "08c172d20060ec0748fccae2677c7554c3fe8145",
+      "dataAcceptance": false,
+      "exportMaximumDimension": 1100,
+      "format": "jpeg",
+      "mode": "normal-runtime",
+      "name": "normal-home",
+      "nativePngSha256": "7be4d030a7d9e13408a50b3855246cd012def25fa1bf4f050046e0d40eff6f5e",
+      "performanceAcceptance": false,
+      "quality": 76,
+      "readiness": "actual-shell-onAppear",
+      "sha256": "a255582b06cbe90402ed0f2132313174d3490acc45058d3726443ac4aa14fa35",
+      "shellObservedAfterSeconds": 6.819625750000114
+    },
+    {
+      "automatedTouchInteraction": false,
+      "bytes": 120225,
+      "commit": "08c172d20060ec0748fccae2677c7554c3fe8145",
+      "dark": false,
+      "detailState": false,
+      "exportMaximumDimension": 1100,
+      "filtered": 1877,
+      "format": "jpeg",
+      "largeText": false,
+      "mapped": 1832,
+      "mode": "normal-source-native-runtime",
+      "name": "ios-map-overview-light",
+      "nativePngSha256": "42405bf4139975e323dcb28d6b88a68f93315de7691fbee46a9c16bdc40551d4",
+      "physicalDeviceAcceptance": false,
+      "quality": 76,
+      "readinessObservation": "latest-state-after-two-second-quiet-interval",
+      "releaseAcceptance": false,
+      "selectedState": false,
+      "selectionEnteredByDebugFlag": false,
+      "sha256": "0c087d5c5ae89d097417cb831c2ec22bb067b83fbdf948258fed02245b385489",
+      "venues": 94
+    }
+  ],
+  "manualVisualReviewComplete": true,
+  "physicalDeviceAcceptance": false,
+  "releaseAcceptance": false,
+  "note": "Two unmodified JPEG exports selected from the 19-frame source-bound CI capture receipt. The other 17 frames are not copied into this documentation folder. Normal-runtime screenshots are simulator visual evidence, not physical-device, performance, data-acceptance or App Store screenshot signoff."
+}

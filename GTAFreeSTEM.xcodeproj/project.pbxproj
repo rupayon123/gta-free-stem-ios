@@ -30,11 +30,14 @@
 		E718E3102E49EA06E71F1C42 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3FA87A17DB14C2FA9B97306 /* SessionStore.swift */; };
 		E87B5B887C0C3F6DD71E443A /* GTAFreeSTEMWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A6CF6708A8D835D61B3180 /* GTAFreeSTEMWatchApp.swift */; };
 		EE09F46022F670609FDFE888 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F81D27386203249D913B5F66 /* PrivacyInfo.xcprivacy */; };
+		F1A5C4A52E00000000000001 /* WatchStrings.json in Resources */ = {isa = PBXBuildFile; fileRef = F1A5C4A52E00000000000002 /* WatchStrings.json */; };
 		EE6239C4E96CED0F0707F16D /* OpportunityDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07B77BBC9D9E87DAB34556E /* OpportunityDetailView.swift */; };
 		F2DBCAC93578B065A14CF04B /* SavedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2C45C1750835FF267CB51D1 /* SavedView.swift */; };
 		F86D0A49E7313A143E3031CA /* LocalOpportunitySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4A6C30734DAE0C6FF3F914B /* LocalOpportunitySnapshot.swift */; };
 		FEE1DAB0C0DE000000000005 /* FreeOpportunityEligibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE1DAB0C0DE000000000004 /* FreeOpportunityEligibilityTests.swift */; };
 		FEE1DAB0C0DE000000000002 /* FeedFreshness.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE1DAB0C0DE000000000001 /* FeedFreshness.swift */; };
+		0F8FE5E37B21E671E1A6E5EC /* Nunito.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 06EA72B71A62F95FBFD93BCB /* Nunito.ttf */; };
+		FDE9080A6C7E9C086FDDD7C6 /* Nunito-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = 3DE6C81FFC5D0CA49C886213 /* Nunito-OFL.txt */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -119,6 +122,9 @@
 		FEE1DAB0C0DE000000000001 /* FeedFreshness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedFreshness.swift; sourceTree = "<group>"; };
 		FAAEB0585D9E067B1270CC19 /* gu */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = gu; path = gu.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		FBD26104225597E7C756CFB0 /* ur */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ur; path = ur.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		F1A5C4A52E00000000000002 /* WatchStrings.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = WatchStrings.json; sourceTree = "<group>"; };
+		06EA72B71A62F95FBFD93BCB /* Nunito.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Nunito.ttf"; sourceTree = "<group>"; };
+		3DE6C81FFC5D0CA49C886213 /* Nunito-OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Nunito-OFL.txt"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -127,6 +133,7 @@
 			children = (
 				8DB1CE4E347C97CCE6867695 /* Assets.xcassets */,
 				B2A6CF6708A8D835D61B3180 /* GTAFreeSTEMWatchApp.swift */,
+				F1A5C4A52E00000000000002 /* WatchStrings.json */,
 				70574251FD7BDC234756AB68 /* Info.plist */,
 				E7CB6FE24D27F001F0CBF5C9 /* PrivacyInfo.xcprivacy */,
 			);
@@ -194,6 +201,8 @@
 			isa = PBXGroup;
 			children = (
 				A4D516C7B3AD1D417ABBDC9C /* app_strings.json */,
+				3DE6C81FFC5D0CA49C886213 /* Nunito-OFL.txt */,
+				06EA72B71A62F95FBFD93BCB /* Nunito.ttf */,
 				0D340C91FCBE390D875ED59B /* opportunities.json */,
 				F81D27386203249D913B5F66 /* PrivacyInfo.xcprivacy */,
 				7553722146CCDD02A80A91AD /* InfoPlist.strings */,
@@ -229,6 +238,7 @@
 			buildConfigurationList = B74C8205010C286F49A4B49A /* Build configuration list for PBXNativeTarget "GTAFreeSTEMTests" */;
 			buildPhases = (
 				3D85A0C36C79964037F267A8 /* Sources */,
+				F1A5C4A52E00000000000010 /* Stage source contract fixtures */,
 			);
 			buildRules = (
 			);
@@ -327,6 +337,8 @@
 				0FEC777605D5C112F928C309 /* LaunchScreen.storyboard in Resources */,
 				EE09F46022F670609FDFE888 /* PrivacyInfo.xcprivacy in Resources */,
 				475FC5B26D8388188FEC26C1 /* app_strings.json in Resources */,
+				FDE9080A6C7E9C086FDDD7C6 /* Nunito-OFL.txt in Resources */,
+				0F8FE5E37B21E671E1A6E5EC /* Nunito.ttf in Resources */,
 				15C4002643726DEDEE370E34 /* opportunities.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -337,10 +349,38 @@
 			files = (
 				3EBDCD33EFB70EB1790F90A8 /* Assets.xcassets in Resources */,
 				37389CC9F5A30FB882A2E1CB /* PrivacyInfo.xcprivacy in Resources */,
+				F1A5C4A52E00000000000001 /* WatchStrings.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		F1A5C4A52E00000000000010 /* Stage source contract fixtures */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/GTAFreeSTEM",
+				"$(SRCROOT)/GTAFreeSTEMWatch",
+				"$(SRCROOT)/project.yml",
+				"$(SRCROOT)/GTAFreeSTEM.xcodeproj/project.pbxproj",
+			);
+			name = "Stage source contract fixtures";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/SourceFixtures",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -euo pipefail\nfixture_root=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/SourceFixtures\"\ncase \"${fixture_root}\" in\n  \"${TARGET_BUILD_DIR}\"/*/SourceFixtures) ;;\n  *) echo \"Refusing unsafe source-fixture path: ${fixture_root}\" >&2; exit 1 ;;\nesac\n/bin/rm -rf \"${fixture_root}\"\n/bin/mkdir -p \"${fixture_root}/GTAFreeSTEM.xcodeproj\"\n/usr/bin/ditto \"${SRCROOT}/GTAFreeSTEM\" \"${fixture_root}/GTAFreeSTEM\"\n/usr/bin/ditto \"${SRCROOT}/GTAFreeSTEMWatch\" \"${fixture_root}/GTAFreeSTEMWatch\"\n/bin/cp \"${SRCROOT}/project.yml\" \"${fixture_root}/project.yml\"\n/bin/cp \"${SRCROOT}/GTAFreeSTEM.xcodeproj/project.pbxproj\" \"${fixture_root}/GTAFreeSTEM.xcodeproj/project.pbxproj\"\n/usr/bin/touch \"${fixture_root}/.complete\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		255C0902FB86ABEC934502DA /* Sources */ = {
@@ -490,7 +530,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 19;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -571,7 +611,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 19;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -614,6 +654,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = FE33NM88XX;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = GTAFreeSTEMTests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -634,6 +675,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = FE33NM88XX;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = GTAFreeSTEMTests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
