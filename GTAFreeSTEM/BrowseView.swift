@@ -130,6 +130,7 @@ struct BrowseView: View {
             }
             .sheet(isPresented: $saveSearchPresented) {
                 SaveNamedSearchSheet().environmentObject(session).environmentObject(store)
+                    .dynamicTypeSize(dynamicTypeSize)
             }
             .sheet(isPresented: $filtersPresented) {
                 OpportunityFilterSheet(

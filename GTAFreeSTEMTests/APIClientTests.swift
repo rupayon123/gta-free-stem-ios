@@ -3228,6 +3228,7 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(browseSource.contains("store.saveNamedSearch(name: name, updating: id)"))
         XCTAssertTrue(browseSource.contains(".accessibilityIdentifier(\"confirm-save-search\")"))
         XCTAssertTrue(browseSource.contains(".accessibilityIdentifier(\"saved-search-name\")"))
+        XCTAssertTrue(browseSource.contains(".dynamicTypeSize(dynamicTypeSize)"), "Save sheet must preserve the current accessibility text size")
     }
 
     func testBackgroundRefreshUsesCacheContextAndNewMatchNotifications() throws {

@@ -170,8 +170,8 @@ for screen, dark, large, language in cases:
         raise SystemExit("Layout fixture did not signal readiness: " + screen)
     # Calendar owns its separate actual-presentation marker. App screens require
     # both preparation and real shell appearance, then a real content framebuffer.
-    if screen == "calendar":
-        time.sleep(2)  # Preserve the existing system-editor transition allowance.
+    if screen in ("calendar", "save-search", "update-search"):
+        time.sleep(2)  # Preserve native modal transition allowance after its own readiness marker.
     name = "fixture-" + screen + ("-dark" if dark else "-light") + ("-large" if large else "") + ("-" + language if language != "en" else "")
     export(name, "app-owned-layout-fixture", screen=screen, language=language,
            dark=dark, dynamicType="accessibility3" if large else "large",
