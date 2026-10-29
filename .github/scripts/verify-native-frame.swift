@@ -18,12 +18,12 @@ guard values.count > 100, variance > 0.0001 else {
 print("Native framebuffer variance=\(variance)")
 
 // Optional content gate for app-owned screen captures. The preparation view is
-// nonblank too, but its Brand.ice canvas is not the screen's cream/night canvas.
+// nonblank too, but its Brand.ice canvas is not the screen's cool-white/night canvas.
 // Map and system-calendar captures omit this argument and keep the variance gate.
 if CommandLine.arguments.count > 2 {
     let scheme = CommandLine.arguments[2]
     guard scheme == "light" || scheme == "dark" else { exit(2) }
-    let target: [CGFloat] = scheme == "dark" ? [0.025, 0.065, 0.085] : [0.98, 0.97, 0.92]
+    let target: [CGFloat] = scheme == "dark" ? [0.025, 0.065, 0.085] : [0.98, 0.99, 1.0]
     var matches = 0
     var samples = 0
     for fraction in stride(from: 0.22, through: 0.87, by: 0.05) {
@@ -32,9 +32,10 @@ if CommandLine.arguments.count > 2 {
                                             y: Int(Double(bitmap.pixelsHigh) * fraction))?.usingColorSpace(.sRGB) else { continue }
             samples += 1
             let components = [color.redComponent, color.greenComponent, color.blueComponent]
-            // Covers native colour-profile conversion while still rejecting the
-            // preparation canvas (its light blue component differs by about .05).
-            if zip(components, target).allSatisfy({ abs($0.0 - $0.1) < 0.035 }) { matches += 1 }
+            // Light content must match cool white closely enough to reject mint
+            // preparation. The unchanged dark target needs profile tolerance.
+            let tolerance: CGFloat = scheme == "dark" ? 0.035 : 0.02
+            if zip(components, target).allSatisfy({ abs($0.0 - $0.1) < tolerance }) { matches += 1 }
         }
     }
     print("Native content canvas: \(matches)/\(samples), scheme=\(scheme)")

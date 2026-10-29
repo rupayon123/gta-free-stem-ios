@@ -49,22 +49,33 @@ enum Brand {
 
     // MARK: Semantic colours
 
+    // Content-only colours: the original loader's canvas and gradient stay unchanged.
+    static func contentCanvas(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? night : Color(red: 0.98, green: 0.99, blue: 1.0)
+    }
+
+    static func topicFill(category: String, scheme: ColorScheme) -> Color {
+        if scheme == .dark { return nightCard }
+        if category.contains("Coding") { return Color(red: 1, green: 0.94, blue: 0.70) }
+        if category.contains("Maker") || category.contains("Arts") { return Color(red: 1, green: 0.88, blue: 0.84) }
+        if category.contains("Career") { return Color(red: 0.87, green: 0.89, blue: 1) }
+        return Color(red: 0.83, green: 0.94, blue: 1)
+    }
+
     static func canvas(for scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? night
-            : cream
+        contentCanvas(for: scheme)
     }
 
     static func cardFill(for scheme: ColorScheme) -> Color {
         scheme == .dark
             ? nightCard
-            : Color(red: 0.995, green: 0.995, blue: 0.985)
+            : Color.white
     }
 
     static func raisedFill(for scheme: ColorScheme) -> Color {
         scheme == .dark
             ? Color(red: 0.075, green: 0.18, blue: 0.21)
-            : Color(red: 0.925, green: 0.95, blue: 0.93)
+            : Color(red: 0.91, green: 0.96, blue: 1)
     }
 
     static func outline(for scheme: ColorScheme) -> Color {
@@ -781,6 +792,7 @@ struct FrontendLayoutReview: View {
             guard !ready else { return }
             let prepared = await store.prepareScreenshotSnapshot()
             guard prepared else { return }
+            if screen == "home-saved" { await store.prepareNamedSearchLayoutReview() }
             if screen == "saved" {
                 // The query and fixture must share the retained main context.
                 // A temporary context resets its registered models on deinit.

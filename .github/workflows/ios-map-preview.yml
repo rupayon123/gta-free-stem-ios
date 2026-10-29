@@ -19,7 +19,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c187273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Verify isolated source and original loader
@@ -31,7 +31,7 @@ jobs:
           shasum -a 256 -c <<'HASHES'
           b43447d78fb72d4bc068d175808d125f4e804fbe317c3531a416cb6df2e1e7b9  GTAFreeSTEM/GTAFreeSTEMApp.swift
           8f8b063f873be3cd3ba2c9055931637a0006d14cf99e3ed5408ad5887b7df835  GTAFreeSTEM/APIClient.swift
-          d4ea6dbf05c4930c357c528493dba197d1ab35dbec581195216f66f5756bb5bd  GTAFreeSTEM/OpportunityStore.swift
+          75cafec11653d726fd39b3282f8d10ce7566837ca010d710733b765e69cc47c0  GTAFreeSTEM/OpportunityStore.swift
           077c365047628e38b1ae80e7a4319c0144429ac9a31de509b6fffab2cca59bc0  GTAFreeSTEM/LocalOpportunitySnapshot.swift
           c61ed81737815ad1543df966f382c8e2672fe2cb28b7d8f6f68cfc3ef39fd391  GTAFreeSTEM/Resources/opportunities.json
           HASHES
@@ -96,7 +96,7 @@ jobs:
           import json,os
           from pathlib import Path
           summary=json.loads((Path(os.environ['RUNNER_TEMP'])/'map-test-summary.json').read_text())
-          expected={'result':'Passed','totalTestCount':181,'passedTests':181,'failedTests':0,'skippedTests':0}
+          expected={'result':'Passed','totalTestCount':187,'passedTests':187,'failedTests':0,'skippedTests':0}
           for key,value in expected.items():
               if summary.get(key)!=value:raise SystemExit('Native test receipt mismatch: '+key+'='+repr(summary.get(key)))
           print('NATIVE_MAP_TESTS_PASS '+json.dumps(expected,sort_keys=True))

@@ -121,6 +121,7 @@ cases += [(screen, False, True, "en") for screen in ("home", "browse", "saved", 
 cases += [("browse", False, False, "ar")]
 cases += [(screen, False, True, language) for language in ("zh", "ja", "ko", "ar") for screen in ("home", "browse")]
 cases += [("calendar", False, False, "en")]
+cases += [("home-saved", False, False, "en"), ("home-saved", True, False, "en"), ("home-saved", False, True, "en")]
 for screen, dark, large, language in cases:
     nonce = str(uuid.uuid4())
     args = ["-frontend-layout-review", "-screenshot-mode", "-review-screen", screen,

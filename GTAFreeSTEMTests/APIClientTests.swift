@@ -3216,12 +3216,13 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(gridSource.contains("if store.availableHomePathwayModes.contains(.mentorship)"))
         XCTAssertTrue(contentSource.contains("store.mode = .all"))
         XCTAssertTrue(contentSource.contains("selectedTab = .opportunities"))
-        XCTAssertTrue(contentSource.contains("ForEach(Array(store.opportunities.prefix(2)))"))
-        XCTAssertTrue(contentSource.contains("private var cityMenu"))
-        XCTAssertTrue(contentSource.contains("private var ageMenu"))
-        XCTAssertTrue(contentSource.contains("private var categoryMenu"))
-        XCTAssertTrue(contentSource.contains("store.availableFilterCategories"))
-        XCTAssertTrue(contentSource.contains("home-category-filter"))
+        let homeStart = try XCTUnwrap(contentSource.range(of: "struct HomeView: View"))
+        let homeSource = String(contentSource[homeStart.lowerBound...])
+        XCTAssertFalse(homeSource.contains("TextField("), "Home is a topic-led landing page; editable search belongs in Browse")
+        XCTAssertTrue(homeSource.contains("store.homeTopics"))
+        XCTAssertTrue(homeSource.contains("store.savedSearches"))
+        XCTAssertTrue(homeSource.contains("store.openNamedSearch"))
+        XCTAssertTrue(homeSource.contains("Brand.contentCanvas"))
     }
 
     func testBackgroundRefreshUsesCacheContextAndNewMatchNotifications() throws {
@@ -4581,6 +4582,194 @@ final class OpportunityStoreTests: XCTestCase {
         XCTAssertEqual(store.dataSourceLabel, DataSource.previewDatabase)
         XCTAssertEqual(store.huntPhase, .offline)
         XCTAssertNil(store.errorMessage)
+    }
+
+    @MainActor
+    func testNamedSearchesKeepThreeAgesNamesAndExplicitEditsAcrossRelaunch() async throws {
+        let defaults = UserDefaults(suiteName: "NamedSearch.\(UUID())")!
+        let now = Date()
+        let url = URL(string: "https://named.example/catalog.json")!
+        let client = APIClient(feedURL: url, session: makeURLSessionForStub(), now: { now })
+        let store = OpportunityStore(api: client, defaults: defaults, now: { now })
+        let rows = [4, 10, 16].map { age in opportunity(id: "age-\(age)", title: "Robotics", organization: "Library", category: "Coding & Robotics", city: "Toronto", ageMin: age, ageMax: age) }
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON(rows, lastUpdated: now).utf8))
+        await store.refresh()
+        for age in [4, 10, 16] {
+            store.filters.age = "\(age)"
+            store.filters.city = "Toronto"
+            store.filters.category = "Coding & Robotics"
+            store.query = "Robotics"
+            let saved = await store.saveNamedSearch(name: "My choice \(age)")
+            XCTAssertTrue(saved)
+        }
+        XCTAssertEqual(store.savedSearches.count, 3)
+        XCTAssertEqual(store.savedSearches.map(\.matchedCount), [1, 1, 1])
+        XCTAssertTrue(store.savedSearches.allSatisfy { $0.hasBaseline && $0.unreadIDs.isEmpty })
+        let original = store.savedSearches
+        let restored = OpportunityStore(api: client, defaults: defaults, now: { now })
+        XCTAssertEqual(restored.savedSearches, original)
+        let opened = await restored.openNamedSearch(original[0].id)
+        XCTAssertTrue(opened)
+        XCTAssertEqual(restored.filters.age, "4")
+        XCTAssertEqual(restored.filters.city, "Toronto")
+        XCTAssertEqual(restored.filters.category, "Coding & Robotics")
+        XCTAssertEqual(restored.query, "Robotics")
+        restored.filters.age = "16"
+        XCTAssertEqual(restored.savedSearches[0].criteria.filters.age, "4", "Editing Browse does not autosave a named search")
+        let updated = await restored.saveNamedSearch(name: "Changed explicitly", updating: original[0].id)
+        XCTAssertTrue(updated)
+        XCTAssertEqual(restored.savedSearches[0].criteria.filters.age, "16")
+        XCTAssertEqual(restored.savedSearches[1], original[1])
+        XCTAssertEqual(restored.savedSearches[2], original[2])
+        let deleted = await restored.deleteNamedSearch(original[1].id)
+        XCTAssertTrue(deleted)
+        XCTAssertEqual(OpportunityStore(api: client, defaults: defaults).savedSearches.map(\.id), [original[0].id, original[2].id])
+    }
+
+    @MainActor
+    func testNamedSearchNewIDsPersistOnceAndPruneUnreadWithoutForgettingHistory() async throws {
+        let defaults = UserDefaults(suiteName: "NamedUpdates.\(UUID())")!
+        let now = Date()
+        let url = URL(string: "https://named.example/updates.json")!
+        let client = APIClient(feedURL: url, session: makeURLSessionForStub(), now: { now })
+        func rows(_ ids: [String]) -> [Opportunity] { ids.map { opportunity(id: $0, title: "Lab \($0)", organization: "Library", category: "Coding & Robotics", city: "Toronto") } }
+        func register(_ ids: [String], revision: Int) {
+            URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON(rows(ids), lastUpdated: now.addingTimeInterval(Double(revision))).utf8))
+        }
+        let store = OpportunityStore(api: client, defaults: defaults, now: { now })
+        register(["A", "B"], revision: 0)
+        await store.refresh()
+        let saved = await store.saveNamedSearch(name: "Libraries")
+        XCTAssertTrue(saved)
+        let id = try XCTUnwrap(store.savedSearches.first?.id)
+        XCTAssertEqual(store.savedSearches[0].unreadIDs, [])
+        register(["A", "B", "C"], revision: 1)
+        await store.refresh(force: true)
+        XCTAssertEqual(store.savedSearches[0].unreadIDs, ["C"])
+        let restored = OpportunityStore(api: client, defaults: defaults, now: { now })
+        await restored.refresh()
+        XCTAssertEqual(restored.savedSearches[0].unreadIDs, ["C"], "Restart and unchanged refresh cannot recount or acknowledge C")
+        await restored.markNamedSearchRead(id)
+        await restored.refresh(force: true)
+        XCTAssertEqual(restored.savedSearches[0].unreadIDs, [])
+        register(["A", "B", "C", "D"], revision: 2)
+        await restored.refresh(force: true)
+        XCTAssertEqual(restored.savedSearches[0].unreadIDs, ["D"])
+        register(["A", "B"], revision: 3)
+        await restored.refresh(force: true)
+        XCTAssertEqual(restored.savedSearches[0].unreadIDs, [])
+        register(["A", "B", "C", "D"], revision: 4)
+        await restored.refresh(force: true)
+        XCTAssertEqual(restored.savedSearches[0].unreadIDs, [], "A returning known ID is not new")
+        XCTAssertTrue(restored.savedSearches[0].knownIDs.isSuperset(of: ["C", "D"]))
+        let opened = await restored.openNamedSearch(id)
+        XCTAssertTrue(opened)
+        XCTAssertEqual(OpportunityStore(api: client, defaults: defaults).savedSearches[0].unreadIDs, [])
+    }
+
+    @MainActor
+    func testNamedSearchPreviewWaitsForQuietHealthyBaselineIncludingZeroMatches() async throws {
+        let defaults = UserDefaults(suiteName: "NamedPending.\(UUID())")!
+        let now = Date()
+        let url = URL(string: "https://named.example/pending.json")!
+        let client = APIClient(feedURL: url, session: makeURLSessionForStub(), now: { now })
+        let store = OpportunityStore(api: client, defaults: defaults, now: { now })
+        _ = await store.prepareScreenshotSnapshot()
+        store.filters.age = "4"
+        let saved = await store.saveNamedSearch(name: "Age choice")
+        XCTAssertTrue(saved)
+        XCTAssertFalse(store.savedSearches[0].hasBaseline)
+        XCTAssertNil(store.savedSearches[0].matchedCount)
+        let adult = opportunity(id: "adult", title: "Adult", organization: "Library", category: "Science & Engineering", city: "Toronto", ageMin: 18, ageMax: nil)
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([adult], lastUpdated: now).utf8))
+        await store.refresh()
+        XCTAssertTrue(store.savedSearches[0].hasBaseline)
+        XCTAssertEqual(store.savedSearches[0].matchedCount, 0)
+        XCTAssertTrue(store.savedSearches[0].unreadIDs.isEmpty)
+        let child = opportunity(id: "new-four", title: "Four", organization: "Library", category: "Science & Engineering", city: "Toronto", ageMin: 4, ageMax: 4)
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([adult, child], lastUpdated: now.addingTimeInterval(1)).utf8))
+        await store.refresh(force: true)
+        XCTAssertEqual(store.savedSearches[0].unreadIDs, [child.id])
+        let updated = await store.saveNamedSearch(name: "Explicit rebase", updating: store.savedSearches[0].id)
+        XCTAssertTrue(updated)
+        XCTAssertTrue(store.savedSearches[0].unreadIDs.isEmpty)
+    }
+
+    func testNamedSearchRejectsEmptyPartialStaleAndRestrictedMatchUpdates() throws {
+        let now = Date()
+        let a = opportunity(id: "A", title: "Lab", organization: "Library", category: "Coding & Robotics", city: "Toronto")
+        let healthy = try JSONDecoder().decode(OpportunityListResponse.self, from: Data(makeOpportunitiesJSON([a], lastUpdated: now).utf8))
+        let search = NamedSavedSearch(id: UUID(), name: "Lab", criteria: .init(query: "", mode: .all, filters: OpportunityFilters()), knownIDs: ["old"], unreadIDs: ["old"], matchedCount: 1, hasBaseline: true, checkedAt: now, publicationDate: FeedFreshness.date(from: healthy.meta?.lastUpdated))
+        let partial = OpportunityListResponse(data: [a], meta: healthy.meta)
+        let empty = OpportunityListResponse(data: [], meta: healthy.meta, sourceHealth: healthy.sourceHealth)
+        let stale = try JSONDecoder().decode(OpportunityListResponse.self, from: Data(makeOpportunitiesJSON([a], lastUpdated: now.addingTimeInterval(-86_400)).utf8))
+        for rejected in [partial, empty, stale] {
+            XCTAssertEqual(NamedSearchMatching.reconcile([search], with: rejected, language: .en, now: now), [search])
+        }
+        let accepted = NamedSearchMatching.reconcile([search], with: healthy, language: .en, now: now)
+        XCTAssertEqual(accepted[0].unreadIDs, ["A"])
+        XCTAssertTrue(accepted[0].knownIDs.contains("old"))
+    }
+
+    @MainActor
+    func testNamedSearchDeleteEditAndReadWinAgainstSuspendedReconciliation() async throws {
+        for operation in ["delete", "edit", "read"] {
+            let defaults = UserDefaults(suiteName: "NamedRace.\(UUID())")!
+            let now = Date()
+            let url = URL(string: "https://named.example/race.json")!
+            let client = APIClient(feedURL: url, session: makeURLSessionForStub(), now: { now })
+            let store = OpportunityStore(api: client, defaults: defaults, now: { now })
+            let a = opportunity(id: "A", title: "Lab", organization: "Library", category: "Coding & Robotics", city: "Toronto")
+            URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([a], lastUpdated: now).utf8))
+            await store.refresh()
+            let saved = await store.saveNamedSearch(name: "Original")
+            XCTAssertTrue(saved)
+            let id = store.savedSearches[0].id
+            let arrived = expectation(description: "\(operation) reaches reconciliation commit boundary")
+            var continuation: CheckedContinuation<Void, Never>?
+            var released = false
+            store.namedSearchReconciliationGate = {
+                guard !released else { return }
+                arrived.fulfill()
+                await withCheckedContinuation { continuation = $0 }
+            }
+            let refresh = Task { @MainActor in await store.refresh(force: true) }
+            await fulfillment(of: [arrived], timeout: 10)
+            if operation == "delete" { let deleted = await store.deleteNamedSearch(id); XCTAssertTrue(deleted) }
+            if operation == "edit" {
+                store.filters.age = "4"
+                let updated = await store.saveNamedSearch(name: "Edited", updating: id)
+                XCTAssertTrue(updated)
+            }
+            if operation == "read" { await store.markNamedSearchRead(id) }
+            released = true
+            continuation?.resume()
+            await refresh.value
+            store.namedSearchReconciliationGate = nil
+            if operation == "delete" { XCTAssertTrue(store.savedSearches.isEmpty) }
+            if operation == "edit" { XCTAssertEqual(store.savedSearches[0].name, "Edited"); XCTAssertEqual(store.savedSearches[0].criteria.filters.age, "4") }
+            if operation == "read" { XCTAssertTrue(store.savedSearches[0].unreadIDs.isEmpty) }
+        }
+    }
+
+    @MainActor
+    func testNamedSearchCorruptArchiveAndCollectionLimitNeverOverwritePersonalBytes() async throws {
+        let defaults = UserDefaults(suiteName: "NamedBounds.\(UUID())")!
+        let future = Data("{\"version\":2,\"searches\":[]}".utf8)
+        defaults.set(future, forKey: OpportunityStore.namedSearchesKey)
+        let blocked = OpportunityStore(api: APIClient(), defaults: defaults)
+        let rejected = await blocked.saveNamedSearch(name: "Do not overwrite")
+        XCTAssertFalse(rejected)
+        XCTAssertEqual(defaults.data(forKey: OpportunityStore.namedSearchesKey), future)
+        XCTAssertNotNil(blocked.savedSearchError)
+        defaults.removeObject(forKey: OpportunityStore.namedSearchesKey)
+        let store = OpportunityStore(api: APIClient(), defaults: defaults)
+        for index in 0..<16 { let saved = await store.saveNamedSearch(name: "Search \(index)"); XCTAssertTrue(saved) }
+        let before = defaults.data(forKey: OpportunityStore.namedSearchesKey)
+        let overflow = await store.saveNamedSearch(name: "One too many")
+        XCTAssertFalse(overflow)
+        XCTAssertEqual(store.savedSearches.count, 16)
+        XCTAssertEqual(defaults.data(forKey: OpportunityStore.namedSearchesKey), before)
     }
 
     @MainActor

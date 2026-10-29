@@ -189,6 +189,17 @@ final class OpportunityStore: ObservableObject {
     @Published var lastHuntStartedAt: Date?
     @Published var lastSuccessfulHuntAt: Date?
     @Published var newMatchesCount = 0
+    @Published private(set) var homeTopics: [String] = []
+    @Published private(set) var savedSearches: [NamedSavedSearch] = []
+    @Published private(set) var activeSavedSearchID: UUID?
+    @Published var savedSearchError: String?
+    static let namedSearchesKey = "namedSavedSearches.v1"
+    private var namedSearchStorageReadable = true
+    private var namedSearchGeneration = 0
+#if DEBUG
+    // Deterministic tests can suspend a worker at the commit boundary.
+    var namedSearchReconciliationGate: (() async -> Void)?
+#endif
     @Published var notificationStatusMessage: String?
     @Published var didRestoreLastHunt = false
     @Published private(set) var availableHomePathwayModes: [SearchMode] = []
@@ -227,6 +238,7 @@ final class OpportunityStore: ObservableObject {
         availableHomePathwayModes = []
         availableFilterCities = []
         availableFilterCategories = []
+        homeTopics = []
         guard let response else { return generation }
         let snapshotNow = now()
         let inventory = await Task.detached(priority: .userInitiated) {
@@ -250,6 +262,9 @@ final class OpportunityStore: ObservableObject {
         availableHomePathwayModes = inventory.modes
         availableFilterCities = inventory.cities
         availableFilterCategories = inventory.categories
+        let preferred = ["Science & Engineering", "Coding & Robotics", "Makerspace & Fabrication", "Arts & Media", "Family Learning", "Career & Mentorship"]
+        let ordered = preferred.filter(inventory.categories.contains) + inventory.categories.filter { !preferred.contains($0) }
+        homeTopics = Array(ordered.prefix(6))
         return generation
     }
 
@@ -263,6 +278,20 @@ final class OpportunityStore: ObservableObject {
         self.defaults = defaults
         self.now = now
         self.notificationDelivery = notificationDelivery
+
+        if let payload = defaults.data(forKey: Self.namedSearchesKey) {
+            if payload.count <= 4_000_000,
+               let archive = try? JSONDecoder().decode(NamedSearchArchive.self, from: payload),
+               archive.version == 1, archive.searches.count <= 16,
+               archive.searches.allSatisfy({ !$0.name.isEmpty && $0.name.count <= 80 && $0.knownIDs.count <= 20_000 && $0.unreadIDs.isSubset(of: $0.knownIDs) }),
+               Set(archive.searches.map(\.id)).count == archive.searches.count {
+                savedSearches = archive.searches
+            } else {
+                // Preserve unknown/corrupt bytes instead of silently overwriting personal data.
+                namedSearchStorageReadable = false
+                savedSearchError = Self.localized("serverResponseInvalid")
+            }
+        }
 
         if let value = defaults.object(forKey: lastNotificationKey) as? TimeInterval {
             lastNotificationSentAt = Date(timeIntervalSince1970: value)
@@ -321,6 +350,7 @@ final class OpportunityStore: ObservableObject {
                 lastSuccessfulHuntAt = self.now()
                 huntPhase = retainedFeedSource == .publicLiveFeed ? .fresh : .cached
                 errorMessage = nil
+                await reconcileNamedSearches(with: fullFeed)
                 return
             }
             if OpportunityFeedSelection.isOlder(fullFeed, than: inMemoryFeed, now: self.now()) {
@@ -359,6 +389,7 @@ final class OpportunityStore: ObservableObject {
             }
             persistCurrentHunt(in: context)
             markSeen(response.data, in: context)
+            await reconcileNamedSearches(with: fullFeed)
             newMatchesCount = newCount
             lastSuccessfulHuntAt = self.now()
             huntPhase = .fresh
@@ -472,6 +503,32 @@ final class OpportunityStore: ObservableObject {
         return !opportunities.isEmpty || lastUpdated != nil
     }
 
+#if DEBUG
+    /// Labelled, isolated app-owned samples only; exercises the real baseline/delta engine.
+    func prepareNamedSearchLayoutReview() async {
+        let rows = ScreenshotOpportunityFixtures.fullFeed.data
+        let sourceHealth = OpportunityListResponse.SourceHealth(
+            library: .init(status: "healthy", attemptedPages: 1, successfulPages: 1,
+                           pageSuccessRatio: 1, minimumPageSuccessRatio: 1,
+                           acceptedListings: rows.count, minimumAcceptedListings: 1),
+            discovery: .init(status: "healthy", sourcesChecked: 1, successfulSources: 1,
+                             sourceSuccessRatio: 1, minimumSourceSuccessRatio: 1))
+        let date = "2026-08-20T12:00:00Z"
+        let baseline = OpportunityListResponse(data: rows.filter { $0.id != "sample-teen-code" }, meta: .init(activeCount: rows.count - 1, lastUpdated: date), sourceHealth: sourceHealth)
+        let updated = OpportunityListResponse(data: rows, meta: .init(activeCount: rows.count, lastUpdated: date), sourceHealth: sourceHealth)
+        var coding = OpportunityFilters(); coding.category = "Coding & Robotics"; coding.age = "16"
+        var science = OpportunityFilters(); science.category = "Science & Engineering"; science.age = "10"
+        let samples = [NamedSavedSearch(id: UUID(), name: "Sample: Creative coding", criteria: .init(query: "", mode: .all, filters: coding)),
+                       NamedSavedSearch(id: UUID(), name: "Sample: Family science", criteria: .init(query: "", mode: .all, filters: science))]
+        let snapshotNow = now()
+        let result = await Task.detached(priority: .userInitiated) {
+            let initial = NamedSearchMatching.reconcile(samples, with: baseline, language: .en, now: snapshotNow)
+            return NamedSearchMatching.reconcile(initial, with: updated, language: .en, now: snapshotNow)
+        }.value
+        _ = await persistNamedSearches(result, expectedGeneration: namedSearchGeneration)
+    }
+#endif
+
     func refreshIfStale(cache context: ModelContext?) async {
         await restoreLastHuntIfNeeded(in: context)
         if let inMemoryFeed {
@@ -553,6 +610,12 @@ final class OpportunityStore: ObservableObject {
         }
         try context.save()
 
+        defaults.removeObject(forKey: Self.namedSearchesKey)
+        namedSearchStorageReadable = true
+        savedSearches = []
+        activeSavedSearchID = nil
+        savedSearchError = nil
+        namedSearchGeneration &+= 1
         defaults.removeObject(forKey: knownIDsKey)
         defaults.removeObject(forKey: lastNotificationKey)
         lastNotificationSentAt = nil
@@ -883,6 +946,115 @@ final class OpportunityStore: ObservableObject {
         } catch {
             return true
         }
+    }
+
+
+    // Named searches are explicit saves, separate from the legacy last-hunt record.
+    @discardableResult
+    func saveNamedSearch(name: String, updating id: UUID? = nil) async -> Bool {
+        guard namedSearchStorageReadable else { savedSearchError = Self.localized("serverResponseInvalid"); return false }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed.count <= 80 else { return false }
+        let criteria = NamedSearchCriteria(query: query, mode: mode, filters: filters)
+        let feed = retainedFeedSource == .publicLiveFeed && huntPhase != .offline ? inMemoryFeed : nil
+        let generation = catalogueGeneration
+        let revision = namedSearchGeneration
+        let snapshotNow = now()
+        let language = AppLanguage.preferred()
+        let matches: Set<String>? = await Task.detached(priority: .userInitiated) {
+            guard let feed, NamedSearchMatching.isCompleteCatalog(feed, now: snapshotNow) else { return nil }
+            return NamedSearchMatching.ids(for: criteria, in: feed, language: language, now: snapshotNow)
+        }.value
+        guard !Task.isCancelled, generation == catalogueGeneration, revision == namedSearchGeneration else { return false }
+        var next = savedSearches
+        let saved = NamedSavedSearch(id: id ?? UUID(), name: trimmed, criteria: criteria,
+                                     knownIDs: matches ?? [], unreadIDs: [], matchedCount: matches?.count,
+                                     hasBaseline: matches != nil, checkedAt: matches == nil ? nil : snapshotNow,
+                                     publicationDate: FeedPublicationRevision.date(from: feed?.publicationRevision)
+                                        ?? FeedFreshness.date(from: feed?.meta?.lastUpdated))
+        if let id {
+            guard let index = next.firstIndex(where: { $0.id == id }) else { return false }
+            next[index] = saved
+        } else { next.append(saved) }
+        guard await persistNamedSearches(next, expectedGeneration: revision) else { return false }
+        activeSavedSearchID = saved.id
+        return true
+    }
+
+    @discardableResult
+    func openNamedSearch(_ id: UUID, acknowledge: Bool = true) async -> Bool {
+        guard let saved = savedSearches.first(where: { $0.id == id }) else { return false }
+        query = saved.criteria.query
+        mode = saved.criteria.mode
+        filters = saved.criteria.filters
+        filters.language = "all"
+        activeSavedSearchID = id
+        // A failed local write keeps unread evidence, but must not block browsing.
+        if acknowledge { await markNamedSearchRead(id) }
+        await applyAvailableLocalResults(cache: nil)
+        return true
+    }
+
+    func markNamedSearchRead(_ id: UUID) async {
+        guard let index = savedSearches.firstIndex(where: { $0.id == id }) else { return }
+        var next = savedSearches
+        next[index].unreadIDs = []
+        _ = await persistNamedSearches(next, expectedGeneration: namedSearchGeneration)
+    }
+
+    @discardableResult
+    func deleteNamedSearch(_ id: UUID) async -> Bool {
+        guard savedSearches.contains(where: { $0.id == id }) else { return false }
+        guard await persistNamedSearches(savedSearches.filter { $0.id != id }, expectedGeneration: namedSearchGeneration) else { return false }
+        if activeSavedSearchID == id { activeSavedSearchID = nil }
+        return true
+    }
+
+    func beginNewSearch(category: String = "All") {
+        activeSavedSearchID = nil
+        query = ""
+        mode = .all
+        filters = OpportunityFilters()
+        filters.category = category
+    }
+
+    private func persistNamedSearches(_ searches: [NamedSavedSearch], expectedGeneration: Int) async -> Bool {
+        guard namedSearchStorageReadable else { savedSearchError = Self.localized("serverResponseInvalid"); return false }
+        // Encoding stays off the UI actor. Never truncate history to make a write fit.
+        let payload = await Task.detached(priority: .utility) { () -> Data? in
+            guard searches.count <= 16, searches.allSatisfy({ $0.knownIDs.count <= 20_000 }) else { return nil }
+            guard let payload = try? JSONEncoder().encode(NamedSearchArchive(searches: searches)), payload.count <= 4_000_000 else { return nil }
+            return payload
+        }.value
+        guard !Task.isCancelled, expectedGeneration == namedSearchGeneration else {
+            savedSearchError = Self.localized("serverResponseInvalid")
+            return false
+        }
+        guard let payload else { savedSearchError = Self.localized("serverResponseInvalid"); return false }
+        defaults.set(payload, forKey: Self.namedSearchesKey)
+        savedSearches = searches
+        namedSearchGeneration &+= 1
+        savedSearchError = nil
+        return true
+    }
+
+    private func reconcileNamedSearches(with feed: OpportunityListResponse) async {
+        guard !savedSearches.isEmpty, namedSearchStorageReadable else { return }
+        let snapshots = savedSearches
+        let revision = namedSearchGeneration
+        let generation = catalogueGeneration
+        let snapshotNow = now()
+        let language = AppLanguage.preferred()
+        let worker = Task.detached(priority: .utility) {
+            NamedSearchMatching.reconcile(snapshots, with: feed, language: language, now: snapshotNow)
+        }
+        let next = await withTaskCancellationHandler(operation: { await worker.value }, onCancel: { worker.cancel() })
+#if DEBUG
+        if let gate = namedSearchReconciliationGate { await gate() }
+#endif
+        guard !Task.isCancelled, revision == namedSearchGeneration, generation == catalogueGeneration,
+              next != savedSearches else { return }
+        _ = await persistNamedSearches(next, expectedGeneration: revision)
     }
 
     private var isUsingDefaultHunt: Bool {
