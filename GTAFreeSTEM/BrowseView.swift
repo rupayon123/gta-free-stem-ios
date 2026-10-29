@@ -1233,6 +1233,7 @@ private final class OpportunityMapMarker: MKMarkerAnnotationView {
 
 private struct SaveNamedSearchSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
     @State private var name = ""
@@ -1265,7 +1266,7 @@ private struct SaveNamedSearchSheet: View {
                 .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || name.count > 80 || saving)
             }
             .scrollContentBackground(.hidden)
-            .background(Brand.contentCanvas(for: session.colorScheme ?? .light))
+            .background(Brand.contentCanvas(for: colorScheme))
 #if DEBUG
             .safeAreaInset(edge: .bottom) {
                 if AppRuntime.isFrontendLayoutReview {

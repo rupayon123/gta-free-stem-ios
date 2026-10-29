@@ -3229,6 +3229,10 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(browseSource.contains(".accessibilityIdentifier(\"confirm-save-search\")"))
         XCTAssertTrue(browseSource.contains(".accessibilityIdentifier(\"saved-search-name\")"))
         XCTAssertTrue(browseSource.contains(".dynamicTypeSize(dynamicTypeSize)"), "Save sheet must preserve the current accessibility text size")
+        let sheetStart = try XCTUnwrap(browseSource.range(of: "private struct SaveNamedSearchSheet"))
+        let sheetSource = String(browseSource[sheetStart.lowerBound...])
+        XCTAssertTrue(sheetSource.contains("Brand.contentCanvas(for: colorScheme)"))
+        XCTAssertFalse(sheetSource.contains("session.colorScheme ?? .light"), "System appearance must use the effective sheet environment")
     }
 
     func testBackgroundRefreshUsesCacheContextAndNewMatchNotifications() throws {

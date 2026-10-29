@@ -753,13 +753,14 @@ struct FrontendLayoutReview: View {
     @State private var ready = false
     @State private var container: ModelContainer
     private let screen = Self.option("-review-screen") ?? "home"
+    private let followsSystemTheme = ProcessInfo.processInfo.arguments.contains("-review-system-theme")
     private let isDark = ProcessInfo.processInfo.arguments.contains("-review-dark")
     private let largeText = ProcessInfo.processInfo.arguments.contains("-review-large-text")
 
     init() {
         let defaults = UserDefaults(suiteName: "GTAFreeSTEM.LayoutReview.\(UUID().uuidString)")!
         let reviewSession = SessionStore(defaults: defaults, preferredLanguages: [Self.option("-review-language") ?? "en"])
-        reviewSession.preferredTheme = ProcessInfo.processInfo.arguments.contains("-review-dark") ? "Dark" : "Light"
+        reviewSession.preferredTheme = ProcessInfo.processInfo.arguments.contains("-review-system-theme") ? "System" : (ProcessInfo.processInfo.arguments.contains("-review-dark") ? "Dark" : "Light")
         _session = StateObject(wrappedValue: reviewSession)
         _store = StateObject(wrappedValue: OpportunityStore(api: APIClient(), defaults: defaults))
         let schema = Schema([OpportunityCacheRecord.self, SavedHuntRecord.self, SeenOpportunityRecord.self, SavedOpportunityRecord.self])
@@ -787,7 +788,7 @@ struct FrontendLayoutReview: View {
         .environment(\.locale, Locale(identifier: session.language.localeIdentifier))
         .environment(\.layoutDirection, session.language.layoutDirection)
         .environment(\.dynamicTypeSize, largeText ? .accessibility3 : .large)
-        .preferredColorScheme(isDark ? .dark : .light)
+        .preferredColorScheme(followsSystemTheme ? nil : (isDark ? .dark : .light))
         .task {
             guard !ready else { return }
             let prepared = await store.prepareScreenshotSnapshot()
