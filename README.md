@@ -55,7 +55,7 @@ The app reads the public opportunity feed from the web repository and keeps a lo
 
 ## Development status
 
-**Owner build 17 is available in TestFlight**, and Apple reports the sole owner installed it. Its startup crash fix passed 193 local core tests; its archive and retained uploaded IPA passed 52 and 62 strict checks. A directly observed physical-phone core journey remains unverified.
+The previous owner update **1.0 (17)** introduced the startup crash fix, which is preserved in build 18. That update passed 193 local core tests, 52 archive checks and 62 uploaded-app checks. Its delivery evidence remains historical; build 18 is the current owner update.
 
 **Owner build 18 is available in TestFlight.** The approved Nunito design and original illustration assets are integrated. Actual simulator checks cover padded Reset/Done with Show Borders enabled, live named-filter selection, explicit updates, normal/maximum text, Arabic, dark mode and five-route navigation. All 193 tests passed on the final diagnostic run. The archive passed 52 strict checks, and the exact uploaded app passed 62 distribution checks. Apple confirms Testing for the existing sole-owner group.
 
