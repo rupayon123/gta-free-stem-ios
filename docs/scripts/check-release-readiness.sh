@@ -18,8 +18,8 @@ done
 
 echo "=== Version and project configuration ==="
 rg -Fq 'MARKETING_VERSION: "1.0"' project.yml
-rg -Fq 'CURRENT_PROJECT_VERSION: "17"' project.yml
-rg -Fq 'CURRENT_PROJECT_VERSION = 17;' GTAFreeSTEM.xcodeproj/project.pbxproj
+rg -Fq 'CURRENT_PROJECT_VERSION: "18"' project.yml
+rg -Fq 'CURRENT_PROJECT_VERSION = 18;' GTAFreeSTEM.xcodeproj/project.pbxproj
 rg -Fq 'GTA_RELEASE_SOURCE_COMMIT: UNSET' project.yml
 rg -Fq 'ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon' project.yml
 for info_plist in GTAFreeSTEM/Info.plist GTAFreeSTEM/MacCatalyst-Info.plist GTAFreeSTEMWatch/Info.plist; do
@@ -29,7 +29,7 @@ for info_plist in GTAFreeSTEM/Info.plist GTAFreeSTEM/MacCatalyst-Info.plist GTAF
   }
 done
 rg -Fq '"GTA_RELEASE_SOURCE_COMMIT=$SOURCE_COMMIT"' docs/scripts/install-connected-device.sh
-echo "Version/build: 1.0 (17); delivery status is recorded in DEVELOPMENT_CANDIDATE.md"
+echo "Version/build: 1.0 (18); delivery status is recorded in OWNER_BUILD18_STATUS.md"
 
 echo
 echo "=== Localized UI coverage ==="

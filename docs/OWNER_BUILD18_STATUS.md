@@ -1,6 +1,6 @@
 # Owner build 18
 
-Build 18 passed 52 strict archive checks and Xcode is uploading it for owner-only TestFlight testing. Apple availability has not been confirmed yet. Owner build 17 remains the available update. Public App Store distribution and external tester sharing are not approved by this record.
+Build 18 passed 52 strict archive checks and Xcode confirmed its owner-only TestFlight upload. The exact uploaded IPA passed 62 strict distribution/provenance checks. Apple currently shows Processing; availability has not been confirmed yet. Owner build 17 remains the available update. Public App Store distribution and external tester sharing are not approved by this record.
 
 ## What changed
 
@@ -21,3 +21,7 @@ An earlier full run passed 192 tests and timed out waiting for one saved-filter 
 The isolated simulator's QA archive and preferences were backed up and restored after the tests. Some pre-existing tests construct stores with standard defaults and can change the test-host archive; this is recorded as test-isolation debt, not evidence of physical-phone data loss.
 
 Physical iPhone installation/core journey and full software-keyboard occlusion remain unverified. Simulator checks do not substitute for those gates. Catalogue expansion and full-description translations are excluded from this style update.
+
+## GitHub checks
+
+The first remote run stopped before runtime tests because its frozen test checksum referred to the older reviewed test file; a second configuration check still expected build 17. Both references are updated to the reviewed diagnostic test file and build 18. No app sources or security/release requirements changed. The strict public readiness audit now reaches and correctly fails full translated-description coverage (zero qualified records). That public-store gate remains enforced. Remote runtime verification is separate from the local 193-test result.

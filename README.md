@@ -4,7 +4,7 @@ I'm building GTA FREE STEM to make free STEM programs easier to find across the 
 
 [Android app](https://github.com/rupayon123/gta-free-stem-android) | [Web app](https://github.com/rupayon123/gta-free-stem-opportunities) | [Try the website](https://gta-free-stem.pages.dev/)
 
-> The existing owner-only **1.0 (17)** update is available in TestFlight. **Build 18 is being verified** with the approved Nunito design, illustrated navigation and live saved filters. It has not been uploaded yet.
+> The existing owner-only **1.0 (17)** update is available in TestFlight. **Build 18 is uploaded and processing at Apple** with the approved Nunito design, illustrated navigation and live saved filters. Its TestFlight availability is not yet confirmed.
 
 ## Home, Browse and saved filters
 
@@ -57,11 +57,11 @@ The app reads the public opportunity feed from the web repository and keeps a lo
 
 **Owner build 17 is available in TestFlight**, and Apple reports the sole owner installed it. Its startup crash fix passed 193 local core tests; its archive and retained uploaded IPA passed 52 and 62 strict checks. A directly observed physical-phone core journey remains unverified.
 
-**Candidate build 18 is not yet uploaded.** The approved Nunito design and original illustration assets are integrated. Actual simulator checks cover padded Reset/Done with Show Borders enabled, live named-filter selection, explicit updates, normal/maximum text, Arabic, dark mode and five-route navigation. All 193 tests passed on the final diagnostic run. The signed archive, upload and Apple availability are still separate gates.
+**Owner build 18 is uploaded; Apple processing is pending.** The approved Nunito design and original illustration assets are integrated. Actual simulator checks cover padded Reset/Done with Show Borders enabled, live named-filter selection, explicit updates, normal/maximum text, Arabic, dark mode and five-route navigation. All 193 tests passed on the final diagnostic run. The archive passed 52 strict checks, and the exact uploaded app passed 62 distribution checks. Apple availability remains a separate gate.
 
 Public App Store distribution remains incomplete. Full catalogue adoption, qualified full-description translations and physical-device acceptance are separate work; external tester sharing remains on hold. [Build 18 status](docs/OWNER_BUILD18_STATUS.md) · [Portfolio implementation and retained findings](docs/PORTFOLIO_V3_IOS.md).
 
-[Release runbook](docs/PUBLIC_RELEASE_RUNBOOK.md) | [TestFlight setup](docs/TESTFLIGHT.md) | [Device signoff](docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md)
+[Historical release handoff](docs/CURRENT_RELEASE_HANDOFF.md) | [Release runbook](docs/PUBLIC_RELEASE_RUNBOOK.md) | [TestFlight setup](docs/TESTFLIGHT.md) | [Device signoff](docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md)
 
 ## Run locally
 
