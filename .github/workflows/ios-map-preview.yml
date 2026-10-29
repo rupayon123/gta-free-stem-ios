@@ -58,7 +58,7 @@ jobs:
         run: |
           set -euo pipefail
           if ! xcodebuild build -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Debug \
-            -sdk iphonesimulator26.5 -destination 'generic/platform=iOS Simulator' \
+            -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/GTA-diagnostic-derived" -jobs 2 \
             CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES ARCHS=arm64 \
             GTA_RELEASE_SOURCE_COMMIT="$EXPECTED_SOURCE_SHA" > "$RUNNER_TEMP/diagnostic-build.log" 2>&1; then
