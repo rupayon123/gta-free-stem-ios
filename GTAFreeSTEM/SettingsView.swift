@@ -276,6 +276,7 @@ struct SettingsView: View {
                     profileEditorPresented = false
                 } label: {
                     Text(session.text("done"))
+                        .foregroundStyle(Brand.actionForeground(for: colorScheme))
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, minHeight: 44)
                         .padding(.horizontal, 12)

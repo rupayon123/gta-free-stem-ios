@@ -931,6 +931,7 @@ struct OpportunityFilterSheet: View {
                     saveFilterPresented = true
                 } label: {
                     Label(session.text(store.activeSavedSearchID == nil ? "saveSearch" : "updateSearch"), systemImage: "bookmark.badge.plus")
+                        .foregroundStyle(Brand.actionForeground(for: colorScheme))
                         .frame(maxWidth: .infinity, minHeight: 44)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -1058,6 +1059,7 @@ struct OpportunityFilterSheet: View {
     private var doneButton: some View {
         Button(action: apply) {
             Text(session.text("done"))
+                .foregroundStyle(Brand.actionForeground(for: colorScheme))
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 12)
                 .frame(minWidth: 72, minHeight: 44)
