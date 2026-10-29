@@ -656,6 +656,13 @@ enum NamedSearchSummary {
         if !criteria.filters.city.isEmpty { parts.append(criteria.filters.city) }
         if criteria.filters.category != "All" { parts.append(session.categoryName(criteria.filters.category)) }
         if !criteria.filters.age.isEmpty { parts.append("\(session.text("age")): \(criteria.filters.age)") }
+        if criteria.mode != .all { parts.append(session.text(criteria.mode.textKey)) }
+        if criteria.filters.region != "All" { parts.append(criteria.filters.region) }
+        if criteria.filters.volunteerHours { parts.append(session.text("volunteerHours")) }
+        if criteria.filters.coop { parts.append(session.text("coop")) }
+        if criteria.filters.mentorship { parts.append(session.text("mentorship")) }
+        if criteria.filters.scholarships { parts.append(session.categoryName("Scholarships")) }
+        if criteria.filters.hasLocation { parts.append(session.text("distanceRadius").replacingOccurrences(of: "{km}", with: "\(Int(criteria.filters.distanceKm))")) }
         return parts.isEmpty ? session.text("allCategories") : parts.joined(separator: " · ")
     }
 }

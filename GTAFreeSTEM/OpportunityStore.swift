@@ -1021,7 +1021,7 @@ final class OpportunityStore: ObservableObject {
         filters.category = category
     }
 
-    private func persistNamedSearches(_ searches: [NamedSavedSearch], expectedGeneration: Int) async -> Bool {
+    private func persistNamedSearches(_ searches: [NamedSavedSearch], expectedGeneration: Int, quietSupersession: Bool = false) async -> Bool {
         guard namedSearchStorageReadable else { savedSearchError = Self.localized("savedSearchWriteError"); return false }
         // Encoding stays off the UI actor. Never truncate history to make a write fit.
         let payload = await Task.detached(priority: .utility) { () -> Data? in
@@ -1030,7 +1030,7 @@ final class OpportunityStore: ObservableObject {
             return payload
         }.value
         guard !Task.isCancelled, expectedGeneration == namedSearchGeneration else {
-            savedSearchError = Self.localized("savedSearchWriteError")
+            if !quietSupersession { savedSearchError = Self.localized("savedSearchWriteError") }
             return false
         }
         guard let payload else { savedSearchError = Self.localized("savedSearchWriteError"); return false }
@@ -1057,7 +1057,7 @@ final class OpportunityStore: ObservableObject {
 #endif
         guard !Task.isCancelled, revision == namedSearchGeneration, generation == catalogueGeneration,
               next != savedSearches else { return }
-        _ = await persistNamedSearches(next, expectedGeneration: revision)
+        _ = await persistNamedSearches(next, expectedGeneration: revision, quietSupersession: true)
     }
 
     private var isUsingDefaultHunt: Bool {

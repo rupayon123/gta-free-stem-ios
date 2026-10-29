@@ -4719,6 +4719,13 @@ final class OpportunityStoreTests: XCTestCase {
         let pruned = NamedSearchMatching.reconcile(accepted, with: restricted, language: .en, now: now)
         XCTAssertTrue(pruned[0].unreadIDs.isEmpty)
         XCTAssertTrue(pruned[0].knownIDs.contains("A"))
+        let b = opportunity(id: "B", title: "Allowed lab", organization: "Library", category: "Coding & Robotics", city: "Toronto")
+        let allowedFeed = try JSONDecoder().decode(OpportunityListResponse.self, from: Data(makeOpportunitiesJSON([a, b], lastUpdated: now).utf8))
+        let restrictedWithAllowed = OpportunityListResponse(data: allowedFeed.data, meta: allowedFeed.meta, sourceHealth: allowedFeed.sourceHealth,
+            contentRights: .init(termsVerifiedAt: ISO8601DateFormatter().string(from: now), sources: [], restrictedOpportunityIDs: ["A"]), publicationRevision: allowedFeed.publicationRevision)
+        let onlyAllowedNew = NamedSearchMatching.reconcile(accepted, with: restrictedWithAllowed, language: .en, now: now)
+        XCTAssertEqual(onlyAllowedNew[0].unreadIDs, ["B"], "Restricted A must be pruned while allowed B is genuinely new")
+        XCTAssertTrue(onlyAllowedNew[0].knownIDs.contains("A"))
     }
 
     @MainActor
