@@ -4898,13 +4898,40 @@ final class OpportunityStoreTests: XCTestCase {
             let arrived = expectation(description: "\(operation) reaches reconciliation commit boundary")
             var continuation: CheckedContinuation<Void, Never>?
             var released = false
+            var reachedGate = false
+            var forceCompleted = false
+            let requestsBeforeForce = URLProtocolStub.requestCount(for: url)
+            @MainActor func traceRace(_ stage: String) {
+                let values: [String: Any] = [
+                    "operation": operation, "stage": stage,
+                    "isLoading": raceStore.isLoading,
+                    "requestDelta": URLProtocolStub.requestCount(for: url) - requestsBeforeForce,
+                    "forceCompleted": forceCompleted, "reachedGate": reachedGate,
+                    "phase": String(describing: raceStore.huntPhase),
+                    "source": String(describing: raceStore.dataSourceLabel),
+                    "error": raceStore.errorMessage ?? "none"
+                ]
+                if let data = try? JSONSerialization.data(withJSONObject: values, options: [.sortedKeys]),
+                   let line = String(data: data, encoding: .utf8) {
+                    FileHandle.standardOutput.write(Data(("GTA_RACE_DIAGNOSTIC " + line + "\n").utf8))
+                }
+            }
+            XCTAssertFalse(raceStore.isLoading, "The forced reconciliation must start from an idle store")
+            traceRace("before-force")
             raceStore.namedSearchReconciliationGate = {
                 guard !released else { return }
+                reachedGate = true
+                traceRace("gate-arrived")
                 arrived.fulfill()
                 await withCheckedContinuation { continuation = $0 }
             }
-            let refresh = Task { @MainActor in await raceStore.refresh(force: true) }
+            let refresh = Task { @MainActor in
+                await raceStore.refresh(force: true)
+                forceCompleted = true
+                traceRace("force-returned")
+            }
             await fulfillment(of: [arrived], timeout: 10)
+            traceRace("after-gate-wait")
             if operation == "delete" { let deleted = await raceStore.deleteNamedSearch(id); XCTAssertTrue(deleted) }
             if operation == "edit" {
                 raceStore.filters.age = "4"
