@@ -4,9 +4,19 @@ I'm building GTA FREE STEM to make free STEM programs easier to find across the 
 
 [Android app](https://github.com/rupayon123/gta-free-stem-android) | [Web app](https://github.com/rupayon123/gta-free-stem-opportunities) | [Try the website](https://gta-free-stem.pages.dev/)
 
-> Development: build1.0(16) is not uploaded. Home is being revised with topic discovery and multiple saved searches. See the [candidate status](docs/DEVELOPMENT_CANDIDATE.md); the screenshots below retain their original October27 source.
+> Development build **1.0 (16) is not uploaded**. The new Home introduces topics and independently saved searches; Browse keeps the search tools. See the [candidate status](docs/DEVELOPMENT_CANDIDATE.md).
 
-## The iPhone experience
+## New Home in development
+
+<table>
+<tr><th width="50%">Topic-led Home</th><th width="50%">Native map</th></tr>
+<tr><td align="center"><a href="docs/showcase/2026-10-28/normal-home.jpg"><img src="docs/showcase/2026-10-28/normal-home.jpg" alt="Native development Home with colourful topics and a saved-search section" width="300"></a></td><td align="center"><a href="docs/showcase/2026-10-28/ios-map-overview-light.jpg"><img src="docs/showcase/2026-10-28/ios-map-overview-light.jpg" alt="Native development map showing physical venue groups" width="300"></a></td></tr>
+</table>
+
+Actual simulator captures from source `692bdcd81e6bd091d920b35698b30fb4658f2dd7`, using the public feed. Home offers topic choices and a clear Browse entry. Save separate named searches in Browse for different ages or interests, then return Home for matching-event updates. These local searches need no account and do not automatically enable notifications. [Capture provenance and hashes](docs/showcase/2026-10-28/capture-receipt.json). These are development previews, not the uploaded build15, phone acceptance or final App Store screenshots.
+
+<details>
+<summary>Last uploaded build15: October27 screenshots</summary>
 
 <table>
 <tr><th width="50%">Home</th><th width="50%">Native map</th></tr>
@@ -14,6 +24,9 @@ I'm building GTA FREE STEM to make free STEM programs easier to find across the 
 </table>
 
 Captured from source `08c172d20060ec0748fccae2677c7554c3fe8145` in the [October 27 simulator CI run](https://github.com/rupayon123/gta-free-stem-ios/actions/runs/40521124677). These are normal-runtime captures using the public feed, not sample layout fixtures: Home shows 1,877 available results at capture time; the map shows 94 physical venues containing 1,832 opportunities. [Capture provenance and image hashes](docs/showcase/2026-10-27/capture-receipt.json). These resized JPEG exports are repository previews, not physical-device acceptance or the final App Store screenshot package.
+
+
+</details>
 
 <details>
 <summary>Historical build 12 screenshots, captured September 11</summary>
@@ -30,7 +43,7 @@ The source revision of that installed build was not established. [Historical cap
 
 ## About the app
 
-Search by location, age, category, and language, or use the High School section for volunteer hours, co-op, and mentorship. Open a program's source page, get directions with Apple Maps, and keep a shortlist on your device.
+Search by location, age and category in your chosen interface language, or use the High School section for volunteer hours, co-op, and mentorship. Open a program's source page, get directions with Apple Maps, and keep a shortlist on your device.
 
 There's no account to create. Your profile, saved opportunities, searches, and settings stay on-device. Nearby search requests your location only when you ask for it. The app has no ads, purchases, or third-party analytics.
 
@@ -38,7 +51,7 @@ The app reads the public opportunity feed from the web repository and keeps a lo
 
 ## Development status
 
-The current internal iPhone candidate is **1.0 (15)**, bound to source `08c172d20060ec0748fccae2677c7554c3fe8145`. Its CI run passed 178/178 tests and three targeted cancellation-race repeats; its archive and exported IPA passed 52/52 and 62/62 strict checks. Xcode confirmed upload to the existing internal TestFlight channel on October 27. App Store Connect processing, tester-group availability and installation have not yet been confirmed.
+The last uploaded internal iPhone build is **1.0 (15)**, bound to source `08c172d20060ec0748fccae2677c7554c3fe8145`. Its CI run passed 178/178 tests and three targeted cancellation-race repeats; its archive and exported IPA passed 52/52 and 62/62 strict checks. Xcode confirmed upload to the existing internal TestFlight channel on October 27. App Store Connect processing, tester-group availability and installation have not yet been confirmed.
 
 Public App Store release is **not complete**. Fresh physical iPhone/iPad, paired Watch and Mac acceptance, the canonical App Store screenshots, and the required public-release gates remain separate work. [Current build 15 handoff and evidence](docs/CURRENT_RELEASE_HANDOFF.md) records those boundaries; older build 12/13/14 records remain historical.
 
