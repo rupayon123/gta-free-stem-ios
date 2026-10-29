@@ -47,7 +47,7 @@ def file_probe(path):
         return dict(exists=False, bytes=0)
 
 
-def command(label, args, timeout=10, sample_timeout=False, probe_path=None):
+def command(label, args, timeout=10, sample_timeout=False, probe_path=None, full_output=False):
     started = time.monotonic()
     process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     if probe_path is not None:
@@ -67,7 +67,7 @@ def command(label, args, timeout=10, sample_timeout=False, probe_path=None):
                          childAlive=process.poll() is None, file=file_probe(probe_path))
                     if elapsed >= timeout:
                         raise
-        result = dict(code=process.returncode, timedOut=False, output=bounded_output(output),
+        result = dict(code=process.returncode, timedOut=False, output=output if full_output else bounded_output(output),
                       seconds=round(time.monotonic() - started, 3), file=file_probe(probe_path))
     except subprocess.TimeoutExpired as error:
         partial_output = bounded_output(error.output)
@@ -82,12 +82,12 @@ def command(label, args, timeout=10, sample_timeout=False, probe_path=None):
                       seconds=round(time.monotonic() - started, 3), pid=process.pid,
                       fileAtDeadline=at_deadline, fileBeforeTermination=before_terminate,
                       fileAfterTermination=file_probe(probe_path))
-    emit(label, **result)
+    emit(label, **dict(result, output=bounded_output(result["output"])))
     return result
 
 
-def required(label, args, timeout=10):
-    result = command(label, args, timeout)
+def required(label, args, timeout=10, full_output=False):
+    result = command(label, args, timeout, full_output=full_output)
     if result["code"] != 0:
         raise RuntimeError(label + " failed or timed out")
     return result["output"].strip()
@@ -132,16 +132,26 @@ def main():
     command("host-display", ["system_profiler", "SPDisplaysDataType", "-json"], 15)
     command("host-simulator-processes-before", ["pgrep", "-fl", "Simulator.app|CoreSimulator|WindowServer"])
     required("runtime-inventory", ["xcrun", "simctl", "list", "runtimes", "available", "--json"])
-    device = required("create-owned-simulator", ["xcrun", "simctl", "create", "GTA Capture Diagnostic " + str(os.environ.get("GITHUB_RUN_ID", "manual")), DEVICE_TYPE, RUNTIME], 20)
+    inventory = json.loads(required("existing-device-inventory", ["xcrun", "simctl", "list", "devices", "available", "--json"], full_output=True))
+    matches = [entry for entry in inventory.get("devices", {}).get(RUNTIME, [])
+               if entry.get("name") == "iPhone 17 Pro" and entry.get("isAvailable") is True]
+    if len(matches) != 1 or matches[0].get("state") not in ("Booted", "Shutdown"):
+        raise SystemExit("Exact pre-existing simulator is absent, ambiguous or transitioning")
+    device = matches[0]["udid"]
+    prior_state = matches[0]["state"]
+    boot_owned = False
     if not re.fullmatch(r"[A-Fa-f0-9-]{36}", device):
-        raise SystemExit("Unexpected owned simulator identity")
+        raise SystemExit("Unexpected pre-existing simulator identity")
+    emit("selected-existing-device", device=device, priorState=prior_state, imageVersion=os.environ.get("ImageVersion"))
     app_pid = None
     stdout = output / "app.stdout"
     stderr = output / "app.stderr"
     results = {}
     accepted_app_frame = False
     try:
-        required("boot-owned-simulator", ["xcrun", "simctl", "boot", device], 30)
+        if prior_state == "Shutdown":
+            boot_owned = True
+            required("boot-owned-simulator", ["xcrun", "simctl", "boot", device], 30)
         required("boot-status", ["xcrun", "simctl", "bootstatus", device, "-b"], 120)
         command("display-before-gui", ["xcrun", "simctl", "io", device, "enumerate"])
         results["springboardBeforeGUI"] = command("springboard-png-before-gui", ["xcrun", "simctl", "io", device, "screenshot", "--type=png", str(output / "springboard-before.png")], timeout=20, sample_timeout=True, probe_path=output / "springboard-before.png")
@@ -191,9 +201,11 @@ def main():
         command("device-rendering-log", ["xcrun", "simctl", "spawn", device, "log", "show", "--last", "1m", "--style", "compact", "--predicate", 'process == "backboardd" OR process == "SpringBoard"'], 10)
         command("host-rendering-log", ["/usr/bin/log", "show", "--last", "2m", "--style", "compact", "--predicate", 'process == "CoreSimulatorService" OR process == "Simulator" OR process == "simctl"'], 10)
         command("final-owned-display", ["xcrun", "simctl", "io", device, "enumerate"])
-        command("terminate-only-owned-app", ["xcrun", "simctl", "terminate", device, BUNDLE])
-        command("shutdown-only-created-device", ["xcrun", "simctl", "shutdown", device], 20)
-        command("delete-only-created-device", ["xcrun", "simctl", "delete", device], 20)
+        if app_pid is not None:
+            command("terminate-only-owned-app", ["xcrun", "simctl", "terminate", device, BUNDLE])
+        if boot_owned:
+            required("restore-original-shutdown-state", ["xcrun", "simctl", "shutdown", device], 20)
+        emit("existing-device-restored", device=device, priorState=prior_state, shutdownRequested=boot_owned, deleted=False)
         emit("diagnostic-conclusion", appSource=actual, stages=results, acceptedAppFrame=accepted_app_frame,
              reliabilityTestsExecuted=False, releaseAcceptance=False)
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
