@@ -262,6 +262,10 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             ForEach(AppTab.allCases, id: \.self) { tab in
                 tabContent(for: tab)
+                    // Keep scrolling content and destructive colours out of the
+                    // navigation labels, including at accessibility text sizes.
+                    .toolbarBackground(Brand.cardFill(for: colorScheme), for: .tabBar)
+                    .toolbarBackground(.visible, for: .tabBar)
                     .tabItem {
                         Label {
                             Text(session.text(tab.titleKey))
