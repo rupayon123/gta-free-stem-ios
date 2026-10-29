@@ -4,7 +4,7 @@ I'm building GTA FREE STEM to make free STEM programs easier to find across the 
 
 [Android app](https://github.com/rupayon123/gta-free-stem-android) | [Web app](https://github.com/rupayon123/gta-free-stem-opportunities) | [Try the website](https://gta-free-stem.pages.dev/)
 
-> Owner-only **1.0 (18) is available in TestFlight** with the approved Nunito design, illustrated navigation and live saved filters. Apple reports the owner installed build 18; directly observed phone-use acceptance remains separate.
+> **1.0 (19) is available in TestFlight for the authorized beta testers.** Apple shows the three approved recipients as Invited. It contains the approved Nunito design, illustrated navigation and live saved filters; directly observed phone-use acceptance remains separate.
 
 ## Home, Browse and saved filters
 
@@ -59,7 +59,7 @@ The previous owner update **1.0 (17)** introduced the startup crash fix, which i
 
 **Owner build 18 is available in TestFlight.** The approved Nunito design and original illustration assets are integrated. Actual simulator checks cover padded Reset/Done with Show Borders enabled, live named-filter selection, explicit updates, normal/maximum text, Arabic, dark mode and five-route navigation. All 193 tests passed on the final diagnostic run. The archive passed 52 strict checks, and the exact uploaded app passed 62 distribution checks. Apple confirms Testing for the existing sole-owner group.
 
-**External beta build 19 has been uploaded through App Store Connect.** It contains the same tested app code as build 18; Apple beta-review approval is pending. [External beta status](docs/EXTERNAL_BUILD19_STATUS.md).
+**External beta build 19 is Testing in App Store Connect.** It contains the same tested app code as build 18. Native automatic notifications are enabled, and exactly three authorized testers show Invited; actual email delivery and installation are unverified. [External beta status](docs/EXTERNAL_BUILD19_STATUS.md).
 
 Public App Store distribution remains incomplete. Full catalogue adoption, qualified full-description translations and physical-device acceptance are separate work; external tester sharing remains on hold. [Build 18 status](docs/OWNER_BUILD18_STATUS.md) · [Portfolio implementation and retained findings](docs/PORTFOLIO_V3_IOS.md).
 

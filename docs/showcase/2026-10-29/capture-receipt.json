@@ -19,5 +19,6 @@
       "file": "filters-selected-final.png",
       "sha256": "241a553d546f0cfcf0de714c21ff4eb345cbcdf41087e800443cb31d6a7698e2"
     }
-  ]
+  ],
+  "externalBuild19Lineage": "External build19 source ee6edf3 retains identical app/Watch/test source from diagnostic-test4a57101 and rendered appa96d2f4; no newer physical-device capture is implied"
 }
