@@ -125,6 +125,8 @@ struct BrowseView: View {
             }
             .sheet(isPresented: $saveSearchPresented) {
                 SaveNamedSearchSheet().environmentObject(session).environmentObject(store)
+                    .environment(\.layoutDirection, session.language.layoutDirection)
+                    .environment(\.locale, Locale(identifier: session.language.localeIdentifier))
                     .dynamicTypeSize(dynamicTypeSize)
             }
             .sheet(isPresented: $filtersPresented) {
@@ -140,6 +142,8 @@ struct BrowseView: View {
                     }
                 )
                 .environmentObject(session)
+                .environment(\.layoutDirection, session.language.layoutDirection)
+                .environment(\.locale, Locale(identifier: session.language.localeIdentifier))
             }
             .task {
                 await preparePresentedSurface()
@@ -941,6 +945,8 @@ struct OpportunityFilterSheet: View {
             .sheet(isPresented: $saveFilterPresented) {
                 SaveNamedSearchSheet(onSaved: { savedFilterConfirmed = true })
                     .environmentObject(session).environmentObject(store)
+                    .environment(\.layoutDirection, session.language.layoutDirection)
+                    .environment(\.locale, Locale(identifier: session.language.localeIdentifier))
             }
             .safeAreaInset(edge: .top, spacing: 0) {
                 ViewThatFits(in: .horizontal) {

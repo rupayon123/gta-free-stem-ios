@@ -46,6 +46,8 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $profileEditorPresented) {
             profileEditor
+                .environment(\.layoutDirection, session.language.layoutDirection)
+                .environment(\.locale, Locale(identifier: session.language.localeIdentifier))
         }
         .confirmationDialog(
             session.text(session.hasLocalProfile ? "deleteAccountConfirmation" : "deleteLocalData"),
