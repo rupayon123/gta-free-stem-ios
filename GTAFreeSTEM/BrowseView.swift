@@ -130,6 +130,7 @@ struct BrowseView: View {
             }
             .sheet(isPresented: $saveSearchPresented) {
                 SaveNamedSearchSheet().environmentObject(session).environmentObject(store)
+                    .dynamicTypeSize(dynamicTypeSize)
             }
             .sheet(isPresented: $filtersPresented) {
                 OpportunityFilterSheet(
@@ -147,6 +148,17 @@ struct BrowseView: View {
             }
             .task {
                 await preparePresentedSurface()
+#if DEBUG
+                let arguments = ProcessInfo.processInfo.arguments
+                if AppRuntime.isFrontendLayoutReview,
+                   arguments.contains("-review-save-search") || arguments.contains("-review-update-search") {
+                    if arguments.contains("-review-update-search") {
+                        await store.prepareNamedSearchLayoutReview()
+                        if let first = store.savedSearches.first { _ = await store.openNamedSearch(first.id) }
+                    }
+                    saveSearchPresented = true
+                }
+#endif
             }
             .onChange(of: session.language) { _, _ in
                 Task { await preparePresentedSurface() }
@@ -1221,6 +1233,7 @@ private final class OpportunityMapMarker: MKMarkerAnnotationView {
 
 private struct SaveNamedSearchSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
     @State private var name = ""
@@ -1252,6 +1265,18 @@ private struct SaveNamedSearchSheet: View {
                 }
                 .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || name.count > 80 || saving)
             }
+            .scrollContentBackground(.hidden)
+            .background(Brand.contentCanvas(for: colorScheme))
+#if DEBUG
+            .safeAreaInset(edge: .bottom) {
+                if AppRuntime.isFrontendLayoutReview {
+                    Text(session.text("layoutReviewBanner"))
+                        .font(.caption.weight(.semibold))
+                        .frame(maxWidth: .infinity).padding(8)
+                        .foregroundStyle(Brand.navy).background(Brand.sun)
+                }
+            }
+#endif
             .navigationTitle(session.text("saveSearch"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -1262,6 +1287,15 @@ private struct SaveNamedSearchSheet: View {
             }
             .onAppear {
                 if let id = store.activeSavedSearchID, let search = store.savedSearches.first(where: { $0.id == id }) { name = search.name }
+#if DEBUG
+                if AppRuntime.isFrontendLayoutReview {
+                    if store.activeSavedSearchID == nil { name = "Sample: Weekend science" }
+                    let arguments = ProcessInfo.processInfo.arguments
+                    if let index = arguments.firstIndex(of: "-runtime-ready-nonce"), arguments.indices.contains(index + 1), UUID(uuidString: arguments[index + 1]) != nil {
+                        FileHandle.standardOutput.write(Data(("GTA_NAMED_SEARCH_SHEET_READY " + arguments[index + 1] + "\n").utf8))
+                    }
+                }
+#endif
             }
         }
     }

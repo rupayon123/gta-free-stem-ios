@@ -3223,6 +3223,16 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(homeSource.contains("store.savedSearches"))
         XCTAssertTrue(homeSource.contains("store.openNamedSearch"))
         XCTAssertTrue(homeSource.contains("Brand.contentCanvas"))
+        let browseSource = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/BrowseView.swift"))
+        XCTAssertTrue(browseSource.contains(".sheet(isPresented: $saveSearchPresented)"))
+        XCTAssertTrue(browseSource.contains("store.saveNamedSearch(name: name, updating: id)"))
+        XCTAssertTrue(browseSource.contains(".accessibilityIdentifier(\"confirm-save-search\")"))
+        XCTAssertTrue(browseSource.contains(".accessibilityIdentifier(\"saved-search-name\")"))
+        XCTAssertTrue(browseSource.contains(".dynamicTypeSize(dynamicTypeSize)"), "Save sheet must preserve the current accessibility text size")
+        let sheetStart = try XCTUnwrap(browseSource.range(of: "private struct SaveNamedSearchSheet"))
+        let sheetSource = String(browseSource[sheetStart.lowerBound...])
+        XCTAssertTrue(sheetSource.contains("Brand.contentCanvas(for: colorScheme)"))
+        XCTAssertFalse(sheetSource.contains("session.colorScheme ?? .light"), "System appearance must use the effective sheet environment")
     }
 
     func testBackgroundRefreshUsesCacheContextAndNewMatchNotifications() throws {

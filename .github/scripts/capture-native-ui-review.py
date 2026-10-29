@@ -41,17 +41,47 @@ def require_alive():
         except ProcessLookupError as error:
             raise SystemExit("The app exited before native screen capture; PID " + str(activePid)) from error
 
+# At most one screenshot-command recovery for the entire capture job. This is
+# IPC recovery, not permission to accept an unready or blank framebuffer.
+screenshotTimeoutRetryUsed = False
+
+def capture_native_png(png, timeout=20):
+    global screenshotTimeoutRetryUsed
+    for commandAttempt in range(2):
+        require_alive()
+        temporary = png.with_name(png.stem + ".capture-" + str(commandAttempt) + ".png")
+        temporary.unlink(missing_ok=True)
+        args = ("xcrun", "simctl", "io", device, "screenshot", "--type=png", str(temporary))
+        try:
+            subprocess.run(args, check=True, timeout=timeout, text=True,
+                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            temporary.replace(png)
+            return
+        except subprocess.TimeoutExpired as error:
+            temporary.unlink(missing_ok=True)
+            require_alive()
+            if screenshotTimeoutRetryUsed or commandAttempt == 1:
+                raise SystemExit("Native screenshot command timed out; bounded recovery exhausted: " + str(png)) from error
+            screenshotTimeoutRetryUsed = True
+            print("NATIVE_SCREENSHOT_TIMEOUT_RETRY " + json.dumps(dict(name=png.name, seconds=timeout, maximumJobRetries=1)), flush=True)
+        except subprocess.CalledProcessError as error:
+            temporary.unlink(missing_ok=True)
+            raise SystemExit("Native screenshot command failed: " + (error.stdout or "")[-4000:]) from error
+
 def export(name, mode, **details):
     png = output / (name + ".png")
     jpg = output / (name + ".jpg")
     require_alive()
-    # Retry a transient blank framebuffer only while the actual app process survives.
+    # The first IPC capture has its own 20s limit and at most one job-wide retry.
+    # Keep the original 15s/20-attempt pixel settling gate after that command.
+    capture_native_png(png)
     deadline = time.monotonic() + 15
     for attempt in range(20):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise SystemExit("Native content did not settle before capture: " + name)
-        run("xcrun", "simctl", "io", device, "screenshot", "--type=png", str(png), timeout=min(remaining, 10))
+        if attempt > 0:
+            capture_native_png(png, timeout=min(remaining, 20))
         verifyArgs = [str(frameVerifier), str(png)]
         if not details.get("systemCalendarPresentationOnly"):
             verifyArgs.append("dark" if details.get("dark") else "light")
@@ -122,17 +152,20 @@ cases += [("browse", False, False, "ar")]
 cases += [(screen, False, True, language) for language in ("zh", "ja", "ko", "ar") for screen in ("home", "browse")]
 cases += [("calendar", False, False, "en")]
 cases += [("home-saved", False, False, "en"), ("home-saved", True, False, "en"), ("home-saved", False, True, "en")]
+cases += [("save-search", False, False, "en"), ("save-search", False, True, "en"), ("update-search", False, False, "en")]
 for screen, dark, large, language in cases:
     nonce = str(uuid.uuid4())
     args = ["-frontend-layout-review", "-screenshot-mode", "-review-screen", screen,
             "-review-language", language, "-screenshot-ready-nonce", nonce,
             "-runtime-ready-nonce", nonce]
-    if screen == "browse":
+    if screen in ("browse", "save-search", "update-search"):
         args += ["-start-opportunities"]
     elif screen in ("saved", "settings"):
         args += ["-start-account"]
     if screen == "calendar":
         args += ["-review-present-calendar"]
+    if screen in ("save-search", "update-search"):
+        args += ["-review-save-search" if screen == "save-search" else "-review-update-search"]
     if dark:
         args += ["-review-dark"]
     if large:
@@ -148,7 +181,7 @@ for screen, dark, large, language in cases:
     if not match:
         raise SystemExit("Launch did not return an app PID: " + launched)
     activePid = int(match.group(1))
-    readyTag = "GTA_CALENDAR_REVIEW_READY" if screen == "calendar" else "GTA_SAVED_REVIEW_READY" if screen == "saved" else "GTA_LAYOUT_REVIEW_READY"
+    readyTag = "GTA_NAMED_SEARCH_SHEET_READY" if screen in ("save-search", "update-search") else "GTA_CALENDAR_REVIEW_READY" if screen == "calendar" else "GTA_SAVED_REVIEW_READY" if screen == "saved" else "GTA_LAYOUT_REVIEW_READY"
     deadline = time.monotonic() + (30 if screen == "calendar" else 15)
     while time.monotonic() < deadline:
         if stdoutLog.is_file():
@@ -167,8 +200,8 @@ for screen, dark, large, language in cases:
         raise SystemExit("Layout fixture did not signal readiness: " + screen)
     # Calendar owns its separate actual-presentation marker. App screens require
     # both preparation and real shell appearance, then a real content framebuffer.
-    if screen == "calendar":
-        time.sleep(2)  # Preserve the existing system-editor transition allowance.
+    if screen in ("calendar", "save-search", "update-search"):
+        time.sleep(2)  # Preserve native modal transition allowance after its own readiness marker.
     name = "fixture-" + screen + ("-dark" if dark else "-light") + ("-large" if large else "") + ("-" + language if language != "en" else "")
     export(name, "app-owned-layout-fixture", screen=screen, language=language,
            dark=dark, dynamicType="accessibility3" if large else "large",
