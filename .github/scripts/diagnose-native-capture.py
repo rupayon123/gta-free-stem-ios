@@ -153,6 +153,12 @@ def main():
             boot_owned = True
             required("boot-owned-simulator", ["xcrun", "simctl", "boot", device], 30)
         required("boot-status", ["xcrun", "simctl", "bootstatus", device, "-b"], 120)
+        installation = command("install-reviewed-product", ["xcrun", "simctl", "install", device, str(app)], timeout=60, sample_timeout=True)
+        if installation["code"] != 0:
+            raise RuntimeError("install-reviewed-product failed or timed out")
+        installed = Path(required("installed-product-path", ["xcrun", "simctl", "get_app_container", device, BUNDLE, "app"]))
+        if manifest(installed) != manifest(app):
+            raise RuntimeError("Installed product is not byte-identical to reviewed build")
         command("display-before-gui", ["xcrun", "simctl", "io", device, "enumerate"])
         results["springboardBeforeGUI"] = command("springboard-png-before-gui", ["xcrun", "simctl", "io", device, "screenshot", "--type=png", str(output / "springboard-before.png")], timeout=20, sample_timeout=True, probe_path=output / "springboard-before.png")
         # Same device, same boot: GUI attachment is the only intentional change.
@@ -160,10 +166,6 @@ def main():
         command("host-simulator-processes-after", ["pgrep", "-fl", "Simulator.app|CoreSimulator|WindowServer"])
         command("display-after-gui", ["xcrun", "simctl", "io", device, "enumerate"])
         results["springboardAfterGUI"] = command("springboard-png-after-gui", ["xcrun", "simctl", "io", device, "screenshot", "--type=png", str(output / "springboard-after.png")], timeout=20, sample_timeout=True, probe_path=output / "springboard-after.png")
-        required("install-reviewed-product", ["xcrun", "simctl", "install", device, str(app)], 60)
-        installed = Path(required("installed-product-path", ["xcrun", "simctl", "get_app_container", device, BUNDLE, "app"]))
-        if manifest(installed) != manifest(app):
-            raise RuntimeError("Installed product is not byte-identical to reviewed build")
         nonce = str(uuid.uuid4())
         launch = required("launch-reviewed-home", ["xcrun", "simctl", "launch", "--terminate-running-process", "--stdout=" + str(stdout), "--stderr=" + str(stderr), device, BUNDLE,
             "-frontend-layout-review", "-screenshot-mode", "-review-screen", "home", "-review-language", "en", "-screenshot-ready-nonce", nonce, "-runtime-ready-nonce", nonce], 30)
