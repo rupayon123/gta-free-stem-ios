@@ -278,15 +278,22 @@ struct BrowseView: View {
                 }
             }
 
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 10) {
-                    filterButton
-                    huntButton
-                }
-
+            if dynamicTypeSize.isAccessibilitySize {
                 VStack(spacing: 10) {
                     filterButton
                     huntButton
+                }
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) {
+                        filterButton
+                        huntButton
+                    }
+
+                    VStack(spacing: 10) {
+                        filterButton
+                        huntButton
+                    }
                 }
             }
 
@@ -324,6 +331,7 @@ struct BrowseView: View {
             filtersPresented = true
         } label: {
             Label(session.text("filters"), systemImage: store.filters.hasActiveFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                .fixedSize(horizontal: true, vertical: true)
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(StoryButtonStyle(kind: .quiet))
@@ -334,6 +342,7 @@ struct BrowseView: View {
             Task { await store.refresh(cache: persistenceContext) }
         } label: {
             Label(session.text("hunt"), systemImage: "sparkle.magnifyingglass")
+                .fixedSize(horizontal: true, vertical: true)
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(StoryButtonStyle(kind: .primary))
