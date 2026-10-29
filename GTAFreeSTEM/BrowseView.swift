@@ -91,7 +91,7 @@ struct BrowseView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, AppSpacing.standard)
                     .padding(.top, AppSpacing.small)
-                    .padding(.bottom, 104)
+                    .padding(.bottom, AppSpacing.standard)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: selectedVenueID) { _, newID in
@@ -107,16 +107,12 @@ struct BrowseView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
-                        filtersPresented = true
-                    } label: {
-                        Label(session.text("filters"), systemImage: store.filters.hasActiveFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                    }
-
-                    Button {
                         Task { await store.refresh(cache: persistenceContext) }
                     } label: {
                         Label(session.text("refreshResearch"), systemImage: "arrow.clockwise")
+                            .labelStyle(.titleAndIcon)
                     }
+                    .accessibilityIdentifier("browse-refresh")
                 }
             }
             .navigationDestination(for: Opportunity.self) { opportunity in

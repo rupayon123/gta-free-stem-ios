@@ -180,10 +180,12 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appStorageAccess) private var storageAccess
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
     @State private var selectedTab: AppTab = AppTab.launchDefault
+    @State private var keyboardVisible = false
 
     var body: some View {
         Group {
@@ -225,6 +227,7 @@ struct ContentView: View {
             AccessibilityNotification.Announcement(message).post()
         }
         .onChange(of: selectedTab) { _, newTab in
+            keyboardVisible = false
             configureStore(for: newTab)
         }
         .onOpenURL { url in
@@ -262,13 +265,7 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             ForEach(AppTab.allCases, id: \.self) { tab in
                 tabContent(for: tab)
-                    // Keep scrolling content and destructive colours out of the
-                    // navigation labels, including at accessibility text sizes.
-                    .background {
-                        PortfolioTabBarBackground(scheme: colorScheme)
-                            .frame(width: 0, height: 0)
-                            .accessibilityHidden(true)
-                    }
+                    .toolbar(.hidden, for: .tabBar)
                     .tabItem {
                         Label {
                             Text(session.text(tab.titleKey))
@@ -283,6 +280,91 @@ struct ContentView: View {
                     .tag(tab)
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !keyboardVisible {
+                footerNavigation
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
+            if let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
+                keyboardVisible = frame.height > 0
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardVisible = false
+        }
+    }
+
+    private var footerColumnCount: Int {
+        if dynamicTypeSize >= .accessibility3 { return 1 }
+        if dynamicTypeSize.isAccessibilitySize { return 2 }
+        if dynamicTypeSize > .large { return 3 }
+        return 5
+    }
+
+    private var footerNavigation: some View {
+        LazyVGrid(
+            columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: footerColumnCount),
+            spacing: 8
+        ) {
+            ForEach(AppTab.allCases, id: \.self) { tab in
+                Button {
+                    selectedTab = tab
+                } label: {
+                    Group {
+                        if footerColumnCount <= 2 {
+                            HStack(spacing: 8) {
+                                footerIcon(for: tab)
+                                footerTitle(for: tab)
+                                Spacer(minLength: 0)
+                            }
+                        } else {
+                            VStack(spacing: 4) {
+                                footerIcon(for: tab)
+                                footerTitle(for: tab)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 6)
+                    .frame(maxWidth: .infinity, minHeight: 48)
+                    .foregroundStyle(Brand.outline(for: colorScheme))
+                    .background {
+                        RoundedRectangle(cornerRadius: AppRadius.control)
+                            .fill(selectedTab == tab ? Brand.selectionFill(for: colorScheme) : Brand.cardFill(for: colorScheme))
+                    }
+                    .overlay {
+                        RoundedRectangle(cornerRadius: AppRadius.control)
+                            .strokeBorder(selectedTab == tab ? Brand.surfaceStroke(for: colorScheme) : .clear, lineWidth: 1.5)
+                    }
+                    .contentShape(RoundedRectangle(cornerRadius: AppRadius.control))
+                }
+                .buttonStyle(PortfolioFooterPressStyle())
+                .accessibilityLabel(session.text(tab.titleKey))
+                .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
+                .accessibilityIdentifier("tab-\(tab.titleKey)")
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Brand.cardFill(for: colorScheme).ignoresSafeArea(edges: .bottom))
+        .overlay(alignment: .top) {
+            Rectangle().fill(Brand.surfaceStroke(for: colorScheme)).frame(height: 1)
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private func footerIcon(for tab: AppTab) -> some View {
+        PortfolioArtwork.tabImage(tab.artworkAssetName, scheme: colorScheme, fallbackSystemImage: tab.symbolName)
+            .frame(width: 26, height: 26)
+            .accessibilityHidden(true)
+    }
+
+    private func footerTitle(for tab: AppTab) -> some View {
+        Text(session.text(tab.titleKey))
+            .font(PortfolioTypography.caption.weight(selectedTab == tab ? .semibold : .regular))
+            .multilineTextAlignment(footerColumnCount <= 2 ? .leading : .center)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var sidebarNavigation: some View {
@@ -506,7 +588,7 @@ struct HomeView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
-                .padding(.bottom, 100)
+                .padding(.bottom, AppSpacing.standard)
             }
             .background(Brand.contentCanvas(for: colorScheme).ignoresSafeArea())
             .navigationTitle("")

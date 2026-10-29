@@ -151,91 +151,13 @@ enum PortfolioArtwork {
     }
 }
 
-/// Configures only the enclosing app tab bar through public containment APIs.
-/// The native bar continues to own selection, layout, focus and accessibility.
-struct PortfolioTabBarBackground: UIViewControllerRepresentable {
-    let scheme: ColorScheme
+struct PortfolioFooterPressStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    func makeUIViewController(context: Context) -> Controller {
-        Controller()
-    }
-
-    func updateUIViewController(_ controller: Controller, context: Context) {
-        controller.fill = UIColor(Brand.cardFill(for: scheme))
-        controller.applyBackground()
-    }
-
-    final class Controller: UIViewController {
-        var fill: UIColor = .systemBackground
-#if DEBUG
-        private var lastGeometry: String?
-#endif
-
-        override func loadView() {
-            view = UIView()
-            view.isUserInteractionEnabled = false
-            view.backgroundColor = .clear
-        }
-
-        override func didMove(toParent parent: UIViewController?) {
-            super.didMove(toParent: parent)
-            applyBackground()
-        }
-
-        override func viewWillAppear(_ animated: Bool) {
-            super.viewWillAppear(animated)
-            applyBackground()
-        }
-
-        override func viewDidAppear(_ animated: Bool) {
-            super.viewDidAppear(animated)
-            applyBackground()
-        }
-
-#if DEBUG
-        override func viewDidLayoutSubviews() {
-            super.viewDidLayoutSubviews()
-            recordGeometryIfRequested()
-        }
-#endif
-
-        func applyBackground() {
-            guard let bar = tabBarController?.tabBar else { return }
-            let appearance = UITabBarAppearance(barAppearance: bar.standardAppearance)
-            appearance.configureWithOpaqueBackground()
-            appearance.backgroundColor = fill
-            bar.standardAppearance = appearance
-            bar.scrollEdgeAppearance = appearance
-            bar.isTranslucent = false
-#if DEBUG
-            if ProcessInfo.processInfo.arguments.contains("-review-tab-translucent") {
-                // One-variable diagnostic only; the appearance stays identical.
-                bar.isTranslucent = true
-            }
-            recordGeometryIfRequested()
-#endif
-        }
-
-#if DEBUG
-        private func recordGeometryIfRequested() {
-            guard ProcessInfo.processInfo.arguments.contains("-review-tab-geometry"),
-                  let container = tabBarController else { return }
-            let bar = container.tabBar
-            let values: [String: String] = [
-                "barFrame": String(describing: bar.frame),
-                "barBounds": String(describing: bar.bounds),
-                "barInContainer": String(describing: bar.convert(bar.bounds, to: container.view)),
-                "containerBounds": String(describing: container.view.bounds),
-                "containerSafeArea": String(describing: container.view.safeAreaInsets),
-                "windowSafeArea": view.window.map { String(describing: $0.safeAreaInsets) } ?? "unattached",
-                "isTranslucent": String(bar.isTranslucent)
-            ]
-            guard let data = try? JSONSerialization.data(withJSONObject: values, options: [.sortedKeys]),
-                  let geometry = String(data: data, encoding: .utf8), geometry != lastGeometry else { return }
-            lastGeometry = geometry
-            FileHandle.standardOutput.write(Data(("GTA_TAB_GEOMETRY " + geometry + "\n").utf8))
-        }
-#endif
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.75 : 1)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: configuration.isPressed)
     }
 }
 
