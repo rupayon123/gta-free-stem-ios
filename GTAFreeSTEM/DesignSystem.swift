@@ -755,7 +755,7 @@ struct SpringPressButtonStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.975 : 1)
             .opacity(configuration.isPressed ? 0.86 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .spring(response: 0.30, dampingFraction: 0.78), value: configuration.isPressed)
     }
 }
 
@@ -834,27 +834,7 @@ struct FrontendLayoutReview: View {
     private var reviewContent: some View {
         Group {
             if ready {
-                if screen == "typography" {
-                    VStack(alignment: .leading, spacing: 24) {
-                        Text("Typography diagnostic · app-owned sample").font(.caption)
-                        Text("Default variable face · weight 200").font(.caption)
-                        Text("GTA Free STEM · ages 4–17")
-                            .font(.custom("Nunito-ExtraLight", size: 22, relativeTo: .title2))
-                        Text("Content regular · requested weight 400").font(.caption)
-                        Text("GTA Free STEM · ages 4–17").font(PortfolioTypography.title2)
-                        Text("Content semibold · requested weight 600").font(.caption)
-                        Text("GTA Free STEM · ages 4–17").font(PortfolioTypography.title2.weight(.semibold))
-                        Text("العربية · اردو · বাংলা · 中文 · 日本語")
-                            .font(PortfolioTypography.body)
-                        Text(UIFont.fontNames(forFamilyName: "Nunito").joined(separator: ", "))
-                            .font(.caption).accessibilityIdentifier("registered-nunito-faces")
-                    }
-                    .padding()
-                    .foregroundStyle(Brand.outline(for: session.colorScheme ?? .light))
-                    .onAppear {
-                        FileHandle.standardOutput.write(Data(("GTA_FONT_PROBE " + UIFont.fontNames(forFamilyName: "Nunito").joined(separator: ",") + "\n").utf8))
-                    }
-                } else if screen == "calendar", let sample = store.opportunities.first {
+                if screen == "calendar", let sample = store.opportunities.first {
                     NavigationStack { OpportunityDetailView(opportunity: sample) }
                 } else {
                     ContentView()
