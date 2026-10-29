@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-29",
+  "source": "a96d2f4246e574c65a1200503393c54291a824bd",
+  "surface": "iPhone17ProMax iOS27 simulator, normal app runtime, unretouched",
+  "sample": "Locally saved V3 QA robots filter is QA-owned; results come from public feed, count is time-dependent",
+  "installedAppProof": "81 installed app files matched build products; embedded source matched",
+  "releaseLineage": "Owner build18 metadata commit de01aa5 changes build number only; app, Watch and test source identical",
+  "limitations": "Not a physical phone or final TestFlight screenshot; software keyboard occlusion not verified",
+  "files": [
+    {
+      "file": "home-light.png",
+      "sha256": "dffc95b2b33faee7b0f6ff773e6b12fc3ce77e76533f7ba9e062b77d32b62c58"
+    },
+    {
+      "file": "browse-light.png",
+      "sha256": "4534a89dcde4df520b46781767531f2d1ffd6b9bc5f601d55898bf57eb8e1d6d"
+    },
+    {
+      "file": "filters-selected-final.png",
+      "sha256": "241a553d546f0cfcf0de714c21ff4eb345cbcdf41087e800443cb31d6a7698e2"
+    }
+  ]
+}

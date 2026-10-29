@@ -4,16 +4,20 @@ I'm building GTA FREE STEM to make free STEM programs easier to find across the 
 
 [Android app](https://github.com/rupayon123/gta-free-stem-android) | [Web app](https://github.com/rupayon123/gta-free-stem-opportunities) | [Try the website](https://gta-free-stem.pages.dev/)
 
-> Owner-only development update **1.0 (16) is available in TestFlight**. The new Home introduces topics and independently saved searches; Browse keeps the search tools. See the [candidate status](docs/DEVELOPMENT_CANDIDATE.md).
+> The existing owner-only **1.0 (17)** update is available in TestFlight. **Build 18 is being verified** with the approved Nunito design, illustrated navigation and live saved filters. It has not been uploaded yet.
 
-## New Home in development
+## Home, Browse and saved filters
 
 <table>
-<tr><th width="50%">Topic-led Home</th><th width="50%">Native map</th></tr>
-<tr><td align="center"><a href="docs/showcase/2026-10-28/normal-home.jpg"><img src="docs/showcase/2026-10-28/normal-home.jpg" alt="Native development Home with colourful topics and a saved-search section" width="300"></a></td><td align="center"><a href="docs/showcase/2026-10-28/ios-map-overview-light.jpg"><img src="docs/showcase/2026-10-28/ios-map-overview-light.jpg" alt="Native development map showing physical venue groups" width="300"></a></td></tr>
+<tr><th width="50%">A landing page for every age</th><th width="50%">Choose a named filter</th></tr>
+<tr><td align="center"><img src="docs/showcase/2026-10-29/home-light.png" alt="iOS Home with original GTA logo, Nunito, saved filters and illustrated topics" width="300"></td><td align="center"><img src="docs/showcase/2026-10-29/filters-selected-final.png" alt="Filters with padded Reset and Done, named Saved filters dropdown, live result count and explicit Update filter" width="300"></td></tr>
 </table>
 
-Actual simulator captures from source `692bdcd81e6bd091d920b35698b30fb4658f2dd7`, using the public feed. Home offers topic choices and a clear Browse entry. Save separate named searches in Browse for different ages or interests, then return Home for matching-event updates. These local searches need no account and do not automatically enable notifications. [Capture provenance and hashes](docs/showcase/2026-10-28/capture-receipt.json). These are source-bound simulator previews of the new Home, not phone acceptance or final App Store screenshots.
+Home introduces topics and saved filters. **Browse** keeps the search, list/map views and one clearly labeled **Filters** button. Inside Filters, choose a named preset to apply its query, age and location settings immediately and see matching results. **Save filter** creates a preset; **Update filter** explicitly saves edits. Choosing or adjusting a filter does not silently overwrite it or send Browse back Home.
+
+Use independent filters for different ages and interests. Data stays on the device; saving a filter does not automatically enable notifications. The original logo and animated loading experience remain intact. Navigation now reserves its own opaque space so page content cannot obscure the labels, including in dark mode and at large text sizes.
+
+These are actual simulator captures from production source `a96d2f4246e574c65a1200503393c54291a824bd`, not physical-device or App Store screenshots. [Capture provenance](docs/showcase/2026-10-29/capture-receipt.json) · [Browse preview](docs/showcase/2026-10-29/browse-light.png).
 
 <details>
 <summary>Previous build 15: October 27 screenshots</summary>
@@ -51,11 +55,11 @@ The app reads the public opportunity feed from the web repository and keeps a lo
 
 ## Development status
 
-**Version 1.0 (17) is being verified after an owner-reported build 16 crash.** It includes a window-construction fix and clearer Saved filters / Save filter / Update filter actions. All 190 local tests pass; actual UI checks and delivery remain pending. [Current candidate and evidence](docs/DEVELOPMENT_CANDIDATE.md).
+**Owner build 17 is available in TestFlight**, and Apple reports the sole owner installed it. Its startup crash fix passed 193 local core tests; its archive and retained uploaded IPA passed 52 and 62 strict checks. A directly observed physical-phone core journey remains unverified.
 
-The latest owner-only internal iPhone upload is **1.0 (16)**, from source `1338441b5daa7d7281d0d22d6d5e7da552a88f54`. App Store Connect shows Internal Testing for the sole-owner group and reports the owner installed 1.0 (16). Physical-device launch and core-use acceptance remain unverified. Its archive and retained uploaded IPA passed 52/52 and 62/62 strict checks. All 187 test stages passed, while the remote screenshot stage failed; 31 reviewed local native frames match the delivered UI. [Build 16 evidence and limitations](docs/DEVELOPMENT_CANDIDATE.md).
+**Candidate build 18 is not yet uploaded.** The approved Nunito design and original illustration assets are integrated. Actual simulator checks cover padded Reset/Done with Show Borders enabled, live named-filter selection, explicit updates, normal/maximum text, Arabic, dark mode and five-route navigation. All 193 tests passed on the final diagnostic run. The signed archive, upload and Apple availability are still separate gates.
 
-Public App Store release is **not complete**. Full catalogue/translation work, final screenshot automation, physical iPhone/iPad, paired Watch and Mac acceptance, and existing public-release gates remain separate work. External tester sharing stays on hold until the owner's visual review. [The prior build 15 record](docs/CURRENT_RELEASE_HANDOFF.md) preserves its historical upload evidence; the owner has since installed15.
+Public App Store distribution remains incomplete. Full catalogue adoption, qualified full-description translations and physical-device acceptance are separate work; external tester sharing remains on hold. [Build 18 status](docs/OWNER_BUILD18_STATUS.md) · [Portfolio implementation and retained findings](docs/PORTFOLIO_V3_IOS.md).
 
 [Release runbook](docs/PUBLIC_RELEASE_RUNBOOK.md) | [TestFlight setup](docs/TESTFLIGHT.md) | [Device signoff](docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md)
 
