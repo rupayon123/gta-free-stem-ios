@@ -1,4 +1,4 @@
-# Availability evidence: actions/runner-images@4f94a804ccf6254bfc5c7fd90a213db4b21814cd
+# Availability evidence: actions/runner-images@4f94a804ccf6254bfc5c7fd90a213db4b21874cd
 name: iOS native reliability and screen review
 
 on:
@@ -31,7 +31,7 @@ jobs:
         shell: bash
     steps:
       - name: Check out the dispatched commit
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c187273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
@@ -51,10 +51,10 @@ jobs:
           shasum -a 256 -c .github/native-ci-source.sha256
           shasum -a 256 -c <<'HASHES'
           8f8b063f873be3cd3ba2c9055931637a0006d14cf99e3ed5408ad5887b7df835  GTAFreeSTEM/APIClient.swift
-          53d2d925b09b768235de45e8a2b4737537fe2ac646043376138454f046001346  GTAFreeSTEM/Models.swift
-          d4ea6dbf05c4930c357c528493dba197d1ab35dbec581195216f66f5756bb5bd  GTAFreeSTEM/OpportunityStore.swift
+          8f119888d0bd820a9abe4d58fcffa5bad9173e599edadc6a012e8f0f697ea14d  GTAFreeSTEM/Models.swift
+          ed73387435ea68469cf8efa36d94b3cae8b2c187787339d5f91c959613fbca58  GTAFreeSTEM/OpportunityStore.swift
           077c365047628e38b1ae80e7a4319c0144429ac9a31de509b6fffab2cca59bc0  GTAFreeSTEM/LocalOpportunitySnapshot.swift
-          3b4440765e25af1a11ba33ce4d48e053296170cb9a2de916a1cac8bd744deb9a  GTAFreeSTEMTests/APIClientTests.swift
+          0e388375b54111a9cb2d51ba4f63fc59c4562b1b54dd3e38882227d89740f7c7  GTAFreeSTEMTests/APIClientTests.swift
           c61ed81737815ad1543df966f382c8e2672fe2cb28b7d8f6f68cfc3ef39fd391  GTAFreeSTEM/Resources/opportunities.json
           06181e9494ed5cf7b5bcd672fba62f674dbed03320de8455c48aa57e92b79da3  docs/scripts/validate-feed-content-rights.py
           HASHES
@@ -126,13 +126,13 @@ jobs:
           import json, os
           from pathlib import Path
           summary = json.loads((Path(os.environ['RUNNER_TEMP']) / 'reliability-summary.json').read_text())
-          expected = {'result': 'Passed', 'totalTestCount': 181, 'passedTests': 181,
+          expected = {'result': 'Passed', 'totalTestCount': 187, 'passedTests': 187,
                       'failedTests': 0, 'skippedTests': 0, 'expectedFailures': 0}
           for key, value in expected.items():
               if summary.get(key) != value:
                   raise SystemExit('Full reliability receipt differs: ' + key + ' = ' + repr(summary.get(key)))
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
-              output.write('Full iOS reliability target passed: 181 executed, 181 passed, 0 failed, 0 skipped.\n')
+              output.write('Full iOS reliability target passed: 187 executed, 187 passed, 0 failed, 0 skipped.\n')
               output.write('This is Debug iPhone simulator evidence only; full release gates remain separate.\n')
           PY
 

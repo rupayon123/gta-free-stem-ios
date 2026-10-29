@@ -1589,7 +1589,7 @@ final class WatchSavedOpportunitySync: NSObject, WCSessionDelegate {
 }
 #endif
 
-enum SearchMode: String, CaseIterable, Identifiable {
+enum SearchMode: String, CaseIterable, Identifiable, Codable, Sendable {
     case all = "All"
     case highSchool = "High School"
     case volunteer = "Volunteer Hours"
@@ -1609,7 +1609,7 @@ enum SearchMode: String, CaseIterable, Identifiable {
     }
 }
 
-enum SearchSort: String, CaseIterable, Identifiable {
+enum SearchSort: String, CaseIterable, Identifiable, Codable, Sendable {
     case date
     case distance
     case relevance
@@ -1625,7 +1625,7 @@ enum SearchSort: String, CaseIterable, Identifiable {
     }
 }
 
-struct OpportunityFilters: Equatable {
+struct OpportunityFilters: Equatable, Codable, Sendable {
     var region = "All"
     var city = ""
     var category = "All"
@@ -1761,5 +1761,79 @@ enum BrowseDisplayMode: String, CaseIterable, Identifiable {
         case .list: "list"
         case .map: "map"
         }
+    }
+}
+
+/// Additive, versioned local storage. This does not change the existing SwiftData schema.
+struct NamedSearchCriteria: Codable, Equatable, Sendable {
+    var query: String
+    var mode: SearchMode
+    var filters: OpportunityFilters
+
+    init(query: String, mode: SearchMode, filters: OpportunityFilters) {
+        self.query = query
+        self.mode = mode
+        self.filters = filters
+        self.filters.language = "all"
+    }
+}
+
+struct NamedSavedSearch: Codable, Equatable, Identifiable, Sendable {
+    var id: UUID
+    var name: String
+    var criteria: NamedSearchCriteria
+    var knownIDs: Set<String> = []
+    var unreadIDs: Set<String> = []
+    var matchedCount: Int?
+    var hasBaseline = false
+    var checkedAt: Date?
+    var publicationDate: Date?
+}
+
+struct NamedSearchArchive: Codable {
+    var version = 1
+    var searches: [NamedSavedSearch]
+}
+
+enum NamedSearchMatching {
+    static func isCompleteCatalog(_ feed: OpportunityListResponse, now: Date) -> Bool {
+        !feed.data.isEmpty && feed.hasValidUniqueIDs && feed.hasHealthyDeclaredSources
+            && feed.hasValidPublicationRevision(now: now) && FeedFreshness.isCurrent(feed.meta?.lastUpdated, now: now)
+            && feed.meta?.activeCount == feed.data.count
+            && (FeedPublicationRevision.date(from: feed.publicationRevision)
+                ?? FeedFreshness.date(from: feed.meta?.lastUpdated)) != nil
+    }
+
+    static func ids(for criteria: NamedSearchCriteria, in feed: OpportunityListResponse, language: AppLanguage, now: Date) -> Set<String> {
+        let restricted = Set(feed.contentRights?.restrictedOpportunityIDs ?? [])
+        return Set(LocalOpportunitySnapshot.filter(feed.data, query: criteria.query, mode: criteria.mode,
+                                            filters: criteria.filters, displayLanguage: language, now: now).map(\.id)).subtracting(restricted)
+    }
+
+    /// Only publisher-declared complete, nonempty successful feeds can advance history.
+    /// Failed/preview/partial responses never reach this path from the store.
+    static func reconcile(_ searches: [NamedSavedSearch], with feed: OpportunityListResponse,
+                          language: AppLanguage, now: Date) -> [NamedSavedSearch] {
+        guard !Task.isCancelled, isCompleteCatalog(feed, now: now),
+              let publication = FeedPublicationRevision.date(from: feed.publicationRevision)
+                ?? FeedFreshness.date(from: feed.meta?.lastUpdated) else { return searches }
+        var result = searches
+        for index in result.indices {
+            guard !Task.isCancelled else { return searches }
+            if let previous = result[index].publicationDate, publication < previous { continue }
+            let matches = ids(for: result[index].criteria, in: feed, language: language, now: now)
+            if result[index].hasBaseline {
+                result[index].unreadIDs.formUnion(matches.subtracting(result[index].knownIDs))
+                result[index].unreadIDs.formIntersection(matches)
+            } else {
+                result[index].unreadIDs = []
+                result[index].hasBaseline = true
+            }
+            result[index].knownIDs.formUnion(matches)
+            result[index].matchedCount = matches.count
+            result[index].checkedAt = now
+            result[index].publicationDate = publication
+        }
+        return result
     }
 }

@@ -428,348 +428,242 @@ enum AppNavigationModePolicy {
 struct HomeView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @Environment(\.modelContext) private var modelContext
     @Environment(\.appStorageAccess) private var storageAccess
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
     @Binding var selectedTab: AppTab
-
-
+    @State private var deletingSearch: NamedSavedSearch?
+    @State private var deletionNotice = false
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                StorybookBackground()
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 18) {
-                        masthead
-                        searchSection
-                        interestStrip
-                        activitySection
-                        pathwayGrid
-                        sourceFootnote
+            ScrollView {
+                VStack(alignment: .leading, spacing: 28) {
+                    masthead
+                    Text(session.text("homePurpose"))
+                        .font(.largeTitle.weight(.bold))
+                        .foregroundStyle(Brand.outline(for: colorScheme))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                    if !store.savedSearches.isEmpty { savedSearchSection }
+                    topicSection
+                    Button(action: openResults) {
+                        Label(session.text("browseAllActivities"), systemImage: "arrow.forward")
+                            .frame(maxWidth: .infinity, minHeight: 44)
                     }
-                    .frame(maxWidth: 720)
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, AppSpacing.standard)
-                    .padding(.top, AppSpacing.small)
-                    .padding(.bottom, 88)
+                    .buttonStyle(StoryButtonStyle(kind: .primary))
+                    if store.savedSearches.isEmpty { savedSearchSection }
+                    if let error = store.savedSearchError {
+                        Text(error).font(.callout).foregroundStyle(Brand.coral)
+                    }
+                    if deletionNotice {
+                        Label(session.text("searchDeleted"), systemImage: "checkmark.circle")
+                            .font(.callout).foregroundStyle(Brand.mutedText(for: colorScheme))
+                            .accessibilityIdentifier("saved-search-deleted")
+                    }
+                    pathwayGrid
+                    sourceFootnote
                 }
+                .frame(maxWidth: 720)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 100)
             }
+            .background(Brand.contentCanvas(for: colorScheme).ignoresSafeArea())
             .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
-            .navigationDestination(for: Opportunity.self) { opportunity in
-                OpportunityDetailView(opportunity: opportunity)
-            }
+            .confirmationDialog(session.text("deleteSavedSearch"), isPresented: Binding(
+                get: { deletingSearch != nil }, set: { if !$0 { deletingSearch = nil } }
+            ), titleVisibility: .visible) {
+                Button(session.text("deleteSavedSearch"), role: .destructive) {
+                    if let search = deletingSearch { Task { deletionNotice = await store.deleteNamedSearch(search.id) } }
+                    deletingSearch = nil
+                }
+            } message: { Text(deletingSearch?.name ?? "") }
         }
     }
-
-    private var homeAccent: Color { colorScheme == .dark ? Brand.ice : Brand.lake }
 
     private var masthead: some View {
         HStack(spacing: 12) {
-            BrandLogoImage(size: 50)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(Brand.compactName)
-                    .font(.headline.weight(.bold))
-                    .foregroundStyle(Brand.outline(for: colorScheme))
-                Text(session.text("navOpportunities"))
-                    .font(.subheadline)
-                    .foregroundStyle(Brand.mutedText(for: colorScheme))
-            }
-            .fixedSize(horizontal: false, vertical: true)
+            BrandLogoImage(size: 48).accessibilityHidden(true)
+            Text(Brand.compactName).font(.headline.weight(.bold))
+                .foregroundStyle(Brand.outline(for: colorScheme))
             Spacer(minLength: 4)
             ThemeToolbarButton(showLabel: false)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var searchSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(homeAccent)
-                    .accessibilityHidden(true)
-                TextField(session.text("searchPlaceholder"), text: $store.query,
-                          prompt: Text(session.text("searchPlaceholder")).foregroundStyle(Brand.mutedText(for: colorScheme)))
-                    .textInputAutocapitalization(.never)
-                    .submitLabel(.search)
-                    .onSubmit(openResults)
+    private var topicSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(session.text("exploreTopics")).font(.title2.weight(.bold))
+                .foregroundStyle(Brand.outline(for: colorScheme))
+                .accessibilityAddTraits(.isHeader)
+            if store.homeTopics.isEmpty {
+                Text(session.text(store.isLoading ? "preparingOpportunities" : "noOpportunities"))
+                    .foregroundStyle(Brand.mutedText(for: colorScheme))
             }
-            .padding(.horizontal, 14)
-            .frame(minHeight: 52)
-            .background(Brand.cardFill(for: colorScheme), in: RoundedRectangle(cornerRadius: 12))
-            .overlay {
-                RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Brand.outline(for: colorScheme).opacity(0.38), lineWidth: 1)
-            }
-
-            if dynamicTypeSize.isAccessibilitySize {
-                VStack(spacing: 10) { cityMenu; ageMenu }
-            } else {
-                HStack(spacing: 10) { cityMenu; ageMenu }
-            }
-            categoryMenu
-
-            Button(action: openResults) {
-                HStack {
-                    Text(session.text("browse"))
-                    Spacer()
-                    Image(systemName: "arrow.forward").accessibilityHidden(true)
-                }
-                .font(.headline.weight(.semibold))
-                .padding(.horizontal, 18)
-                .frame(minHeight: 52)
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(StoryButtonStyle(kind: .primary))
-
-
-        }
-    }
-
-    private var cityMenu: some View {
-        Menu {
-            Button(session.text("allCities")) { selectCity("") }
-            ForEach(store.availableFilterCities, id: \.self) { city in
-                Button(city) { selectCity(city) }
-            }
-        } label: {
-            filterLabel(title: session.text("city"),
-                        value: store.filters.city.isEmpty ? session.text("allCities") : store.filters.city,
-                        icon: "mappin.and.ellipse")
-        }
-        .accessibilityLabel("\(session.text("city")): \(store.filters.city.isEmpty ? session.text("allCities") : store.filters.city)")
-    }
-
-    private var interestStrip: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: dynamicTypeSize.isAccessibilitySize ? 1 : 3), spacing: 10) {
-            interestButton(category: "Science & Engineering")
-            interestButton(category: "Coding & Robotics")
-            interestButton(category: "Makerspace & Fabrication")
-        }
-    }
-
-    private var categoryMenu: some View {
-        Menu {
-            Button(session.text("allCategories")) { selectCategory("All") }
-            ForEach(store.availableFilterCategories, id: \.self) { category in
-                Button(session.categoryName(category)) { selectCategory(category) }
-            }
-        } label: {
-            filterLabel(title: session.text("category"),
-                        value: store.filters.category == "All" ? session.text("allCategories") : session.categoryName(store.filters.category),
-                        icon: "square.grid.2x2")
-        }
-        .accessibilityLabel("\(session.text("category")): \(store.filters.category == "All" ? session.text("allCategories") : session.categoryName(store.filters.category))")
-        .accessibilityIdentifier("home-category-filter")
-    }
-
-    private func interestButton(category: String) -> some View {
-        Button {
-            store.filters.category = category
-            openResults()
-        } label: {
-            VStack(spacing: 8) {
-                ActivityCategoryMark(category: category, size: 42)
-                Text(session.categoryName(category))
-                    .font(.caption.weight(.semibold))
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                if store.filters.category == category {
-                    Image(systemName: "checkmark.circle.fill")
-                        .accessibilityHidden(true)
-                }
-            }
-            .foregroundStyle(Brand.outline(for: colorScheme))
-            .frame(maxWidth: .infinity, minHeight: 88, alignment: .top)
-            .padding(.vertical, 4)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(SpringPressButtonStyle())
-        .accessibilityAddTraits(store.filters.category == category ? .isSelected : [])
-    }
-
-    private var ageMenu: some View {
-        Menu {
-            Button(session.text("any")) { selectAge("") }
-            ForEach(0...17, id: \.self) { age in
-                Button("\(age)") { selectAge("\(age)") }
-            }
-            Button { selectAge("18+") } label: {
-                Text(verbatim: "18+")
-            }
-        } label: {
-            filterLabel(title: session.text("age"),
-                        value: store.filters.age.isEmpty ? session.text("any") : store.filters.age,
-                        icon: "person.2")
-        }
-        .accessibilityLabel("\(session.text("age")): \(store.filters.age.isEmpty ? session.text("any") : store.filters.age)")
-    }
-
-    private func filterLabel(title: String, value: String, icon: String) -> some View {
-        HStack(spacing: 9) {
-            Image(systemName: icon).foregroundStyle(homeAccent).accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.caption.weight(.semibold))
-                Text(value)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
-                    .fixedSize(horizontal: false, vertical: dynamicTypeSize.isAccessibilitySize)
-            }
-            Spacer(minLength: 2)
-            Image(systemName: "chevron.down")
-                .font(.caption.weight(.bold))
-                .accessibilityHidden(true)
-        }
-        .foregroundStyle(Brand.outline(for: colorScheme))
-        .padding(.horizontal, 11)
-        .frame(minHeight: 48)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Brand.cardFill(for: colorScheme), in: RoundedRectangle(cornerRadius: 12))
-        .overlay {
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Brand.outline(for: colorScheme).opacity(0.16), lineWidth: 1)
-        }
-    }
-
-    private var activitySection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(session.text("navOpportunities"))
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(Brand.outline(for: colorScheme))
-                Spacer()
-                if store.activeCount > 0 {
-                    Text(OpportunityResultCountText.string(store.activeCount, language: session.language))
-                        .font(.caption)
-                        .foregroundStyle(Brand.mutedText(for: colorScheme))
-                }
-            }
-            .padding(.bottom, 8)
-
-            if store.opportunities.isEmpty {
-                if store.isLoading {
-                    ProgressView(session.text("preparingOpportunities"))
-                        .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
-                } else {
-                    Text(store.errorMessage ?? session.text("noOpportunities"))
-                        .font(.subheadline)
-                        .foregroundStyle(Brand.mutedText(for: colorScheme))
-                        .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
-                }
-            } else {
-                ForEach(Array(store.opportunities.prefix(2))) { opportunity in
-                    NavigationLink(value: opportunity) {
-                        activityRow(opportunity)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: dynamicTypeSize.isAccessibilitySize ? 1 : 2), spacing: 12) {
+                ForEach(store.homeTopics, id: \.self) { category in
+                    Button {
+                        store.beginNewSearch(category: category)
+                        selectedTab = .opportunities
+                    } label: {
+                        VStack(alignment: .leading, spacing: 14) {
+                            ActivityCategoryMark(category: category, size: 42)
+                            HStack(alignment: .top, spacing: 6) {
+                                Text(session.categoryName(category)).font(.headline)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Spacer(minLength: 0)
+                                Image(systemName: "arrow.up.forward").font(.caption.weight(.bold)).accessibilityHidden(true)
+                            }
+                        }
+                        .foregroundStyle(Brand.outline(for: colorScheme))
+                        .padding(16)
+                        .frame(maxWidth: .infinity, minHeight: 130, alignment: .topLeading)
+                        .background(Brand.topicFill(category: category, scheme: colorScheme), in: RoundedRectangle(cornerRadius: 18))
+                        .contentShape(RoundedRectangle(cornerRadius: 18))
                     }
-                    .buttonStyle(.plain)
-                    .overlay(alignment: .bottom) {
-                        Rectangle()
-                            .fill(Brand.outline(for: colorScheme).opacity(0.16))
-                            .frame(height: 1)
+                    .buttonStyle(SpringPressButtonStyle())
+                    .accessibilityIdentifier("home-topic-\(category)")
+                }
+            }
+        }
+    }
+
+    private var savedSearchSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(session.text("mySavedSearches")).font(.title2.weight(.bold))
+                .foregroundStyle(Brand.outline(for: colorScheme)).accessibilityAddTraits(.isHeader)
+            if store.savedSearches.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Image(systemName: "bookmark").font(.title2).foregroundStyle(Brand.lake).accessibilityHidden(true)
+                    Text(session.text("savedSearchEmpty")).font(.body)
+                        .foregroundStyle(Brand.mutedText(for: colorScheme))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(18)
+                .background(Brand.topicFill(category: "Science & Engineering", scheme: colorScheme), in: RoundedRectangle(cornerRadius: 18))
+            } else {
+                ForEach(store.savedSearches) { search in
+                    VStack(alignment: .leading, spacing: 12) {
+                        Button {
+                            Task {
+                                if await store.openNamedSearch(search.id, acknowledge: storageAccess.allowsPersistentChanges) {
+                                    selectedTab = search.criteria.mode == .all ? .opportunities : .highSchool
+                                }
+                            }
+                        } label: {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack(alignment: .firstTextBaseline) {
+                                    Text(search.name).font(.headline)
+                                    Spacer(minLength: 4)
+                                    Image(systemName: "arrow.forward").accessibilityHidden(true)
+                                }
+                                Text(NamedSearchSummary.text(search.criteria, session: session))
+                                    .font(.subheadline).foregroundStyle(Brand.mutedText(for: colorScheme))
+                                if let count = search.matchedCount {
+                                    Text(OpportunityResultCountText.string(count, language: session.language)).font(.subheadline.weight(.semibold))
+                                } else {
+                                    Text(session.text("savedSearchPending")).font(.subheadline)
+                                }
+                                if !search.unreadIDs.isEmpty {
+                                    Text(session.text("newSinceViewed").replacingOccurrences(of: "{count}", with: "\(search.unreadIDs.count)"))
+                                        .font(.subheadline.weight(.semibold)).foregroundStyle(Brand.lake)
+                                }
+                                if let checked = search.checkedAt {
+                                    Text("\(session.text("lastChecked")): \(checked.formatted(date: .abbreviated, time: .omitted))")
+                                        .font(.caption).foregroundStyle(Brand.mutedText(for: colorScheme))
+                                }
+                            }
+                            .foregroundStyle(Brand.outline(for: colorScheme))
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(SpringPressButtonStyle())
+                        .accessibilityIdentifier("open-saved-search-\(search.id)")
+                        HStack {
+                            if !search.unreadIDs.isEmpty {
+                                Button(session.text("markRead")) { Task { await store.markNamedSearchRead(search.id) } }
+                                    .frame(minHeight: 44)
+                            }
+                            Spacer()
+                            Button(session.text("deleteSavedSearch"), role: .destructive) { deletingSearch = search }
+                                .frame(minHeight: 44)
+                        }
+                        .font(.subheadline).disabled(!storageAccess.allowsPersistentChanges)
+                        Divider()
                     }
                 }
             }
         }
-    }
-
-    private func activityRow(_ opportunity: Opportunity) -> some View {
-        OpportunityRow(opportunity: opportunity)
-            .padding(.vertical, 14)
     }
 
     private var pathwayGrid: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(session.text("exploreMore"))
-                .font(.headline.weight(.bold))
-                .padding(.bottom, 4)
             if store.availableHomePathwayModes.contains(.volunteer) {
-                pathwayRow(session.text("volunteerHours"), icon: "checkmark.seal.fill") {
-                    openPathway(.volunteer)
-                }
+                pathwayRow(session.text("volunteerHours"), icon: "hands.sparkles") { openPathway(.volunteer) }
             }
             if store.availableHomePathwayModes.contains(.coop) {
-                pathwayRow(session.text("coop"), icon: "briefcase.fill") {
-                    openPathway(.coop)
-                }
+                pathwayRow(session.text("coop"), icon: "briefcase") { openPathway(.coop) }
             }
             if store.availableHomePathwayModes.contains(.mentorship) {
-                pathwayRow(session.text("mentorship"), icon: "person.2.fill") {
-                    openPathway(.mentorship)
-                }
+                pathwayRow(session.text("mentorship"), icon: "person.2") { openPathway(.mentorship) }
             }
-            pathwayRow(session.text("feedback"), icon: "bubble.left.and.bubble.right.fill") {
-                selectedTab = .support
-            }
+            pathwayRow(session.text("feedback"), icon: "bubble.left") { selectedTab = .support }
         }
     }
 
     private func pathwayRow(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: icon).foregroundStyle(homeAccent).frame(width: 26)
-                Text(title).font(.subheadline.weight(.semibold))
-                Spacer()
-                Image(systemName: "arrow.up.forward")
-                    .font(.caption.weight(.semibold))
-                    .accessibilityHidden(true)
-            }
-            .foregroundStyle(Brand.outline(for: colorScheme))
-            .frame(minHeight: 48)
+            Label(title, systemImage: icon).font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
         }
-        .buttonStyle(.plain)
+        .foregroundStyle(Brand.lake).buttonStyle(SpringPressButtonStyle())
     }
 
     private var sourceFootnote: some View {
-        HStack(alignment: .top, spacing: 6) {
-            Image(systemName: "info.circle")
-                .foregroundStyle(Brand.moss)
-                .accessibilityHidden(true)
-            Text(session.text("sourceDetails"))
+        VStack(alignment: .leading, spacing: 8) {
+            Text(session.text("homeCatalogNote"))
             if let lastUpdated = store.lastUpdated {
-                Text(verbatim: "· \(session.text("date")) \(session.formattedDate(lastUpdated))")
+                Text("\(session.text("date")): \(session.formattedDate(lastUpdated))")
+                    .accessibilityIdentifier("feed-last-updated")
             }
         }
-        .font(.caption)
-        .foregroundStyle(Brand.mutedText(for: colorScheme))
-        .accessibilityIdentifier("feed-last-updated")
-    }
-
-    private func selectCity(_ city: String) {
-        store.useCity(city)
-        store.mode = .all
-        Task { await store.refresh(cache: persistenceContext) }
-    }
-
-    private func selectAge(_ age: String) {
-        store.filters.age = age
-        store.mode = .all
-        Task { await store.refresh(cache: persistenceContext) }
-    }
-
-    private func selectCategory(_ category: String) {
-        store.filters.category = category
-        store.mode = .all
-        Task { await store.refresh(cache: persistenceContext) }
+        .font(.footnote).foregroundStyle(Brand.mutedText(for: colorScheme))
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private func openResults() {
-        store.mode = .all
+        store.beginNewSearch()
         selectedTab = .opportunities
-        Task { await store.refresh(cache: persistenceContext) }
     }
 
     private func openPathway(_ mode: SearchMode) {
+        store.beginNewSearch()
         store.mode = mode
         selectedTab = .highSchool
-        Task { await store.refresh(cache: persistenceContext) }
     }
+}
 
-    private var persistenceContext: ModelContext? {
-        storageAccess.allowsPersistentChanges ? modelContext : nil
+@MainActor
+enum NamedSearchSummary {
+    static func text(_ criteria: NamedSearchCriteria, session: SessionStore) -> String {
+        var parts: [String] = []
+        if !criteria.query.isEmpty { parts.append(criteria.query) }
+        if !criteria.filters.city.isEmpty { parts.append(criteria.filters.city) }
+        if criteria.filters.category != "All" { parts.append(session.categoryName(criteria.filters.category)) }
+        if !criteria.filters.age.isEmpty { parts.append("\(session.text("age")): \(criteria.filters.age)") }
+        if criteria.mode != .all { parts.append(session.text(criteria.mode.textKey)) }
+        if criteria.filters.region != "All" { parts.append(criteria.filters.region) }
+        if criteria.filters.volunteerHours { parts.append(session.text("volunteerHours")) }
+        if criteria.filters.coop { parts.append(session.text("coop")) }
+        if criteria.filters.mentorship { parts.append(session.text("mentorship")) }
+        if criteria.filters.scholarships { parts.append(session.categoryName("Scholarships")) }
+        if criteria.filters.hasLocation { parts.append(session.text("distanceRadius").replacingOccurrences(of: "{km}", with: "\(Int(criteria.filters.distanceKm))")) }
+        return parts.isEmpty ? session.text("allCategories") : parts.joined(separator: " · ")
     }
 }
 

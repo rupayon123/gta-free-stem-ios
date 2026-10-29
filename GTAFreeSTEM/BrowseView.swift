@@ -43,6 +43,7 @@ struct BrowseView: View {
     @EnvironmentObject private var store: OpportunityStore
     let surface: BrowseSurface
     @StateObject private var locationManager = HuntLocationManager()
+    @State private var saveSearchPresented = false
     @State private var filtersPresented = false
     @State private var websiteUnavailable = false
     @State private var displayMode: BrowseDisplayMode = .list
@@ -106,6 +107,11 @@ struct BrowseView: View {
             }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button { saveSearchPresented = true } label: {
+                        Label(session.text(store.activeSavedSearchID == nil ? "saveSearch" : "updateSearch"), systemImage: "bookmark.badge.plus")
+                    }
+                    .disabled(!storageAccess.allowsPersistentChanges)
+                    .accessibilityIdentifier("save-named-search")
                     Button {
                         filtersPresented = true
                     } label: {
@@ -121,6 +127,9 @@ struct BrowseView: View {
             }
             .navigationDestination(for: Opportunity.self) { opportunity in
                 OpportunityDetailView(opportunity: opportunity)
+            }
+            .sheet(isPresented: $saveSearchPresented) {
+                SaveNamedSearchSheet().environmentObject(session).environmentObject(store)
             }
             .sheet(isPresented: $filtersPresented) {
                 OpportunityFilterSheet(
@@ -1207,5 +1216,62 @@ private final class OpportunityMapMarker: MKMarkerAnnotationView {
     override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
         let target = bounds.insetBy(dx: -max(0, (44 - bounds.width) / 2), dy: -max(0, (44 - bounds.height) / 2))
         return target.contains(point)
+    }
+}
+
+private struct SaveNamedSearchSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var session: SessionStore
+    @EnvironmentObject private var store: OpportunityStore
+    @State private var name = ""
+    @State private var saving = false
+    @State private var failed = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(session.text("name")) {
+                    TextField(session.text("name"), text: $name)
+                        .textInputAutocapitalization(.sentences)
+                        .accessibilityIdentifier("saved-search-name")
+                }
+                Section(session.text("filters")) {
+                    Text(NamedSearchSummary.text(NamedSearchCriteria(query: store.query, mode: store.mode, filters: store.filters), session: session))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Section {
+                    Button(session.text(store.activeSavedSearchID == nil ? "saveSearch" : "updateSearch")) {
+                        save(updating: store.activeSavedSearchID)
+                    }
+                    .accessibilityIdentifier("confirm-save-search")
+                    if store.activeSavedSearchID != nil {
+                        Button(session.text("saveAsNew")) { save(updating: nil) }
+                    }
+                    if saving { ProgressView() }
+                    if failed { Text(store.savedSearchError ?? session.text("savedSearchWriteError")).foregroundStyle(Brand.coral) }
+                }
+                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || name.count > 80 || saving)
+            }
+            .navigationTitle(session.text("saveSearch"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button { dismiss() } label: { Image(systemName: "xmark") }
+                        .accessibilityLabel(session.text("done"))
+                }
+            }
+            .onAppear {
+                if let id = store.activeSavedSearchID, let search = store.savedSearches.first(where: { $0.id == id }) { name = search.name }
+            }
+        }
+    }
+
+    private func save(updating id: UUID?) {
+        saving = true
+        Task {
+            let saved = await store.saveNamedSearch(name: name, updating: id)
+            saving = false
+            if saved { dismiss() } else { failed = true }
+        }
     }
 }
