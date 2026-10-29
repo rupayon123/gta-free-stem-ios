@@ -167,6 +167,9 @@ struct PortfolioTabBarBackground: UIViewControllerRepresentable {
 
     final class Controller: UIViewController {
         var fill: UIColor = .systemBackground
+#if DEBUG
+        private var lastGeometry: String?
+#endif
 
         override func loadView() {
             view = UIView()
@@ -189,6 +192,13 @@ struct PortfolioTabBarBackground: UIViewControllerRepresentable {
             applyBackground()
         }
 
+#if DEBUG
+        override func viewDidLayoutSubviews() {
+            super.viewDidLayoutSubviews()
+            recordGeometryIfRequested()
+        }
+#endif
+
         func applyBackground() {
             guard let bar = tabBarController?.tabBar else { return }
             let appearance = UITabBarAppearance(barAppearance: bar.standardAppearance)
@@ -197,7 +207,35 @@ struct PortfolioTabBarBackground: UIViewControllerRepresentable {
             bar.standardAppearance = appearance
             bar.scrollEdgeAppearance = appearance
             bar.isTranslucent = false
+#if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-review-tab-translucent") {
+                // One-variable diagnostic only; the appearance stays identical.
+                bar.isTranslucent = true
+            }
+            recordGeometryIfRequested()
+#endif
         }
+
+#if DEBUG
+        private func recordGeometryIfRequested() {
+            guard ProcessInfo.processInfo.arguments.contains("-review-tab-geometry"),
+                  let container = tabBarController else { return }
+            let bar = container.tabBar
+            let values: [String: String] = [
+                "barFrame": NSStringFromCGRect(bar.frame),
+                "barBounds": NSStringFromCGRect(bar.bounds),
+                "barInContainer": NSStringFromCGRect(bar.convert(bar.bounds, to: container.view)),
+                "containerBounds": NSStringFromCGRect(container.view.bounds),
+                "containerSafeArea": NSStringFromUIEdgeInsets(container.view.safeAreaInsets),
+                "windowSafeArea": view.window.map { NSStringFromUIEdgeInsets($0.safeAreaInsets) } ?? "unattached",
+                "isTranslucent": String(bar.isTranslucent)
+            ]
+            guard let data = try? JSONSerialization.data(withJSONObject: values, options: [.sortedKeys]),
+                  let geometry = String(data: data, encoding: .utf8), geometry != lastGeometry else { return }
+            lastGeometry = geometry
+            FileHandle.standardOutput.write(Data(("GTA_TAB_GEOMETRY " + geometry + "\n").utf8))
+        }
+#endif
     }
 }
 
