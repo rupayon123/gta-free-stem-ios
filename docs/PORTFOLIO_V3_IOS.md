@@ -22,7 +22,17 @@ The design owner authored School (cap/book), Support (contact headset) and Profi
 
 Build and inspect exact registered font/weights and all asset variants; verify ordinary and maximum Dynamic Type, Arabic/Urdu/Farsi and CJK glyph fallback, RTL in every modal, VoiceOver labels/focus, Show Borders, light/dark contrast, safe areas and no text/control collisions. Exercise each existing tab and deep link, back navigation, search/filter/query/reset, saved filter selection/modified/update semantics, save/unsave persistence, program details/provider/calendar, map 2D/3D/reset, empty and offline states, repeated/interruptible navigation, Reduce Motion, foreground/background and the unchanged loader. Use actual native screenshots and interactions; the portfolio is only a design reference.
 
-## Initial native smoke evidence
+## Final QA checkpoint: functional pass, visual gate open
+
+Frozen source `aba689ab65a030f271d7502fa1f52ef358b90599` passed all 193 tests with zero failures/skips on the owned iOS 27.0 iPhone 17 Pro Max simulator. The original two test failures and original result bundle remain retained; the existing spring helper was restored and the completed DEBUG font probe removed, with no test exemptions. The full run does not establish visual acceptance.
+
+Actual five-tab light/dark screenshots and maximum Dynamic Type frames revealed a visual failure: native translucent tab chrome allows scrolling words and the enlarged Profile destructive control to mix with navigation labels. Normal light Home also shows CTA content through the bar. Maximum-text High School search shows an oversized system magnifier inside a constrained native field. Neither is accepted. A minimal opaque tab background candidate is being reviewed and has not been compiled or visually verified.
+
+Actual interactions verified saved-filter select/edit/explicit update, normal relaunch preservation of preset identity and criteria, Reset retaining the saved archive, saved-event library presence, detail back navigation, the matching TPL provider event page, and responsive repeated tab changes. The preset loss observed after XCTest was traced to a pre-existing cleanup test using standard defaults; separate commit `7277102` isolates that test's defaults suite without changing production behaviour or existing assertions. That later test-only patch has not yet been rerun.
+
+Source-bound screenshots, preset snapshots, both test bundles and `receipt.json` are in `outputs/ios-portfolio-v3-final-20261029/` in this chat workspace. English/Light/large were restored; Reduce Motion was untouched; the owned simulator was shut down and the heavy slot released. Actual offline and Reduce Motion interactions, remaining release gates and physical-device verification remain pending. No signing, upload or release is claimed.
+
+### Historical initial smoke
 
 Actual tested Swift source checkpoint: `f9339c98472d8bedb0bacc0202a081bd8fdbb518` (includes a DEBUG-only typography diagnostic inside the existing isolated FrontendLayoutReview). The diagnostic is excluded from Release by the existing `#if DEBUG` boundary and does not replace personal defaults or model storage. The build inputs stayed frozen while compiling; only the source-pin manifest was refreshed afterward before committing that checkpoint.
 
