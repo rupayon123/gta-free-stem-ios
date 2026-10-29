@@ -47,13 +47,13 @@ def file_probe(path):
         return dict(exists=False, bytes=0)
 
 
-def command(label, args, timeout=10, sample_timeout=False, probe_path=None, full_output=False):
+def command(label, args, timeout=10, sample_timeout=False, probe_path=None, full_output=False, track_progress=False):
     started = time.monotonic()
     process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    if probe_path is not None:
+    if probe_path is not None or track_progress:
         emit(label + "-started", pid=process.pid, timeoutSeconds=timeout, file=file_probe(probe_path))
     try:
-        if probe_path is None:
+        if probe_path is None and not track_progress:
             output, _ = process.communicate(timeout=timeout)
         else:
             deadline = started + timeout
@@ -153,7 +153,9 @@ def main():
             boot_owned = True
             required("boot-owned-simulator", ["xcrun", "simctl", "boot", device], 30)
         required("boot-status", ["xcrun", "simctl", "bootstatus", device, "-b"], 120)
-        installation = command("install-reviewed-product", ["xcrun", "simctl", "install", device, str(app)], timeout=60, sample_timeout=True)
+        # This 60s diagnostic preparation limit differs from the normal helper's
+        # 120s install bound; neither measures user-app responsiveness.
+        installation = command("install-reviewed-product", ["xcrun", "simctl", "install", device, str(app)], timeout=60, sample_timeout=True, track_progress=True)
         if installation["code"] != 0:
             raise RuntimeError("install-reviewed-product failed or timed out")
         installed = Path(required("installed-product-path", ["xcrun", "simctl", "get_app_container", device, BUNDLE, "app"]))
