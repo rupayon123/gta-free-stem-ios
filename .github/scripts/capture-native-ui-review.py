@@ -54,6 +54,15 @@ def run(*args, timeout=30, check=True):
     except subprocess.CalledProcessError as error:
         raise SystemExit("Native capture command failed: " + repr(args) + "\n" + (error.stdout or "")[-4000:]) from error
 
+def quiesce_test_simulator(entry, udid):
+    state = entry.get("state")
+    if state not in ("Booted", "Shutdown"):
+        raise SystemExit("Reviewed test simulator is in an unsupported state: " + repr(state))
+    if state == "Booted":
+        run("xcrun", "simctl", "shutdown", udid, timeout=30)
+    print("NATIVE_CAPTURE_TEST_DEVICE_QUIESCED " + json.dumps(dict(device=udid,
+          priorState=state, captureDeviceCreated=False)), flush=True)
+
 def require_alive():
     if activePid is not None:
         try:
@@ -139,6 +148,7 @@ matched = [entry for entry in inventory.get("com.apple.CoreSimulator.SimRuntime.
            and entry.get("isAvailable") is True]
 if len(matched) != 1:
     raise SystemExit("Reviewed test simulator is missing or changed")
+quiesce_test_simulator(matched[0], testedDevice)
 device = run("xcrun", "simctl", "create", "GTA CI Capture " + os.environ["GITHUB_RUN_ID"],
              "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro",
              "com.apple.CoreSimulator.SimRuntime.iOS-26-5", timeout=30)
