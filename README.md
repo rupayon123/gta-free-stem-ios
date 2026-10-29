@@ -4,6 +4,8 @@ I'm building GTA FREE STEM to make free STEM programs easier to find across the 
 
 [Android app](https://github.com/rupayon123/gta-free-stem-android) | [Web app](https://github.com/rupayon123/gta-free-stem-opportunities) | [Try the website](https://gta-free-stem.pages.dev/)
 
+> Development: build1.0(16) is not uploaded. Home is being revised with topic discovery and multiple saved searches. See the [candidate status](docs/DEVELOPMENT_CANDIDATE.md); the screenshots below retain their original October27 source.
+
 ## The iPhone experience
 
 <table>
