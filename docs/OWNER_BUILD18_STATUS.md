@@ -1,6 +1,8 @@
 # Owner build 18
 
-Build 18 passed 52 strict archive checks and Xcode confirmed its owner-only TestFlight upload. The exact uploaded IPA passed 62 strict distribution/provenance checks. Apple currently shows Processing; availability has not been confirmed yet. Owner build 17 remains the available update. Public App Store distribution and external tester sharing are not approved by this record.
+**Version 1.0 (18) is available in TestFlight for the existing owner account.** Apple confirms Testing and reports the owner installed build 18. Fresh final screenshots were inspected after processing/group association completed. The earlier Ready to Test screenshot was insufficient and is superseded. No tester audience was expanded.
+
+The archive passed 52 strict checks, and the exact uploaded IPA passed 62 distribution/provenance checks. Directly observed phone-use acceptance remains separate. Public App Store distribution and external tester sharing are not approved by this record.
 
 ## What changed
 
