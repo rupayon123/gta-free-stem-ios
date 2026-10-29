@@ -196,9 +196,11 @@ final class OpportunityStore: ObservableObject {
     static let namedSearchesKey = "namedSavedSearches.v1"
     private var namedSearchStorageReadable = true
     private var namedSearchGeneration = 0
+    private var localPreviewGeneration = 0
 #if DEBUG
     // Deterministic tests can suspend a worker at the commit boundary.
     var namedSearchReconciliationGate: (() async -> Void)?
+    var localPreviewCommitGate: (() async -> Void)?
 #endif
     @Published var notificationStatusMessage: String?
     @Published var didRestoreLastHunt = false
@@ -688,6 +690,31 @@ final class OpportunityStore: ObservableObject {
         }
     }
 
+    /// Refilters the retained catalogue without fetching or persisting a feed.
+    func previewCurrentFilters() async {
+        localPreviewGeneration &+= 1
+        let request = localPreviewGeneration
+        guard !Task.isCancelled, let feed = inMemoryFeed else { return }
+        let generation = catalogueGeneration
+        let criteria = NamedSearchCriteria(query: query, mode: mode, filters: filters)
+        let language = AppLanguage.preferred()
+        let response = await responseForCurrentHunt(from: feed)
+#if DEBUG
+        if let gate = localPreviewCommitGate { await gate() }
+#endif
+        guard !Task.isCancelled, request == localPreviewGeneration,
+              generation == catalogueGeneration, language == AppLanguage.preferred(),
+              criteria == NamedSearchCriteria(query: query, mode: mode, filters: filters)
+        else { return }
+        apply(response, source: retainedFeedSource)
+    }
+
+    /// Explicit New filter/reset detaches the preset without changing a saved entry.
+    func clearActiveSavedSearch() {
+        activeSavedSearchID = nil
+        localPreviewGeneration &+= 1
+    }
+
     private func applyBundledSnapshotIfNeeded() async {
         guard let fullFeed = await Self.loadBundledFullFeed(now: self.now()) else {
             // The live refresh remains the authoritative path. If the packaged
@@ -992,10 +1019,15 @@ final class OpportunityStore: ObservableObject {
         filters = saved.criteria.filters
         filters.language = "all"
         activeSavedSearchID = id
+        let appliedCriteria = NamedSearchCriteria(query: query, mode: mode, filters: filters)
+        await previewCurrentFilters()
+        guard !Task.isCancelled, activeSavedSearchID == id,
+              appliedCriteria == NamedSearchCriteria(query: query, mode: mode, filters: filters)
+        else { return false }
         // A failed local write keeps unread evidence, but must not block browsing.
         if acknowledge { await markNamedSearchRead(id) }
-        await applyAvailableLocalResults(cache: nil)
-        return true
+        return !Task.isCancelled && activeSavedSearchID == id
+            && appliedCriteria == NamedSearchCriteria(query: query, mode: mode, filters: filters)
     }
 
     func markNamedSearchRead(_ id: UUID) async {

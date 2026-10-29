@@ -4625,6 +4625,108 @@ final class OpportunityStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testLocalFilterPreviewKeepsLatestPresetAndNeverFetchesOrOverwritesSaves() async throws {
+        let suite = "LocalPreview.\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let now = Date()
+        let url = URL(string: "https://named.example/local-preview.json")!
+        let store = OpportunityStore(api: APIClient(feedURL: url, session: makeURLSessionForStub(), now: { now }), defaults: defaults, now: { now })
+        let rows = ["Toronto", "Markham"].map { city in
+            opportunity(id: city, title: "Robotics", organization: "Library", category: "Coding & Robotics", city: city)
+        }
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON(rows, lastUpdated: now).utf8))
+        await store.refresh()
+        for city in ["Toronto", "Markham"] {
+            store.filters.city = city
+            let saved = await store.saveNamedSearch(name: city)
+            XCTAssertTrue(saved)
+        }
+        let saved = store.savedSearches
+        let requests = URLProtocolStub.requestCount
+        let bytes = defaults.data(forKey: OpportunityStore.namedSearchesKey)
+        let gate = MapProjectionTestGate()
+        store.localPreviewCommitGate = { await gate.hold() }
+        let older = Task { @MainActor in await store.openNamedSearch(saved[0].id, acknowledge: false) }
+        await gate.waitUntilStarted()
+        let latest = await store.openNamedSearch(saved[1].id, acknowledge: false)
+        XCTAssertTrue(latest)
+        XCTAssertEqual(store.opportunities.map(\.id), ["Markham"])
+        await gate.release()
+        let stale = await older.value
+        XCTAssertFalse(stale)
+        XCTAssertEqual(store.activeSavedSearchID, saved[1].id)
+        XCTAssertEqual(store.opportunities.map(\.id), ["Markham"])
+        store.filters.city = "Toronto"
+        await store.previewCurrentFilters()
+        XCTAssertEqual(store.activeSavedSearchID, saved[1].id, "Manual modifications keep the preset available for explicit Update")
+        XCTAssertEqual(store.opportunities.map(\.id), ["Toronto"])
+        store.clearActiveSavedSearch()
+        store.filters = OpportunityFilters()
+        await store.previewCurrentFilters()
+        XCTAssertNil(store.activeSavedSearchID)
+        XCTAssertEqual(Set(store.opportunities.map(\.id)), Set(rows.map(\.id)))
+        XCTAssertEqual(store.savedSearches, saved)
+        XCTAssertEqual(defaults.data(forKey: OpportunityStore.namedSearchesKey), bytes)
+        XCTAssertEqual(URLProtocolStub.requestCount, requests)
+    }
+
+    @MainActor
+    func testCancelledLocalFilterPreviewCannotPublish() async throws {
+        let now = Date()
+        let url = URL(string: "https://named.example/cancel-preview.json")!
+        let suite = "CancelledPreview.\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = OpportunityStore(api: APIClient(feedURL: url, session: makeURLSessionForStub(), now: { now }), defaults: defaults, now: { now })
+        let row = opportunity(id: "retained", title: "Robotics", organization: "Library", category: "Coding & Robotics", city: "Toronto")
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([row], lastUpdated: now).utf8))
+        await store.refresh()
+        let requests = URLProtocolStub.requestCount
+        let gate = MapProjectionTestGate()
+        store.localPreviewCommitGate = { await gate.hold() }
+        store.filters.city = "Markham"
+        let preview = Task { @MainActor in await store.previewCurrentFilters() }
+        await gate.waitUntilStarted()
+        preview.cancel()
+        await gate.release()
+        await preview.value
+        XCTAssertEqual(store.opportunities.map(\.id), ["retained"])
+        XCTAssertEqual(URLProtocolStub.requestCount, requests)
+    }
+
+    @MainActor
+    func testOpeningLegacyLanguagePresetNormalizesAppliedControlsWithoutRewritingSave() async throws {
+        let suite = "LegacyLanguagePreview.\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var criteria = NamedSearchCriteria(query: "Robotics", mode: .all, filters: OpportunityFilters())
+        criteria.filters.city = "Toronto"
+        criteria.filters.language = "ja"
+        let saved = NamedSavedSearch(id: UUID(), name: "Legacy", criteria: criteria)
+        let bytes = try JSONEncoder().encode(NamedSearchArchive(searches: [saved]))
+        defaults.set(bytes, forKey: OpportunityStore.namedSearchesKey)
+        let now = Date()
+        let url = URL(string: "https://named.example/legacy-preview.json")!
+        let row = opportunity(id: "legacy-match", title: "Robotics", organization: "Library", category: "Coding & Robotics", city: "Toronto")
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([row], lastUpdated: now).utf8))
+        let store = OpportunityStore(api: APIClient(feedURL: url, session: makeURLSessionForStub(), now: { now }), defaults: defaults, now: { now })
+        await store.refresh()
+        let retained = store.savedSearches
+        let retainedBytes = defaults.data(forKey: OpportunityStore.namedSearchesKey)
+        let opened = await store.openNamedSearch(saved.id, acknowledge: false)
+        XCTAssertTrue(opened)
+        XCTAssertEqual(store.query, "Robotics")
+        XCTAssertEqual(store.filters.city, "Toronto")
+        XCTAssertEqual(store.filters.language, "all")
+        XCTAssertEqual(store.activeSavedSearchID, saved.id)
+        XCTAssertEqual(store.opportunities.map(\.id), ["legacy-match"])
+        XCTAssertEqual(store.savedSearches, retained)
+        XCTAssertEqual(store.savedSearches[0].criteria.filters.language, "ja")
+        XCTAssertEqual(defaults.data(forKey: OpportunityStore.namedSearchesKey), retainedBytes)
+    }
+
+    @MainActor
     func testNamedSearchesKeepThreeAgesNamesAndExplicitEditsAcrossRelaunch() async throws {
         let defaults = UserDefaults(suiteName: "NamedSearch.\(UUID())")!
         let now = Date()
