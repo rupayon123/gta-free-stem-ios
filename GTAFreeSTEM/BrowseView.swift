@@ -816,6 +816,7 @@ struct OpportunityFilterSheet: View {
     @Environment(\.appStorageAccess) private var storageAccess
     @EnvironmentObject private var store: OpportunityStore
     @State private var saveFilterPresented = false
+    @State private var savedFilterConfirmed = false
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.openURL) private var openURL
     @EnvironmentObject private var session: SessionStore
@@ -915,7 +916,16 @@ struct OpportunityFilterSheet: View {
             .tint(Brand.lake)
             .navigationTitle(session.text("filters"))
             .safeAreaInset(edge: .bottom) {
-                Button { saveFilterPresented = true } label: {
+                VStack(spacing: 8) {
+                if savedFilterConfirmed {
+                    Label(session.text("saved"), systemImage: "checkmark.circle")
+                        .font(.callout)
+                        .accessibilityIdentifier("filter-save-confirmed")
+                }
+                Button {
+                    savedFilterConfirmed = false
+                    saveFilterPresented = true
+                } label: {
                     Label(session.text(store.activeSavedSearchID == nil ? "saveSearch" : "updateSearch"), systemImage: "bookmark.badge.plus")
                         .frame(maxWidth: .infinity, minHeight: 44)
                         .fixedSize(horizontal: false, vertical: true)
@@ -924,11 +934,13 @@ struct OpportunityFilterSheet: View {
                 .controlSize(.large)
                 .disabled(!storageAccess.allowsPersistentChanges)
                 .accessibilityIdentifier("save-named-search")
+                }
                 .padding()
                 .background(.bar)
             }
             .sheet(isPresented: $saveFilterPresented) {
-                SaveNamedSearchSheet().environmentObject(session).environmentObject(store)
+                SaveNamedSearchSheet(onSaved: { savedFilterConfirmed = true })
+                    .environmentObject(session).environmentObject(store)
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -1252,6 +1264,8 @@ private final class OpportunityMapMarker: MKMarkerAnnotationView {
 }
 
 private struct SaveNamedSearchSheet: View {
+    @Environment(\.appStorageAccess) private var storageAccess
+    var onSaved: () -> Void = {}
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var session: SessionStore
@@ -1283,7 +1297,7 @@ private struct SaveNamedSearchSheet: View {
                     if saving { ProgressView() }
                     if failed { Text(store.savedSearchError ?? session.text("savedSearchWriteError")).foregroundStyle(Brand.coral) }
                 }
-                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || name.count > 80 || saving)
+                .disabled(!storageAccess.allowsPersistentChanges || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || name.count > 80 || saving)
             }
             .scrollContentBackground(.hidden)
             .background(Brand.contentCanvas(for: colorScheme))
@@ -1321,11 +1335,12 @@ private struct SaveNamedSearchSheet: View {
     }
 
     private func save(updating id: UUID?) {
+        guard storageAccess.allowsPersistentChanges, !saving else { return }
         saving = true
         Task {
             let saved = await store.saveNamedSearch(name: name, updating: id)
             saving = false
-            if saved { dismiss() } else { failed = true }
+            if saved { onSaved(); dismiss() } else { failed = true }
         }
     }
 }
