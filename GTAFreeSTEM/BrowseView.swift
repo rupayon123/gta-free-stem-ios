@@ -42,6 +42,7 @@ struct BrowseView: View {
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
     let surface: BrowseSurface
+    let showSavedFilters: () -> Void
     @StateObject private var locationManager = HuntLocationManager()
     @State private var saveSearchPresented = false
     @State private var filtersPresented = false
@@ -53,8 +54,9 @@ struct BrowseView: View {
     @State private var mapResetRevision = 0
     @State private var coincidentVenueIDs: Set<String> = []
 
-    init(surface: BrowseSurface = .opportunities) {
+    init(surface: BrowseSurface = .opportunities, showSavedFilters: @escaping () -> Void = {}) {
         self.surface = surface
+        self.showSavedFilters = showSavedFilters
 #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-review-map") {
             _displayMode = State(initialValue: .map)
@@ -107,11 +109,10 @@ struct BrowseView: View {
             }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button { saveSearchPresented = true } label: {
-                        Label(session.text(store.activeSavedSearchID == nil ? "saveSearch" : "updateSearch"), systemImage: "bookmark.badge.plus")
+                    Button(action: showSavedFilters) {
+                        Label(session.text("mySavedSearches"), systemImage: "line.3.horizontal.decrease.circle")
                     }
-                    .disabled(!storageAccess.allowsPersistentChanges)
-                    .accessibilityIdentifier("save-named-search")
+                    .accessibilityIdentifier("show-saved-filters")
                     Button {
                         filtersPresented = true
                     } label: {
@@ -812,6 +813,9 @@ struct OpportunityRow: View {
 }
 
 struct OpportunityFilterSheet: View {
+    @Environment(\.appStorageAccess) private var storageAccess
+    @EnvironmentObject private var store: OpportunityStore
+    @State private var saveFilterPresented = false
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.openURL) private var openURL
     @EnvironmentObject private var session: SessionStore
@@ -910,6 +914,22 @@ struct OpportunityFilterSheet: View {
             .background(Brand.canvas(for: colorScheme))
             .tint(Brand.lake)
             .navigationTitle(session.text("filters"))
+            .safeAreaInset(edge: .bottom) {
+                Button { saveFilterPresented = true } label: {
+                    Label(session.text(store.activeSavedSearchID == nil ? "saveSearch" : "updateSearch"), systemImage: "bookmark.badge.plus")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(!storageAccess.allowsPersistentChanges)
+                .accessibilityIdentifier("save-named-search")
+                .padding()
+                .background(.bar)
+            }
+            .sheet(isPresented: $saveFilterPresented) {
+                SaveNamedSearchSheet().environmentObject(session).environmentObject(store)
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(session.text("reset"), action: reset)
@@ -1243,8 +1263,8 @@ private struct SaveNamedSearchSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section(session.text("name")) {
-                    TextField(session.text("name"), text: $name)
+                Section(session.text("filterName")) {
+                    TextField(session.text("filterName"), text: $name)
                         .textInputAutocapitalization(.sentences)
                         .accessibilityIdentifier("saved-search-name")
                 }
@@ -1277,7 +1297,7 @@ private struct SaveNamedSearchSheet: View {
                 }
             }
 #endif
-            .navigationTitle(session.text("saveSearch"))
+            .navigationTitle(session.text(store.activeSavedSearchID == nil ? "saveSearch" : "updateSearch"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
