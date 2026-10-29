@@ -59,6 +59,8 @@ The previous owner update **1.0 (17)** introduced the startup crash fix, which i
 
 **Owner build 18 is available in TestFlight.** The approved Nunito design and original illustration assets are integrated. Actual simulator checks cover padded Reset/Done with Show Borders enabled, live named-filter selection, explicit updates, normal/maximum text, Arabic, dark mode and five-route navigation. All 193 tests passed on the final diagnostic run. The archive passed 52 strict checks, and the exact uploaded app passed 62 distribution checks. Apple confirms Testing for the existing sole-owner group.
 
+**External beta build 19 has been uploaded through App Store Connect.** It contains the same tested app code as build 18; Apple beta-review approval is pending. [External beta status](docs/EXTERNAL_BUILD19_STATUS.md).
+
 Public App Store distribution remains incomplete. Full catalogue adoption, qualified full-description translations and physical-device acceptance are separate work; external tester sharing remains on hold. [Build 18 status](docs/OWNER_BUILD18_STATUS.md) · [Portfolio implementation and retained findings](docs/PORTFOLIO_V3_IOS.md).
 
 [Historical release handoff](docs/CURRENT_RELEASE_HANDOFF.md) | [Release runbook](docs/PUBLIC_RELEASE_RUNBOOK.md) | [TestFlight setup](docs/TESTFLIGHT.md) | [Device signoff](docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md)
