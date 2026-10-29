@@ -4,16 +4,27 @@ I'm building GTA FREE STEM to make free STEM programs easier to find across the 
 
 [Android app](https://github.com/rupayon123/gta-free-stem-android) | [Web app](https://github.com/rupayon123/gta-free-stem-opportunities) | [Try the website](https://gta-free-stem.pages.dev/)
 
-> Owner-only development update **1.0 (16) is available in TestFlight**. The new Home introduces topics and independently saved searches; Browse keeps the search tools. See the [candidate status](docs/DEVELOPMENT_CANDIDATE.md).
+> **Version 1.0 (17) is being verified after a reported build16 crash.** The update adds a Saved filters dropdown inside Filters and clearer native controls. It is not yet uploaded. See the [candidate status](docs/DEVELOPMENT_CANDIDATE.md).
+
+## Saved filters in build 17
+
+Choose a named filter directly inside the Filters panel. Its fields and matching-result count update together. Edits stay unsaved until you choose Save filter or Update filter.
+
+<table>
+<tr><th width="50%">Filters and live matches</th><th width="50%">Choose a saved filter</th></tr>
+<tr><td align="center"><img src="docs/showcase/2026-10-29/corrected-filters-normal.png" alt="Filters panel with padded Reset and Done controls, saved-filter selector and matching-result count" width="300"></td><td align="center"><img src="docs/showcase/2026-10-29/corrected-preset-dropdown.png" alt="Saved-filter dropdown with example Age four and All activities presets" width="300"></td></tr>
+</table>
+
+Unmodified simulator screenshots from actual interactions in build17 source `4f2e40b`. The menu example uses simulator test presets and has iOS Show Borders enabled. These are development previews, not physical-phone or public App Store acceptance. [Capture evidence](docs/showcase/2026-10-29/capture-receipt.json).
 
 ## New Home in development
 
 <table>
 <tr><th width="50%">Topic-led Home</th><th width="50%">Native map</th></tr>
-<tr><td align="center"><a href="docs/showcase/2026-10-28/normal-home.jpg"><img src="docs/showcase/2026-10-28/normal-home.jpg" alt="Native development Home with colourful topics and a saved-search section" width="300"></a></td><td align="center"><a href="docs/showcase/2026-10-28/ios-map-overview-light.jpg"><img src="docs/showcase/2026-10-28/ios-map-overview-light.jpg" alt="Native development map showing physical venue groups" width="300"></a></td></tr>
+<tr><td align="center"><a href="docs/showcase/2026-10-28/normal-home.jpg"><img src="docs/showcase/2026-10-28/normal-home.jpg" alt="Native development Home with colourful topics and saved filters" width="300"></a></td><td align="center"><a href="docs/showcase/2026-10-28/ios-map-overview-light.jpg"><img src="docs/showcase/2026-10-28/ios-map-overview-light.jpg" alt="Native development map showing physical venue groups" width="300"></a></td></tr>
 </table>
 
-Actual simulator captures from source `692bdcd81e6bd091d920b35698b30fb4658f2dd7`, using the public feed. Home offers topic choices and a clear Browse entry. Save separate named searches in Browse for different ages or interests, then return Home for matching-event updates. These local searches need no account and do not automatically enable notifications. [Capture provenance and hashes](docs/showcase/2026-10-28/capture-receipt.json). These are source-bound simulator previews of the new Home, not phone acceptance or final App Store screenshots.
+Actual simulator captures from source `692bdcd81e6bd091d920b35698b30fb4658f2dd7`, using the public feed. Home offers topic choices and a clear Browse entry. Save separately named filters for different ages or interests. The current build17 candidate adds the in-panel saved-filter selection shown above; Home also shows matching-event updates. These local filters need no account and do not automatically enable notifications. [Capture provenance and hashes](docs/showcase/2026-10-28/capture-receipt.json). These are source-bound simulator previews of the new Home, not phone acceptance or final App Store screenshots.
 
 <details>
 <summary>Previous build 15: October 27 screenshots</summary>
@@ -45,13 +56,13 @@ The source revision of that installed build was not established. [Historical cap
 
 Search by location, age and category in your chosen interface language, or use the High School section for volunteer hours, co-op, and mentorship. Open a program's source page, get directions with Apple Maps, and keep a shortlist on your device.
 
-There's no account to create. Your profile, saved opportunities, searches, and settings stay on-device. Nearby search requests your location only when you ask for it. The app has no ads, purchases, or third-party analytics.
+There's no account to create. Your profile, saved opportunities, filters, and settings stay on-device. Nearby search requests your location only when you ask for it. The app has no ads, purchases, or third-party analytics.
 
 The app reads the public opportunity feed from the web repository and keeps a local cache for offline browsing. The feed pipeline handles source collection and updates; the native app doesn't crawl provider websites.
 
 ## Development status
 
-**Version 1.0 (17) is being verified after an owner-reported build 16 crash.** It includes a window-construction fix and clearer Saved filters / Save filter / Update filter actions. All 190 local tests pass; actual UI checks and delivery remain pending. [Current candidate and evidence](docs/DEVELOPMENT_CANDIDATE.md).
+**Version 1.0 (17) is being verified after an owner-reported build 16 crash.** It includes a window-construction fix and clearer Saved filters / Save filter / Update filter actions. The corrected dropdown passed **193/193 tests**. Actual simulator checks covered saved-filter switching, Reset, explicit updates, large text, accessibility borders and Arabic layout. The signed build and TestFlight delivery are being prepared. [Current candidate and evidence](docs/DEVELOPMENT_CANDIDATE.md).
 
 The latest owner-only internal iPhone upload is **1.0 (16)**, from source `1338441b5daa7d7281d0d22d6d5e7da552a88f54`. App Store Connect shows Internal Testing for the sole-owner group and reports the owner installed 1.0 (16). Physical-device launch and core-use acceptance remain unverified. Its archive and retained uploaded IPA passed 52/52 and 62/62 strict checks. All 187 test stages passed, while the remote screenshot stage failed; 31 reviewed local native frames match the delivered UI. [Build 16 evidence and limitations](docs/DEVELOPMENT_CANDIDATE.md).
 

@@ -1,0 +1,26 @@
+{
+  "platform": "iPhone17ProMax iOS27.0 simulator",
+  "build": "1.0(17) Debug",
+  "physicalDeviceAcceptance": false,
+  "appStoreScreenshots": false,
+  "captures": [
+    {
+      "file": "corrected-filters-normal.png",
+      "sha256": "2c09b09a9aa2d51b1681dcfef34af7724043d9e1635e0f2d0952e0865eac5b0e",
+      "bytes": 497430,
+      "source": "4f2e40bf00db9bf0546871294b7b06c773f55c63",
+      "capture": "unmodified native simulator screenshot after actual UI actions",
+      "showBorders": false,
+      "testPresets": "Age four and All activities are simulator QA choices, not user profiles"
+    },
+    {
+      "file": "corrected-preset-dropdown.png",
+      "sha256": "2470740fe62e033a3530be3e53a3469c39ed8918bf8efc08fe3045e94d6f797a",
+      "bytes": 528471,
+      "source": "4f2e40bf00db9bf0546871294b7b06c773f55c63",
+      "capture": "unmodified native simulator screenshot after actual UI actions",
+      "showBorders": true,
+      "testPresets": "Age four and All activities are simulator QA choices, not user profiles"
+    }
+  ]
+}
