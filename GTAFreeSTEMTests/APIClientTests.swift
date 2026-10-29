@@ -25,6 +25,36 @@ private func bundledSnapshotTestNow() throws -> Date {
 }
 
 final class APIClientTests: XCTestCase {
+    func testWindowRootFactoryCanBeCalledOffMainThread() async {
+        let wasMainThread = await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                _ = makeAppWindowRoot()
+                continuation.resume(returning: Thread.isMainThread)
+            }
+        }
+        XCTAssertFalse(wasMainThread)
+    }
+
+    @MainActor
+    func testWindowRootBodyCanBeConstructedOnMainActor() {
+        MainActor.preconditionIsolated()
+        _ = makeAppWindowRoot().body
+    }
+
+    func testWindowSceneUsesStatelessFactoryAndSharedStores() throws {
+        let path = testRepositoryRoot.appendingPathComponent("GTAFreeSTEM/GTAFreeSTEMApp.swift")
+        let source = String(decoding: try Data(contentsOf: path), as: UTF8.self)
+        XCTAssertTrue(source.contains("WindowGroup(makeContent: makeAppWindowRoot)"))
+        XCTAssertTrue(source.contains(".environmentObject(session)"))
+        XCTAssertTrue(source.contains(".environmentObject(opportunities)"))
+        let start = try XCTUnwrap(source.range(of: "struct AppWindowRoot: View"))
+        let end = try XCTUnwrap(source.range(of: "private struct AppWindowContent: View", range: start.upperBound..<source.endIndex))
+        let factoryView = String(source[start.lowerBound..<end.lowerBound])
+        XCTAssertFalse(factoryView.contains("@State"))
+        XCTAssertFalse(factoryView.contains("@Environment"))
+        XCTAssertTrue(factoryView.contains("nonisolated init()"))
+    }
+
     @MainActor
     func testRealCatalogueResponsivenessDiagnostic() throws {
         let clock = { ProcessInfo.processInfo.systemUptime }
