@@ -138,10 +138,10 @@ enum PortfolioTypography {
 
 /// Native tab bar icons need a point-sized bitmap, not the 192-pixel source size.
 enum PortfolioArtwork {
-    static func tabImage(_ name: String, scheme: ColorScheme) -> Image {
+    static func tabImage(_ name: String, scheme: ColorScheme, fallbackSystemImage: String) -> Image {
         let traits = UITraitCollection(userInterfaceStyle: scheme == .dark ? .dark : .light)
         guard let artwork = UIImage(named: name, in: .main, compatibleWith: traits) else {
-            return Image(systemName: name.contains("home") ? "house.fill" : "magnifyingglass")
+            return Image(systemName: fallbackSystemImage)
         }
         let size = CGSize(width: 26, height: 26)
         let image = UIGraphicsImageRenderer(size: size).image { _ in

@@ -10,9 +10,13 @@ Final handoff tokens are used, including light primary #2e7184 and dark backgrou
 
 ## Source changes
 
-Central semantic content colours, outlined cards, control borders and 100 ms press feedback follow the handoff. Existing Reduce Motion removes decorative press scaling/animation. Original loader-specific colour constants, logo assets and loader implementation remain intact. Native TabView/NavigationStack and all five existing routes/deep links are preserved. Home/Explore use their matching compact illustrations; unmatched High School, Support and Profile roles retain existing native symbols pending authored role assets. Category illustrations are decorative beside existing readable labels. Dark and light PNGs are packaged as asset variants; unsupported SVG filters are not interpreted at runtime.
+Central semantic content colours, outlined cards, control borders and 100 ms press feedback follow the handoff. Existing Reduce Motion removes decorative press scaling/animation. Original loader-specific colour constants, logo assets and loader implementation remain intact. Native TabView/NavigationStack and all five existing routes/deep links are preserved. All five routes now use their matching approved compact illustrations, including the subsequently authored School, Support and Profile roles. The native symbol remains only an asset-load failure fallback. Category illustrations are decorative beside existing readable labels. Dark and light PNGs are packaged as asset variants; unsupported SVG filters are not interpreted at runtime.
 
 Typography changes cover content screens and common fields/buttons while native navigation chrome, map annotation typography and icon glyph sizing retain platform behaviour. No data, saved-filter association, catalogue, persistence, launch factory or refresh behaviour changes are intended.
+
+## Additional route artwork source checkpoint
+
+The design owner authored School (cap/book), Support (contact headset) and Profile (portrait card); Full Stack visually approved their contact sheet. Exact 12 PNG hashes were verified before packaging six new light/dark image sets. Existing five labels, route cases, deep links and 26-point bitmap sizing remain unchanged. Tab and sidebar navigation share the same artwork mapping. This source-only follow-up has not yet been built or rendered; the earlier nine-frame smoke receipt predates these three route images.
 
 ## Required before integration/release
 

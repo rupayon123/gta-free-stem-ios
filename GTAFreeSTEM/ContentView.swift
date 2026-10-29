@@ -58,6 +58,16 @@ enum AppTab: Hashable, CaseIterable {
         }
     }
 
+    var artworkAssetName: String {
+        switch self {
+        case .home: "gta_home_compact"
+        case .opportunities: "gta_explore_compact"
+        case .highSchool: "gta_school_compact"
+        case .support: "gta_support_compact"
+        case .account: "gta_profile_compact"
+        }
+    }
+
     var symbolName: String {
         switch self {
         case .home: "house.fill"
@@ -256,14 +266,11 @@ struct ContentView: View {
                         Label {
                             Text(session.text(tab.titleKey))
                         } icon: {
-                            if tab == .home || tab == .opportunities {
-                                PortfolioArtwork.tabImage(
-                                    tab == .home ? "gta_home_compact" : "gta_explore_compact",
-                                    scheme: colorScheme
-                                )
-                            } else {
-                                Image(systemName: tab.symbolName)
-                            }
+                            PortfolioArtwork.tabImage(
+                                tab.artworkAssetName,
+                                scheme: colorScheme,
+                                fallbackSystemImage: tab.symbolName
+                            )
                         }
                     }
                     .tag(tab)
@@ -279,7 +286,15 @@ struct ContentView: View {
                         Button {
                             selectedTab = tab
                         } label: {
-                            Label(session.text(tab.titleKey), systemImage: tab.symbolName)
+                            Label {
+                                Text(session.text(tab.titleKey))
+                            } icon: {
+                                PortfolioArtwork.tabImage(
+                                    tab.artworkAssetName,
+                                    scheme: colorScheme,
+                                    fallbackSystemImage: tab.symbolName
+                                )
+                            }
                                 .font(PortfolioTypography.body.weight(selectedTab == tab ? .semibold : .regular))
                                 .foregroundStyle(
                                     selectedTab == tab
