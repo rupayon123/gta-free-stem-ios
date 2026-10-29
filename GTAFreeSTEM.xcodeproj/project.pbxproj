@@ -36,6 +36,8 @@
 		F86D0A49E7313A143E3031CA /* LocalOpportunitySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4A6C30734DAE0C6FF3F914B /* LocalOpportunitySnapshot.swift */; };
 		FEE1DAB0C0DE000000000005 /* FreeOpportunityEligibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE1DAB0C0DE000000000004 /* FreeOpportunityEligibilityTests.swift */; };
 		FEE1DAB0C0DE000000000002 /* FeedFreshness.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE1DAB0C0DE000000000001 /* FeedFreshness.swift */; };
+		0F8FE5E37B21E671E1A6E5EC /* Nunito.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 06EA72B71A62F95FBFD93BCB /* Nunito.ttf */; };
+		FDE9080A6C7E9C086FDDD7C6 /* Nunito-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = 3DE6C81FFC5D0CA49C886213 /* Nunito-OFL.txt */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -121,6 +123,8 @@
 		FAAEB0585D9E067B1270CC19 /* gu */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = gu; path = gu.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		FBD26104225597E7C756CFB0 /* ur */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ur; path = ur.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		F1A5C4A52E00000000000002 /* WatchStrings.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = WatchStrings.json; sourceTree = "<group>"; };
+		06EA72B71A62F95FBFD93BCB /* Nunito.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Nunito.ttf"; sourceTree = "<group>"; };
+		3DE6C81FFC5D0CA49C886213 /* Nunito-OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Nunito-OFL.txt"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -197,6 +201,8 @@
 			isa = PBXGroup;
 			children = (
 				A4D516C7B3AD1D417ABBDC9C /* app_strings.json */,
+				3DE6C81FFC5D0CA49C886213 /* Nunito-OFL.txt */,
+				06EA72B71A62F95FBFD93BCB /* Nunito.ttf */,
 				0D340C91FCBE390D875ED59B /* opportunities.json */,
 				F81D27386203249D913B5F66 /* PrivacyInfo.xcprivacy */,
 				7553722146CCDD02A80A91AD /* InfoPlist.strings */,
@@ -331,6 +337,8 @@
 				0FEC777605D5C112F928C309 /* LaunchScreen.storyboard in Resources */,
 				EE09F46022F670609FDFE888 /* PrivacyInfo.xcprivacy in Resources */,
 				475FC5B26D8388188FEC26C1 /* app_strings.json in Resources */,
+				FDE9080A6C7E9C086FDDD7C6 /* Nunito-OFL.txt in Resources */,
+				0F8FE5E37B21E671E1A6E5EC /* Nunito.ttf in Resources */,
 				15C4002643726DEDEE370E34 /* opportunities.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

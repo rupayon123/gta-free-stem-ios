@@ -65,11 +65,11 @@ struct SettingsView: View {
             StorySectionTitle(text: session.text("account"), systemImage: "person.crop.circle.fill")
             if session.hasLocalProfile {
                 Text("\(session.text("name")): \(session.displayName)")
-                    .font(.headline.weight(.semibold))
+                    .font(PortfolioTypography.headline.weight(.semibold))
                     .foregroundStyle(Brand.outline(for: colorScheme))
 
                 Text(session.text("profileOnDevice"))
-                    .font(.subheadline)
+                    .font(PortfolioTypography.subheadline)
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
 
                 ViewThatFits(in: .horizontal) {
@@ -85,12 +85,12 @@ struct SettingsView: View {
                 }
             } else {
                 Text(session.text("guest"))
-                    .font(.headline.weight(.semibold))
+                    .font(PortfolioTypography.headline.weight(.semibold))
                     .foregroundStyle(Brand.outline(for: colorScheme))
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 Text(session.text("profileOnDevice"))
-                    .font(.subheadline)
+                    .font(PortfolioTypography.subheadline)
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
 
                 Button(session.text("account")) {
@@ -151,10 +151,10 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 14) {
             StorySectionTitle(text: session.text("saved"), systemImage: "bookmark.fill")
             Text(session.text("savedEmpty"))
-                .font(.headline.weight(.semibold))
+                .font(PortfolioTypography.headline.weight(.semibold))
                 .foregroundStyle(Brand.outline(for: colorScheme))
             Text(session.text("savedArchiveNote"))
-                .font(.subheadline)
+                .font(PortfolioTypography.subheadline)
                 .foregroundStyle(Brand.mutedText(for: colorScheme))
             NavigationLink {
                 SavedView()
@@ -177,9 +177,9 @@ struct SettingsView: View {
         Label {
             VStack(alignment: .leading, spacing: 6) {
                 Text(session.text("localStorageUnavailableTitle"))
-                    .font(.headline.weight(.semibold))
+                    .font(PortfolioTypography.headline.weight(.semibold))
                 Text(session.text("localStorageUnavailableMessage"))
-                    .font(.subheadline)
+                    .font(PortfolioTypography.subheadline)
             }
         } icon: {
             Image(systemName: "externaldrive.badge.exclamationmark")
@@ -202,7 +202,7 @@ struct SettingsView: View {
             .storyPickerRow()
 
             Text(session.text("theme"))
-                .font(.headline.weight(.semibold))
+                .font(PortfolioTypography.headline.weight(.semibold))
                 .foregroundStyle(Brand.outline(for: colorScheme))
             Picker(session.text("theme"), selection: $session.preferredTheme) {
                 Text(session.text("system")).tag("System")
@@ -218,7 +218,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 14) {
             StorySectionTitle(text: session.text("termsTitle"), systemImage: "doc.text.fill")
             Text(session.text("termsBody"))
-                .font(.subheadline)
+                .font(PortfolioTypography.subheadline)
                 .foregroundStyle(Brand.mutedText(for: colorScheme))
 
             Link(destination: AppLegalLinks.privacyPolicy) {
@@ -244,7 +244,7 @@ struct SettingsView: View {
 
     private func messageCard(_ text: String) -> some View {
         Text(text)
-            .font(.subheadline.weight(.medium))
+            .font(PortfolioTypography.subheadline.weight(.medium))
             .foregroundStyle(Brand.outline(for: colorScheme))
             .frame(maxWidth: .infinity, alignment: .leading)
             .cardSurface()
@@ -266,7 +266,7 @@ struct SettingsView: View {
                         .textInputAutocapitalization(.words)
                 }
             }
-            .tint(Brand.lake)
+            .tint(Brand.actionFill(for: colorScheme))
             .navigationTitle(session.text("account"))
             .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .bottom) {

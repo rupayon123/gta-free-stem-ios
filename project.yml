@@ -44,6 +44,8 @@ targets:
     info:
       path: GTAFreeSTEM/Info.plist
       properties:
+        UIAppFonts:
+          - Nunito.ttf
         CFBundleDisplayName: GTA FREE STEM
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"

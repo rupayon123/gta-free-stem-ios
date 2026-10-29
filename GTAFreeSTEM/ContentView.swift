@@ -164,6 +164,7 @@ enum AppLaunchConfiguration {
 }
 
 struct ContentView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
     @Environment(\.modelContext) private var modelContext
@@ -182,7 +183,9 @@ struct ContentView: View {
                 tabNavigation
             }
         }
-        .tint(Brand.lake)
+        .font(PortfolioTypography.body)
+        .foregroundStyle(Brand.outline(for: colorScheme))
+        .tint(Brand.actionFill(for: colorScheme))
         .accessibilityIdentifier("app-root")
         .onAppear {
 #if DEBUG
@@ -249,7 +252,20 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             ForEach(AppTab.allCases, id: \.self) { tab in
                 tabContent(for: tab)
-                    .tabItem { Label(session.text(tab.titleKey), systemImage: tab.symbolName) }
+                    .tabItem {
+                        Label {
+                            Text(session.text(tab.titleKey))
+                        } icon: {
+                            if tab == .home || tab == .opportunities {
+                                PortfolioArtwork.tabImage(
+                                    tab == .home ? "gta_home_compact" : "gta_explore_compact",
+                                    scheme: colorScheme
+                                )
+                            } else {
+                                Image(systemName: tab.symbolName)
+                            }
+                        }
+                    }
                     .tag(tab)
             }
         }
@@ -264,7 +280,7 @@ struct ContentView: View {
                             selectedTab = tab
                         } label: {
                             Label(session.text(tab.titleKey), systemImage: tab.symbolName)
-                                .font(.body.weight(selectedTab == tab ? .semibold : .regular))
+                                .font(PortfolioTypography.body.weight(selectedTab == tab ? .semibold : .regular))
                                 .foregroundStyle(
                                     selectedTab == tab
                                         ? Brand.actionFill(for: session.colorScheme ?? .light)
@@ -387,9 +403,9 @@ private struct StorageRecoveryBanner: View {
         Label {
             VStack(alignment: .leading, spacing: 2) {
                 Text(session.text("localStorageUnavailableTitle"))
-                    .font(.footnote.weight(.bold))
+                    .font(PortfolioTypography.footnote.weight(.bold))
                 Text(session.text("localStorageUnavailableMessage"))
-                    .font(.caption)
+                    .font(PortfolioTypography.caption)
             }
         } icon: {
             Image(systemName: "externaldrive.badge.exclamationmark")
@@ -441,7 +457,7 @@ struct HomeView: View {
                 VStack(alignment: .leading, spacing: 28) {
                     masthead
                     Text(session.text("homePurpose"))
-                        .font(.largeTitle.weight(.bold))
+                        .font(PortfolioTypography.largeTitle.weight(.bold))
                         .foregroundStyle(Brand.outline(for: colorScheme))
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
@@ -454,11 +470,11 @@ struct HomeView: View {
                     .buttonStyle(StoryButtonStyle(kind: .primary))
                     if store.savedSearches.isEmpty { savedSearchSection }
                     if let error = store.savedSearchError {
-                        Text(error).font(.callout).foregroundStyle(Brand.coral)
+                        Text(error).font(PortfolioTypography.callout).foregroundStyle(Brand.coral)
                     }
                     if deletionNotice {
                         Label(session.text("searchDeleted"), systemImage: "checkmark.circle")
-                            .font(.callout).foregroundStyle(Brand.mutedText(for: colorScheme))
+                            .font(PortfolioTypography.callout).foregroundStyle(Brand.mutedText(for: colorScheme))
                             .accessibilityIdentifier("saved-search-deleted")
                     }
                     pathwayGrid
@@ -487,7 +503,7 @@ struct HomeView: View {
     private var masthead: some View {
         HStack(spacing: 12) {
             BrandLogoImage(size: 48).accessibilityHidden(true)
-            Text(Brand.compactName).font(.headline.weight(.bold))
+            Text(Brand.compactName).font(PortfolioTypography.headline.weight(.bold))
                 .foregroundStyle(Brand.outline(for: colorScheme))
             Spacer(minLength: 4)
             ThemeToolbarButton(showLabel: false)
@@ -496,7 +512,7 @@ struct HomeView: View {
 
     private var topicSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(session.text("exploreTopics")).font(.title2.weight(.bold))
+            Text(session.text("exploreTopics")).font(PortfolioTypography.title2.weight(.bold))
                 .foregroundStyle(Brand.outline(for: colorScheme))
                 .accessibilityAddTraits(.isHeader)
             if store.homeTopics.isEmpty {
@@ -512,10 +528,10 @@ struct HomeView: View {
                         VStack(alignment: .leading, spacing: 14) {
                             ActivityCategoryMark(category: category, size: 42)
                             HStack(alignment: .top, spacing: 6) {
-                                Text(session.categoryName(category)).font(.headline)
+                                Text(session.categoryName(category)).font(PortfolioTypography.headline)
                                     .fixedSize(horizontal: false, vertical: true)
                                 Spacer(minLength: 0)
-                                Image(systemName: "arrow.up.forward").font(.caption.weight(.bold)).accessibilityHidden(true)
+                                Image(systemName: "arrow.up.forward").font(PortfolioTypography.caption.weight(.bold)).accessibilityHidden(true)
                             }
                         }
                         .foregroundStyle(Brand.outline(for: colorScheme))
@@ -533,12 +549,12 @@ struct HomeView: View {
 
     private var savedSearchSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(session.text("mySavedSearches")).font(.title2.weight(.bold))
+            Text(session.text("mySavedSearches")).font(PortfolioTypography.title2.weight(.bold))
                 .foregroundStyle(Brand.outline(for: colorScheme)).accessibilityAddTraits(.isHeader)
             if store.savedSearches.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Image(systemName: "bookmark").font(.title2).foregroundStyle(Brand.lake).accessibilityHidden(true)
-                    Text(session.text("savedSearchEmpty")).font(.body)
+                    Image(systemName: "bookmark").font(PortfolioTypography.title2).foregroundStyle(Brand.lake).accessibilityHidden(true)
+                    Text(session.text("savedSearchEmpty")).font(PortfolioTypography.body)
                         .foregroundStyle(Brand.mutedText(for: colorScheme))
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -557,24 +573,24 @@ struct HomeView: View {
                         } label: {
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack(alignment: .firstTextBaseline) {
-                                    Text(search.name).font(.headline)
+                                    Text(search.name).font(PortfolioTypography.headline)
                                     Spacer(minLength: 4)
                                     Image(systemName: "arrow.forward").accessibilityHidden(true)
                                 }
                                 Text(NamedSearchSummary.text(search.criteria, session: session))
-                                    .font(.subheadline).foregroundStyle(Brand.mutedText(for: colorScheme))
+                                    .font(PortfolioTypography.subheadline).foregroundStyle(Brand.mutedText(for: colorScheme))
                                 if let count = search.matchedCount {
-                                    Text(OpportunityResultCountText.string(count, language: session.language)).font(.subheadline.weight(.semibold))
+                                    Text(OpportunityResultCountText.string(count, language: session.language)).font(PortfolioTypography.subheadline.weight(.semibold))
                                 } else {
-                                    Text(session.text("savedSearchPending")).font(.subheadline)
+                                    Text(session.text("savedSearchPending")).font(PortfolioTypography.subheadline)
                                 }
                                 if !search.unreadIDs.isEmpty {
                                     Text(session.text("newSinceViewed").replacingOccurrences(of: "{count}", with: "\(search.unreadIDs.count)"))
-                                        .font(.subheadline.weight(.semibold)).foregroundStyle(Brand.lake)
+                                        .font(PortfolioTypography.subheadline.weight(.semibold)).foregroundStyle(Brand.lake)
                                 }
                                 if let checked = search.checkedAt {
                                     Text("\(session.text("lastChecked")): \(checked.formatted(date: .abbreviated, time: .omitted))")
-                                        .font(.caption).foregroundStyle(Brand.mutedText(for: colorScheme))
+                                        .font(PortfolioTypography.caption).foregroundStyle(Brand.mutedText(for: colorScheme))
                                 }
                             }
                             .foregroundStyle(Brand.outline(for: colorScheme))
@@ -593,7 +609,7 @@ struct HomeView: View {
                             Button(session.text("deleteSavedSearch"), role: .destructive) { deletingSearch = search }
                                 .frame(minHeight: 44)
                         }
-                        .font(.subheadline).disabled(!storageAccess.allowsPersistentChanges)
+                        .font(PortfolioTypography.subheadline).disabled(!storageAccess.allowsPersistentChanges)
                         Divider()
                     }
                 }
@@ -618,7 +634,7 @@ struct HomeView: View {
 
     private func pathwayRow(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Label(title, systemImage: icon).font(.subheadline.weight(.semibold))
+            Label(title, systemImage: icon).font(PortfolioTypography.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
         }
         .foregroundStyle(Brand.lake).buttonStyle(SpringPressButtonStyle())
@@ -632,7 +648,7 @@ struct HomeView: View {
                     .accessibilityIdentifier("feed-last-updated")
             }
         }
-        .font(.footnote).foregroundStyle(Brand.mutedText(for: colorScheme))
+        .font(PortfolioTypography.footnote).foregroundStyle(Brand.mutedText(for: colorScheme))
         .fixedSize(horizontal: false, vertical: true)
     }
 

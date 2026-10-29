@@ -68,7 +68,7 @@ struct SavedView: View {
                     .listStyle(.insetGrouped)
                     .scrollContentBackground(.hidden)
                     .background(.clear)
-                    .tint(Brand.lake)
+                    .tint(Brand.actionFill(for: colorScheme))
                 }
             }
             .task {
@@ -101,12 +101,12 @@ struct SavedView: View {
                 .background(Brand.selectionFill(for: colorScheme), in: Circle())
 
             Text(session.text("savedEmpty"))
-                .font(.title2.weight(.semibold))
+                .font(PortfolioTypography.title2.weight(.semibold))
                 .foregroundStyle(Brand.outline(for: colorScheme))
                 .multilineTextAlignment(.center)
 
             Text(session.text("savedArchiveNote"))
-                .font(.body)
+                .font(PortfolioTypography.body)
                 .foregroundStyle(Brand.mutedText(for: colorScheme))
                 .multilineTextAlignment(.center)
         }
@@ -162,7 +162,7 @@ private struct SavedOpportunityListItem: View {
             if let sourceURL = ExternalOpportunityURL.make(from: opportunity.sourceUrl) {
                 Link(destination: sourceURL) {
                     Label(session.text("source"), systemImage: "arrow.up.right.square")
-                        .font(.caption.weight(.semibold))
+                        .font(PortfolioTypography.caption.weight(.semibold))
                         .foregroundStyle(Brand.lake)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                         .contentShape(Rectangle())

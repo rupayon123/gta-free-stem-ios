@@ -195,23 +195,23 @@ struct BrowseView: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text(OpportunityResultCountText.string(store.activeCount, language: session.language))
-                    .font(.headline.weight(.bold))
+                    .font(PortfolioTypography.headline.weight(.bold))
                     .foregroundStyle(Brand.outline(for: colorScheme))
                     .fixedSize(horizontal: false, vertical: true)
                 Text("\(session.text("loadedFrom")) \(localizedDataSource)")
-                    .font(.caption)
+                    .font(PortfolioTypography.caption)
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
                     .fixedSize(horizontal: false, vertical: true)
                 if let lastUpdated = store.lastUpdated {
                     Text("\(session.text("date")): \(session.formattedDate(lastUpdated))")
-                        .font(.caption)
+                        .font(PortfolioTypography.caption)
                         .foregroundStyle(Brand.mutedText(for: colorScheme))
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("feed-last-updated")
                 }
             }
             Spacer(minLength: 4)
-            if store.isLoading { ProgressView().tint(Brand.lake) }
+            if store.isLoading { ProgressView().tint(Brand.actionFill(for: colorScheme)) }
             ThemeToolbarButton(showLabel: false)
         }
         .padding(.vertical, 4)
@@ -307,10 +307,10 @@ struct BrowseView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(surface == .highSchool ? session.text("highSchoolHuntEngine") : session.text("searchHuntEngine"))
-                        .font(.headline.weight(.semibold))
+                        .font(PortfolioTypography.headline.weight(.semibold))
                         .foregroundStyle(Brand.outline(for: colorScheme))
                     Text(huntSubtitle)
-                        .font(.subheadline)
+                        .font(PortfolioTypography.subheadline)
                         .foregroundStyle(Brand.mutedText(for: colorScheme))
                 }
 
@@ -346,13 +346,13 @@ struct BrowseView: View {
 
             if let message = locationManager.message ?? store.notificationStatusMessage {
                 Text(message)
-                    .font(.footnote)
+                    .font(PortfolioTypography.footnote)
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
             }
 
             if let message = store.errorMessage {
                 Label(message, systemImage: "exclamationmark.triangle.fill")
-                    .font(.footnote)
+                    .font(PortfolioTypography.footnote)
                     .foregroundStyle(Brand.coral)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -396,10 +396,10 @@ struct BrowseView: View {
                         Link(destination: sourceURL) {
                             HStack(alignment: .firstTextBaseline, spacing: 10) {
                                 Label(session.text("source"), systemImage: "arrow.up.right.square")
-                                    .font(.subheadline.weight(.semibold))
+                                    .font(PortfolioTypography.subheadline.weight(.semibold))
                                 Spacer(minLength: 0)
                                 Text(session.text("openProgramPage"))
-                                    .font(.caption)
+                                    .font(PortfolioTypography.caption)
                                     .multilineTextAlignment(.trailing)
                             }
                             .foregroundStyle(Brand.lake)
@@ -445,7 +445,7 @@ struct BrowseView: View {
                     .accessibilityHint(session.text("opensWebsite"))
                     .accessibilityIdentifier("browse-online")
                     Text(session.text("opensWebsite"))
-                        .font(.caption)
+                        .font(PortfolioTypography.caption)
                     if websiteUnavailable {
                         Text(session.text("websiteUnavailable"))
                             .foregroundStyle(Brand.coral)
@@ -502,7 +502,7 @@ struct BrowseView: View {
                 Text(session.text("mapLocationCount")
                     .replacingOccurrences(of: "{locations}", with: "\(venues.count)")
                     .replacingOccurrences(of: "{count}", with: "\(mappedCount)"))
-                    .font(.subheadline.weight(.semibold))
+                    .font(PortfolioTypography.subheadline.weight(.semibold))
                 ClusteredOpportunityMap(
                     snapshot: mapProjection.snapshot,
                     revision: mapProjection.revision,
@@ -542,7 +542,7 @@ struct BrowseView: View {
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("map-show-locations")
                 Text(session.text("mapLocationsHint"))
-                    .font(.caption)
+                    .font(PortfolioTypography.caption)
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
             }
 
@@ -550,17 +550,17 @@ struct BrowseView: View {
                 LazyVStack(alignment: .leading, spacing: 10) {
                     ForEach(selectedVenues) { selected in
                         Text(selected.address)
-                            .font(.headline)
+                            .font(PortfolioTypography.headline)
                             .fixedSize(horizontal: false, vertical: true)
                         ForEach(selected.opportunities) { opportunity in
                             NavigationLink(value: opportunity) {
                                 HStack(alignment: .top) {
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text(session.title(for: opportunity)).font(.subheadline.weight(.semibold))
-                                        Text(session.organization(for: opportunity)).font(.caption)
+                                        Text(session.title(for: opportunity)).font(PortfolioTypography.subheadline.weight(.semibold))
+                                        Text(session.organization(for: opportunity)).font(PortfolioTypography.caption)
                                         if let schedule = session.formattedSchedule(start: opportunity.startDate, end: opportunity.endDate) {
                                             Text(schedule)
-                                                .font(.caption)
+                                                .font(PortfolioTypography.caption)
                                                 .foregroundStyle(Brand.mutedText(for: colorScheme))
                                                 .fixedSize(horizontal: false, vertical: true)
                                         }
@@ -585,7 +585,7 @@ struct BrowseView: View {
 
             if mappedCount < store.opportunities.count {
                 Text(session.text("mapMissingLocations").replacingOccurrences(of: "{count}", with: "\(store.opportunities.count - mappedCount)"))
-                    .font(.footnote)
+                    .font(PortfolioTypography.footnote)
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
             }
             Button { displayMode = .list } label: {
@@ -722,20 +722,20 @@ struct OpportunityRow: View {
             }
             VStack(alignment: .leading, spacing: 7) {
                 Text(session.categoryName(for: opportunity))
-                    .font(.caption.weight(.semibold))
+                    .font(PortfolioTypography.caption.weight(.semibold))
                     .foregroundStyle(Brand.lake)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(session.title(for: opportunity))
-                    .font(.headline.weight(.semibold))
+                    .font(PortfolioTypography.headline.weight(.semibold))
                     .foregroundStyle(Brand.outline(for: colorScheme))
                     .fixedSize(horizontal: false, vertical: true)
                 Text("\(session.organization(for: opportunity)) · \(session.city(for: opportunity))")
-                    .font(.subheadline)
+                    .font(PortfolioTypography.subheadline)
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
                     .fixedSize(horizontal: false, vertical: true)
                 if let schedule = session.formattedSchedule(start: opportunity.startDate, end: opportunity.endDate) {
                     Label(schedule, systemImage: "calendar")
-                        .font(.caption)
+                        .font(PortfolioTypography.caption)
                         .foregroundStyle(Brand.mutedText(for: colorScheme))
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -757,13 +757,13 @@ struct OpportunityRow: View {
                         Label(session.text("coop"), systemImage: "briefcase")
                     }
                 }
-                .font(.caption)
+                .font(PortfolioTypography.caption)
                 .foregroundStyle(Brand.mutedText(for: colorScheme))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             if showsDisclosure {
                 Image(systemName: "chevron.forward")
-                    .font(.caption.weight(.semibold))
+                    .font(PortfolioTypography.caption.weight(.semibold))
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
                     .accessibilityHidden(true)
             }
@@ -893,7 +893,7 @@ struct OpportunityFilterSheet: View {
                     Toggle(session.categoryName("Scholarships"), isOn: $filters.scholarships)
                     VStack(alignment: .leading, spacing: 8) {
                         Text(session.text("distanceRadius").replacingOccurrences(of: "{km}", with: "\(Int(filters.distanceKm))"))
-                            .font(.headline.weight(.semibold))
+                            .font(PortfolioTypography.headline.weight(.semibold))
                         Slider(value: $filters.distanceKm, in: 5...100, step: 5)
                     }
                     if filters.hasLocation {
@@ -916,14 +916,14 @@ struct OpportunityFilterSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(Brand.canvas(for: colorScheme))
-            .tint(Brand.lake)
+            .tint(Brand.actionFill(for: colorScheme))
             .navigationTitle(session.text("filters"))
             .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 8) {
                 if savedFilterConfirmed {
                     Label(session.text("saved"), systemImage: "checkmark.circle")
-                        .font(.callout)
+                        .font(PortfolioTypography.callout)
                         .accessibilityIdentifier("filter-save-confirmed")
                 }
                 Button {
@@ -1020,7 +1020,7 @@ struct OpportunityFilterSheet: View {
                 .accessibilityIdentifier("saved-filter-picker")
             }
             if let preset = selectedPreset, NamedSearchCriteria(query: preset.criteria.query, mode: preset.criteria.mode, filters: preset.criteria.filters) != criteria {
-                Text(session.text("filterModified")).font(.callout).foregroundStyle(.secondary)
+                Text(session.text("filterModified")).font(PortfolioTypography.callout).foregroundStyle(.secondary)
             }
             TextField(session.text("searchPlaceholder"), text: $store.query)
                 .accessibilityIdentifier("filter-query")
@@ -1029,7 +1029,7 @@ struct OpportunityFilterSheet: View {
             } else {
                 Text(session.text(store.opportunities.count == 1 ? "resultCountOne" : "resultCountMany")
                     .replacingOccurrences(of: "{count}", with: store.opportunities.count.formatted()))
-                    .font(.headline)
+                    .font(PortfolioTypography.headline)
                     .accessibilityIdentifier("filter-result-count")
             }
         }
@@ -1419,7 +1419,7 @@ private struct SaveNamedSearchSheet: View {
             .safeAreaInset(edge: .bottom) {
                 if AppRuntime.isFrontendLayoutReview {
                     Text(session.text("layoutReviewBanner"))
-                        .font(.caption.weight(.semibold))
+                        .font(PortfolioTypography.caption.weight(.semibold))
                         .frame(maxWidth: .infinity).padding(8)
                         .foregroundStyle(Brand.navy).background(Brand.sun)
                 }

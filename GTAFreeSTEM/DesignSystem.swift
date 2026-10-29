@@ -50,60 +50,45 @@ enum Brand {
     // MARK: Semantic colours
 
     // Content-only colours: the original loader's canvas and gradient stay unchanged.
+    // Approved portfolio v3 content tokens. Loader colours above stay independent.
+    private static func rgb(_ hex: UInt32) -> Color {
+        Color(red: Double((hex >> 16) & 255) / 255,
+              green: Double((hex >> 8) & 255) / 255,
+              blue: Double(hex & 255) / 255)
+    }
+
     static func contentCanvas(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? night : Color(red: 0.98, green: 0.99, blue: 1.0)
+        rgb(scheme == .dark ? 0x14253A : 0xF4F8FD)
     }
 
     static func topicFill(category: String, scheme: ColorScheme) -> Color {
-        if scheme == .dark { return nightCard }
-        if category.contains("Coding") { return Color(red: 1, green: 0.94, blue: 0.70) }
-        if category.contains("Maker") || category.contains("Arts") { return Color(red: 1, green: 0.88, blue: 0.84) }
-        if category.contains("Career") { return Color(red: 0.87, green: 0.89, blue: 1) }
-        return Color(red: 0.83, green: 0.94, blue: 1)
+        scheme == .dark ? rgb(0x23364C) : rgb(0xE5F0F7)
     }
 
-    static func canvas(for scheme: ColorScheme) -> Color {
-        contentCanvas(for: scheme)
-    }
-
+    static func canvas(for scheme: ColorScheme) -> Color { contentCanvas(for: scheme) }
     static func cardFill(for scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? nightCard
-            : Color.white
+        rgb(scheme == .dark ? 0x23364C : 0xFFFFFF)
     }
-
     static func raisedFill(for scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.075, green: 0.18, blue: 0.21)
-            : Color(red: 0.91, green: 0.96, blue: 1)
+        rgb(scheme == .dark ? 0x1C2B3E : 0xE5F0F7)
     }
-
     static func outline(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? ice : navy
+        rgb(scheme == .dark ? 0xEFF6FF : 0x19334B)
     }
-
     static func mutedText(for scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.68, green: 0.77, blue: 0.78)
-            : Color(red: 0.29, green: 0.38, blue: 0.39)
+        rgb(scheme == .dark ? 0xAFC3D9 : 0x536B80)
     }
-
     static func surfaceStroke(for scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color.white.opacity(0.14)
-            : navy.opacity(0.12)
+        rgb(scheme == .dark ? 0x8BA3B7 : 0x526F82)
     }
-
     static func actionFill(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? electricBlue : lake
+        rgb(scheme == .dark ? 0xA4D8E2 : 0x2E7184)
     }
-
     static func actionForeground(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? deepOcean : .white
+        scheme == .dark ? rgb(0x142B3C) : .white
     }
-
     static func selectionFill(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? electricBlue.opacity(0.18) : lake.opacity(0.10)
+        rgb(scheme == .dark ? 0x365969 : 0xD1E9EC)
     }
 
     static func pageGradient(for scheme: ColorScheme) -> LinearGradient {
@@ -128,6 +113,41 @@ enum Brand {
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
+    }
+}
+
+/// Exact approved variable font, scaled by SwiftUI's semantic text style.
+/// Core Text supplies system fallback glyphs for scripts absent from Nunito.
+/// Native QA must verify the registered variable face and requested weights.
+enum PortfolioTypography {
+    private static func font(_ size: CGFloat, relativeTo style: Font.TextStyle) -> Font {
+        .custom("Nunito-ExtraLight", size: size, relativeTo: style).weight(.regular)
+    }
+    static var largeTitle: Font { font(34, relativeTo: .largeTitle) }
+    static var title: Font { font(28, relativeTo: .title) }
+    static var title2: Font { font(22, relativeTo: .title2) }
+    static var title3: Font { font(20, relativeTo: .title3) }
+    static var headline: Font { font(17, relativeTo: .headline).weight(.semibold) }
+    static var body: Font { font(17, relativeTo: .body) }
+    static var callout: Font { font(16, relativeTo: .callout) }
+    static var subheadline: Font { font(15, relativeTo: .subheadline) }
+    static var footnote: Font { font(13, relativeTo: .footnote) }
+    static var caption: Font { font(12, relativeTo: .caption) }
+    static var caption2: Font { font(11, relativeTo: .caption2) }
+}
+
+/// Native tab bar icons need a point-sized bitmap, not the 192-pixel source size.
+enum PortfolioArtwork {
+    static func tabImage(_ name: String, scheme: ColorScheme) -> Image {
+        let traits = UITraitCollection(userInterfaceStyle: scheme == .dark ? .dark : .light)
+        guard let artwork = UIImage(named: name, in: .main, compatibleWith: traits) else {
+            return Image(systemName: name.contains("home") ? "house.fill" : "magnifyingglass")
+        }
+        let size = CGSize(width: 26, height: 26)
+        let image = UIGraphicsImageRenderer(size: size).image { _ in
+            artwork.draw(in: CGRect(origin: .zero, size: size))
+        }
+        return Image(uiImage: image.withRenderingMode(.alwaysOriginal))
     }
 }
 
@@ -174,6 +194,10 @@ struct CardSurface: ViewModifier {
                 Brand.cardFill(for: colorScheme),
                 in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             )
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(Brand.surfaceStroke(for: colorScheme), lineWidth: 1.5)
+            }
     }
 }
 
@@ -207,33 +231,24 @@ struct StickerBadge: View {
     }
 }
 
-/// Existing SF Symbols identify categories; this is not an event photograph or
-/// an invented provider illustration. The same mark follows a listing into Saved.
+/// Approved original category artwork; decorative beside the readable category label.
 struct ActivityCategoryMark: View {
     let category: String
     var size: CGFloat = 48
-
-    private var symbol: String {
-        if category.localizedCaseInsensitiveContains("coding") { return "curlybraces" }
-        if category.localizedCaseInsensitiveContains("science") { return "atom" }
-        if category.localizedCaseInsensitiveContains("maker") { return "paintpalette.fill" }
-        if category.localizedCaseInsensitiveContains("digital") { return "sparkles" }
-        return "book.closed.fill"
+    private var artwork: String {
+        if category.localizedCaseInsensitiveContains("coding") { return "code" }
+        if category.localizedCaseInsensitiveContains("science") { return "science" }
+        if category.localizedCaseInsensitiveContains("maker") { return "engineering" }
+        if category.localizedCaseInsensitiveContains("digital") { return "ideas" }
+        if category.localizedCaseInsensitiveContains("volunteer") { return "volunteer" }
+        if category.localizedCaseInsensitiveContains("arts") { return "art" }
+        return "library"
     }
-
-    private var tint: Color {
-        if category.localizedCaseInsensitiveContains("coding") { return Brand.sun }
-        if category.localizedCaseInsensitiveContains("science") { return Brand.sky }
-        if category.localizedCaseInsensitiveContains("maker") { return Brand.orange }
-        return Brand.lavender
-    }
-
     var body: some View {
-        Image(systemName: symbol)
-            .font(.system(size: size * 0.46, weight: .semibold))
-            .foregroundStyle(Brand.navy)
+        Image("gta_\(artwork)_illustration")
+            .resizable()
+            .scaledToFit()
             .frame(width: size, height: size)
-            .background(tint, in: RoundedRectangle(cornerRadius: size * 0.27))
             .accessibilityHidden(true)
     }
 }
@@ -381,7 +396,7 @@ struct StoryButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.headline.weight(.semibold))
+            .font(PortfolioTypography.headline.weight(.semibold))
             .padding(.horizontal, 16)
             .frame(minHeight: 48)
             .foregroundStyle(foreground)
@@ -391,11 +406,11 @@ struct StoryButtonStyle: ButtonStyle {
             )
             .overlay {
                 RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
-                    .strokeBorder(border, lineWidth: kind == .primary ? 0 : 0.75)
+                    .strokeBorder(border, lineWidth: 1.5)
             }
             .contentShape(RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
-            .animation(reduceMotion ? nil : .spring(response: 0.30, dampingFraction: 0.78), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: configuration.isPressed)
     }
 
     private var background: Color {
@@ -424,10 +439,10 @@ struct StoryButtonStyle: ButtonStyle {
 
     private var border: Color {
         switch kind {
-        case .primary, .destructive:
+        case .destructive:
             .clear
-        case .secondary:
-            Brand.lake.opacity(colorScheme == .dark ? 0.42 : 0.24)
+        case .primary, .secondary:
+            Brand.surfaceStroke(for: colorScheme)
         case .quiet:
             Brand.surfaceStroke(for: colorScheme)
         }
@@ -441,7 +456,7 @@ struct SelectionChipStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.subheadline.weight(isSelected ? .semibold : .medium))
+            .font(PortfolioTypography.subheadline.weight(isSelected ? .semibold : .medium))
             .foregroundStyle(
                 isSelected
                     ? Brand.actionFill(for: colorScheme)
@@ -466,7 +481,7 @@ struct SelectionChipStyle: ButtonStyle {
             }
             .opacity(configuration.isPressed ? 0.78 : 1)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
-            .animation(reduceMotion ? nil : .spring(response: 0.30, dampingFraction: 0.78), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: configuration.isPressed)
     }
 }
 
@@ -578,7 +593,7 @@ struct StoryFieldModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .font(.body)
+            .font(PortfolioTypography.body)
             .padding(.horizontal, 14)
             .frame(minHeight: 48)
             .background(
@@ -598,7 +613,7 @@ struct StoryPickerRowModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .font(.body.weight(.medium))
+            .font(PortfolioTypography.body.weight(.medium))
             .padding(.horizontal, 14)
             .frame(minHeight: 48)
             .background(
@@ -625,7 +640,7 @@ struct StorySectionTitle: View {
                 .foregroundStyle(Brand.lake)
                 .accessibilityHidden(true)
             Text(text)
-                .font(.title3.weight(.semibold))
+                .font(PortfolioTypography.title3.weight(.semibold))
             Spacer(minLength: 8)
         }
         .foregroundStyle(Brand.outline(for: colorScheme))
@@ -740,7 +755,7 @@ struct SpringPressButtonStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.975 : 1)
             .opacity(configuration.isPressed ? 0.86 : 1)
-            .animation(reduceMotion ? nil : .spring(response: 0.30, dampingFraction: 0.78), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: configuration.isPressed)
     }
 }
 

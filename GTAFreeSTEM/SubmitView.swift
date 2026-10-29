@@ -29,10 +29,10 @@ struct SubmitView: View {
         ZStack(alignment: .topTrailing) {
             VStack(alignment: .leading, spacing: 5) {
                 Text(session.text("support"))
-                    .font(.largeTitle.weight(.bold))
+                    .font(PortfolioTypography.largeTitle.weight(.bold))
                     .foregroundStyle(Brand.outline(for: colorScheme))
                 Text(session.text("feedback"))
-                    .font(.subheadline)
+                    .font(PortfolioTypography.subheadline)
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -47,11 +47,11 @@ struct SubmitView: View {
         VStack(alignment: .leading, spacing: 14) {
             StorySectionTitle(text: session.text("feedback"), systemImage: "bubble.left.and.bubble.right.fill")
             Text(session.text("supportHeading"))
-                .font(.headline.weight(.semibold))
+                .font(PortfolioTypography.headline.weight(.semibold))
                 .foregroundStyle(Brand.outline(for: colorScheme))
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text(session.text("profileOnDevice"))
-                .font(.subheadline)
+                .font(PortfolioTypography.subheadline)
                 .foregroundStyle(Brand.mutedText(for: colorScheme))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -59,7 +59,7 @@ struct SubmitView: View {
                 Label(session.text("missingOpportunity"), systemImage: "magnifyingglass.circle.fill")
                 Label(session.text("privacyPolicy"), systemImage: "lock.shield.fill")
             }
-            .font(.subheadline.weight(.semibold))
+            .font(PortfolioTypography.subheadline.weight(.semibold))
             .foregroundStyle(Brand.outline(for: colorScheme))
             .accessibilityElement(children: .combine)
 

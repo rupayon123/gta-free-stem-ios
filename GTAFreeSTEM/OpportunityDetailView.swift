@@ -67,7 +67,7 @@ struct OpportunityDetailView: View {
                     keyFacts
                     providerAction
                     Text(session.fullDescription(for: opportunity))
-                        .font(.body)
+                        .font(PortfolioTypography.body)
                         .foregroundStyle(Brand.outline(for: colorScheme))
                         .fixedSize(horizontal: false, vertical: true)
                         .textSelection(.enabled)
@@ -110,15 +110,15 @@ struct OpportunityDetailView: View {
     private var titleCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(session.categoryName(for: opportunity))
-                .font(.caption.weight(.semibold))
+                .font(PortfolioTypography.caption.weight(.semibold))
                 .foregroundStyle(Brand.lake)
                 .fixedSize(horizontal: false, vertical: true)
             Text(session.title(for: opportunity))
-                .font(.title2.weight(.bold))
+                .font(PortfolioTypography.title2.weight(.bold))
                 .foregroundStyle(Brand.outline(for: colorScheme))
                 .fixedSize(horizontal: false, vertical: true)
             Text(session.organization(for: opportunity))
-                .font(.subheadline.weight(.semibold))
+                .font(PortfolioTypography.subheadline.weight(.semibold))
                 .foregroundStyle(Brand.mutedText(for: colorScheme))
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -143,7 +143,7 @@ struct OpportunityDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .font(.subheadline)
+        .font(PortfolioTypography.subheadline)
         .foregroundStyle(Brand.mutedText(for: colorScheme))
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -169,7 +169,7 @@ struct OpportunityDetailView: View {
             ))) {
                 Marker("\(session.title(for: opportunity)) · \(session.city(for: opportunity))",
                        coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude))
-                    .tint(Brand.lake)
+                    .tint(Brand.actionFill(for: colorScheme))
             }
             .accessibilityLabel("\(session.text("map")): \(session.title(for: opportunity)), \(session.city(for: opportunity))")
             .frame(height: 220)
@@ -250,7 +250,7 @@ struct OpportunityDetailView: View {
 
             if let saveErrorMessage {
                 Label(saveErrorMessage, systemImage: "exclamationmark.triangle.fill")
-                    .font(.footnote)
+                    .font(PortfolioTypography.footnote)
                     .foregroundStyle(Brand.coral)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -286,7 +286,7 @@ private struct DetailFact: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
-                .font(.subheadline.weight(.semibold))
+                .font(PortfolioTypography.subheadline.weight(.semibold))
                 .frame(width: 32, height: 32)
                 .background(Brand.selectionFill(for: colorScheme), in: Circle())
                 .foregroundStyle(Brand.lake)
@@ -294,10 +294,10 @@ private struct DetailFact: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.caption.weight(.semibold))
+                    .font(PortfolioTypography.caption.weight(.semibold))
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
                 Text(value)
-                    .font(.subheadline)
+                    .font(PortfolioTypography.subheadline)
                     .foregroundStyle(Brand.outline(for: colorScheme))
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
