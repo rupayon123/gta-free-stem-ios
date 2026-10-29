@@ -1,120 +1,75 @@
-name: iOS combined Home and map verification
+# TEMPORARY DIAGNOSTIC BRANCH ONLY. Never merge this replacement into main/PR11.
+# The required full187 reliability and map workflows remain unchanged on their source branches.
+name: iOS capture diagnostic ONLY (no reliability signoff)
+run-name: Capture-only diagnostic for reviewed 25df app
 on:
-  push:
-    branches: [codex/ios-3d-map-preview-20261027]
   workflow_dispatch:
+    inputs:
+      expected_source_sha:
+        description: Exact reviewed app source (25df only); tooling comes from the dispatch branch
+        required: true
+        type: string
+        default: 25df39cbd1effdef3807b58ba3403687a752587b
 permissions:
   contents: read
 concurrency:
-  group: ios-map-preview-${{ github.ref }}
-  cancel-in-progress: true
+  group: gta-native-capture-diagnostic-only
+  cancel-in-progress: false
 jobs:
-  native-preview:
-    if: github.event.repository.visibility == 'public'
+  capture-diagnostic-only:
+    if: github.event_name == 'workflow_dispatch' && github.event.repository.visibility == 'public' && github.repository == 'rupayon123/gta-free-stem-ios'
     runs-on: macos-26
-    timeout-minutes: 40
+    timeout-minutes: 18
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
-    defaults:
-      run:
-        shell: bash
+      EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check out diagnostic tooling (temporary branch)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ github.sha }}
+          path: diagnostic-tooling
           persist-credentials: false
-      - name: Verify isolated source and original loader
+      - name: Validate exact diagnostic target
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$EXPECTED_SOURCE_SHA" = '25df39cbd1effdef3807b58ba3403687a752587b'
+          echo 'DIAGNOSTIC ONLY: no reliability tests or release signoff.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Check out the unchanged reviewed app
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.expected_source_sha }}
+          path: reviewed-app
+          persist-credentials: false
+      - name: Verify source, pins and exact compiler
+        working-directory: reviewed-app
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
           test -z "$(git status --porcelain)"
           shasum -a 256 -c .github/native-ci-source.sha256
-          shasum -a 256 -c <<'HASHES'
-          b43447d78fb72d4bc068d175808d125f4e804fbe317c3531a416cb6df2e1e7b9  GTAFreeSTEM/GTAFreeSTEMApp.swift
-          8f8b063f873be3cd3ba2c9055931637a0006d14cf99e3ed5408ad5887b7df835  GTAFreeSTEM/APIClient.swift
-          ed73387435ea68469cf8efa36d94b3cae8b2c187787339d5f91c959613fbca58  GTAFreeSTEM/OpportunityStore.swift
-          077c365047628e38b1ae80e7a4319c0144429ac9a31de509b6fffab2cca59bc0  GTAFreeSTEM/LocalOpportunitySnapshot.swift
-          c61ed81737815ad1543df966f382c8e2672fe2cb28b7d8f6f68cfc3ef39fd391  GTAFreeSTEM/Resources/opportunities.json
-          HASHES
-      - name: Record toolchain and select a disposable runner simulator
-        id: simulator
-        timeout-minutes: 5
-        run: |
-          set -euo pipefail
-          test -d "$DEVELOPER_DIR"
-          xcodebuild -version | tee "$RUNNER_TEMP/xcode-version.txt"
-          grep -Fx 'Xcode 26.6' "$RUNNER_TEMP/xcode-version.txt"
-          grep -Fx 'Build version 17F113' "$RUNNER_TEMP/xcode-version.txt"
-          xcodebuild -showsdks
-          xcrun simctl list devices available --json > "$RUNNER_TEMP/devices.json"
-          python3 - <<'PY'
-          import json, os
-          from pathlib import Path
-          devices = json.loads((Path(os.environ['RUNNER_TEMP'])/'devices.json').read_text())['devices']
-          matches = [(runtime, device) for runtime, entries in devices.items() if '.iOS-' in runtime
-                     for device in entries if device.get('isAvailable') and device.get('name') == 'iPhone 17 Pro']
-          if not matches: raise SystemExit('No available iPhone 17 Pro iOS simulator on this standard runner')
-          runtime, device = sorted(matches, key=lambda item:item[0])[-1]
-          with open(os.environ['GITHUB_OUTPUT'],'a') as out: out.write('destination=platform=iOS Simulator,id='+device['udid']+'\n')
-          print(json.dumps({'runtime':runtime,'device':device},sort_keys=True))
-          PY
-      - name: Repeat cancellation controls before the full suite
+          xcodebuild -version > "$RUNNER_TEMP/diagnostic-xcode.txt"
+          cat "$RUNNER_TEMP/diagnostic-xcode.txt"
+          grep -Fx 'Xcode 26.6' "$RUNNER_TEMP/diagnostic-xcode.txt"
+          grep -Fx 'Build version 17F113' "$RUNNER_TEMP/diagnostic-xcode.txt"
+      - name: Build exact source without executing XCTest
+        working-directory: reviewed-app
         timeout-minutes: 10
-        env:
-          TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}
         run: |
           set -euo pipefail
-          xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Debug \
-            -destination "$TEST_DESTINATION" -destination-timeout 60 -parallel-testing-enabled NO \
-            -maximum-concurrent-test-simulator-destinations 1 \
-            -derivedDataPath "$RUNNER_TEMP/GTAFreeSTEM-derived-data" \
-            -resultBundlePath "$RUNNER_TEMP/GTAFreeSTEM-cancellation.xcresult" \
-            -only-testing:GTAFreeSTEMTests/APIClientTests/testCancellationAndCompletionRaceFinishesOnceWithoutMirror \
-            -test-iterations 3 CODE_SIGNING_ALLOWED=NO GTA_RELEASE_SOURCE_COMMIT="$GITHUB_SHA" \
-            2>&1 | tee "$RUNNER_TEMP/xcodebuild-cancellation.log"
-      - name: Build and run native reliability tests
-        id: tests
-        timeout-minutes: 25
+          if ! xcodebuild build -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Debug \
+            -sdk iphonesimulator26.5 -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/GTA-diagnostic-derived" -jobs 2 \
+            CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES ARCHS=arm64 \
+            GTA_RELEASE_SOURCE_COMMIT="$EXPECTED_SOURCE_SHA" > "$RUNNER_TEMP/diagnostic-build.log" 2>&1; then
+            tail -80 "$RUNNER_TEMP/diagnostic-build.log"
+            exit 1
+          fi
+          tail -8 "$RUNNER_TEMP/diagnostic-build.log"
+      - name: Diagnose headless surfaces, GUI attachment and reviewed Home
+        timeout-minutes: 6
         env:
-          TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}
-        run: |
-          set -euo pipefail
-          xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM -configuration Debug \
-            -destination "$TEST_DESTINATION" -destination-timeout 60 -parallel-testing-enabled NO \
-            -maximum-concurrent-test-simulator-destinations 1 \
-            -derivedDataPath "$RUNNER_TEMP/GTAFreeSTEM-derived-data" \
-            -resultBundlePath "$RUNNER_TEMP/GTAFreeSTEM-map.xcresult" \
-            CODE_SIGNING_ALLOWED=NO GTA_RELEASE_SOURCE_COMMIT="$GITHUB_SHA" \
-            2>&1 | tee "$RUNNER_TEMP/xcodebuild-map.log"
-      - name: Report actual native test receipt
-        if: always() && steps.tests.outcome != 'skipped'
-        run: |
-          set -euo pipefail
-          test -d "$RUNNER_TEMP/GTAFreeSTEM-map.xcresult"
-          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/GTAFreeSTEM-map.xcresult" > "$RUNNER_TEMP/map-test-summary.json"
-          cat "$RUNNER_TEMP/map-test-summary.json"
-          python3 - <<'PY'
-          import json,os
-          from pathlib import Path
-          summary=json.loads((Path(os.environ['RUNNER_TEMP'])/'map-test-summary.json').read_text())
-          expected={'result':'Passed','totalTestCount':187,'passedTests':187,'failedTests':0,'skippedTests':0}
-          for key,value in expected.items():
-              if summary.get(key)!=value:raise SystemExit('Native test receipt mismatch: '+key+'='+repr(summary.get(key)))
-          print('NATIVE_MAP_TESTS_PASS '+json.dumps(expected,sort_keys=True))
-          PY
-      - name: Capture combined Home, accessibility and normal runtime screens
-        if: success()
-        timeout-minutes: 12
-        env:
-          TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}
-          CANDIDATE_SOURCE_SHA: ${{ github.sha }}
-          DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
-        run: python3 .github/scripts/capture-native-ui-review.py
-      - name: Capture actual native map and detail screens
-        if: success()
-        timeout-minutes: 9
-        env:
-          TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}
-          CANDIDATE_SOURCE_SHA: ${{ github.sha }}
-        run: python3 .github/scripts/capture-map-preview.py
-      # Native frames are transported only as bounded hashes/base64 in job logs.
-      # No App Store/TestFlight, artifact/cache upload or external screenshot service.
+          APP_SOURCE_ROOT: ${{ github.workspace }}/reviewed-app
+        run: python3 diagnostic-tooling/.github/scripts/diagnose-native-capture.py
+      # No cache, uploads, new services, extra permission prompts or private artifacts.
+      # Only ordinary diagnostic logs and the bounded real native preview persist.
