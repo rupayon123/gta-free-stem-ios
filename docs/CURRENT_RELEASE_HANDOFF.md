@@ -1,4 +1,6 @@
-# Current internal release handoff
+# Previous internal release handoff: build 15
+
+The latest owner-only build 16 upload and its current availability limits are recorded in [DEVELOPMENT_CANDIDATE.md](DEVELOPMENT_CANDIDATE.md). Build 15 was subsequently verified available and installed by the sole owner on October 29; the historical record below preserves what was known at upload.
 
 Recorded October 27, 2026. This is the current **1.0 (15)** internal iPhone candidate. Public App Store release is **not complete**.
 

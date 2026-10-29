@@ -4,7 +4,7 @@ I'm building GTA FREE STEM to make free STEM programs easier to find across the 
 
 [Android app](https://github.com/rupayon123/gta-free-stem-android) | [Web app](https://github.com/rupayon123/gta-free-stem-opportunities) | [Try the website](https://gta-free-stem.pages.dev/)
 
-> Development build **1.0 (16) is not uploaded**. The new Home introduces topics and independently saved searches; Browse keeps the search tools. See the [candidate status](docs/DEVELOPMENT_CANDIDATE.md).
+> Owner-only development update **1.0 (16) is uploaded and processing**. The new Home introduces topics and independently saved searches; Browse keeps the search tools. See the [candidate status](docs/DEVELOPMENT_CANDIDATE.md).
 
 ## New Home in development
 
@@ -13,10 +13,10 @@ I'm building GTA FREE STEM to make free STEM programs easier to find across the 
 <tr><td align="center"><a href="docs/showcase/2026-10-28/normal-home.jpg"><img src="docs/showcase/2026-10-28/normal-home.jpg" alt="Native development Home with colourful topics and a saved-search section" width="300"></a></td><td align="center"><a href="docs/showcase/2026-10-28/ios-map-overview-light.jpg"><img src="docs/showcase/2026-10-28/ios-map-overview-light.jpg" alt="Native development map showing physical venue groups" width="300"></a></td></tr>
 </table>
 
-Actual simulator captures from source `692bdcd81e6bd091d920b35698b30fb4658f2dd7`, using the public feed. Home offers topic choices and a clear Browse entry. Save separate named searches in Browse for different ages or interests, then return Home for matching-event updates. These local searches need no account and do not automatically enable notifications. [Capture provenance and hashes](docs/showcase/2026-10-28/capture-receipt.json). These are development previews, not the uploaded build15, phone acceptance or final App Store screenshots.
+Actual simulator captures from source `692bdcd81e6bd091d920b35698b30fb4658f2dd7`, using the public feed. Home offers topic choices and a clear Browse entry. Save separate named searches in Browse for different ages or interests, then return Home for matching-event updates. These local searches need no account and do not automatically enable notifications. [Capture provenance and hashes](docs/showcase/2026-10-28/capture-receipt.json). These are source-bound simulator previews of the new Home, not phone acceptance or final App Store screenshots.
 
 <details>
-<summary>Last uploaded build15: October27 screenshots</summary>
+<summary>Previous build 15: October 27 screenshots</summary>
 
 <table>
 <tr><th width="50%">Home</th><th width="50%">Native map</th></tr>
@@ -51,9 +51,9 @@ The app reads the public opportunity feed from the web repository and keeps a lo
 
 ## Development status
 
-The last uploaded internal iPhone build is **1.0 (15)**, bound to source `08c172d20060ec0748fccae2677c7554c3fe8145`. Its CI run passed 178/178 tests and three targeted cancellation-race repeats; its archive and exported IPA passed 52/52 and 62/62 strict checks. Xcode confirmed upload to the existing internal TestFlight channel on October 27. App Store Connect processing, tester-group availability and installation have not yet been confirmed.
+The latest owner-only internal iPhone upload is **1.0 (16)**, from source `1338441b5daa7d7281d0d22d6d5e7da552a88f54`. Apple shows Processing; availability and installation remain unverified. Its archive and retained uploaded IPA passed 52/52 and 62/62 strict checks. All 187 test stages passed, while the remote screenshot stage failed; 31 reviewed local native frames match the delivered UI. [Build 16 evidence and limitations](docs/DEVELOPMENT_CANDIDATE.md).
 
-Public App Store release is **not complete**. Fresh physical iPhone/iPad, paired Watch and Mac acceptance, the canonical App Store screenshots, and the required public-release gates remain separate work. [Current build 15 handoff and evidence](docs/CURRENT_RELEASE_HANDOFF.md) records those boundaries; older build 12/13/14 records remain historical.
+Public App Store release is **not complete**. Full catalogue/translation work, final screenshot automation, physical iPhone/iPad, paired Watch and Mac acceptance, and existing public-release gates remain separate work. External tester sharing stays on hold until the owner's visual review. [The prior build 15 record](docs/CURRENT_RELEASE_HANDOFF.md) preserves its historical upload evidence; the owner has since installed15.
 
 [Release runbook](docs/PUBLIC_RELEASE_RUNBOOK.md) | [TestFlight setup](docs/TESTFLIGHT.md) | [Device signoff](docs/TESTFLIGHT_REAL_DEVICE_SIGNOFF.md)
 
