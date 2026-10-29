@@ -222,12 +222,12 @@ struct PortfolioTabBarBackground: UIViewControllerRepresentable {
                   let container = tabBarController else { return }
             let bar = container.tabBar
             let values: [String: String] = [
-                "barFrame": NSStringFromCGRect(bar.frame),
-                "barBounds": NSStringFromCGRect(bar.bounds),
-                "barInContainer": NSStringFromCGRect(bar.convert(bar.bounds, to: container.view)),
-                "containerBounds": NSStringFromCGRect(container.view.bounds),
-                "containerSafeArea": NSStringFromUIEdgeInsets(container.view.safeAreaInsets),
-                "windowSafeArea": view.window.map { NSStringFromUIEdgeInsets($0.safeAreaInsets) } ?? "unattached",
+                "barFrame": String(describing: bar.frame),
+                "barBounds": String(describing: bar.bounds),
+                "barInContainer": String(describing: bar.convert(bar.bounds, to: container.view)),
+                "containerBounds": String(describing: container.view.bounds),
+                "containerSafeArea": String(describing: container.view.safeAreaInsets),
+                "windowSafeArea": view.window.map { String(describing: $0.safeAreaInsets) } ?? "unattached",
                 "isTranslucent": String(bar.isTranslucent)
             ]
             guard let data = try? JSONSerialization.data(withJSONObject: values, options: [.sortedKeys]),
