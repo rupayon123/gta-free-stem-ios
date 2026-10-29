@@ -4,7 +4,7 @@ I'm building GTA FREE STEM to make free STEM programs easier to find across the 
 
 [Android app](https://github.com/rupayon123/gta-free-stem-android) | [Web app](https://github.com/rupayon123/gta-free-stem-opportunities) | [Try the website](https://gta-free-stem.pages.dev/)
 
-> **Version 1.0 (17) is being verified after a reported build16 crash.** The update adds a Saved filters dropdown inside Filters and clearer native controls. It is not yet uploaded. See the [candidate status](docs/DEVELOPMENT_CANDIDATE.md).
+> **Version 1.0 (17) is available through owner-only TestFlight.** The update fixes the reported build 16 scene-render crash and adds a Saved filters dropdown inside Filters with clearer native controls. See the [candidate status](docs/DEVELOPMENT_CANDIDATE.md).
 
 ## Saved filters in build 17
 
@@ -62,9 +62,9 @@ The app reads the public opportunity feed from the web repository and keeps a lo
 
 ## Development status
 
-**Version 1.0 (17) is being verified after an owner-reported build 16 crash.** It includes a window-construction fix and clearer Saved filters / Save filter / Update filter actions. The corrected dropdown passed **193/193 tests**. Actual simulator checks covered saved-filter switching, Reset, explicit updates, large text, accessibility borders and Arabic layout. The signed build and TestFlight delivery are being prepared. [Current candidate and evidence](docs/DEVELOPMENT_CANDIDATE.md).
+**Version 1.0 (17) has uploaded for owner-only TestFlight.** It includes a window-construction fix and clearer Saved filters / Save filter / Update filter actions. All **193/193 tests** passed locally and in the final source’s remote test stage. Actual simulator checks covered saved-filter switching, Reset, explicit updates, large text, accessibility borders and Arabic layout. The signed archive and retained uploaded package passed **52/52** and **62/62** checks. Apple confirms Internal Testing and reports the owner Installed 1.0 (17). Directly observed phone core-use acceptance remains separate. [Current candidate and evidence](docs/DEVELOPMENT_CANDIDATE.md).
 
-The latest owner-only internal iPhone upload is **1.0 (16)**, from source `1338441b5daa7d7281d0d22d6d5e7da552a88f54`. App Store Connect shows Internal Testing for the sole-owner group and reports the owner installed 1.0 (16). Physical-device launch and core-use acceptance remain unverified. Its archive and retained uploaded IPA passed 52/52 and 62/62 strict checks. All 187 test stages passed, while the remote screenshot stage failed; 31 reviewed local native frames match the delivered UI. [Build 16 evidence and limitations](docs/DEVELOPMENT_CANDIDATE.md).
+The previous owner-only internal iPhone upload was **1.0 (16)**, from source `1338441b5daa7d7281d0d22d6d5e7da552a88f54`. App Store Connect shows Internal Testing for the sole-owner group and reports the owner installed 1.0 (16). Physical-device launch and core-use acceptance remain unverified. Its archive and retained uploaded IPA passed 52/52 and 62/62 strict checks. All 187 test stages passed, while the remote screenshot stage failed; 31 reviewed local native frames match the delivered UI. [Build 16 evidence and limitations](docs/DEVELOPMENT_CANDIDATE.md).
 
 Public App Store release is **not complete**. Full catalogue/translation work, final screenshot automation, physical iPhone/iPad, paired Watch and Mac acceptance, and existing public-release gates remain separate work. External tester sharing stays on hold until the owner's visual review. [The prior build 15 record](docs/CURRENT_RELEASE_HANDOFF.md) preserves its historical upload evidence; the owner has since installed15.
 

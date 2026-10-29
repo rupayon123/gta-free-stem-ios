@@ -1,4 +1,4 @@
-# 1.0 (17) crash and saved-filter update — verification in progress
+# 1.0 (17) crash and saved-filter update — available through owner-only TestFlight
 
 The owner reported a crash in delivered build 16. Its symbolicated report matches the uploaded executable and identifies a main-actor assertion in the scene's deferred window builder during SwiftUI background rendering. Build 17 moves that builder to a stateless, nonisolated factory and keeps UI state in the main-actor view. The shared stores, original GTA logo and loading-animation implementation are preserved. No runtime safety checks are disabled.
 
@@ -6,13 +6,15 @@ The corrected candidate keeps **Saved filters** inside the Filters panel as a dr
 
 The corrected integrated source `f3c6ade94f15c7c445b28d4550d7f41ae9b616cb` passed **193/193 tests, zero failures or skips**, locally on an iPhone 17 Pro Max simulator running iOS 27.0. Tests cover off-main window construction, rapid preset switching, cancellation, local-only previews, explicit save protection and legacy saved-language compatibility. The original launch illustration/animation subtree remains byte-identical to the delivered build16 source. This is simulator evidence, not physical-device acceptance on iOS 27.0.1.
 
-An earlier candidate also passed its remote test stage; its remote screenshot stage failed. The current visual evidence comes from actual local simulator interactions, not that failed remote screenshot job.
+The final app bytes also passed **193/193 remote tests** in [run 40822488520](https://github.com/rupayon123/gta-free-stem-ios/actions/runs/40822488520), from the documentation commit `51dc8b9`. Its overall job failed when the runner could not capture a SpringBoard screenshot within the bounded timeout. The accepted visual evidence comes from actual local simulator interactions. The separate public-release audit still blocks missing full-description translations; that requirement has not been relaxed.
 
-Final app source `4e81c27d043bb01a3573f79c3058886f951ce7ce` built successfully and matched all 81 installed simulator files. Actual checks covered switching named presets within Filters, live counts, manual unsaved edits, explicit updates, Reset, High School preset scope, profile editing, maximum text, accessibility borders, dark mode and Arabic right-to-left layout. Presentation and contrast fixes followed the 193-test run and received fresh builds and native visual checks. Temporary simulator preferences were restored. Signed archive/export and TestFlight delivery remain pending. **Build 17 has not been uploaded.** External tester sharing and public App Store release remain on hold. The build16 record below documents delivery, not crash-free acceptance.
+Final app source `4e81c27d043bb01a3573f79c3058886f951ce7ce` built successfully and matched all 81 installed simulator files. Actual checks covered switching named presets within Filters, live counts, manual unsaved edits, explicit updates, Reset, High School preset scope, profile editing, maximum text, accessibility borders, dark mode and Arabic right-to-left layout. Presentation and contrast fixes followed the 193-test run and received fresh builds and native visual checks. Temporary simulator preferences were restored. **Build 17 uploaded successfully through TestFlight Internal Only on October 29, 2026.** Its signed archive passed 52 strict checks, and the retained uploaded IPA passed 62 strict checks, including distribution signing, version/source metadata and executable/dSYM provenance. App Store Connect confirms Internal Testing in the existing sole-owner Zenin group and reports the owner Installed 1.0 (17) on October 29. External tester sharing and public App Store release remain on hold. The build16 record below documents delivery, not crash-free acceptance.
+
+Uploaded IPA SHA-256: `e2ecc57e37144a879a18062c6d01637ccfe97c6213d4aa81618fb2cf9ed8fb85`. App executable UUID: `DC7A03BC-E18C-38E3-86B4-51CD107398B9`. The optimized deferred factory is a single return instruction; the actor-isolation assertion from build 16 is absent from that factory. The GUI-managed export was verified after upload, not described as a separate pre-upload IPA validation. Apple reports installation; a directly observed physical-phone launch and core-use journey for build 17 remain unverified.
 
 ---
 
-# Owner-only development update: 1.0 (16)
+# Previous owner-only development update: 1.0 (16)
 
 Uploaded October 29, 2026 through **TestFlight Internal Only**, from source `1338441b5daa7d7281d0d22d6d5e7da552a88f54`. App Store Connect now shows **Internal Testing** in the sole-owner Zenin group and reports the owner **Installed 1.0 (16)** on October 29. This Apple status confirms delivery availability and reported installation, not a directly observed physical-device launch or core-use journey. External sharing remains on hold pending the owner's visual review.
 
