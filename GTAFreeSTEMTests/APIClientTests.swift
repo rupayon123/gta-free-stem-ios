@@ -3214,7 +3214,7 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(gridSource.contains("if store.availableHomePathwayModes.contains(.volunteer)"))
         XCTAssertTrue(gridSource.contains("if store.availableHomePathwayModes.contains(.coop)"))
         XCTAssertTrue(gridSource.contains("if store.availableHomePathwayModes.contains(.mentorship)"))
-        XCTAssertTrue(contentSource.contains("store.mode = .all"))
+        XCTAssertTrue(contentSource.contains("store.beginNewSearch"))
         XCTAssertTrue(contentSource.contains("selectedTab = .opportunities"))
         let homeStart = try XCTUnwrap(contentSource.range(of: "struct HomeView: View"))
         let homeSource = String(contentSource[homeStart.lowerBound...])
@@ -4634,7 +4634,7 @@ final class OpportunityStoreTests: XCTestCase {
         let client = APIClient(feedURL: url, session: makeURLSessionForStub(), now: { now })
         func rows(_ ids: [String]) -> [Opportunity] { ids.map { opportunity(id: $0, title: "Lab \($0)", organization: "Library", category: "Coding & Robotics", city: "Toronto") } }
         func register(_ ids: [String], revision: Int) {
-            URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON(rows(ids), lastUpdated: now.addingTimeInterval(Double(revision))).utf8))
+            URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON(rows(ids), lastUpdated: now.addingTimeInterval(Double(revision) - 60)).utf8))
         }
         let store = OpportunityStore(api: client, defaults: defaults, now: { now })
         register(["A", "B"], revision: 0)
@@ -4649,6 +4649,11 @@ final class OpportunityStoreTests: XCTestCase {
         let restored = OpportunityStore(api: client, defaults: defaults, now: { now })
         await restored.refresh()
         XCTAssertEqual(restored.savedSearches[0].unreadIDs, ["C"], "Restart and unchanged refresh cannot recount or acknowledge C")
+        let beforeFailure = restored.savedSearches
+        URLProtocolStub.register(responseFor: url, errorCode: .notConnectedToInternet)
+        await restored.refresh(force: true)
+        XCTAssertEqual(restored.savedSearches, beforeFailure, "A failed refresh cannot reset the saved baseline or unread IDs")
+        register(["A", "B", "C"], revision: 1)
         await restored.markNamedSearchRead(id)
         await restored.refresh(force: true)
         XCTAssertEqual(restored.savedSearches[0].unreadIDs, [])
@@ -4681,13 +4686,13 @@ final class OpportunityStoreTests: XCTestCase {
         XCTAssertFalse(store.savedSearches[0].hasBaseline)
         XCTAssertNil(store.savedSearches[0].matchedCount)
         let adult = opportunity(id: "adult", title: "Adult", organization: "Library", category: "Science & Engineering", city: "Toronto", ageMin: 18, ageMax: nil)
-        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([adult], lastUpdated: now).utf8))
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([adult], lastUpdated: now.addingTimeInterval(-60)).utf8))
         await store.refresh()
         XCTAssertTrue(store.savedSearches[0].hasBaseline)
         XCTAssertEqual(store.savedSearches[0].matchedCount, 0)
         XCTAssertTrue(store.savedSearches[0].unreadIDs.isEmpty)
         let child = opportunity(id: "new-four", title: "Four", organization: "Library", category: "Science & Engineering", city: "Toronto", ageMin: 4, ageMax: 4)
-        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([adult, child], lastUpdated: now.addingTimeInterval(1)).utf8))
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([adult, child], lastUpdated: now.addingTimeInterval(-59)).utf8))
         await store.refresh(force: true)
         XCTAssertEqual(store.savedSearches[0].unreadIDs, [child.id])
         let updated = await store.saveNamedSearch(name: "Explicit rebase", updating: store.savedSearches[0].id)
@@ -4709,6 +4714,11 @@ final class OpportunityStoreTests: XCTestCase {
         let accepted = NamedSearchMatching.reconcile([search], with: healthy, language: .en, now: now)
         XCTAssertEqual(accepted[0].unreadIDs, ["A"])
         XCTAssertTrue(accepted[0].knownIDs.contains("old"))
+        let restricted = OpportunityListResponse(data: healthy.data, meta: healthy.meta, sourceHealth: healthy.sourceHealth,
+            contentRights: .init(termsVerifiedAt: ISO8601DateFormatter().string(from: now), sources: [], restrictedOpportunityIDs: ["A"]), publicationRevision: healthy.publicationRevision)
+        let pruned = NamedSearchMatching.reconcile(accepted, with: restricted, language: .en, now: now)
+        XCTAssertTrue(pruned[0].unreadIDs.isEmpty)
+        XCTAssertTrue(pruned[0].knownIDs.contains("A"))
     }
 
     @MainActor
@@ -4725,30 +4735,41 @@ final class OpportunityStoreTests: XCTestCase {
             let saved = await store.saveNamedSearch(name: "Original")
             XCTAssertTrue(saved)
             let id = store.savedSearches[0].id
+            let b = opportunity(id: "B", title: "Another lab", organization: "Library", category: "Coding & Robotics", city: "Toronto")
+            URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([a, b], lastUpdated: now).utf8))
+            // Start from a real persisted unread set, then suspend reconciliation
+            // before its CAS commit to exercise read/edit/delete winning the race.
+            let baseline = store.savedSearches[0]
+            var seeded = baseline
+            seeded.knownIDs.insert("B"); seeded.unreadIDs.insert("B")
+            defaults.set(try JSONEncoder().encode(NamedSearchArchive(searches: [seeded])), forKey: OpportunityStore.namedSearchesKey)
+            let raceStore = OpportunityStore(api: client, defaults: defaults, now: { now })
+            await raceStore.refresh()
+            XCTAssertEqual(raceStore.savedSearches[0].unreadIDs, ["B"])
             let arrived = expectation(description: "\(operation) reaches reconciliation commit boundary")
             var continuation: CheckedContinuation<Void, Never>?
             var released = false
-            store.namedSearchReconciliationGate = {
+            raceStore.namedSearchReconciliationGate = {
                 guard !released else { return }
                 arrived.fulfill()
                 await withCheckedContinuation { continuation = $0 }
             }
-            let refresh = Task { @MainActor in await store.refresh(force: true) }
+            let refresh = Task { @MainActor in await raceStore.refresh(force: true) }
             await fulfillment(of: [arrived], timeout: 10)
-            if operation == "delete" { let deleted = await store.deleteNamedSearch(id); XCTAssertTrue(deleted) }
+            if operation == "delete" { let deleted = await raceStore.deleteNamedSearch(id); XCTAssertTrue(deleted) }
             if operation == "edit" {
-                store.filters.age = "4"
-                let updated = await store.saveNamedSearch(name: "Edited", updating: id)
+                raceStore.filters.age = "4"
+                let updated = await raceStore.saveNamedSearch(name: "Edited", updating: id)
                 XCTAssertTrue(updated)
             }
-            if operation == "read" { await store.markNamedSearchRead(id) }
+            if operation == "read" { await raceStore.markNamedSearchRead(id) }
             released = true
             continuation?.resume()
             await refresh.value
-            store.namedSearchReconciliationGate = nil
-            if operation == "delete" { XCTAssertTrue(store.savedSearches.isEmpty) }
-            if operation == "edit" { XCTAssertEqual(store.savedSearches[0].name, "Edited"); XCTAssertEqual(store.savedSearches[0].criteria.filters.age, "4") }
-            if operation == "read" { XCTAssertTrue(store.savedSearches[0].unreadIDs.isEmpty) }
+            raceStore.namedSearchReconciliationGate = nil
+            if operation == "delete" { XCTAssertTrue(raceStore.savedSearches.isEmpty) }
+            if operation == "edit" { XCTAssertEqual(raceStore.savedSearches[0].name, "Edited"); XCTAssertEqual(raceStore.savedSearches[0].criteria.filters.age, "4") }
+            if operation == "read" { XCTAssertTrue(raceStore.savedSearches[0].unreadIDs.isEmpty) }
         }
     }
 

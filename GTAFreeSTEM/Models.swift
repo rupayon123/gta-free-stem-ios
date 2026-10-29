@@ -1798,7 +1798,8 @@ struct NamedSearchArchive: Codable {
 enum NamedSearchMatching {
     static func isCompleteCatalog(_ feed: OpportunityListResponse, now: Date) -> Bool {
         !feed.data.isEmpty && feed.hasValidUniqueIDs && feed.hasHealthyDeclaredSources
-            && feed.hasValidPublicationRevision(now: now) && feed.meta?.activeCount == feed.data.count
+            && feed.hasValidPublicationRevision(now: now) && FeedFreshness.isCurrent(feed.meta?.lastUpdated, now: now)
+            && feed.meta?.activeCount == feed.data.count
             && (FeedPublicationRevision.date(from: feed.publicationRevision)
                 ?? FeedFreshness.date(from: feed.meta?.lastUpdated)) != nil
     }

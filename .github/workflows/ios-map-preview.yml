@@ -31,7 +31,7 @@ jobs:
           shasum -a 256 -c <<'HASHES'
           b43447d78fb72d4bc068d175808d125f4e804fbe317c3531a416cb6df2e1e7b9  GTAFreeSTEM/GTAFreeSTEMApp.swift
           8f8b063f873be3cd3ba2c9055931637a0006d14cf99e3ed5408ad5887b7df835  GTAFreeSTEM/APIClient.swift
-          75cafec11653d726fd39b3282f8d10ce7566837ca010d710733b765e69cc47c0  GTAFreeSTEM/OpportunityStore.swift
+          a86dc0c0dc9692140184df6f41ab5fe2a8ec2948399d6e683ec99b33477ee10d  GTAFreeSTEM/OpportunityStore.swift
           077c365047628e38b1ae80e7a4319c0144429ac9a31de509b6fffab2cca59bc0  GTAFreeSTEM/LocalOpportunitySnapshot.swift
           c61ed81737815ad1543df966f382c8e2672fe2cb28b7d8f6f68cfc3ef39fd391  GTAFreeSTEM/Resources/opportunities.json
           HASHES

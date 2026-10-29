@@ -283,13 +283,13 @@ final class OpportunityStore: ObservableObject {
             if payload.count <= 4_000_000,
                let archive = try? JSONDecoder().decode(NamedSearchArchive.self, from: payload),
                archive.version == 1, archive.searches.count <= 16,
-               archive.searches.allSatisfy({ !$0.name.isEmpty && $0.name.count <= 80 && $0.knownIDs.count <= 20_000 && $0.unreadIDs.isSubset(of: $0.knownIDs) }),
+               archive.searches.allSatisfy({ !$0.name.isEmpty && $0.name.count <= 80 && $0.criteria.query.count <= 2_000 && $0.knownIDs.count <= 20_000 && $0.unreadIDs.isSubset(of: $0.knownIDs) }),
                Set(archive.searches.map(\.id)).count == archive.searches.count {
                 savedSearches = archive.searches
             } else {
                 // Preserve unknown/corrupt bytes instead of silently overwriting personal data.
                 namedSearchStorageReadable = false
-                savedSearchError = Self.localized("serverResponseInvalid")
+                savedSearchError = Self.localized("savedSearchWriteError")
             }
         }
 
@@ -362,6 +362,9 @@ final class OpportunityStore: ObservableObject {
                 persistCurrentHunt(in: context)
                 huntPhase = dataSourceLabel == .publicLiveFeed ? .fresh : .cached
                 errorMessage = nil
+                if retainedFeedSource != .previewDatabase, let retained = inMemoryFeed {
+                    await reconcileNamedSearches(with: retained)
+                }
                 return
             }
             let generation = await retainFullFeed(fullFeed, source: .publicLiveFeed)
@@ -513,7 +516,7 @@ final class OpportunityStore: ObservableObject {
                            acceptedListings: rows.count, minimumAcceptedListings: 1),
             discovery: .init(status: "healthy", sourcesChecked: 1, successfulSources: 1,
                              sourceSuccessRatio: 1, minimumSourceSuccessRatio: 1))
-        let date = "2026-08-20T12:00:00Z"
+        let date = ISO8601DateFormatter().string(from: now())
         let baseline = OpportunityListResponse(data: rows.filter { $0.id != "sample-teen-code" }, meta: .init(activeCount: rows.count - 1, lastUpdated: date), sourceHealth: sourceHealth)
         let updated = OpportunityListResponse(data: rows, meta: .init(activeCount: rows.count, lastUpdated: date), sourceHealth: sourceHealth)
         var coding = OpportunityFilters(); coding.category = "Coding & Robotics"; coding.age = "16"
@@ -952,9 +955,9 @@ final class OpportunityStore: ObservableObject {
     // Named searches are explicit saves, separate from the legacy last-hunt record.
     @discardableResult
     func saveNamedSearch(name: String, updating id: UUID? = nil) async -> Bool {
-        guard namedSearchStorageReadable else { savedSearchError = Self.localized("serverResponseInvalid"); return false }
+        guard namedSearchStorageReadable else { savedSearchError = Self.localized("savedSearchWriteError"); return false }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed.count <= 80 else { return false }
+        guard !trimmed.isEmpty, trimmed.count <= 80, query.count <= 2_000 else { savedSearchError = Self.localized("savedSearchWriteError"); return false }
         let criteria = NamedSearchCriteria(query: query, mode: mode, filters: filters)
         let feed = retainedFeedSource == .publicLiveFeed && huntPhase != .offline ? inMemoryFeed : nil
         let generation = catalogueGeneration
@@ -1019,7 +1022,7 @@ final class OpportunityStore: ObservableObject {
     }
 
     private func persistNamedSearches(_ searches: [NamedSavedSearch], expectedGeneration: Int) async -> Bool {
-        guard namedSearchStorageReadable else { savedSearchError = Self.localized("serverResponseInvalid"); return false }
+        guard namedSearchStorageReadable else { savedSearchError = Self.localized("savedSearchWriteError"); return false }
         // Encoding stays off the UI actor. Never truncate history to make a write fit.
         let payload = await Task.detached(priority: .utility) { () -> Data? in
             guard searches.count <= 16, searches.allSatisfy({ $0.knownIDs.count <= 20_000 }) else { return nil }
@@ -1027,10 +1030,10 @@ final class OpportunityStore: ObservableObject {
             return payload
         }.value
         guard !Task.isCancelled, expectedGeneration == namedSearchGeneration else {
-            savedSearchError = Self.localized("serverResponseInvalid")
+            savedSearchError = Self.localized("savedSearchWriteError")
             return false
         }
-        guard let payload else { savedSearchError = Self.localized("serverResponseInvalid"); return false }
+        guard let payload else { savedSearchError = Self.localized("savedSearchWriteError"); return false }
         defaults.set(payload, forKey: Self.namedSearchesKey)
         savedSearches = searches
         namedSearchGeneration &+= 1

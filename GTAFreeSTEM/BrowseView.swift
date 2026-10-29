@@ -1248,7 +1248,7 @@ private struct SaveNamedSearchSheet: View {
                         Button(session.text("saveAsNew")) { save(updating: nil) }
                     }
                     if saving { ProgressView() }
-                    if failed { Text(session.text("serverResponseInvalid")).foregroundStyle(Brand.coral) }
+                    if failed { Text(store.savedSearchError ?? session.text("savedSearchWriteError")).foregroundStyle(Brand.coral) }
                 }
                 .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || name.count > 80 || saving)
             }
