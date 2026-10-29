@@ -37,19 +37,51 @@ def bounded_output(value):
     return value if len(value) <= 6000 else value[:4500] + "\n...bounded output...\n" + value[-1500:]
 
 
-def command(label, args, timeout=10, sample_timeout=False):
+def file_probe(path):
+    if path is None:
+        return None
+    try:
+        stat = Path(path).stat()
+        return dict(exists=True, bytes=stat.st_size)
+    except FileNotFoundError:
+        return dict(exists=False, bytes=0)
+
+
+def command(label, args, timeout=10, sample_timeout=False, probe_path=None):
     started = time.monotonic()
     process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    if probe_path is not None:
+        emit(label + "-started", pid=process.pid, timeoutSeconds=timeout, file=file_probe(probe_path))
     try:
-        output, _ = process.communicate(timeout=timeout)
-        result = dict(code=process.returncode, timedOut=False, output=bounded_output(output), seconds=round(time.monotonic() - started, 3))
+        if probe_path is None:
+            output, _ = process.communicate(timeout=timeout)
+        else:
+            deadline = started + timeout
+            while True:
+                try:
+                    output, _ = process.communicate(timeout=max(.01, min(5, deadline - time.monotonic())))
+                    break
+                except subprocess.TimeoutExpired:
+                    elapsed = time.monotonic() - started
+                    emit(label + "-progress", pid=process.pid, elapsedSeconds=round(elapsed, 3),
+                         childAlive=process.poll() is None, file=file_probe(probe_path))
+                    if elapsed >= timeout:
+                        raise
+        result = dict(code=process.returncode, timedOut=False, output=bounded_output(output),
+                      seconds=round(time.monotonic() - started, 3), file=file_probe(probe_path))
     except subprocess.TimeoutExpired as error:
         partial_output = bounded_output(error.output)
+        at_deadline = file_probe(probe_path)
         if sample_timeout:
+            command(label + "-owned-command-ps", ["/bin/ps", "-p", str(process.pid), "-o", "pid,ppid,state,etime,command"], timeout=3)
             # Sample only this diagnostic's own hung child, before terminating it.
             command(label + "-owned-command-stack", ["/usr/bin/sample", str(process.pid), "1", "1"], timeout=5)
+        before_terminate = file_probe(probe_path)
         stop_owned_process(process)
-        result = dict(code=None, timedOut=True, output=partial_output, seconds=round(time.monotonic() - started, 3))
+        result = dict(code=None, timedOut=True, output=partial_output,
+                      seconds=round(time.monotonic() - started, 3), pid=process.pid,
+                      fileAtDeadline=at_deadline, fileBeforeTermination=before_terminate,
+                      fileAfterTermination=file_probe(probe_path))
     emit(label, **result)
     return result
 
@@ -112,12 +144,12 @@ def main():
         required("boot-owned-simulator", ["xcrun", "simctl", "boot", device], 30)
         required("boot-status", ["xcrun", "simctl", "bootstatus", device, "-b"], 120)
         command("display-before-gui", ["xcrun", "simctl", "io", device, "enumerate"])
-        results["springboardBeforeGUI"] = command("springboard-png-before-gui", ["xcrun", "simctl", "io", device, "screenshot", "--type=png", str(output / "springboard-before.png")], 20, True)
+        results["springboardBeforeGUI"] = command("springboard-png-before-gui", ["xcrun", "simctl", "io", device, "screenshot", "--type=png", str(output / "springboard-before.png")], timeout=20, sample_timeout=True, probe_path=output / "springboard-before.png")
         # Same device, same boot: GUI attachment is the only intentional change.
         required("attach-exact-simulator-gui", ["open", "-a", str(simulator_app), "--args", "-CurrentDeviceUDID", device], 20)
         command("host-simulator-processes-after", ["pgrep", "-fl", "Simulator.app|CoreSimulator|WindowServer"])
         command("display-after-gui", ["xcrun", "simctl", "io", device, "enumerate"])
-        results["springboardAfterGUI"] = command("springboard-png-after-gui", ["xcrun", "simctl", "io", device, "screenshot", "--type=png", str(output / "springboard-after.png")], 20, True)
+        results["springboardAfterGUI"] = command("springboard-png-after-gui", ["xcrun", "simctl", "io", device, "screenshot", "--type=png", str(output / "springboard-after.png")], timeout=20, sample_timeout=True, probe_path=output / "springboard-after.png")
         required("install-reviewed-product", ["xcrun", "simctl", "install", device, str(app)], 60)
         installed = Path(required("installed-product-path", ["xcrun", "simctl", "get_app_container", device, BUNDLE, "app"]))
         if manifest(installed) != manifest(app):
@@ -137,7 +169,7 @@ def main():
             raise RuntimeError("Exact home never emitted both readiness markers")
         emit("actual-app-ready", pid=app_pid, nonce=nonce, markers=lines[-12:])
         frame = output / "reviewed-home.png"
-        results["reviewedAppPNG"] = command("reviewed-app-png", ["xcrun", "simctl", "io", device, "screenshot", "--type=png", str(frame)], 20, True)
+        results["reviewedAppPNG"] = command("reviewed-app-png", ["xcrun", "simctl", "io", device, "screenshot", "--type=png", str(frame)], timeout=20, sample_timeout=True, probe_path=frame)
         if results["reviewedAppPNG"]["code"] == 0:
             required("unchanged-app-frame-gate", [str(verifier), str(frame), "light"], 10)
             jpeg = output / "reviewed-home.jpg"
