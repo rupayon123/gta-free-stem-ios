@@ -51,7 +51,7 @@ The app reads the public opportunity feed from the web repository and keeps a lo
 
 ## Development status
 
-**Build 17 is being verified after an owner-reported build 16 crash.** It includes a window-construction fix and clearer Saved filters / Save filter / Update filter actions. All 190 local tests pass; actual UI checks and delivery remain pending. [Current candidate and evidence](docs/DEVELOPMENT_CANDIDATE.md).
+**Version 1.0 (17) is being verified after an owner-reported build 16 crash.** It includes a window-construction fix and clearer Saved filters / Save filter / Update filter actions. All 190 local tests pass; actual UI checks and delivery remain pending. [Current candidate and evidence](docs/DEVELOPMENT_CANDIDATE.md).
 
 The latest owner-only internal iPhone upload is **1.0 (16)**, from source `1338441b5daa7d7281d0d22d6d5e7da552a88f54`. App Store Connect shows Internal Testing for the sole-owner group and reports the owner installed 1.0 (16). Physical-device launch and core-use acceptance remain unverified. Its archive and retained uploaded IPA passed 52/52 and 62/62 strict checks. All 187 test stages passed, while the remote screenshot stage failed; 31 reviewed local native frames match the delivered UI. [Build 16 evidence and limitations](docs/DEVELOPMENT_CANDIDATE.md).
 

@@ -1,4 +1,4 @@
-# Build 17 crash and saved-filter update — verification in progress
+# 1.0 (17) crash and saved-filter update — verification in progress
 
 The owner reported a crash in delivered build 16. Its symbolicated report matches the uploaded executable and identifies a main-actor assertion in the scene's deferred window builder during SwiftUI background rendering. Build 17 moves that builder to a stateless, nonisolated factory and keeps UI state in the main-actor view. The shared stores, original GTA logo and loading-animation implementation are preserved. No runtime safety checks are disabled.
 

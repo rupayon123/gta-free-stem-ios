@@ -18,8 +18,8 @@ done
 
 echo "=== Version and project configuration ==="
 rg -Fq 'MARKETING_VERSION: "1.0"' project.yml
-rg -Fq 'CURRENT_PROJECT_VERSION: "16"' project.yml
-rg -Fq 'CURRENT_PROJECT_VERSION = 16;' GTAFreeSTEM.xcodeproj/project.pbxproj
+rg -Fq 'CURRENT_PROJECT_VERSION: "17"' project.yml
+rg -Fq 'CURRENT_PROJECT_VERSION = 17;' GTAFreeSTEM.xcodeproj/project.pbxproj
 rg -Fq 'GTA_RELEASE_SOURCE_COMMIT: UNSET' project.yml
 rg -Fq 'ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon' project.yml
 for info_plist in GTAFreeSTEM/Info.plist GTAFreeSTEM/MacCatalyst-Info.plist GTAFreeSTEMWatch/Info.plist; do
@@ -29,7 +29,7 @@ for info_plist in GTAFreeSTEM/Info.plist GTAFreeSTEM/MacCatalyst-Info.plist GTAF
   }
 done
 rg -Fq '"GTA_RELEASE_SOURCE_COMMIT=$SOURCE_COMMIT"' docs/scripts/install-connected-device.sh
-echo "Version/build: 1.0 (16), development candidate; not uploaded"
+echo "Version/build: 1.0 (17); delivery status is recorded in DEVELOPMENT_CANDIDATE.md"
 
 echo
 echo "=== Localized UI coverage ==="
@@ -191,11 +191,11 @@ if not keyword_value or len(keyword_value.encode("utf-8")) > 100 or ", " in keyw
     raise SystemExit("Keywords must be nonempty, no more than 100 bytes, and comma-separated without spaces")
 print(f"Keywords: {len(keyword_value.encode('utf-8'))}/100 bytes")
 
-# The uploaded build-15 handoff is retained separately from development16 and the retained
+# Historical build-15/16 evidence is retained separately from development17 and the retained
 # build-12 public-release packet. Neither set of text checks grants signoff.
 required = {
-    "docs/DEVELOPMENT_CANDIDATE.md": ["1.0 (16)", "not uploaded", "Home", "saved searches", "CURRENT_RELEASE_HANDOFF.md"],
-    "README.md": ["1.0 (15)", "on-device", "Apple Watch", "docs/CURRENT_RELEASE_HANDOFF.md", "docs/showcase/2026-10-27/capture-receipt.json"],
+    "docs/DEVELOPMENT_CANDIDATE.md": ["1.0 (17)", "TestFlight", "Home", "Saved filters", "CURRENT_RELEASE_HANDOFF.md"],
+    "README.md": ["1.0 (17)", "on-device", "Apple Watch", "docs/CURRENT_RELEASE_HANDOFF.md", "docs/showcase/2026-10-27/capture-receipt.json"],
     "docs/CURRENT_RELEASE_HANDOFF.md": ["1.0 (15)", "08c172d20060ec0748fccae2677c7554c3fe8145", "178/178", "52/52", "62/62", "not complete", "https://gta-free-stem.pages.dev/", "c504a74575e7af9d39282e1d49ab9e0ad55fbc09228dccad845b26df6fc7a749"],
     "docs/TESTFLIGHT.md": ["1.0 (15)", "CURRENT_RELEASE_HANDOFF.md", "App Review Is Separate"],
     "docs/RELEASE_READINESS.md": ["1.0 (15)", "historical August 6, 2026 build 12", "iphone,ipad,watch,mac", "selected separate Mac App Store", "build/app-store-screenshots/final/"],
@@ -227,7 +227,7 @@ for path in [Path("README.md"), *Path("docs").glob("*.md")]:
     hit = [needle for needle in stale if needle in text]
     if hit:
         raise SystemExit(f"{path} contains stale release wording: {', '.join(hit)}")
-print("Development candidate1.0(16) is not uploaded; uploaded build15 and historical build12 evidence remain separate.")
+print("Development candidate1.0(17) documentation is present; delivery status and historical build15/16 evidence remain separate.")
 PY
 
 echo
