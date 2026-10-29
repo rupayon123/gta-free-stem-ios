@@ -266,15 +266,23 @@ struct SettingsView: View {
             }
             .tint(Brand.lake)
             .navigationTitle(session.text("account"))
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(session.text("done")) {
-                        session.saveLocalProfile(named: profileNameDraft)
-                        accountMessage = nil
-                        profileEditorPresented = false
-                    }
-                    .disabled(profileNameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .navigationBarTitleDisplayMode(.inline)
+            .safeAreaInset(edge: .bottom) {
+                Button {
+                    session.saveLocalProfile(named: profileNameDraft)
+                    accountMessage = nil
+                    profileEditorPresented = false
+                } label: {
+                    Text(session.text("done"))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .padding(.horizontal, 12)
                 }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.roundedRectangle(radius: 14))
+                .disabled(profileNameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .padding()
+                .background(.bar)
             }
         }
     }
