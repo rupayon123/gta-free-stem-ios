@@ -1,4 +1,5 @@
 import XCTest
+import Combine
 import CoreLocation
 import MapKit
 import SwiftUI
@@ -2117,7 +2118,10 @@ final class APIClientTests: XCTestCase {
 
         XCTAssertTrue(browseView.contains("WrappingHStack("))
         XCTAssertTrue(browseView.contains("layoutDirection: layoutDirection"))
-        XCTAssertTrue(browseView.contains(".minimumScaleFactor(0.80)"))
+        // Controls wrap or stack instead of shrinking large accessibility text.
+        XCTAssertTrue(browseView.contains("ViewThatFits(in: .horizontal)"))
+        XCTAssertTrue(browseView.contains(".fixedSize(horizontal: false, vertical: true)"))
+        XCTAssertTrue(browseView.contains("if !dynamicTypeSize.isAccessibilitySize"))
         XCTAssertTrue(designSystem.contains("struct WrappingHStack: Layout"))
         XCTAssertTrue(designSystem.contains("layoutDirection == .rightToLeft"))
         XCTAssertFalse(watchView.contains("WatchSectionHeading(title: \"NEXT UP\""))
@@ -4374,22 +4378,37 @@ final class OpportunityStoreTests: XCTestCase {
             responseFor: feedURL,
             statusCode: 200,
             body: Data(makeOpportunitiesJSON([live], lastUpdated: now).utf8),
-            // The bundle is deliberately decoded off the main actor. Give the
-            // test a genuinely slow source so it validates the intended state
-            // rather than racing against simulator disk and decoder speed.
-            delaySeconds: 3.0
+            holdResponse: true
         )
 
+        // Observe publication, not simulator decode speed. Hold the live source
+        // until the bundled state has actually been asserted; elapsed sleeps can
+        // miss that state entirely on a busy runner.
+        let bundledReady = expectation(description: "Bootstrap publishes bundled results before the held live response")
+        let observation = store.$dataSourceLabel
+            .filter { $0 == .previewDatabase }
+            .first()
+            .sink { _ in bundledReady.fulfill() }
+        defer {
+            observation.cancel()
+            URLProtocolStub.releaseResponse(for: feedURL)
+        }
         let bootstrap = Task { @MainActor in
             await store.bootstrap(cache: nil)
         }
-        for _ in 0..<48 where store.opportunities.isEmpty {
-            try await Task.sleep(nanoseconds: 50_000_000)
-        }
+        await fulfillment(of: [bundledReady], timeout: 10)
 
         XCTAssertGreaterThan(store.opportunities.count, 0)
         XCTAssertEqual(store.dataSourceLabel, .previewDatabase)
+        let expectedBundledIDs = LocalOpportunitySnapshot.filter(
+            try LocalOpportunitySnapshot.loadFull().data,
+            query: "", mode: .all, filters: OpportunityFilters(), now: now
+        ).map(\.id)
+        XCTAssertEqual(store.opportunities.map(\.id), expectedBundledIDs)
+        XCTAssertFalse(store.opportunities.contains { $0.id == live.id })
+        XCTAssertEqual(URLProtocolStub.deliveredBytes(for: feedURL), 0)
 
+        URLProtocolStub.releaseResponse(for: feedURL)
         await bootstrap.value
         XCTAssertEqual(store.opportunities.map(\.id), ["slow-live-result"])
         XCTAssertEqual(store.dataSourceLabel, .publicLiveFeed)
