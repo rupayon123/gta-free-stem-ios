@@ -122,17 +122,20 @@ cases += [("browse", False, False, "ar")]
 cases += [(screen, False, True, language) for language in ("zh", "ja", "ko", "ar") for screen in ("home", "browse")]
 cases += [("calendar", False, False, "en")]
 cases += [("home-saved", False, False, "en"), ("home-saved", True, False, "en"), ("home-saved", False, True, "en")]
+cases += [("save-search", False, False, "en"), ("save-search", False, True, "en"), ("update-search", False, False, "en")]
 for screen, dark, large, language in cases:
     nonce = str(uuid.uuid4())
     args = ["-frontend-layout-review", "-screenshot-mode", "-review-screen", screen,
             "-review-language", language, "-screenshot-ready-nonce", nonce,
             "-runtime-ready-nonce", nonce]
-    if screen == "browse":
+    if screen in ("browse", "save-search", "update-search"):
         args += ["-start-opportunities"]
     elif screen in ("saved", "settings"):
         args += ["-start-account"]
     if screen == "calendar":
         args += ["-review-present-calendar"]
+    if screen in ("save-search", "update-search"):
+        args += ["-review-save-search" if screen == "save-search" else "-review-update-search"]
     if dark:
         args += ["-review-dark"]
     if large:
@@ -148,7 +151,7 @@ for screen, dark, large, language in cases:
     if not match:
         raise SystemExit("Launch did not return an app PID: " + launched)
     activePid = int(match.group(1))
-    readyTag = "GTA_CALENDAR_REVIEW_READY" if screen == "calendar" else "GTA_SAVED_REVIEW_READY" if screen == "saved" else "GTA_LAYOUT_REVIEW_READY"
+    readyTag = "GTA_NAMED_SEARCH_SHEET_READY" if screen in ("save-search", "update-search") else "GTA_CALENDAR_REVIEW_READY" if screen == "calendar" else "GTA_SAVED_REVIEW_READY" if screen == "saved" else "GTA_LAYOUT_REVIEW_READY"
     deadline = time.monotonic() + (30 if screen == "calendar" else 15)
     while time.monotonic() < deadline:
         if stdoutLog.is_file():
