@@ -1,5 +1,6 @@
 """Bounded simulator layout evidence; no persistent artifact storage or external services."""
 from pathlib import Path
+import atexit
 import base64
 import hashlib
 import json
@@ -13,9 +14,11 @@ prefix = "platform=iOS Simulator,id="
 destination = os.environ["TEST_DESTINATION"]
 if not destination.startswith(prefix):
     raise SystemExit("Expected the reviewed iPhone simulator destination")
-device = destination[len(prefix):]
-if not re.fullmatch(r"[A-Fa-f0-9-]{36}", device):
+testedDevice = destination[len(prefix):]
+if not re.fullmatch(r"[A-Fa-f0-9-]{36}", testedDevice):
     raise SystemExit("Invalid simulator UUID")
+if os.environ.get("GITHUB_ACTIONS") != "true" or os.environ.get("RUNNER_OS") != "macOS":
+    raise SystemExit("Native CI capture requires a disposable GitHub macOS runner")
 root = Path(os.environ["RUNNER_TEMP"])
 app = root / "GTAFreeSTEM-derived-data/Build/Products/Debug-iphonesimulator/GTAFreeSTEM.app"
 if not app.is_dir():
@@ -25,6 +28,23 @@ output.mkdir(exist_ok=True)
 bundle = "com.rupayonhaldar.gtafreestem"
 frameVerifier = root / "verify-native-frame"
 activePid = None
+device = None
+
+def clean_owned_device():
+    if device is None:
+        return True
+    clean = True
+    for action in ("shutdown", "delete"):
+        try:
+            result = subprocess.run(("xcrun", "simctl", action, device), timeout=20,
+                                    text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            clean = clean and result.returncode == 0
+            print("NATIVE_CAPTURE_OWNED_DEVICE_CLEANUP " + json.dumps(dict(action=action,
+                  device=device, code=result.returncode, output=result.stdout[-1000:])), flush=True)
+        except subprocess.TimeoutExpired:
+            clean = False
+            print("NATIVE_CAPTURE_OWNED_DEVICE_CLEANUP_TIMEOUT " + action, flush=True)
+    return clean
 
 def run(*args, timeout=30, check=True):
     try:
@@ -111,38 +131,51 @@ def export(name, mode, **details):
 
 run("xcrun", "swiftc", ".github/scripts/verify-native-frame.swift", "-o", str(frameVerifier), timeout=60)
 
-# xcodebuild may run tests on its own clone, leaving the reviewed destination shut down.
-# Boot this exact preflight-selected device instead of selecting an unrelated booted simulator.
+# The full test target uses the preflight-selected device. Capture gets a fresh
+# owned device so XCTest's simulator state cannot affect framebuffer review.
 inventory = json.loads(run("xcrun", "simctl", "list", "devices", "available", "--json"))["devices"]
-matched = [entry for entries in inventory.values() for entry in entries if entry.get("udid") == device]
-if len(matched) != 1 or matched[0].get("state") not in ("Booted", "Shutdown"):
-    raise SystemExit("Reviewed simulator missing or in an unsupported transition state")
-if matched[0]["state"] == "Shutdown":
-    run("xcrun", "simctl", "boot", device, timeout=30)
+matched = [entry for entry in inventory.get("com.apple.CoreSimulator.SimRuntime.iOS-26-5", [])
+           if entry.get("udid") == testedDevice and entry.get("name") == "iPhone 17 Pro"
+           and entry.get("isAvailable") is True]
+if len(matched) != 1:
+    raise SystemExit("Reviewed test simulator is missing or changed")
+device = run("xcrun", "simctl", "create", "GTA CI Capture " + os.environ["GITHUB_RUN_ID"],
+             "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro",
+             "com.apple.CoreSimulator.SimRuntime.iOS-26-5", timeout=30)
+if not re.fullmatch(r"[A-Fa-f0-9-]{36}", device) or device == testedDevice:
+    raise SystemExit("Could not identify a separate owned capture simulator")
+atexit.register(clean_owned_device)
+print("NATIVE_CAPTURE_OWNED_DEVICE " + json.dumps(dict(device=device, testedDevice=testedDevice)), flush=True)
+run("xcrun", "simctl", "boot", device, timeout=30)
 run("xcrun", "simctl", "bootstatus", device, "-b", timeout=120)
 simulatorApp = Path(os.environ["DEVELOPER_DIR"]) / "Applications/Simulator.app"
 if not simulatorApp.is_dir():
     raise SystemExit("The reviewed Xcode Simulator app is unavailable")
-# Verify the entire installed product before reuse, as in the map capture.
-# Opening Simulator before a redundant install previously stalled that install.
+# Verify the entire installed product on the fresh device.
 def bundle_manifest(directory):
     return {str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
             for path in sorted(directory.rglob("*")) if path.is_file()}
 
+run("open", "-a", str(simulatorApp), "--args", "-CurrentDeviceUDID", device, timeout=30)
+# Require a real framebuffer before launching the app. The same screenshot
+# timeout and one job-wide IPC retry budget also covers this preflight.
+springboard = output / "springboard-preflight.png"
+capture_native_png(springboard)
+if springboard.stat().st_size < 10000:
+    raise SystemExit("Fresh simulator produced an implausibly small SpringBoard frame")
+dimensions = run("/usr/bin/sips", "-g", "pixelWidth", "-g", "pixelHeight", str(springboard))
+if "pixelWidth: 1206" not in dimensions or "pixelHeight: 2622" not in dimensions:
+    raise SystemExit("Fresh simulator did not produce the expected iPhone 17 Pro framebuffer")
+print("NATIVE_CAPTURE_SURFACE_PREFLIGHT " + json.dumps(dict(device=device,
+      bytes=springboard.stat().st_size, dimensions="1206x2622")), flush=True)
 expected_manifest = bundle_manifest(app)
 if not expected_manifest:
     raise SystemExit("Built native app has no files")
-installed_text = run("xcrun", "simctl", "get_app_container", device, bundle, "app", check=False)
-installed = Path(installed_text) if installed_text.startswith("/") else None
-reused = bool(installed and installed.is_dir() and bundle_manifest(installed) == expected_manifest)
-if not reused:
-    run("xcrun", "simctl", "terminate", device, bundle, check=False)
-    run("xcrun", "simctl", "install", device, str(app), timeout=120)
-    installed = Path(run("xcrun", "simctl", "get_app_container", device, bundle, "app"))
-    if bundle_manifest(installed) != expected_manifest:
-        raise SystemExit("Installed native app does not match the tested product")
-print("NATIVE_INSTALLED_PRODUCT_VERIFIED " + json.dumps(dict(files=len(expected_manifest), reusedTestedInstallation=reused)), flush=True)
-run("open", "-a", str(simulatorApp), "--args", "-CurrentDeviceUDID", device, timeout=30)
+run("xcrun", "simctl", "install", device, str(app), timeout=120)
+installed = Path(run("xcrun", "simctl", "get_app_container", device, bundle, "app"))
+if bundle_manifest(installed) != expected_manifest:
+    raise SystemExit("Installed native app does not match the tested product")
+print("NATIVE_INSTALLED_PRODUCT_VERIFIED " + json.dumps(dict(files=len(expected_manifest), reusedTestedInstallation=False)), flush=True)
 # Each fixture sets its own native preferredColorScheme. A redundant simulator
 # appearance RPC can hang after xcodebuild finishes; normal mode retains real defaults.
 cases = [(screen, False, False, "en") for screen in ("home", "browse", "saved", "settings")]
@@ -237,5 +270,8 @@ for screen, extra in [("home", []), ("browse", ["-start-opportunities"])]:
 
 
 run("xcrun", "simctl", "terminate", device, bundle, check=False)
+if not clean_owned_device():
+    raise SystemExit("Owned capture simulator cleanup failed")
+atexit.unregister(clean_owned_device)
 print("NATIVE_UI_CAPTURE_COMPLETE " + json.dumps(dict(normalFrames=2, fixtureFrames=len(cases),
       releaseAcceptance=False, physicalDeviceAcceptance=False)), flush=True)
