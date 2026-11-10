@@ -434,6 +434,43 @@ final class HighSchoolJourneys: XCTestCase {
         XCTAssertEqual(app.state, .runningForeground)
     }
 
+    func test13SupportFilterUpdatesResultsSavesAndRestoresWithoutLeavingBrowse() {
+        app.launchArguments = ["-frontend-layout-review", "-review-screen", "home",
+                               "-review-language", "en", "-review-support"]
+        app.launch()
+        tap("tab-browse")
+        tap("browse-filters")
+        let sensory = app.switches["support-filter-sensory-friendly"]
+        reveal(sensory); sensory.tap()
+        let count = element("filter-result-count")
+        reveal(count)
+        XCTAssertTrue(app.staticTexts["1 result"].waitForExistence(timeout: 10))
+        capture("support-filter-light")
+        tap("save-named-search")
+        let name = app.textFields["saved-search-name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5)); name.tap()
+        let previous = name.value as? String ?? ""
+        name.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: previous.count))
+        name.typeText("Sample sensory filter")
+        tap("confirm-save-search")
+        XCTAssertTrue(element("filter-save-confirmed").waitForExistence(timeout: 10))
+        tap("reset-filters")
+        tap("saved-filter-picker")
+        app.buttons["Sample sensory filter"].tap()
+        reveal(sensory)
+        XCTAssertEqual(sensory.value as? String, "1")
+        reveal(count)
+        XCTAssertTrue(app.staticTexts["1 result"].waitForExistence(timeout: 10))
+        tap("done-filters")
+        let listing = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Details: Sample: Build a Solar Robot")).firstMatch
+        reveal(listing); listing.tap()
+        let provider = element("provider-support-details")
+        reveal(provider)
+        XCTAssertTrue(app.staticTexts["Sample: a quieter activity with a quiet break space."].exists)
+        capture("support-detail-light")
+        app.terminate()
+    }
+
     func test12AlertPreferencesOpenWithoutPermissionPromptInLightAndDarkRTL() {
         for (language, extra, name) in [
             ("en", [String](), "alerts-light"),

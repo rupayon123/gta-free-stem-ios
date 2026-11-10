@@ -71,6 +71,7 @@ struct OpportunityDetailView: View {
                     providerAction
                     listingDescription
                     accessibilityNotes
+                    providerListedSupport
                     mapPreview
                     details
                     actions
@@ -129,6 +130,59 @@ struct OpportunityDetailView: View {
             Text(session.text("translationRequiresNewerSystem"))
                 .font(PortfolioTypography.footnote)
                 .foregroundStyle(Brand.mutedText(for: colorScheme))
+        }
+    }
+
+    @ViewBuilder
+    private var providerListedSupport: some View {
+        if opportunity.accessibilitySupportUnavailable {
+            Text(session.text("supportDetailsUnavailable"))
+                .font(PortfolioTypography.footnote).fixedSize(horizontal: false, vertical: true)
+        } else if let support = opportunity.accessibilitySupport, !support.evidence.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(session.text("accessibilitySupportTitle")).font(PortfolioTypography.headline)
+                    .accessibilityAddTraits(.isHeader)
+                Text(session.text("accessibilitySupportExplanation")).font(PortfolioTypography.footnote)
+                    .fixedSize(horizontal: false, vertical: true)
+                if session.language != .en { Text(session.text("notesInSourceLanguage")).font(PortfolioTypography.footnote) }
+                ForEach(Array(support.evidence.enumerated()), id: \.offset) { _, row in
+                    if let category = AccessibilitySupportKind(rawValue: row.category) {
+                        let decision = support.displayDecision(for: row, now: .now,
+                            venueID: ReviewedAccessibilityVenue.id(for: opportunity))
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(session.text(category.textKey)).font(PortfolioTypography.headline)
+                            Text(session.text(supportStatusKey(decision.status)))
+                            Text(session.text(row.scope == "venue" ? "supportScopeVenue" : row.scope == "activity" ? "supportScopeActivity" : "supportScopePolicy"))
+                                .font(PortfolioTypography.footnote)
+                            if let venue = row.venue { Text(venue.name).font(PortfolioTypography.footnote) }
+                            Text(row.evidenceText).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                            ForEach(Array((row.conditions ?? []).enumerated()), id: \.offset) { _, condition in
+                                Text(condition).font(PortfolioTypography.footnote).fixedSize(horizontal: false, vertical: true)
+                            }
+                            Text(session.text("lastChecked") + ": " + row.checkedAt).font(PortfolioTypography.caption)
+                            if let url = ExternalOpportunityURL.make(from: row.sourceUrl) {
+                                Link(session.text("source"), destination: url)
+                            }
+                            if let raw = row.requestUrl, let url = ExternalOpportunityURL.make(from: raw) {
+                                Link(session.text("supportRequestProcess"), destination: url)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Divider()
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("provider-support-details")
+        }
+    }
+
+    private func supportStatusKey(_ status: String) -> String {
+        switch status {
+        case "provided": "supportProvided"
+        case "on-request": "supportNeedsRequest"
+        case "not-available": "supportNotAvailable"
+        default: "supportUnknown"
         }
     }
 

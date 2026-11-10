@@ -7,7 +7,7 @@ cd "$ROOT_DIR"
 STRICT_TRANSLATION_CHECK="${STRICT_TRANSLATION_CHECK:-0}"
 CHECK_APP_STORE_SCREENSHOTS="${CHECK_APP_STORE_SCREENSHOTS:-1}"
 REQUIRE_DIRECT_SUPPORT_CONTACT="${REQUIRE_DIRECT_SUPPORT_CONTACT:-1}"
-LIVE_FEED_URL="${LIVE_FEED_URL:-https://raw.githubusercontent.com/rupayon123/gta-free-stem-opportunities/main/public/opportunities.json}"
+LIVE_FEED_URL="${LIVE_FEED_URL:-https://raw.githubusercontent.com/rupayon123/gta-free-stem-opportunities/main/public/opportunities-v2.json}"
 APP_STRINGS="GTAFreeSTEM/Resources/app_strings.json"
 BUNDLED_FEED="GTAFreeSTEM/Resources/opportunities.json"
 LANGS='["fr","zh","yue","pa","ur","ta","tl","es","ar","fa","hi","pt","gu","bn","ja","ko","hu"]'

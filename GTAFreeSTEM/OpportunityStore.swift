@@ -264,6 +264,7 @@ final class OpportunityStore: ObservableObject {
     // Deterministic tests can suspend a worker at the commit boundary.
     var namedSearchReconciliationGate: (() async -> Void)?
     var localPreviewCommitGate: (() async -> Void)?
+    var cacheEncodingCommitGate: (() async -> Void)?
 #endif
     @Published private(set) var notificationPreferences = OpportunityNotificationPreferences()
     @Published private(set) var isUpdatingNotificationPreferences = false
@@ -401,7 +402,12 @@ final class OpportunityStore: ObservableObject {
         // Claim the refresh before the first suspension point. Forced refreshes
         // bypass the time throttle, so the loading flag is the concurrency gate.
         isLoading = true
-        defer { isLoading = false }
+        defer {
+            isLoading = false
+            if Task.isCancelled && huntPhase == .hunting {
+                huntPhase = opportunities.isEmpty ? .idle : .cached
+            }
+        }
         let now = self.now()
         lastHuntStartedAt = now
         lastRefreshStartedAt = now
@@ -452,7 +458,21 @@ final class OpportunityStore: ObservableObject {
                 return
             }
             let generation = await retainFullFeed(fullFeed, source: .publicLiveFeed)
+            // Encoding a large catalogue is CPU work; keep it off the UI actor.
+            // The exact generation is checked again before any cache or saved
+            // opportunity writes, since encoding can suspend while data changes.
+            let cachePayload: Data?
+            if context != nil {
+                cachePayload = await Self.encodeCachePayload(fullFeed, limit: maximumCachePayloadBytes)
+            } else {
+                cachePayload = nil
+            }
+#if DEBUG
+            if let gate = cacheEncodingCommitGate { await gate() }
+#endif
+            guard !Task.isCancelled else { return }
             let response = await responseForCurrentHunt(from: fullFeed)
+            guard !Task.isCancelled else { return }
             guard generation == catalogueGeneration else {
                 // A newer trusted retained feed can finish while filtering is
                 // suspended. Do not persist or reconcile this superseded feed.
@@ -463,7 +483,7 @@ final class OpportunityStore: ObservableObject {
             }
             let newCount = updateKnownIDs(in: fullFeed.data, matching: response.data)
             apply(response, source: retainedFeedSource)
-            persist(fullFeed, in: context)
+            persist(cachePayload, in: context)
             if let context {
                 _ = try? SavedOpportunityLibrary.reconcile(
                     with: fullFeed.data,
@@ -660,7 +680,9 @@ final class OpportunityStore: ObservableObject {
                 blackFocused: record.blackFocused,
                 girlsFocused: record.girlsFocused,
                 indigenousFocused: record.indigenousFocused,
-                leadership: record.leadership
+                leadership: record.leadership,
+                requiredSupport: record.requiredSupportSelection,
+                includeSupportOnRequest: record.includeSupportOnRequestRawValue ?? false
             )
             await restoreCachedResultsIfAvailable(in: context)
         } catch {
@@ -940,11 +962,22 @@ final class OpportunityStore: ObservableObject {
         }.value
     }
 
-    private func persist(_ response: OpportunityListResponse, in context: ModelContext?) {
-        guard let context else { return }
+    nonisolated static func encodeCachePayload(_ response: OpportunityListResponse, limit: Int) async -> Data? {
+        guard !Task.isCancelled else { return nil }
+        let worker = Task.detached(priority: .utility) { () -> Data? in
+            guard !Task.isCancelled, let payload = try? JSONEncoder().encode(response),
+                  !Task.isCancelled, payload.count <= limit else { return nil }
+            return payload
+        }
+        return await withTaskCancellationHandler(operation: {
+            let payload = await worker.value
+            return Task.isCancelled ? nil : payload
+        }, onCancel: { worker.cancel() })
+    }
+
+    private func persist(_ payload: Data?, in context: ModelContext?) {
+        guard let context, let payload else { return }
         do {
-            let payload = try JSONEncoder().encode(response)
-            guard payload.count <= maximumCachePayloadBytes else { return }
             let descriptor = FetchDescriptor<OpportunityCacheRecord>(
                 predicate: #Predicate { record in record.cacheKey == "latest-opportunities" }
             )
@@ -1010,6 +1043,8 @@ final class OpportunityStore: ObservableObject {
                 record.girlsFocused = filters.girlsFocused
                 record.indigenousFocused = filters.indigenousFocused
                 record.leadership = filters.leadership
+                record.requiredSupportRawValue = SavedHuntRecord.encodeRequiredSupport(filters.requiredSupport)
+                record.includeSupportOnRequestRawValue = filters.includeSupportOnRequest
                 record.updatedAt = now()
             } else {
                 context.insert(SavedHuntRecord(cacheKey: huntKey, query: query, mode: mode, filters: filters, updatedAt: now()))
@@ -1394,8 +1429,23 @@ private enum ScreenshotOpportunityFixtures {
         #if DEBUG
         let sampleAccessibility = ProcessInfo.processInfo.arguments.contains("-review-accessibility-notes")
             ? ["Sample: Step-free entrance; contact the provider for details."] : []
+        let sampleSupport: AccessibilitySupport?
+        if id == "sample-solar-robot", ProcessInfo.processInfo.arguments.contains("-review-support") {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            let object: [String: Any] = ["schemaVersion": 1, "evidence": [[
+                "category": "sensory-friendly", "status": "provided", "scope": "activity",
+                "sourceUrl": sourceURL, "evidenceText": "Sample: a quieter activity with a quiet break space.",
+                "checkedAt": formatter.string(from: .now), "reviewStatus": "approved",
+                "conditions": ["Sample: caregiver participation required; confirm arrangements before attending."]
+            ]]]
+            sampleSupport = (try? JSONSerialization.data(withJSONObject: object)).flatMap {
+                try? JSONDecoder().decode(AccessibilitySupport.self, from: $0)
+            }
+        } else { sampleSupport = nil }
         #else
         let sampleAccessibility: [String] = []
+        let sampleSupport: AccessibilitySupport? = nil
         #endif
         return Opportunity(
             id: id,
@@ -1425,7 +1475,8 @@ private enum ScreenshotOpportunityFixtures {
             distanceKm: nil,
             isNewFind: nil,
             sourceConfidence: "App-authored screenshot sample",
-            accessibility: sampleAccessibility
+            accessibility: sampleAccessibility,
+            accessibilitySupport: sampleSupport
         )
     }
 }

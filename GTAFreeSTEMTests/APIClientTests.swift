@@ -26,6 +26,164 @@ private func bundledSnapshotTestNow() throws -> Date {
 }
 
 final class APIClientTests: XCTestCase {
+    private func supportProof(category: String = "sensory-friendly", status: String = "provided",
+                              scope: String = "activity", checkedAt: String = "2026-11-10T06:33:20.000Z",
+                              reviewStatus: String = "approved") -> [String: Any] {
+        ["category": category, "status": status, "scope": scope,
+         "sourceUrl": "https://example.com/provider-support", "evidenceText": "App-owned sample: provider statement.",
+         "checkedAt": checkedAt, "reviewStatus": reviewStatus,
+         "conditions": ["Sample: advance booking and provider confirmation required."],
+         "requestUrl": "https://example.com/request"]
+    }
+
+    private func supportMetadata(_ rows: [[String: Any]]) throws -> AccessibilitySupport {
+        try JSONDecoder().decode(AccessibilitySupport.self, from: JSONSerialization.data(withJSONObject: ["schemaVersion": 1, "evidence": rows]))
+    }
+
+    @MainActor
+    func testStructuredSupportV1AndUnavailableMarkerSurviveFeedCacheArchiveAndCopies() throws {
+        let original = opportunity(id: "support", title: "App-owned sample")
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
+        let legacy = try JSONDecoder().decode(Opportunity.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertNil(legacy.accessibilitySupport)
+        XCTAssertFalse(legacy.accessibilitySupportUnavailable)
+        let metadata = try supportMetadata([supportProof()])
+        json["accessibilitySupport"] = try JSONSerialization.jsonObject(with: JSONEncoder().encode(metadata))
+        let decoded = try JSONDecoder().decode(Opportunity.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertEqual(decoded.accessibilitySupport, metadata)
+        let cached = try JSONDecoder().decode(Opportunity.self, from: JSONEncoder().encode(decoded))
+        XCTAssertEqual(cached.accessibilitySupport, metadata)
+        XCTAssertEqual(cached.replacingStatus(with: "archived").accessibilitySupport, metadata)
+        XCTAssertEqual(try SavedOpportunityRecord(opportunity: cached).opportunity?.accessibilitySupport, metadata)
+        XCTAssertEqual(APIClient.mergingBundledTranslations([:], into: cached).accessibilitySupport, metadata)
+        let malformedValues: [Any] = [["wheelchair"], ["schemaVersion": 2, "evidence": []], NSNull()]
+        for malformed in malformedValues {
+            json["accessibilitySupport"] = malformed
+            let fallback = try JSONDecoder().decode(Opportunity.self, from: JSONSerialization.data(withJSONObject: json))
+            XCTAssertEqual(fallback.id, original.id, "Optional bad proof must not discard the base listing")
+            XCTAssertNil(fallback.accessibilitySupport)
+            XCTAssertTrue(fallback.accessibilitySupportUnavailable)
+            let restored = try JSONDecoder().decode(Opportunity.self, from: JSONEncoder().encode(fallback))
+            XCTAssertTrue(restored.accessibilitySupportUnavailable)
+            XCTAssertTrue(fallback.replacingStatus(with: "archived").accessibilitySupportUnavailable)
+            XCTAssertTrue(try SavedOpportunityRecord(opportunity: fallback).opportunity!.accessibilitySupportUnavailable)
+            XCTAssertTrue(APIClient.mergingBundledTranslations([:], into: fallback).accessibilitySupportUnavailable)
+        }
+    }
+
+    func testSupportV1RejectsMalformedUnknownAndUnsafeShape() throws {
+        _ = try supportMetadata([supportProof()])
+        let invalidFields: [(String, Any)] = [
+            ("category", "autism"), ("status", "confirmed"), ("scope", "everything"),
+            ("reviewStatus", "auto-approved"), ("sourceUrl", "http://example.com/source"),
+            ("sourceUrl", "https://person@example.com/source"), ("sourceUrl", "https://127.0.0.1/source"),
+            ("sourceUrl", "https://my.internal/source"), ("evidenceText", "  "),
+            ("evidenceText", String(repeating: "x", count: 601)), ("conditions", NSNull()),
+            ("conditions", [String(repeating: "x", count: 501)]), ("requestUrl", "file:///tmp/request"),
+            ("checkedAt", "2026-02-30T12:00:00.000Z"), ("checkedAt", "2026-11-10"),
+            ("checkedAt", "2026-11-10T06:33:20Z"), ("extraSensitiveField", "not allowed")
+        ]
+        for (key, bad) in invalidFields {
+            var row = supportProof(); row[key] = bad
+            XCTAssertThrowsError(try supportMetadata([row]), key)
+        }
+        var venue = supportProof(category: "mobility-wheelchair", scope: "venue")
+        XCTAssertThrowsError(try supportMetadata([venue]))
+        venue["venue"] = ["id": "sample-exact-venue", "name": "App-owned sample venue"]
+        _ = try supportMetadata([venue])
+        venue["scope"] = "activity"
+        XCTAssertThrowsError(try supportMetadata([venue]), "Venue binding belongs only to venue scope")
+    }
+
+    func testSupportDecisionsKeepScopeReviewFreshnessConflictAndRequestsDistinct() throws {
+        let now = try XCTUnwrap(AccessibilitySupportEvidence.parseInstant("2026-11-10T06:33:20.000Z"))
+        func decision(_ rows: [[String: Any]]) throws -> AccessibilitySupport.Decision {
+            try supportMetadata(rows).decision(.sensoryFriendly, scope: "activity", now: now, venueID: nil)
+        }
+        XCTAssertEqual(try decision([supportProof()]).status, "provided")
+        XCTAssertEqual(try decision([supportProof(checkedAt: "2026-10-11T06:33:20.000Z")]).status, "provided")
+        XCTAssertEqual(try decision([supportProof(checkedAt: "2026-10-11T06:33:19.999Z")]).reason, "out-of-date")
+        XCTAssertEqual(try decision([supportProof(checkedAt: "2026-11-10T06:33:20.001Z")]).reason, "out-of-date")
+        XCTAssertEqual(try decision([supportProof(reviewStatus: "hold")]).reason, "unreviewed")
+        let mixed = try supportMetadata([supportProof(), supportProof(reviewStatus: "hold")])
+        XCTAssertEqual(mixed.displayDecision(for: mixed.evidence[0], now: now, venueID: nil).status, "provided")
+        XCTAssertEqual(mixed.displayDecision(for: mixed.evidence[1], now: now, venueID: nil).status, "unknown")
+        XCTAssertEqual(try decision([supportProof(), supportProof(status: "not-available")]).reason, "conflicting")
+        XCTAssertEqual(try decision([supportProof(), supportProof(checkedAt: "2026-09-01T00:00:00.000Z")]).reason, "out-of-date")
+        let request = try supportMetadata([supportProof(status: "on-request", scope: "provider-policy")])
+        XCTAssertFalse(request.matches(["sensory-friendly"], includeOnRequest: false, now: now, venueID: nil))
+        XCTAssertTrue(request.matches(["sensory-friendly"], includeOnRequest: true, now: now, venueID: nil))
+        let negative = try supportMetadata([supportProof(status: "not-available"), supportProof(status: "on-request", scope: "provider-policy")])
+        XCTAssertFalse(negative.matches(["sensory-friendly"], includeOnRequest: true, now: now, venueID: nil))
+        var venue = supportProof(category: "mobility-wheelchair", scope: "venue")
+        venue["venue"] = ["id": "sample-exact-venue", "name": "App-owned sample venue"]
+        let scoped = try supportMetadata([venue])
+        XCTAssertEqual(scoped.decision(.wheelchair, scope: "venue", now: now, venueID: nil).reason, "venue-unmatched")
+        XCTAssertEqual(scoped.decision(.wheelchair, scope: "venue", now: now, venueID: "another-venue").status, "unknown")
+        XCTAssertTrue(scoped.matches(["mobility-wheelchair"], includeOnRequest: false, now: now, venueID: "sample-exact-venue"))
+        var otherVenue = venue; otherVenue["venue"] = ["id": "another-venue", "name": "Different sample venue"]
+        let mixedVenues = try supportMetadata([venue, otherVenue])
+        XCTAssertEqual(mixedVenues.displayDecision(for: mixedVenues.evidence[1], now: now, venueID: "sample-exact-venue").status, "unknown")
+    }
+
+    func testSupportFilterRequiresAllSelectedEvidenceAndNeverInfersGenericNotes() throws {
+        let now = try XCTUnwrap(AccessibilitySupportEvidence.parseInstant("2026-11-10T06:33:20.000Z"))
+        func row(_ id: String, proofs: [[String: Any]]) throws -> Opportunity {
+            let original = opportunity(id: id, title: "App-owned sample")
+            var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
+            json["accessibility"] = ["Contact the provider; sensory play; support person."]
+            json["accessibilitySupport"] = ["schemaVersion": 1, "evidence": proofs]
+            return try JSONDecoder().decode(Opportunity.self, from: JSONSerialization.data(withJSONObject: json))
+        }
+        let rows = try [row("unknown", proofs: []), row("sensory", proofs: [supportProof()]),
+                        row("both", proofs: [supportProof(), supportProof(category: "adapted-inclusive-programme")]),
+                        row("request", proofs: [supportProof(status: "on-request", scope: "provider-policy")])]
+        var filters = OpportunityFilters()
+        func matches() -> Set<String> {
+            Set(LocalOpportunitySnapshot.filter(rows, query: "", mode: .all, filters: filters, displayLanguage: .en, now: now).map(\.id))
+        }
+        XCTAssertEqual(matches(), ["unknown", "sensory", "both", "request"])
+        filters.requiredSupport = ["sensory-friendly"]
+        XCTAssertTrue(filters.hasActiveFilters)
+        XCTAssertEqual(matches(), ["sensory", "both"])
+        filters.includeSupportOnRequest = true
+        XCTAssertEqual(matches(), ["sensory", "both", "request"])
+        filters.requiredSupport.insert("adapted-inclusive-programme")
+        XCTAssertEqual(matches(), ["both"])
+        filters.requiredSupport.insert("unsupported-future-kind")
+        XCTAssertTrue(matches().isEmpty)
+    }
+
+    @MainActor
+    func testSupportCriteriaMigrateOldFiltersAndPersistWithoutBroadening() async throws {
+        var filter = OpportunityFilters()
+        filter.city = "Toronto"; filter.age = "10"; filter.blackFocused = true
+        var old = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(filter)) as? [String: Any])
+        old.removeValue(forKey: "requiredSupport"); old.removeValue(forKey: "includeSupportOnRequest")
+        XCTAssertEqual(try JSONDecoder().decode(OpportunityFilters.self, from: JSONSerialization.data(withJSONObject: old)), filter)
+        old["requiredSupport"] = "mobility-wheelchair"
+        XCTAssertThrowsError(try JSONDecoder().decode(OpportunityFilters.self, from: JSONSerialization.data(withJSONObject: old)))
+        filter.requiredSupport = ["sensory-friendly", "support-person"]; filter.includeSupportOnRequest = true
+        let saved = NamedSavedSearch(id: UUID(), name: "Support choices", criteria: NamedSearchCriteria(query: "", mode: .all, filters: filter))
+        XCTAssertEqual(try JSONDecoder().decode(NamedSearchArchive.self, from: JSONEncoder().encode(NamedSearchArchive(searches: [saved]))).searches, [saved])
+        let container = try makeAppTestModelContainer(); let context = ModelContext(container)
+        let record = SavedHuntRecord(cacheKey: "last-hunt", query: "", mode: .all, filters: filter)
+        context.insert(record); try context.save()
+        let fetched = try XCTUnwrap(context.fetch(FetchDescriptor<SavedHuntRecord>()).first)
+        XCTAssertEqual(fetched.requiredSupportSelection, filter.requiredSupport)
+        XCTAssertEqual(fetched.includeSupportOnRequestRawValue, true)
+        fetched.requiredSupportRawValue = nil; fetched.includeSupportOnRequestRawValue = nil
+        XCTAssertTrue(fetched.requiredSupportSelection.isEmpty)
+        fetched.requiredSupportRawValue = "corrupt"
+        XCTAssertEqual(fetched.requiredSupportSelection, ["unreadable-saved-support"])
+        let suite = "SupportFilterMigration.\(UUID())"; let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = OpportunityStore(api: APIClient(), defaults: defaults)
+        await store.restoreLastHuntIfNeeded(in: context)
+        XCTAssertEqual(store.filters.requiredSupport, ["unreadable-saved-support"])
+        XCTAssertFalse(store.filters.includeSupportOnRequest)
+    }
+
     @MainActor
     func testOnDeviceListingCacheBindsExactSourceAndBoundsMemory() {
         let cache = ListingTranslationCache(limit: 2, byteLimit: 12)
@@ -167,6 +325,39 @@ final class APIClientTests: XCTestCase {
         let begin = clock()
         let bytes = try JSONEncoder().encode(feed)
         print("GTA_PERF cache_encode_ms=\((clock()-begin)*1000) bytes=\(bytes.count)")
+    }
+
+    @MainActor
+    func testLargeCatalogueCacheEncodingKeepsUIResponsiveAndHonorsCancellation() async throws {
+        let feed = try await Task.detached { try LocalOpportunitySnapshot.loadFull() }.value
+        XCTAssertGreaterThan(feed.data.count, 1_000)
+        var beats = 0
+        var maximumGap = 0.0
+        let heartbeat = Task { @MainActor in
+            var previous = ProcessInfo.processInfo.systemUptime
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 10_000_000)
+                let current = ProcessInfo.processInfo.systemUptime
+                maximumGap = max(maximumGap, current - previous)
+                previous = current
+                beats += 1
+            }
+        }
+        defer { heartbeat.cancel() }
+        await Task.yield()
+        let encoded = await OpportunityStore.encodeCachePayload(feed, limit: 10_000_000)
+        let payload = try XCTUnwrap(encoded)
+        let restored = try await Task.detached { try JSONDecoder().decode(OpportunityListResponse.self, from: payload) }.value
+        print("GTA_PERF cache_heartbeat_max_gap_ms=\(maximumGap * 1_000) heartbeat_count=\(beats) encoded_bytes=\(payload.count)")
+        XCTAssertEqual(restored.data.map(\.id), feed.data.map(\.id))
+        XCTAssertGreaterThan(beats, 0, "The UI actor should continue while the catalogue is encoded")
+        XCTAssertLessThan(maximumGap, 0.75, "Cache encoding must not stall the UI actor")
+        let cancelled = Task { await OpportunityStore.encodeCachePayload(feed, limit: 10_000_000) }
+        cancelled.cancel()
+        let cancelledPayload = await cancelled.value
+        XCTAssertNil(cancelledPayload)
+        let tooSmall = await OpportunityStore.encodeCachePayload(feed, limit: 1)
+        XCTAssertNil(tooSmall)
     }
 
     @MainActor
@@ -640,6 +831,8 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(client.feedURL, APIClient.primaryPublicFeedURL)
         XCTAssertEqual(client.feedURL.host, "raw.githubusercontent.com")
         XCTAssertEqual(APIClient.fallbackPublicFeedURL.host, "cdn.jsdelivr.net")
+        XCTAssertTrue(client.feedURL.path.hasSuffix("/public/opportunities-v2.json"))
+        XCTAssertTrue(APIClient.fallbackPublicFeedURL.path.hasSuffix("/public/opportunities-v2.json"))
     }
 
     func testAPIClientAcceptsAProductionSizedPublicFeed() async throws {
@@ -2343,6 +2536,64 @@ final class APIClientTests: XCTestCase {
             "The exact bundled feed must decode with a complete, internally consistent content-rights manifest."
         )
         XCTAssertTrue(Set(restrictedIDs).isDisjoint(with: Set(response.data.map(\.id))))
+    }
+
+    func testReviewedFactualSourcesRequireExactRecordsAndNeverAssertPermission() throws {
+        let scienceURL = "https://www.ontariosciencecentre.ca/whats-on/pop-ups-plus-events/pride-in-stem-2026"
+        let autismURL = "https://www.autismontario.com/civicrm/event/info?id=13084"
+        let science: [String: Any] = [
+            "id": "ontario-science-centre-pride-in-stem-2026", "organization": "Ontario Science Centre",
+            "title": "Pride in STEM 2026", "sourceUrl": scienceURL, "registrationUrl": scienceURL,
+            "description": "Free, all-ages STEM activities and performances celebrating 2SLGBTQI+ people. November 21, 2026, 9 a.m.–3 p.m. at Evergreen Brick Works, 550 Bayview Avenue, Toronto. Registration is encouraged but not required. The venue is wheelchair accessible; a free shuttle runs from Broadview Station. On-site parking is paid.",
+            "startDate": "2026-11-21T09:00:00-05:00", "endDate": "2026-11-21T15:00:00-05:00",
+            "city": "Toronto", "region": "Toronto", "address": "Evergreen Brick Works, 550 Bayview Avenue, Toronto, ON M4W 3X8",
+            "ageMin": 0, "cost": "Free to join", "virtual": false
+        ]
+        let autism: [String: Any] = [
+            "id": "autism-ontario-newmarket-quiet-santa-2026-11-22", "organization": "Autism Ontario",
+            "title": "Quiet Time with Santa — Newmarket", "sourceUrl": autismURL, "registrationUrl": autismURL,
+            "description": "Free five-minute Quiet Time with Santa appointments for autistic children and adults, siblings and caregivers. November 22, 2026, 8:30–10:30 a.m. at Upper Canada Mall, 17600 Yonge Street, Newmarket. Registration and one time slot are required; a waitlist may be available if full. Optional photo packages cost extra. Parent or caregiver supervision is required. Registrants' names and email addresses are shared with the appointment vendor.",
+            "startDate": "2026-11-22T08:30:00-05:00", "endDate": "2026-11-22T10:30:00-05:00",
+            "city": "Newmarket", "region": "York", "address": "Upper Canada Mall, 17600 Yonge Street, Newmarket, ON L3Y 4Z1",
+            "ageMin": 0, "cost": "Free to join", "virtual": false
+        ]
+        typealias RightsSource = OpportunityListResponse.ContentRights.Source
+        let sources = [
+            RightsSource(organization: "Ontario Science Centre", sourceHost: "www.ontariosciencecentre.ca", records: 1, status: "original-factual-summary"),
+            RightsSource(organization: "Autism Ontario", sourceHost: "www.autismontario.com", records: 1, status: "original-factual-summary")
+        ]
+        let now = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-11-10T12:00:00Z"))
+        func accepted(_ rows: [[String: Any]], _ manifest: [OpportunityListResponse.ContentRights.Source] = sources,
+                      restricted: [String] = []) throws -> Bool {
+            let data = try rows.map { try JSONDecoder().decode(Opportunity.self, from: JSONSerialization.data(withJSONObject: $0)) }
+            let response = OpportunityListResponse(data: data,
+                meta: .init(activeCount: data.count, lastUpdated: "2026-11-10T06:00:00Z"),
+                contentRights: .init(termsVerifiedAt: "2026-11-10", sources: manifest, restrictedOpportunityIDs: restricted))
+            return response.hasReleaseReadyContentRights(now: now)
+        }
+        XCTAssertTrue(try accepted([science, autism]))
+        for (field, altered) in [
+            ("id", "other"), ("description", (science["description"] as! String) + " "),
+            ("title", "Different title"), ("startDate", "2026-11-21T10:00:00-05:00"),
+            ("address", "A different address"), ("registrationUrl", "https://example.com/")
+        ] {
+            var changed = science; changed[field] = altered
+            XCTAssertFalse(try accepted([changed, autism]), "Reject changed \(field)")
+        }
+        var alteredAutism = autism; alteredAutism["description"] = (autism["description"] as! String) + "."
+        XCTAssertFalse(try accepted([science, alteredAutism]))
+        var missingAge = science; missingAge.removeValue(forKey: "ageMin")
+        XCTAssertThrowsError(try accepted([missingAge, autism]))
+        var invalidAge = science; invalidAge["ageMin"] = false
+        XCTAssertThrowsError(try accepted([invalidAge, autism]))
+        var missingVenueMode = science; missingVenueMode.removeValue(forKey: "virtual")
+        XCTAssertThrowsError(try accepted([missingVenueMode, autism]))
+        XCTAssertFalse(try accepted([science, autism], restricted: [science["id"] as! String]))
+        let inventedPermission = OpportunityListResponse.ContentRights.OwnerPermission(
+            confirmationID: "invented", confirmedAt: "2026-11-10", scope: ["display-event-listings"])
+        let falseClaim = RightsSource(organization: "Ontario Science Centre", sourceHost: "www.ontariosciencecentre.ca",
+                                      records: 1, status: "original-factual-summary", ownerPermission: inventedPermission)
+        XCTAssertFalse(try accepted([science, autism], [falseClaim, sources[1]]))
     }
 
     func testContentRightsRejectsSelfDeclaredProviderAndUnreviewedDigest() throws {
@@ -4378,6 +4629,38 @@ final class OpportunityStoreTests: XCTestCase {
         XCTAssertEqual(store.huntPhase, .cached)
         let saved = try context.fetch(FetchDescriptor<SavedOpportunityRecord>())
         XCTAssertEqual(saved.first { $0.opportunityID == retainedSaved.id }?.opportunity?.status, "active")
+    }
+
+    @MainActor
+    func testCancelledRefreshDuringCachePreparationRetainsResultsAndSavedRecords() async throws {
+        let now = Date()
+        let context = try makeInMemoryContext()
+        let suite = "CancelledCacheRefresh.\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let url = URL(string: "https://named.example/cancel-cache.json")!
+        let first = opportunity(id: "first", title: "First event", organization: "Library", category: "Coding & Robotics", city: "Toronto")
+        let replacement = opportunity(id: "replacement", title: "Replacement", organization: "Library", category: "Coding & Robotics", city: "Toronto")
+        context.insert(try SavedOpportunityRecord(opportunity: first))
+        try context.save()
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([first], lastUpdated: now).utf8))
+        let store = OpportunityStore(api: APIClient(feedURL: url, session: makeURLSessionForStub(), now: { now }), defaults: defaults, now: { now })
+        await store.refresh(cache: context, force: true)
+        let previousResults = store.opportunities.map(\.id)
+        let previousPayload = try XCTUnwrap(context.fetch(FetchDescriptor<OpportunityCacheRecord>()).first?.payload)
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([replacement], lastUpdated: now).utf8))
+        let gate = MapProjectionTestGate()
+        store.cacheEncodingCommitGate = { await gate.hold() }
+        let refresh = Task { @MainActor in await store.refresh(cache: context, force: true) }
+        await gate.waitUntilStarted()
+        refresh.cancel()
+        await gate.release()
+        await refresh.value
+        XCTAssertFalse(store.isLoading)
+        XCTAssertEqual(store.huntPhase, .cached)
+        XCTAssertEqual(store.opportunities.map(\.id), previousResults)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<OpportunityCacheRecord>()).first?.payload, previousPayload)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<SavedOpportunityRecord>()).first?.opportunity?.status, "active")
     }
 
     @MainActor

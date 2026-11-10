@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sys
@@ -27,6 +28,25 @@ APPROVED_TERMS_EVIDENCE = {
         "basisUrl": "https://tpl.bibliocommons.com/info/terms/",
         "termsVersion": "2018-09-19",
         "termsSectionDigest": "sha256:c9b14cbd531afa09533e844274bb9f07f8042883e12b5a3990be3100ca5d4b43",
+    },
+}
+
+# Original reviewed factual summaries are a separate policy, not a claim of a
+# provider agreement. Values mirror the native binary's exact record binding.
+REVIEWED_FACTUAL_RECORDS = {
+    ("Ontario Science Centre", "www.ontariosciencecentre.ca"): {
+        "id": "ontario-science-centre-pride-in-stem-2026", "title": "Pride in STEM 2026",
+        "sourceUrl": "https://www.ontariosciencecentre.ca/whats-on/pop-ups-plus-events/pride-in-stem-2026",
+        "descriptionHash": "86ae9b3d83e925c6a0553f3e8219b4cdf6c2fc74c24bdcdf920c10b904c50d99",
+        "startDate": "2026-11-21T09:00:00-05:00", "endDate": "2026-11-21T15:00:00-05:00",
+        "city": "Toronto", "region": "Toronto", "address": "Evergreen Brick Works, 550 Bayview Avenue, Toronto, ON M4W 3X8",
+    },
+    ("Autism Ontario", "www.autismontario.com"): {
+        "id": "autism-ontario-newmarket-quiet-santa-2026-11-22", "title": "Quiet Time with Santa — Newmarket",
+        "sourceUrl": "https://www.autismontario.com/civicrm/event/info?id=13084",
+        "descriptionHash": "a067b94bbaed7caeb9d5b00bc8f2e4a02ffb27e7616085b24c2fc1d1da77f0c4",
+        "startDate": "2026-11-22T08:30:00-05:00", "endDate": "2026-11-22T10:30:00-05:00",
+        "city": "Newmarket", "region": "York", "address": "Upper Canada Mall, 17600 Yonge Street, Newmarket, ON L3Y 4Z1",
     },
 }
 
@@ -112,14 +132,19 @@ def validate(path: Path) -> tuple[int, int]:
         if key in evidence_by_key:
             raise SystemExit(f"Duplicate content-rights evidence for {organization} at {source_host}.")
         approved = APPROVED_TERMS_EVIDENCE.get(key)
-        if approved is None:
-            raise SystemExit(f"Content-rights source {organization} at {source_host} is not in the binary-approved allowlist.")
-        if status == "owner-confirmed-permission":
+        if status == "original-factual-summary":
+            if (key not in REVIEWED_FACTUAL_RECORDS or records != 1 or source.get("ownerPermission") is not None
+                    or source.get("basisUrl", "") != "" or source.get("conditions", []) != []
+                    or any(source.get(field, "") != "" for field in ("termsVerifiedAt", "termsVersion", "termsDigestVersion", "termsSectionDigest"))):
+                raise SystemExit(f"Factual-summary policy for {organization} is not the reviewed record.")
+        elif status == "owner-confirmed-permission":
             # The owner confirmed permission on this date. This is not a claim
             # that a written agreement or newly reviewed provider terms exist.
-            if source.get("ownerPermission") != OWNER_PERMISSION:
+            if approved is None or source.get("ownerPermission") != OWNER_PERMISSION:
                 raise SystemExit(f"Content-rights owner confirmation for {organization} is not approved.")
         elif status == "terms-permitted":
+            if approved is None:
+                raise SystemExit(f"Content-rights source {organization} at {source_host} is not in the binary-approved allowlist.")
             basis_host = https_host(source.get("basisUrl"), f"basisUrl for {organization}")
             if basis_host != source_host:
                 raise SystemExit(f"Content-rights basis for {organization} does not match source host {source_host}.")
@@ -179,6 +204,17 @@ def validate(path: Path) -> tuple[int, int]:
         key = (organization, source_host)
         if key not in evidence_by_key:
             raise SystemExit(f"Opportunity {index} has no release-ready content-rights evidence for {organization} at {source_host}.")
+        if evidence_by_key[key]["status"] == "original-factual-summary":
+            expected = REVIEWED_FACTUAL_RECORDS[key]
+            fields = ("id", "title", "sourceUrl", "startDate", "endDate", "city", "region", "address")
+            description = item.get("description")
+            if (any(item.get(field) != expected[field] for field in fields)
+                    or not isinstance(description, str)
+                    or hashlib.sha256(description.encode("utf-8")).hexdigest() != expected["descriptionHash"]
+                    or type(item.get("ageMin")) is not int or item["ageMin"] != 0
+                    or item.get("ageMax") is not None or "ages" in item
+                    or item.get("cost") != "Free to join" or item.get("virtual") is not False):
+                raise SystemExit(f"Opportunity {index} differs from the reviewed factual record.")
         observed_counts[key] = observed_counts.get(key, 0) + 1
 
     overlap = public_ids.intersection(restricted_ids)

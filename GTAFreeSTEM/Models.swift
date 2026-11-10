@@ -242,6 +242,183 @@ struct OpportunityTranslation: Codable, Hashable, Sendable {
     }
 }
 
+enum AccessibilitySupportKind: String, CaseIterable, Codable, Sendable, Identifiable {
+    case wheelchair = "mobility-wheelchair"
+    case sensoryFriendly = "sensory-friendly"
+    case adapted = "adapted-inclusive-programme"
+    case signLanguage = "sign-language"
+    case captions = "hearing-captioning"
+    case visualFormats = "visual-formats"
+    case supportPerson = "support-person"
+    var id: String { rawValue }
+    var textKey: String {
+        switch self {
+        case .wheelchair: "supportWheelchair"
+        case .sensoryFriendly: "supportSensoryFriendly"
+        case .adapted: "supportAdapted"
+        case .signLanguage: "supportSignLanguage"
+        case .captions: "supportCaptions"
+        case .visualFormats: "supportVisualFormats"
+        case .supportPerson: "supportPerson"
+        }
+    }
+}
+
+private struct SupportCodingKey: CodingKey {
+    let stringValue: String
+    let intValue: Int? = nil
+    init?(stringValue: String) { self.stringValue = stringValue }
+    init?(intValue: Int) { return nil }
+}
+
+/// Native adapter for schemas/accessibility-support-v1.schema.json. Optional
+/// malformed/unsupported proof is isolated by Opportunity, never a lost listing.
+struct AccessibilitySupport: Codable, Hashable, Sendable {
+    let schemaVersion: Int
+    let evidence: [AccessibilitySupportEvidence]
+    private enum CodingKeys: String, CodingKey { case schemaVersion, evidence }
+    init(from decoder: Decoder) throws {
+        let keys = try decoder.container(keyedBy: SupportCodingKey.self).allKeys.map(\.stringValue)
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try c.decode(Int.self, forKey: .schemaVersion)
+        evidence = try c.decode([AccessibilitySupportEvidence].self, forKey: .evidence)
+        guard Set(keys) == ["schemaVersion", "evidence"], schemaVersion == 1, evidence.count <= 48 else {
+            throw DecodingError.dataCorruptedError(forKey: .evidence, in: c, debugDescription: "Unsupported support metadata")
+        }
+    }
+
+    struct Decision: Equatable, Sendable {
+        let status: String
+        let reason: String
+    }
+
+    func decision(_ category: AccessibilitySupportKind, scope: String, now: Date, venueID: String?) -> Decision {
+        var rows = evidence.filter { $0.category == category.rawValue && $0.scope == scope }
+        if scope == "venue" {
+            guard let venueID, !venueID.isEmpty else { return Decision(status: "unknown", reason: "venue-unmatched") }
+            rows = rows.filter { $0.venue?.id == venueID }
+            if rows.isEmpty { return Decision(status: "unknown", reason: "venue-unmatched") }
+        }
+        guard !rows.isEmpty else { return Decision(status: "unknown", reason: "missing") }
+        let approved = rows.filter { $0.reviewStatus == "approved" }
+        guard !approved.isEmpty else { return Decision(status: "unknown", reason: "unreviewed") }
+        guard approved.allSatisfy({ now >= $0.checkedInstant && now.timeIntervalSince($0.checkedInstant) <= 30 * 86_400 }) else {
+            return Decision(status: "unknown", reason: "out-of-date")
+        }
+        guard Set(approved.map(\.status)).count == 1 else { return Decision(status: "unknown", reason: "conflicting") }
+        return Decision(status: approved[0].status, reason: "provider-evidence")
+    }
+
+    func displayDecision(for row: AccessibilitySupportEvidence, now: Date, venueID: String?) -> Decision {
+        guard row.reviewStatus == "approved" else { return Decision(status: "unknown", reason: "unreviewed") }
+        if row.scope == "venue", row.venue?.id != venueID {
+            return Decision(status: "unknown", reason: "venue-unmatched")
+        }
+        guard let category = AccessibilitySupportKind(rawValue: row.category) else { return Decision(status: "unknown", reason: "missing") }
+        return decision(category, scope: row.scope, now: now, venueID: venueID)
+    }
+
+    func matches(_ categories: Set<String>, includeOnRequest: Bool, now: Date, venueID: String?) -> Bool {
+        categories.allSatisfy { raw in
+            guard let category = AccessibilitySupportKind(rawValue: raw) else { return false }
+            let scope = category == .wheelchair ? "venue" : "activity"
+            let primary = decision(category, scope: scope, now: now, venueID: venueID)
+            let policy = decision(category, scope: "provider-policy", now: now, venueID: venueID)
+            guard primary.status != "not-available", policy.status != "not-available",
+                  primary.reason != "conflicting", policy.reason != "conflicting" else { return false }
+            if primary.status == "provided" { return true }
+            return includeOnRequest && (primary.status == "on-request" || policy.status == "on-request")
+        }
+    }
+}
+
+struct AccessibilitySupportEvidence: Codable, Hashable, Sendable {
+    struct Venue: Codable, Hashable, Sendable {
+        let id: String
+        let name: String
+        private enum CodingKeys: String, CodingKey { case id, name }
+        init(from decoder: Decoder) throws {
+            let keys = try decoder.container(keyedBy: SupportCodingKey.self).allKeys.map(\.stringValue)
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = try c.decode(String.self, forKey: .id)
+            name = try c.decode(String.self, forKey: .name)
+            guard Set(keys) == ["id", "name"], AccessibilitySupportEvidence.validText(id, maximum: 120),
+                  AccessibilitySupportEvidence.validText(name, maximum: 240) else {
+                throw DecodingError.dataCorruptedError(forKey: .id, in: c, debugDescription: "Invalid venue binding")
+            }
+        }
+    }
+    let category: String
+    let status: String
+    let scope: String
+    let sourceUrl: String
+    let evidenceText: String
+    let checkedAt: String
+    let reviewStatus: String
+    let conditions: [String]?
+    let requestUrl: String?
+    let venue: Venue?
+    let checkedInstant: Date
+    private enum CodingKeys: String, CodingKey {
+        case category, status, scope, sourceUrl, evidenceText, checkedAt, reviewStatus, conditions, requestUrl, venue
+    }
+    init(from decoder: Decoder) throws {
+        let keys = Set(try decoder.container(keyedBy: SupportCodingKey.self).allKeys.map(\.stringValue))
+        let required: Set<String> = ["category", "status", "scope", "sourceUrl", "evidenceText", "checkedAt", "reviewStatus"]
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        category = try c.decode(String.self, forKey: .category)
+        status = try c.decode(String.self, forKey: .status)
+        scope = try c.decode(String.self, forKey: .scope)
+        sourceUrl = try c.decode(String.self, forKey: .sourceUrl)
+        evidenceText = try c.decode(String.self, forKey: .evidenceText)
+        checkedAt = try c.decode(String.self, forKey: .checkedAt)
+        reviewStatus = try c.decode(String.self, forKey: .reviewStatus)
+        conditions = c.contains(.conditions) ? try c.decode([String].self, forKey: .conditions) : nil
+        requestUrl = c.contains(.requestUrl) ? try c.decode(String.self, forKey: .requestUrl) : nil
+        venue = c.contains(.venue) ? try c.decode(Venue.self, forKey: .venue) : nil
+        guard required.isSubset(of: keys), keys.isSubset(of: required.union(["conditions", "requestUrl", "venue"])),
+              AccessibilitySupportKind(rawValue: category) != nil,
+              ["provided", "on-request", "not-available", "unknown"].contains(status),
+              ["venue", "activity", "provider-policy"].contains(scope),
+              ["approved", "hold"].contains(reviewStatus),
+              Self.validPublicURL(sourceUrl), Self.validText(evidenceText, maximum: 600),
+              conditions.map({ $0.count <= 12 && $0.allSatisfy({ Self.validText($0, maximum: 500) }) }) ?? true,
+              requestUrl.map(Self.validPublicURL) ?? true,
+              (scope == "venue") == (venue != nil),
+              let instant = Self.parseInstant(checkedAt) else {
+            throw DecodingError.dataCorruptedError(forKey: .category, in: c, debugDescription: "Invalid provider support evidence")
+        }
+        checkedInstant = instant
+    }
+    static func validText(_ text: String, maximum: Int) -> Bool {
+        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && text.utf16.count <= maximum
+    }
+    static func validPublicURL(_ text: String) -> Bool {
+        guard validText(text, maximum: 2_048), let c = URLComponents(string: text), c.url != nil, c.scheme?.lowercased() == "https",
+              c.user == nil, c.password == nil, c.port == nil || c.port == 443,
+              let host = c.host?.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".")),
+              host.contains("."), !host.contains(":"), !host.allSatisfy({ "0123456789.".contains($0) }),
+              !["localhost", "local", "internal", "lan", "home", "invalid", "test"].contains(where: { host == $0 || host.hasSuffix("." + $0) }) else { return false }
+        return true
+    }
+    static func parseInstant(_ text: String) -> Date? {
+        guard text.range(of: #"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$"#, options: .regularExpression) != nil else { return nil }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = formatter.date(from: text), formatter.string(from: date) == text else { return nil }
+        return date
+    }
+}
+
+enum ReviewedAccessibilityVenue {
+    static func id(for opportunity: Opportunity) -> String? {
+        guard opportunity.id == "ontario-science-centre-pride-in-stem-2026",
+              opportunity.sourceUrl == "https://www.ontariosciencecentre.ca/whats-on/pop-ups-plus-events/pride-in-stem-2026",
+              opportunity.address == "Evergreen Brick Works, 550 Bayview Avenue, Toronto, ON M4W 3X8" else { return nil }
+        return "evergreen-brick-works-550-bayview"
+    }
+}
+
 struct Opportunity: Identifiable, Codable, Hashable, Sendable {
     let id: String
     let title: String
@@ -273,6 +450,8 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
     let translations: [String: OpportunityTranslation]
     let virtual: Bool
     let accessibility: [String]
+    let accessibilitySupport: AccessibilitySupport?
+    let accessibilitySupportUnavailable: Bool
 
     var isExplicitlyFree: Bool {
         OpportunityCostEligibility.isExplicitlyFree(cost)
@@ -315,6 +494,8 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
         case localized
         case virtual
         case accessibility
+        case accessibilitySupport
+        case localSupportUnavailable = "_nativeAccessibilitySupportUnavailable"
     }
 
     private enum AgeKeys: String, CodingKey {
@@ -352,7 +533,9 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
         sourceConfidence: String?,
         translations: [String: OpportunityTranslation] = [:],
         virtual: Bool = false,
-        accessibility: [String] = []
+        accessibility: [String] = [],
+        accessibilitySupport: AccessibilitySupport? = nil,
+        accessibilitySupportUnavailable: Bool = false
     ) {
         self.id = id
         self.title = title
@@ -389,11 +572,30 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
         self.translations = Self.normalizedTranslations(translations)
         self.virtual = virtual
         self.accessibility = accessibility
+        self.accessibilitySupport = accessibilitySupport
+        self.accessibilitySupportUnavailable = accessibilitySupportUnavailable
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        let decodedID = try container.decode(String.self, forKey: .id)
+        // The reviewed factual policies bind an explicit all-ages, in-person
+        // record. Legacy feed defaults must not turn malformed or missing
+        // source fields into those affirmative facts for these exact IDs.
+        if ["ontario-science-centre-pride-in-stem-2026", "autism-ontario-newmarket-quiet-santa-2026-11-22"].contains(decodedID) {
+            guard (try? container.decode(Int.self, forKey: .ageMin)) == 0,
+                  !container.contains(.ages),
+                  (!container.contains(.ageMax) || (try? container.decodeNil(forKey: .ageMax)) == true),
+                  (try? container.decode(Bool.self, forKey: .virtual)) == false else {
+                throw DecodingError.dataCorruptedError(forKey: .ageMin, in: container,
+                    debugDescription: "Reviewed factual records require explicit matching age and venue fields.")
+            }
+        }
         let categories = (try? container.decode([String].self, forKey: .categories)) ?? []
+        let supportPresent = container.contains(.accessibilitySupport)
+        let parsedSupport = try? container.decode(AccessibilitySupport.self, forKey: .accessibilitySupport)
+        let localSupportUnavailable = container.contains(.localSupportUnavailable)
+            && ((try? container.decode(Bool.self, forKey: .localSupportUnavailable)) ?? true)
         let fallbackSummary = try? container.decode(String.self, forKey: .summary)
 
         var decodedAgeMin = (try? container.decode(Int.self, forKey: .ageMin)) ?? 0
@@ -445,7 +647,7 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
         }
 
         self.init(
-            id: try container.decode(String.self, forKey: .id),
+            id: decodedID,
             title: decodedTitle,
             organization: decodedOrganization,
             description: decodedDescription,
@@ -474,7 +676,9 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
             sourceConfidence: try? container.decodeIfPresent(String.self, forKey: .sourceConfidence),
             translations: decodedTranslations,
             virtual: try container.decodeIfPresent(Bool.self, forKey: .virtual) ?? false,
-            accessibility: try container.decodeIfPresent([String].self, forKey: .accessibility) ?? []
+            accessibility: try container.decodeIfPresent([String].self, forKey: .accessibility) ?? [],
+            accessibilitySupport: parsedSupport,
+            accessibilitySupportUnavailable: localSupportUnavailable || (supportPresent && parsedSupport == nil)
         )
     }
 
@@ -553,6 +757,9 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
         try container.encode(status, forKey: .status)
         try container.encode(virtual, forKey: .virtual)
         try container.encode(accessibility, forKey: .accessibility)
+        try container.encodeIfPresent(accessibilitySupport, forKey: .accessibilitySupport)
+        // Local cache/archive sentinel only; never provider proof or a publisher field.
+        if accessibilitySupportUnavailable { try container.encode(true, forKey: .localSupportUnavailable) }
         try container.encode(volunteerHoursEligible, forKey: .volunteerHoursEligible)
         try container.encode(coopEligible, forKey: .coopEligible)
         try container.encode(tags, forKey: .tags)
@@ -616,7 +823,9 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
             sourceConfidence: sourceConfidence,
             translations: translations,
             virtual: virtual,
-            accessibility: accessibility
+            accessibility: accessibility,
+            accessibilitySupport: accessibilitySupport,
+            accessibilitySupportUnavailable: accessibilitySupportUnavailable
         )
     }
 
@@ -900,6 +1109,48 @@ struct OpportunityListResponse: Codable, Sendable {
             )
         ]
 
+        // These two original factual summaries are pinned to reviewed event
+        // records. This policy does not assert a provider agreement or licence.
+        private struct ReviewedFactualRecord {
+            let id: String
+            let title: String
+            let sourceURL: String
+            let descriptionSHA256: String
+            let startDate: String
+            let endDate: String
+            let city: String
+            let region: String
+            let address: String
+        }
+        private static let reviewedFactualRecords: [String: ReviewedFactualRecord] = [
+            "Ontario Science Centre\u{001F}www.ontariosciencecentre.ca": .init(
+                id: "ontario-science-centre-pride-in-stem-2026", title: "Pride in STEM 2026",
+                sourceURL: "https://www.ontariosciencecentre.ca/whats-on/pop-ups-plus-events/pride-in-stem-2026",
+                descriptionSHA256: "86ae9b3d83e925c6a0553f3e8219b4cdf6c2fc74c24bdcdf920c10b904c50d99",
+                startDate: "2026-11-21T09:00:00-05:00", endDate: "2026-11-21T15:00:00-05:00",
+                city: "Toronto", region: "Toronto", address: "Evergreen Brick Works, 550 Bayview Avenue, Toronto, ON M4W 3X8"),
+            "Autism Ontario\u{001F}www.autismontario.com": .init(
+                id: "autism-ontario-newmarket-quiet-santa-2026-11-22", title: "Quiet Time with Santa — Newmarket",
+                sourceURL: "https://www.autismontario.com/civicrm/event/info?id=13084",
+                descriptionSHA256: "a067b94bbaed7caeb9d5b00bc8f2e4a02ffb27e7616085b24c2fc1d1da77f0c4",
+                startDate: "2026-11-22T08:30:00-05:00", endDate: "2026-11-22T10:30:00-05:00",
+                city: "Newmarket", region: "York", address: "Upper Canada Mall, 17600 Yonge Street, Newmarket, ON L3Y 4Z1")
+        ]
+
+        private static func matchesReviewedFactualRecord(_ opportunity: Opportunity, _ record: ReviewedFactualRecord) -> Bool {
+            func exact(_ value: String?, _ expected: String) -> Bool {
+                guard let value else { return false }
+                return value.utf8.elementsEqual(expected.utf8)
+            }
+            return exact(opportunity.id, record.id) && exact(opportunity.title, record.title)
+                && exact(opportunity.sourceUrl, record.sourceURL) && exact(opportunity.registrationUrl, record.sourceURL)
+                && FullDescriptionBinding.hash(opportunity.description) == record.descriptionSHA256
+                && exact(opportunity.startDate, record.startDate) && exact(opportunity.endDate, record.endDate)
+                && exact(opportunity.city, record.city) && exact(opportunity.region, record.region)
+                && exact(opportunity.address, record.address) && opportunity.ageMin == 0 && opportunity.ageMax == nil
+                && exact(opportunity.cost, "Free to join") && !opportunity.virtual
+        }
+
         private static func approvedTermsEvidence(
             for key: String,
             source: Source
@@ -954,11 +1205,19 @@ struct OpportunityListResponse: Codable, Sendable {
             }
 
             var declaredCounts = [String: Int]()
+            var factualSourceKeys = Set<String>()
             for source in sources {
                 let organization = source.organization.trimmingCharacters(in: .whitespacesAndNewlines)
                 let declaredHost = source.sourceHost.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 let key = "\(organization)\u{001F}\(declaredHost)"
-                if source.status == "owner-confirmed-permission" {
+                if source.status == "original-factual-summary" {
+                    guard case nil = source.ownerPermission else { return false }
+                    guard Self.reviewedFactualRecords[key] != nil, source.records == 1,
+                          source.basisUrl.isEmpty, source.conditions.isEmpty,
+                          source.termsVerifiedAt.isEmpty, source.termsVersion.isEmpty,
+                          source.termsDigestVersion.isEmpty, source.termsSectionDigest.isEmpty else { return false }
+                    factualSourceKeys.insert(key)
+                } else if source.status == "owner-confirmed-permission" {
                     // Owner confirmation is a distinct basis, not an assertion
                     // that a written agreement or new terms digest was received.
                     guard !organization.isEmpty, !declaredHost.isEmpty, source.records > 0,
@@ -1004,6 +1263,10 @@ struct OpportunityListResponse: Codable, Sendable {
                 }
                 let key = "\(opportunity.organization)\u{001F}\(sourceHost)"
                 guard declaredCounts[key] != nil else { return false }
+                if factualSourceKeys.contains(key) {
+                    guard let record = Self.reviewedFactualRecords[key],
+                          Self.matchesReviewedFactualRecord(opportunity, record) else { return false }
+                }
                 observedCounts[key, default: 0] += 1
             }
             return observedCounts == declaredCounts
@@ -1173,6 +1436,17 @@ final class SavedHuntRecord {
     var girlsFocused: Bool = false
     var indigenousFocused: Bool = false
     var leadership: Bool = false
+    // Optional additive attribute: old on-device stores migrate with nil.
+    var requiredSupportRawValue: String? = nil
+    var includeSupportOnRequestRawValue: Bool? = nil
+    var requiredSupportSelection: Set<String> {
+        guard let raw = requiredSupportRawValue else { return [] }
+        guard raw.utf8.count <= 2_000, let data = raw.data(using: .utf8),
+              let values = try? JSONDecoder().decode(Set<String>.self, from: data) else {
+            return ["unreadable-saved-support"] // Fail closed rather than broaden.
+        }
+        return values
+    }
     var updatedAt: Date
 
     init(cacheKey: String, query: String, mode: SearchMode, filters: OpportunityFilters, updatedAt: Date = .now) {
@@ -1197,7 +1471,13 @@ final class SavedHuntRecord {
         self.girlsFocused = filters.girlsFocused
         self.indigenousFocused = filters.indigenousFocused
         self.leadership = filters.leadership
+        self.requiredSupportRawValue = Self.encodeRequiredSupport(filters.requiredSupport)
+        self.includeSupportOnRequestRawValue = filters.includeSupportOnRequest
         self.updatedAt = updatedAt
+    }
+    static func encodeRequiredSupport(_ values: Set<String>) -> String? {
+        guard let data = try? JSONEncoder().encode(values.sorted()) else { return nil }
+        return String(data: data, encoding: .utf8)
     }
 }
 
@@ -1652,6 +1932,80 @@ struct OpportunityFilters: Equatable, Codable, Sendable {
     var girlsFocused = false
     var indigenousFocused = false
     var leadership = false
+    var requiredSupport: Set<String> = []
+    var includeSupportOnRequest = false
+
+    init(
+        region: String = "All",
+        city: String = "",
+        category: String = "All",
+        age: String = "",
+        language: String = "all",
+        latitude: Double? = nil,
+        longitude: Double? = nil,
+        distanceKm: Double = 25.0,
+        sort: SearchSort = .date,
+        includeNewFinds: Bool = true,
+        volunteerHours: Bool = false,
+        coop: Bool = false,
+        mentorship: Bool = false,
+        scholarships: Bool = false,
+        blackFocused: Bool = false,
+        girlsFocused: Bool = false,
+        indigenousFocused: Bool = false,
+        leadership: Bool = false,
+        requiredSupport: Set<String> = [],
+        includeSupportOnRequest: Bool = false
+    ) {
+        self.region = region
+        self.city = city
+        self.category = category
+        self.age = age
+        self.language = language
+        self.latitude = latitude
+        self.longitude = longitude
+        self.distanceKm = distanceKm
+        self.sort = sort
+        self.includeNewFinds = includeNewFinds
+        self.volunteerHours = volunteerHours
+        self.coop = coop
+        self.mentorship = mentorship
+        self.scholarships = scholarships
+        self.blackFocused = blackFocused
+        self.girlsFocused = girlsFocused
+        self.indigenousFocused = indigenousFocused
+        self.leadership = leadership
+        self.requiredSupport = requiredSupport
+        self.includeSupportOnRequest = includeSupportOnRequest
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case region, city, category, age, language, latitude, longitude, distanceKm, sort, includeNewFinds, volunteerHours, coop, mentorship, scholarships, blackFocused, girlsFocused, indigenousFocused, leadership, requiredSupport, includeSupportOnRequest
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        region = try c.decode(String.self, forKey: .region)
+        city = try c.decode(String.self, forKey: .city)
+        category = try c.decode(String.self, forKey: .category)
+        age = try c.decode(String.self, forKey: .age)
+        language = try c.decode(String.self, forKey: .language)
+        latitude = try c.decodeIfPresent(Double.self, forKey: .latitude)
+        longitude = try c.decodeIfPresent(Double.self, forKey: .longitude)
+        distanceKm = try c.decode(Double.self, forKey: .distanceKm)
+        sort = try c.decode(SearchSort.self, forKey: .sort)
+        includeNewFinds = try c.decode(Bool.self, forKey: .includeNewFinds)
+        volunteerHours = try c.decode(Bool.self, forKey: .volunteerHours)
+        coop = try c.decode(Bool.self, forKey: .coop)
+        mentorship = try c.decode(Bool.self, forKey: .mentorship)
+        scholarships = try c.decode(Bool.self, forKey: .scholarships)
+        blackFocused = try c.decode(Bool.self, forKey: .blackFocused)
+        girlsFocused = try c.decode(Bool.self, forKey: .girlsFocused)
+        indigenousFocused = try c.decode(Bool.self, forKey: .indigenousFocused)
+        leadership = try c.decode(Bool.self, forKey: .leadership)
+        requiredSupport = try c.decodeIfPresent(Set<String>.self, forKey: .requiredSupport) ?? []
+        includeSupportOnRequest = try c.decodeIfPresent(Bool.self, forKey: .includeSupportOnRequest) ?? false
+    }
 
     var hasLocation: Bool {
         OpportunityCoordinate.isValid(latitude: latitude, longitude: longitude)
@@ -1672,7 +2026,7 @@ struct OpportunityFilters: Equatable, Codable, Sendable {
             blackFocused ||
             girlsFocused ||
             indigenousFocused ||
-            leadership
+            leadership || !requiredSupport.isEmpty
     }
 }
 

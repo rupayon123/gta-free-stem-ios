@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 TARGET="$ROOT_DIR/GTAFreeSTEM/Resources/opportunities.json"
 # The website export is the local source of truth for the offline app snapshot.
 # A hosted URL can still be supplied explicitly after that exact export is published.
-CANONICAL_PUBLIC_FEED="${CANONICAL_PUBLIC_FEED:-$ROOT_DIR/../gta-free-stem-opportunities/public/opportunities.json}"
+CANONICAL_PUBLIC_FEED="${CANONICAL_PUBLIC_FEED:-$ROOT_DIR/../gta-free-stem-opportunities/public/opportunities-v2.json}"
 CHECK_ONLY=0
 if [[ "${1:-}" == "--check" ]]; then
   CHECK_ONLY=1

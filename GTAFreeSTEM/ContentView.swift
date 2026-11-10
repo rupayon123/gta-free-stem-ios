@@ -920,6 +920,12 @@ enum NamedSearchSummary {
         if criteria.filters.coop { parts.append(session.text("coop")) }
         if criteria.filters.mentorship { parts.append(session.text("mentorship")) }
         if criteria.filters.scholarships { parts.append(session.categoryName("Scholarships")) }
+        for support in AccessibilitySupportKind.allCases where criteria.filters.requiredSupport.contains(support.rawValue) {
+            parts.append(session.text(support.textKey))
+        }
+        if !criteria.filters.requiredSupport.isEmpty && criteria.filters.includeSupportOnRequest {
+            parts.append(session.text("supportIncludeRequests"))
+        }
         if criteria.filters.hasLocation { parts.append(session.text("distanceRadius").replacingOccurrences(of: "{km}", with: "\(Int(criteria.filters.distanceKm))")) }
         return parts.isEmpty ? session.text("allCategories") : parts.joined(separator: " · ")
     }

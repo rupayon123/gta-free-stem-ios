@@ -54,6 +54,12 @@ enum LocalOpportunitySnapshot {
             guard filters.region == "All" || opportunity.region == filters.region else { return false }
             guard filters.city.isEmpty || opportunity.city == filters.city else { return false }
             guard filters.category == "All" || opportunity.category == filters.category else { return false }
+            if !filters.requiredSupport.isEmpty {
+                guard !opportunity.accessibilitySupportUnavailable,
+                      opportunity.accessibilitySupport?.matches(filters.requiredSupport,
+                        includeOnRequest: filters.includeSupportOnRequest, now: now,
+                        venueID: ReviewedAccessibilityVenue.id(for: opportunity)) == true else { return false }
+            }
             if !filters.includeNewFinds {
                 guard opportunity.isNewFind != true else { return false }
             }

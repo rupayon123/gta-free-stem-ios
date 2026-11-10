@@ -122,11 +122,11 @@ enum APIError: Error, LocalizedError {
 }
 
 final class APIClient: @unchecked Sendable {
-    static let primaryPublicFeedURL = URL(string: "https://raw.githubusercontent.com/rupayon123/gta-free-stem-opportunities/main/public/opportunities.json")!
+    static let primaryPublicFeedURL = URL(string: "https://raw.githubusercontent.com/rupayon123/gta-free-stem-opportunities/main/public/opportunities-v2.json")!
     // A CDN mirror keeps a current, independent retrieval path when the raw
     // GitHub endpoint is temporarily unavailable. Every source is still held
     // to the same HTTPS, payload-size, schema, and freshness checks below.
-    static let fallbackPublicFeedURL = URL(string: "https://cdn.jsdelivr.net/gh/rupayon123/gta-free-stem-opportunities@main/public/opportunities.json")!
+    static let fallbackPublicFeedURL = URL(string: "https://cdn.jsdelivr.net/gh/rupayon123/gta-free-stem-opportunities@main/public/opportunities-v2.json")!
 
     let feedURL: URL
     private let fallbackFeedURLs: [URL]
@@ -297,7 +297,9 @@ final class APIClient: @unchecked Sendable {
             sourceConfidence: opportunity.sourceConfidence,
             translations: mergedTranslations,
             virtual: opportunity.virtual,
-            accessibility: opportunity.accessibility
+            accessibility: opportunity.accessibility,
+            accessibilitySupport: opportunity.accessibilitySupport,
+            accessibilitySupportUnavailable: opportunity.accessibilitySupportUnavailable
         )
     }
 

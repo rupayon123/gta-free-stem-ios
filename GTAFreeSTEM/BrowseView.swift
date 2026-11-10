@@ -896,6 +896,20 @@ struct OpportunityFilterSheet: View {
                     Toggle(session.text("indigenous"), isOn: $filters.indigenousFocused)
                     Toggle(session.text("leadership"), isOn: $filters.leadership)
                 }
+                Section {
+                    ForEach(AccessibilitySupportKind.allCases) { support in
+                        Toggle(session.text(support.textKey), isOn: Binding(
+                            get: { filters.requiredSupport.contains(support.rawValue) },
+                            set: { enabled in
+                                if enabled { filters.requiredSupport.insert(support.rawValue) }
+                                else { filters.requiredSupport.remove(support.rawValue) }
+                            }))
+                            .accessibilityIdentifier("support-filter-" + support.rawValue)
+                    }
+                    Toggle(session.text("supportIncludeRequests"), isOn: $filters.includeSupportOnRequest)
+                        .accessibilityIdentifier("support-filter-include-requests")
+                } header: { Text(session.text("accessibilitySupportTitle")) }
+                  footer: { Text(session.text("accessibilitySupportExplanation")) }
 
                 Section(session.text("region")) {
                     Picker(session.text("region"), selection: $filters.region) {
