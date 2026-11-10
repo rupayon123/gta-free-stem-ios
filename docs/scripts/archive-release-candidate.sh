@@ -32,11 +32,11 @@ fi
 case "$PLATFORM" in
   ios)
     DESTINATION='generic/platform=iOS'
-    ARCHIVE_PATH="${ARCHIVE_PATH:-$ROOT_DIR/build/GTAFreeSTEM-build12.xcarchive}"
+    ARCHIVE_PATH="${ARCHIVE_PATH:-$ROOT_DIR/build/GTAFreeSTEM-source-${SOURCE_COMMIT:0:12}.xcarchive}"
     ;;
   mac)
     DESTINATION='generic/platform=macOS,variant=Mac Catalyst'
-    ARCHIVE_PATH="${ARCHIVE_PATH:-$ROOT_DIR/build/GTAFreeSTEM-Mac-build12.xcarchive}"
+    ARCHIVE_PATH="${ARCHIVE_PATH:-$ROOT_DIR/build/GTAFreeSTEM-Mac-source-${SOURCE_COMMIT:0:12}.xcarchive}"
     ;;
   *)
     echo "Usage: $0 ios|mac"

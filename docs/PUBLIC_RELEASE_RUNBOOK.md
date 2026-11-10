@@ -1,5 +1,7 @@
 # Public Release Runbook
 
+> **Current iOS tester candidate (November 10, 2026):** The source project is version 1.0, build 20. Xcode Cloud may assign a different number to its exported upload; record the actual processed number and verify the exact iOS and embedded Watch artifacts before assigning testers. Build 19 remains historical. The build 12 and separate Mac instructions below are the historical public-release packet, not evidence that this new candidate was archived, uploaded, or tested.
+
 Last updated: August 6, 2026
 
 This is the short, safe path for GTA FREE STEM 1.0 (12). It separates three different actions:

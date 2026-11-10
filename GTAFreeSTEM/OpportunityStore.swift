@@ -921,6 +921,16 @@ final class OpportunityStore: ObservableObject {
         }
     }
 
+    /// Capture sessions use app-owned samples and must never fetch a live feed.
+    /// Normal browsing continues to refresh after filters are applied.
+    func applyFilterSelection(cache context: ModelContext?, screenshotCapture: Bool = AppLaunchConfiguration.isScreenshotCapture) async {
+        if screenshotCapture {
+            await previewCurrentFilters()
+        } else {
+            await refresh(cache: context)
+        }
+    }
+
     /// Refilters the retained catalogue without fetching or persisting a feed.
     func previewCurrentFilters() async {
         localPreviewGeneration &+= 1

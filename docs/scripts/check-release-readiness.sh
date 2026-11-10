@@ -18,8 +18,8 @@ done
 
 echo "=== Version and project configuration ==="
 rg -Fq 'MARKETING_VERSION: "1.0"' project.yml
-rg -Fq 'CURRENT_PROJECT_VERSION: "19"' project.yml
-rg -Fq 'CURRENT_PROJECT_VERSION = 19;' GTAFreeSTEM.xcodeproj/project.pbxproj
+rg -Fq 'CURRENT_PROJECT_VERSION: "20"' project.yml
+rg -Fq 'CURRENT_PROJECT_VERSION = 20;' GTAFreeSTEM.xcodeproj/project.pbxproj
 rg -Fq 'GTA_RELEASE_SOURCE_COMMIT: UNSET' project.yml
 # Debug/local defaults remain unbound; Cloud Release uses the validated CI commit.
 rg -Fq 'GTA_RELEASE_SOURCE_COMMIT: "$(CI_COMMIT)"' project.yml
@@ -33,7 +33,7 @@ for info_plist in GTAFreeSTEM/Info.plist GTAFreeSTEM/MacCatalyst-Info.plist GTAF
   }
 done
 rg -Fq '"GTA_RELEASE_SOURCE_COMMIT=$SOURCE_COMMIT"' docs/scripts/install-connected-device.sh
-echo "Source version/build: 1.0 (19); EXTERNAL_BUILD19_STATUS.md is historical, and Cloud upload build must be verified separately."
+echo "Source version/build: 1.0 (20); EXTERNAL_BUILD19_STATUS.md is historical, and Cloud upload build must be verified separately."
 
 echo
 echo "=== Localized UI coverage ==="

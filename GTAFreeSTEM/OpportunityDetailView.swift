@@ -50,6 +50,17 @@ enum AppleMapsDestinationURL {
     }
 }
 
+enum SupportEvidenceDateDisplay {
+    static func string(for instant: Date, locale: Locale, timeZone: TimeZone = .current) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.timeZone = timeZone
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: instant)
+    }
+}
+
 struct OpportunityDetailView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
@@ -159,7 +170,11 @@ struct OpportunityDetailView: View {
                             ForEach(Array((row.conditions ?? []).enumerated()), id: \.offset) { _, condition in
                                 Text(condition).font(PortfolioTypography.footnote).fixedSize(horizontal: false, vertical: true)
                             }
-                            Text(session.text("lastChecked") + ": " + row.checkedAt).font(PortfolioTypography.caption)
+                            Text(session.text("lastChecked") + ": " + SupportEvidenceDateDisplay.string(
+                                for: row.checkedInstant, locale: Locale(identifier: session.language.localeIdentifier)
+                            ))
+                            .font(PortfolioTypography.caption)
+                            .accessibilityIdentifier("support-last-checked")
                             if let url = ExternalOpportunityURL.make(from: row.sourceUrl) {
                                 Link(session.text("source"), destination: url)
                             }

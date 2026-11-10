@@ -195,8 +195,8 @@ struct SettingsView: View {
 
     private var preferencesCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            StorySectionTitle(text: session.text("siteLanguage"), systemImage: "globe")
-            Picker(session.text("siteLanguage"), selection: languageBinding) {
+            StorySectionTitle(text: session.text("languages"), systemImage: "globe")
+            Picker(session.text("languages"), selection: languageBinding) {
                 ForEach(AppLanguage.allCases) { language in
                     Text(session.languageName(language)).tag(language.rawValue)
                 }

@@ -9,7 +9,7 @@ final class HighSchoolJourneys: XCTestCase {
     private func element(_ id: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: id).firstMatch
     }
-    private func reveal(_ item: XCUIElement, in application: XCUIApplication? = nil) {
+    private func reveal(_ item: XCUIElement, in application: XCUIApplication? = nil, swipeX: CGFloat = 0.5, preferDownWhenMissing: Bool = false) {
         let surface = application ?? app
         for step in 0..<16 {
             let bounds = surface.frame
@@ -32,11 +32,11 @@ final class HighSchoolJourneys: XCTestCase {
             // then tapped y934 below the actual footer (y839..914), in the Home gesture area.
             // Require its centre in the observed content viewport before accepting a hit.
             if item.exists && item.isHittable && (isFooter || isNavigationControl || (frame.midY >= top && frame.midY < bottom)) { return }
-            let swipeUp = frame.height > 0 ? frame.midY >= (top + bottom) / 2 : step < 8
+            let swipeUp = frame.height > 0 ? frame.midY >= (top + bottom) / 2 : (!preferDownWhenMissing && step < 8)
             let height = max(80, bottom - top)
             let origin = surface.coordinate(withNormalizedOffset: .zero)
-            let high = origin.withOffset(CGVector(dx: bounds.width / 2, dy: top - bounds.minY + height * 0.2))
-            let low = origin.withOffset(CGVector(dx: bounds.width / 2, dy: top - bounds.minY + height * 0.8))
+            let high = origin.withOffset(CGVector(dx: bounds.width * swipeX, dy: top - bounds.minY + height * 0.2))
+            let low = origin.withOffset(CGVector(dx: bounds.width * swipeX, dy: top - bounds.minY + height * 0.8))
             if swipeUp { low.press(forDuration: 0.05, thenDragTo: high) }
             else { high.press(forDuration: 0.05, thenDragTo: low) }
         }
@@ -387,7 +387,9 @@ final class HighSchoolJourneys: XCTestCase {
         XCTAssertTrue(footer.waitForExistence(timeout: 15))
 
         func check(_ item: XCUIElement, _ name: String) {
-            reveal(item)
+            // Detail contains an interactive map. Start vertical scrolling in
+            // the page gutter so the map does not consume the drag as a pan.
+            reveal(item, swipeX: name == "detail" ? 0.02 : 0.5)
             XCTAssertTrue(item.exists, name)
             XCTAssertTrue(item.isHittable, name)
             XCTAssertLessThanOrEqual(item.frame.maxY, footer.frame.minY + 1, "\(name) is covered by navigation")
@@ -430,21 +432,34 @@ final class HighSchoolJourneys: XCTestCase {
         tap("tab-support")
         check(element("support-terms-link"), "support")
         tap("tab-account")
+        let languages = app.staticTexts["Languages"].firstMatch
+        reveal(languages)
+        XCTAssertTrue(languages.exists && languages.isHittable)
+        XCTAssertFalse(app.staticTexts["Site language"].exists)
         check(element("account-support-link"), "account")
         XCTAssertEqual(app.state, .runningForeground)
     }
 
     func test13SupportFilterUpdatesResultsSavesAndRestoresWithoutLeavingBrowse() {
         app.launchArguments = ["-frontend-layout-review", "-review-screen", "home",
-                               "-review-language", "en", "-review-support"]
+                               "-review-language", "en", "-review-support", "-screenshot-mode"]
         app.launch()
         tap("tab-browse")
         tap("browse-filters")
         let sensory = app.switches["support-filter-sensory-friendly"]
-        reveal(sensory); sensory.tap()
+        reveal(sensory)
+        print("SUPPORT_SWITCH_BEFORE_TAP \(sensory.debugDescription)")
+        sensory.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        print("SUPPORT_SWITCH_AFTER_TAP value=\(String(describing: sensory.value))")
+        capture("support-switch-after-tap")
+        XCTAssertEqual(sensory.value as? String, "1", "The sensory-friendly switch must turn on")
         let count = element("filter-result-count")
-        reveal(count)
-        XCTAssertTrue(app.staticTexts["1 result"].waitForExistence(timeout: 10))
+        reveal(count, swipeX: 0.02, preferDownWhenMissing: true)
+        XCTAssertEqual(sensory.value as? String, "1", "The switch must stay on while scrolling")
+        let showsOne = app.staticTexts["1 result"].waitForExistence(timeout: 10)
+        print("SUPPORT_FILTER_DIAGNOSTIC switch=\(String(describing: sensory.value)) label=\(count.label) value=\(String(describing: count.value)) count=\(count.debugDescription)")
+        capture("support-filter-actual")
+        XCTAssertTrue(showsOne, "The sensory-friendly sample must produce exactly one result")
         capture("support-filter-light")
         tap("save-named-search")
         let name = app.textFields["saved-search-name"]
@@ -459,7 +474,7 @@ final class HighSchoolJourneys: XCTestCase {
         app.buttons["Sample sensory filter"].tap()
         reveal(sensory)
         XCTAssertEqual(sensory.value as? String, "1")
-        reveal(count)
+        reveal(count, swipeX: 0.02, preferDownWhenMissing: true)
         XCTAssertTrue(app.staticTexts["1 result"].waitForExistence(timeout: 10))
         tap("done-filters")
         let listing = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Details: Sample: Build a Solar Robot")).firstMatch
@@ -467,13 +482,35 @@ final class HighSchoolJourneys: XCTestCase {
         let provider = element("provider-support-details")
         reveal(provider)
         XCTAssertTrue(app.staticTexts["Sample: a quieter activity with a quiet break space."].exists)
+        let checked = element("support-last-checked")
+        let visibleDate = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Last checked:")).firstMatch
+        print("SUPPORT_DATE_DIAGNOSTIC idExists=\(checked.exists) textExists=\(visibleDate.exists) hierarchy=\(app.debugDescription)")
+        capture("support-detail-before-date")
+        reveal(visibleDate)
+        let footer = app.buttons["tab-home"]
+        XCTAssertTrue(footer.exists)
+        if visibleDate.frame.maxY > footer.frame.minY - 24 {
+            // The footer background starts above its buttons; move the entire
+            // date and source link into view, not just the text's centre.
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.70))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.40))
+            start.press(forDuration: 0.05, thenDragTo: end)
+        }
+        XCTAssertTrue(visibleDate.exists && visibleDate.isHittable, "The provider's last checked date must be visible and accessible")
+        XCTAssertLessThanOrEqual(visibleDate.frame.maxY, footer.frame.minY - 24, "The complete date must sit above the navigation background")
+        XCTAssertTrue(visibleDate.label.contains(String(Calendar.current.component(.year, from: .now))), "The sample check should show its current year")
+        XCTAssertNil(visibleDate.label.range(of: #"\d{4}-\d{2}-\d{2}T"#, options: .regularExpression), "Provider checks should use a readable date")
+        XCTAssertTrue(app.buttons["Source"].firstMatch.isHittable, "The provider source link must remain accessible")
         capture("support-detail-light")
         app.terminate()
     }
 
     func test12AlertPreferencesOpenWithoutPermissionPromptInLightAndDarkRTL() {
+        var normalAlertHeight: CGFloat = 0
+        var normalFilterHeight: CGFloat = 0
         for (language, extra, name) in [
             ("en", [String](), "alerts-light"),
+            ("en", ["-review-large-text"], "alerts-light-large"),
             ("ar", ["-review-dark", "-review-large-text"], "alerts-dark-large-rtl")
         ] {
             app.launchArguments = ["-frontend-layout-review", "-review-screen", "home-saved",
@@ -488,6 +525,12 @@ final class HighSchoolJourneys: XCTestCase {
             XCTAssertTrue(daily.waitForExistence(timeout: 10))
             XCTAssertTrue(daily.isHittable)
             XCTAssertEqual(daily.value as? String, "0", "Reminders must be opt-in")
+            let dailyHeight = daily.frame.height
+            if extra.isEmpty { normalAlertHeight = dailyHeight }
+            if extra.contains("-review-large-text"), language == "en" {
+                XCTAssertGreaterThan(dailyHeight, normalAlertHeight * 1.15, "The alert switch row must grow at accessibility text sizes")
+            }
+            print("ALERT_DYNAMIC_TYPE language=\(language) large=\(extra.contains("-review-large-text")) rowHeight=\(dailyHeight)")
             let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
             XCTAssertFalse(springboard.alerts.firstMatch.exists, "Opening settings must not request notification permission")
             capture(name)
@@ -495,6 +538,18 @@ final class HighSchoolJourneys: XCTestCase {
             reveal(savedToggle)
             XCTAssertTrue(savedToggle.exists && savedToggle.isHittable)
             XCTAssertEqual(savedToggle.value as? String, "0", "Existing saved filters must stay opted out")
+            tap("alerts-done")
+            tap("browse-filters")
+            let support = app.switches["support-filter-sensory-friendly"]
+            reveal(support)
+            XCTAssertTrue(support.exists && support.isHittable)
+            let filterHeight = support.frame.height
+            if extra.isEmpty { normalFilterHeight = filterHeight }
+            if extra.contains("-review-large-text"), language == "en" {
+                XCTAssertGreaterThan(filterHeight, normalFilterHeight * 1.15, "The filter switch row must grow at accessibility text sizes")
+            }
+            print("FILTER_DYNAMIC_TYPE language=\(language) large=\(extra.contains("-review-large-text")) rowHeight=\(filterHeight)")
+            capture(name.replacingOccurrences(of: "alerts", with: "filters"))
             app.terminate()
         }
     }
