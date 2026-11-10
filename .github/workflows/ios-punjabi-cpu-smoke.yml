@@ -36,8 +36,8 @@ jobs:
           set -euo pipefail
           cd "$RUNNER_TEMP/reviewed-repo"
           sha256sum -c <<'CHECKSUMS'
-          ac61a68bc5d271926578f243a3ae83238e9e25e5a752efee668e8d3c2daf0940  tools/translation-smoke/madlad_worker_linux.cpp
-          30da1c38137eb04ace34fcef4634bb08a73cd13f9e8e86e6e4204ccf4d3cdb1b  tools/translation-smoke/madlad_linux_smoke.py
+          6651056efb0bb57e66cc61f3508f10050005af89f3e41f01c8ab2af14c289e10  tools/translation-smoke/madlad_worker_linux.cpp
+          1305076c0aae231c27fcfe369994b8445cd5c5ae6d088eae66952da74c400da3  tools/translation-smoke/madlad_linux_smoke.py
           CHECKSUMS
       - name: Fetch and verify official pinned runtime and headers
         shell: bash
@@ -86,7 +86,14 @@ jobs:
           library="$(find "$RUNNER_TEMP/llama-runtime" -type f -name 'libllama.so*' -print -quit)"
           test -n "$library"
           library_dir="$(dirname "$library")"
+          cpu_backend="$RUNNER_TEMP/approved-cpu-plugins"
+          mkdir "$cpu_backend"
+          shopt -s nullglob
+          cpu_plugins=("$library_dir"/libggml-cpu-*.so)
+          test "${#cpu_plugins[@]}" -gt 0
+          test -f "$library_dir/libggml-cpu-x64.so"
+          cp -- "${cpu_plugins[@]}" "$cpu_backend/"
           g++ -std=c++17 -O2 -Wall -Wextra -DGTA_MODEL_GPU_LAYERS=0 -DGTA_MODEL_RSS_LIMIT=5900000000ULL \
-            -I"$RUNNER_TEMP/llama-headers" tools/translation-smoke/madlad_worker_linux.cpp "$library" \
+            -I"$RUNNER_TEMP/llama-headers" tools/translation-smoke/madlad_worker_linux.cpp "$library" -L"$library_dir" -lggml -lggml-base \
             -Wl,-rpath,"$library_dir" -o "$RUNNER_TEMP/punjabi-cpu-smoke"
-          LD_LIBRARY_PATH="$library_dir" python3 -B tools/translation-smoke/madlad_linux_smoke.py "$RUNNER_TEMP/punjabi-cpu-smoke" "$RUNNER_TEMP/model.gguf"
+          LD_LIBRARY_PATH="$library_dir" python3 -B tools/translation-smoke/madlad_linux_smoke.py "$RUNNER_TEMP/punjabi-cpu-smoke" "$RUNNER_TEMP/model.gguf" "$cpu_backend"

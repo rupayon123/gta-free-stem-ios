@@ -63,8 +63,20 @@ static llama_token prefix_id(const llama_vocab *v, const std::string &prefix) {
 static void emit_error(const std::string &e) { std::cout << "{\"ok\":false,\"error\":" << json_string(e) << "}" << std::endl; }
 
 int main(int argc, char **argv) {
-    if (argc != 2) { std::fprintf(stderr, "Usage: madlad_worker MODEL.gguf\n"); return 2; }
+    if (argc != 3) { std::fprintf(stderr, "Usage: madlad_worker MODEL.gguf TRUSTED_CPU_PLUGIN_DIR\n"); return 2; }
     auto init_start = std::chrono::steady_clock::now();
+    const std::string backend_dir = argv[2];
+    if (backend_dir.empty() || backend_dir.front() != '/') {
+        std::fprintf(stderr, "Expected absolute path to the verified CPU plugin directory\n"); return 3;
+    }
+    // This directory is staged from the SHA-verified official archive and
+    // contains only CPU variants. The upstream loader chooses compatible CPU
+    // features; no cwd search or hand-rolled CPU feature detection is used.
+    unsetenv("GGML_BACKEND_PATH");
+    ggml_backend_load_all_from_path(backend_dir.c_str());
+    if (!ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU)) {
+        std::fprintf(stderr, "Verified CPU backend could not be initialized\n"); return 3;
+    }
     llama_backend_init();
     auto mp = llama_model_default_params(); mp.n_gpu_layers = GTA_MODEL_GPU_LAYERS;
     llama_model *model = llama_model_load_from_file(argv[1], mp);
