@@ -1,4 +1,4 @@
-name: Focused iOS beta UI retest
+name: Focused support filter diagnostic
 on:
   push:
     branches: [codex/ios-beta-nav-20261109]
@@ -21,7 +21,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git rev-parse HEAD^)" = 1505b3523bbbbc35b43e374ad440473bc6c66128
+          test "$(git rev-parse HEAD^)" = 219dd4af7685a94156c853869d61c42501807a0c
           test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = .github/workflows/ios-release-readiness.yml
           test -z "$(git status --porcelain)"
           shasum -a 256 -c .github/native-ci-source.sha256
@@ -44,28 +44,6 @@ jobs:
               output.write('value=platform=iOS Simulator,id=' + device + '\n')
           print('Selected iPhone 17 Pro', runtime, device)
           PY
-      - name: Verify localized support evidence date
-        timeout-minutes: 15
-        shell: bash
-        env:
-          TEST_DESTINATION: ${{ steps.destination.outputs.value }}
-        run: |
-          set -euo pipefail
-          xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM \
-            -configuration Debug -destination "$TEST_DESTINATION" -destination-timeout 90 \
-            -jobs 1 -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 \
-            -only-testing:GTAFreeSTEMTests/APIClientTests/testSupportEvidenceCheckedDateUsesLocaleWithoutChangingStoredInstant \
-            -derivedDataPath "$RUNNER_TEMP/nav-derived" -resultBundlePath "$RUNNER_TEMP/date.xcresult" \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/date.log"
-          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/date.xcresult" > "$RUNNER_TEMP/date-summary.json"
-          python3 - <<'CHECK'
-          import json, os
-          from pathlib import Path
-          s=json.loads((Path(os.environ['RUNNER_TEMP'])/'date-summary.json').read_text())
-          print('SUPPORT_DATE_SUMMARY '+json.dumps(s))
-          if s.get('result')!='Passed' or s.get('totalTestCount')!=1 or s.get('passedTests')!=1 or s.get('failedTests')!=0 or s.get('skippedTests')!=0:
-              raise SystemExit('Support date regression did not pass')
-          CHECK
       - name: Run bottom-content diagnostic
         id: ui
         timeout-minutes: 22
@@ -77,85 +55,40 @@ jobs:
           xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAHighSchoolUIQA \
             -configuration Debug -destination "$TEST_DESTINATION" -destination-timeout 90 \
             -jobs 1 -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 \
-            -only-testing:GTAFreeSTEMUITests/HighSchoolJourneys/test10BottomContentRemainsAboveNavigation \
-            -only-testing:GTAFreeSTEMUITests/HighSchoolJourneys/test11SampleAccessibilityNotesInLightAndDarkRTL \
-            -only-testing:GTAFreeSTEMUITests/HighSchoolJourneys/test12AlertPreferencesOpenWithoutPermissionPromptInLightAndDarkRTL \
             -only-testing:GTAFreeSTEMUITests/HighSchoolJourneys/test13SupportFilterUpdatesResultsSavesAndRestoresWithoutLeavingBrowse \
             -derivedDataPath "$RUNNER_TEMP/nav-derived" -resultBundlePath "$RUNNER_TEMP/nav.xcresult" \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/nav.log"
-      - name: Export bounded simulator evidence
+      - name: Export support diagnostic screenshot
         if: always() && steps.ui.outcome != 'skipped'
         timeout-minutes: 4
         shell: bash
-        env:
-          EVIDENCE_GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           test -d "$RUNNER_TEMP/nav.xcresult"
-          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/nav.xcresult" | tee "$RUNNER_TEMP/nav-summary.json"
+          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/nav.xcresult" > "$RUNNER_TEMP/nav-summary.json"
           mkdir -p "$RUNNER_TEMP/nav-attachments"
           xcrun xcresulttool export attachments --path "$RUNNER_TEMP/nav.xcresult" --output-path "$RUNNER_TEMP/nav-attachments"
-          python3 - <<'PY'
-          import base64, hashlib, json, os, re, shutil, subprocess
+          python3 - <<'CHECK'
+          import base64, hashlib, json, os
           from pathlib import Path
-          temp = Path(os.environ['RUNNER_TEMP'])
-          root = temp / 'nav-attachments'
-          manifest = root / 'manifest.json'
-          if not manifest.exists(): raise SystemExit('No attachment manifest')
-          records = json.loads(manifest.read_text())
-          chosen = []
+          temp=Path(os.environ['RUNNER_TEMP']); root=temp/'nav-attachments'
+          summary=json.loads((temp/'nav-summary.json').read_text())
+          print('SUPPORT_DIAGNOSTIC_SUMMARY '+json.dumps(summary))
+          records=json.loads((root/'manifest.json').read_text())
+          candidates=[]
           for test in records:
               for attachment in test.get('attachments', []):
-                  name = attachment.get('suggestedHumanReadableName', '')
-                  filename = attachment.get('exportedFileName', '')
-                  if (name.startswith(('bottom-', 'notes-', 'alerts-', 'support-', 'unreachable-control')) or attachment.get('isAssociatedWithFailure')) and filename.lower().endswith('.png'):
-                      if Path(filename).name != filename: raise SystemExit('Unsafe attachment filename')
-                      chosen.append((name, root / filename))
-          expected = ['bottom-home', 'bottom-browse', 'bottom-detail', 'bottom-school', 'bottom-notebook', 'bottom-support', 'bottom-account', 'notes-light-content', 'notes-light-heading', 'notes-dark-large-rtl-content', 'notes-dark-large-rtl-heading', 'alerts-light', 'alerts-dark-large-rtl', 'support-filter-light', 'support-detail-light']
-          summary = json.loads((temp / 'nav-summary.json').read_text())
-          passed = summary.get('result') == 'Passed' and summary.get('totalTestCount') == 4 and summary.get('passedTests') == 4 and summary.get('failedTests') == 0 and summary.get('skippedTests') == 0
-          if not passed:
-              # Preserve one bounded failure image in the log; never publish a
-              # passing-evidence branch for a failed or incomplete test run.
-              failure = next(((name, path) for name, path in chosen if 'unreachable' in name.lower()), None)
-              if failure is not None:
-                  raw = failure[1].read_bytes()
-                  if len(raw) <= 4_000_000:
-                      print('NAV_FAILURE_META ' + json.dumps({'name': failure[0], 'sha256': hashlib.sha256(raw).hexdigest(), 'bytes': len(raw)}))
-                      encoded = base64.b64encode(raw).decode()
-                      for offset in range(0, len(encoded), 120): print('NAV_FAILURE_DATA ' + encoded[offset:offset+120])
-              raise SystemExit('The exact four-test UI diagnostic did not pass')
-          selected = []
-          for key in expected:
-              match = next(((name, path) for name, path in chosen if name.startswith(key)), None)
-              if match is None: raise SystemExit('Passing diagnostic is missing ' + key)
-              selected.append((key, match[1]))
-          evidence = temp / 'gta-evidence'
-          evidence.mkdir(mode=0o700)
-          entries = []
-          total = 0
-          for key, path in selected:
-              raw = path.read_bytes(); total += len(raw)
-              if len(raw) > 4_000_000 or total > 16_000_000: raise SystemExit('Original PNG evidence exceeds limit')
-              filename = key + '.png'
-              (evidence / filename).write_bytes(raw)
-              entries.append({'file': filename, 'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()})
-          run_id = os.environ['GITHUB_RUN_ID']; attempt = os.environ['GITHUB_RUN_ATTEMPT']
-          if not re.fullmatch(r'\d+', run_id) or not re.fullmatch(r'\d+', attempt): raise SystemExit('Invalid run ID')
-          ref = 'codex/ios-beta-evidence-' + run_id + '-' + attempt
-          (evidence / 'manifest.json').write_text(json.dumps({'workflowCommit': os.environ['GITHUB_SHA'], 'sourceCommit': '1505b3523bbbbc35b43e374ad440473bc6c66128', 'simulatorOnly': True, 'images': entries}, indent=2) + '\n')
-          askpass = temp / 'gta-evidence-askpass.sh'
-          askpass.write_text('#!/bin/sh\ncase "$1" in *Username*) printf "%s\\n" x-access-token ;; *) printf "%s\\n" "$EVIDENCE_GITHUB_TOKEN" ;; esac\n')
-          askpass.chmod(0o700)
-          env = os.environ.copy(); env['GIT_ASKPASS'] = str(askpass); env['GIT_TERMINAL_PROMPT'] = '0'
-          def git(*args): subprocess.run(['git', '-C', str(evidence), *args], check=True, env=env)
-          git('init', '-q'); git('config', 'user.name', 'github-actions[bot]'); git('config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com')
-          git('add', 'manifest.json', *[entry['file'] for entry in entries]); git('commit', '-qm', 'Record simulator review evidence')
-          remote = 'https://github.com/' + os.environ['GITHUB_REPOSITORY'] + '.git'
-          probe = subprocess.run(['git', 'ls-remote', '--exit-code', remote, 'refs/heads/' + ref], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-          if probe.returncode != 2: raise SystemExit('Evidence ref exists or its absence could not be verified')
-          git('push', '-q', remote, 'HEAD:refs/heads/' + ref)
-          askpass.unlink(missing_ok=True)
-          print('EVIDENCE_REF ' + ref)
-          print('EVIDENCE_MANIFEST ' + json.dumps(entries))
-          PY
+                  name=attachment.get('suggestedHumanReadableName',''); fn=attachment.get('exportedFileName','')
+                  if (name.startswith('support-filter-actual') or attachment.get('isAssociatedWithFailure')) and fn.lower().endswith('.png') and Path(fn).name == fn:
+                      candidates.append((name,root/fn))
+          match=next(((n,p) for n,p in candidates if n.startswith('support-filter-actual')),None)
+          if match is None: match=next(iter(candidates),None)
+          if match is None: raise SystemExit('No support diagnostic screenshot')
+          name,path=match;raw=path.read_bytes()
+          if len(raw)>4_000_000: raise SystemExit('Diagnostic screenshot too large')
+          print('SUPPORT_DIAGNOSTIC_META '+json.dumps({'name':name,'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()}))
+          encoded=base64.b64encode(raw).decode()
+          for offset in range(0,len(encoded),120):print('SUPPORT_DIAGNOSTIC_DATA '+encoded[offset:offset+120])
+          if summary.get('result')!='Passed' or summary.get('totalTestCount')!=1 or summary.get('passedTests')!=1 or summary.get('failedTests')!=0 or summary.get('skippedTests')!=0:
+              raise SystemExit('Support diagnostic failed; screenshot preserved above')
+          CHECK
