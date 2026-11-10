@@ -362,7 +362,9 @@ final class APIClientTests: XCTestCase {
         let restored = try await Task.detached { try JSONDecoder().decode(OpportunityListResponse.self, from: payload) }.value
         print("GTA_PERF cache_heartbeat_max_gap_ms=\(maximumGap * 1_000) heartbeat_count=\(beats) encoded_bytes=\(payload.count)")
         XCTAssertEqual(restored.data.map(\.id), feed.data.map(\.id))
-        XCTAssertGreaterThan(beats, 0, "The UI actor should continue while the catalogue is encoded")
+        XCTAssertEqual(payload, feed.sourceFeedBytes, "The cached payload must preserve exact accepted feed bytes")
+        // An already retained immutable payload can return before the first
+        // heartbeat; when work lasts longer, the gap still bounds UI stalls.
         XCTAssertLessThan(maximumGap, 0.75, "Cache encoding must not stall the UI actor")
         let cancelled = Task { await OpportunityStore.encodeCachePayload(feed, limit: 10_000_000) }
         cancelled.cancel()
@@ -1204,6 +1206,7 @@ final class APIClientTests: XCTestCase {
         let response = try await client.opportunityFeed()
 
         XCTAssertEqual(response.data.map(\.id), ["fresh"])
+        XCTAssertEqual(response.sourceFeedBytes, freshPayload, "The accepted fallback must retain its exact original bytes")
         XCTAssertEqual(URLProtocolStub.requestCount, 2)
     }
 
@@ -2148,6 +2151,517 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(session.city(for: translated), "Toronto")
         XCTAssertEqual(session.region(for: translated), "Ontario")
         XCTAssertEqual(session.cost(for: translated), "Gratis")
+    }
+
+    @MainActor
+    func testSessionLocalizesKnownFreeCostWithoutChangingOtherCosts() {
+        let session = SessionStore(defaults: UserDefaults(suiteName: "CostDisplayTests.\(UUID().uuidString)")!, preferredLanguages: ["zh-Hans"])
+        session.preferredLanguageCode = AppLanguage.zh.rawValue
+        let free = opportunity(id: "free-cost", title: "Program", cost: "Free to join")
+        let other = opportunity(id: "other-cost", title: "Program", cost: "Free to join; $15 materials fee")
+        XCTAssertEqual(session.cost(for: free), session.text("freeCost"))
+        XCTAssertEqual(session.cost(for: other), "Free to join; $15 materials fee")
+    }
+
+    @MainActor
+    func testTranslationDemandDeduplicatesAndDropsResultsAfterDisappearance() throws {
+        let session = SessionStore(defaults: UserDefaults(suiteName: "TranslationDemand.\(UUID().uuidString)")!, preferredLanguages: ["en"])
+        session.preferredLanguageCode = AppLanguage.zh.rawValue
+        let input = ListingTranslationInput(listingID: "one", field: "title", source: "Robotics Club", sourceHint: "Join the public library for a hands on workshop exploring robotics and coding with your family.")
+        let first = UUID(), second = UUID()
+        session.setTranslationDemand(owner: first, inputs: [input])
+        session.setTranslationDemand(owner: second, inputs: [input])
+        let batch = try XCTUnwrap(session.nextTranslationBatch())
+        XCTAssertEqual(batch.inputs, [input])
+        session.removeTranslationDemand(owner: first)
+        session.removeTranslationDemand(owner: second)
+        session.finishTranslationBatch(batch, results: ["0": "机器人俱乐部"])
+        XCTAssertEqual(session.translatedText(for: input), input.source)
+        XCTAssertNotEqual(session.translationState(for: input), .translated)
+    }
+
+    @MainActor
+    func testTranslationBatchRemainsDemandedUntilLastOwnerLeaves() throws {
+        let session = SessionStore(defaults: UserDefaults(suiteName: "TranslationOwners.\(UUID().uuidString)")!, preferredLanguages: ["en"])
+        session.preferredLanguageCode = AppLanguage.fr.rawValue
+        let input = ListingTranslationInput(listingID: "one", field: "description", source: "Join the public library for a hands on workshop exploring robotics and coding with your family.")
+        let first = UUID(), second = UUID()
+        session.setTranslationDemand(owner: first, inputs: [input])
+        session.setTranslationDemand(owner: second, inputs: [input])
+        let batch = try XCTUnwrap(session.nextTranslationBatch())
+        session.removeTranslationDemand(owner: first)
+        XCTAssertTrue(session.isTranslationBatchDemanded(batch))
+        session.removeTranslationDemand(owner: second)
+        XCTAssertFalse(session.isTranslationBatchDemanded(batch))
+    }
+
+    @MainActor
+    func testCancelledBatchCannotOverwriteReplacementBatch() throws {
+        let session = SessionStore(defaults: UserDefaults(suiteName: "TranslationCancel.\(UUID().uuidString)")!, preferredLanguages: ["en"])
+        session.preferredLanguageCode = AppLanguage.fr.rawValue
+        let input = ListingTranslationInput(listingID: "one", field: "description", source: "Join the public library for a hands on workshop exploring robotics and coding with your family.")
+        let owner = UUID()
+        session.setTranslationDemand(owner: owner, inputs: [input])
+        let old = try XCTUnwrap(session.nextTranslationBatch())
+        session.removeTranslationDemand(owner: owner)
+        XCTAssertFalse(session.isTranslationBatchDemanded(old))
+        session.abandonTranslationBatch(old)
+        session.setTranslationDemand(owner: owner, inputs: [input])
+        let replacement = try XCTUnwrap(session.nextTranslationBatch())
+        session.finishTranslationBatch(old, results: ["0": "stale"])
+        XCTAssertTrue(session.isTranslationBatchDemanded(replacement))
+        session.finishTranslationBatch(replacement, results: ["0": "texte récent"])
+        XCTAssertEqual(session.translatedText(for: input), "texte récent")
+    }
+
+    @MainActor
+    func testSmallSignedBundleMatchesOnlyExactPublicSourceAndLocale() async throws {
+        let url = try XCTUnwrap(AppResources.url(forResource: "source-bound-small-translations", withExtension: "json"))
+        let data = try Data(contentsOf: url)
+        let digest = "d7a432e05c358bba848e05e00a2c1b9685641668e3fdc3f2fe7316580a97d0f8"
+        let bundle = try XCTUnwrap(SourceBoundSmallTranslations.decode(data, expectedSHA256: digest))
+        XCTAssertNil(SourceBoundSmallTranslations.decode(data + Data(" ".utf8), expectedSHA256: digest))
+        let catalogueURL = try XCTUnwrap(Bundle.main.url(forResource: "youth-reviewed", withExtension: "json"))
+        let listings = try YouthHub.decodeCatalogue(Data(contentsOf: catalogueURL))
+        var count = 0
+        for listing in listings {
+            for input in YouthTranslation.detailInputs(listing) {
+                for language in AppLanguage.allCases where language != .en {
+                    XCTAssertNotNil(bundle.resolve(input, language: language), "Missing \(language.rawValue) for \(input.field)")
+                }
+                count += 1
+            }
+        }
+        XCTAssertEqual(count, 50)
+        let first = try XCTUnwrap(listings.first)
+        let input = YouthTranslation.input(first, "audience", first.audience.original)
+        XCTAssertNil(bundle.resolve(.init(listingID: input.listingID, field: input.field, source: input.source + "!"), language: .fr))
+        XCTAssertNil(bundle.resolve(.init(listingID: "youth:other", field: input.field, source: input.source), language: .fr))
+        XCTAssertNil(bundle.resolve(.init(listingID: input.listingID, field: "notebook", source: input.source), language: .fr))
+        XCTAssertNil(bundle.resolve(input, language: .en))
+        let note = ListingTranslationInput(listingID: "public-activity", field: "note-0", source: "ASL/LSQ/Deaf interpretation")
+        XCTAssertNotNil(bundle.resolve(note, language: .fr))
+        XCTAssertNil(bundle.resolve(.init(listingID: "private", field: "notebook-0", source: note.source), language: .fr))
+        let session = SessionStore(defaults: UserDefaults(suiteName: "SmallSource.\(UUID().uuidString)")!, preferredLanguages: ["en"])
+        session.preferredLanguageCode = AppLanguage.pa.rawValue
+        await session.prepareSmallSourceTranslations()
+        session.setTranslationDemand(owner: UUID(), inputs: [input])
+        XCTAssertEqual(session.translationState(for: input), .translated)
+        XCTAssertEqual(session.translatedText(for: input), bundle.resolve(input, language: .pa))
+        XCTAssertNil(session.nextTranslationBatch(), "Bundled public fields must not be sent to Apple translation")
+        session.preferredLanguageCode = AppLanguage.fr.rawValue
+        XCTAssertEqual(session.translatedText(for: input), bundle.resolve(input, language: .fr))
+    }
+
+    @MainActor
+    func testSchoolLocalizedFormatsAndDigitEntry() throws {
+        let session = SessionStore(defaults: UserDefaults(suiteName: "SchoolFormat.\(UUID().uuidString)")!, preferredLanguages: ["en"])
+        for language in AppLanguage.allCases {
+            session.preferredLanguageCode = language.rawValue
+            for (key, fields) in [
+                ("hsGradeFormat", ["grade": "9"]),
+                ("hsSourceCheckedFormat", ["date": "Nov 10, 2026"]),
+                ("hsTotalFormat", ["hours": "2", "minutes": "30"]),
+                ("hsEntryMinutesFormat", ["date": "Nov 10, 2026", "minutes": "30"]),
+                ("hsOpensFormat", ["date": "Nov 10, 2026"])
+            ] {
+                let value = SchoolLocalized.format(session, key, fields)
+                XCTAssertFalse(value.contains("{"), "Unresolved placeholder in \(language.rawValue): \(key)")
+                for field in fields.values { XCTAssertTrue(value.contains(field)) }
+                if language.layoutDirection == .rightToLeft { XCTAssertTrue(value.contains("\u{2068}")) }
+            }
+        }
+        XCTAssertEqual(SchoolLocalized.enteredMinutes("٤٥"), 45)
+        XCTAssertEqual(SchoolLocalized.enteredMinutes("45"), 45)
+        XCTAssertNil(SchoolLocalized.enteredMinutes("4-5"))
+        XCTAssertNil(SchoolLocalized.enteredMinutes(""))
+    }
+
+    @MainActor
+    func testYouthTranslationUsesOnlySourceBoundPublicGuideFields() throws {
+        let file = try XCTUnwrap(Bundle.main.url(forResource: "youth-reviewed", withExtension: "json"))
+        let listings = try YouthHub.decodeCatalogue(Data(contentsOf: file))
+        XCTAssertEqual(listings.count, 9)
+        for listing in listings {
+            let inputs = YouthTranslation.detailInputs(listing)
+            XCTAssertLessThanOrEqual(inputs.count, 40)
+            XCTAssertTrue(inputs.allSatisfy { $0.listingID == "youth:" + listing.id && $0.sourceHint == listing.audience.original })
+            XCTAssertEqual(inputs.first(where: { $0.field == "title" })?.source, listing.title)
+            XCTAssertEqual(inputs.first(where: { $0.field == "audience" })?.source, listing.audience.original)
+            XCTAssertFalse(inputs.contains { $0.field == "provider" || $0.field.hasPrefix("notebook") })
+            if let commitment = listing.commitmentOriginal {
+                XCTAssertEqual(inputs.first(where: { $0.field == "commitment" })?.source, commitment)
+            }
+        }
+        let listing = try XCTUnwrap(listings.first)
+        let input = YouthTranslation.input(listing, "audience", listing.audience.original)
+        let session = SessionStore(defaults: UserDefaults(suiteName: "YouthTranslation.\(UUID().uuidString)")!, preferredLanguages: ["en"])
+        session.preferredLanguageCode = AppLanguage.fr.rawValue
+        session.setTranslationDemand(owner: UUID(), inputs: [input])
+        let batch = try XCTUnwrap(session.nextTranslationBatch())
+        session.preferredLanguageCode = AppLanguage.zh.rawValue
+        session.finishTranslationBatch(batch, results: ["0": "stale translation"])
+        XCTAssertEqual(session.translatedText(for: input), input.source, "A previous language must not replace current source")
+    }
+
+    @MainActor
+    func testTranslationRejectsLateResultAfterLanguageSwitch() throws {
+        let session = SessionStore(defaults: UserDefaults(suiteName: "TranslationRace.\(UUID().uuidString)")!, preferredLanguages: ["en"])
+        session.preferredLanguageCode = AppLanguage.zh.rawValue
+        let input = ListingTranslationInput(listingID: "one", field: "description", source: "Join the public library for a hands on workshop exploring robotics and coding with your family.")
+        session.setTranslationDemand(owner: UUID(), inputs: [input])
+        let batch = try XCTUnwrap(session.nextTranslationBatch())
+        session.preferredLanguageCode = AppLanguage.fr.rawValue
+        session.finishTranslationBatch(batch, results: ["0": "过期翻译"])
+        XCTAssertEqual(session.translatedText(for: input), input.source)
+        XCTAssertNotEqual(session.translationState(for: input), .translated)
+    }
+
+    @MainActor
+    func testTranslationCacheIdentityIncludesFieldAndSource() throws {
+        let session = SessionStore(defaults: UserDefaults(suiteName: "TranslationIdentity.\(UUID().uuidString)")!, preferredLanguages: ["en"])
+        session.preferredLanguageCode = AppLanguage.fr.rawValue
+        let hint = "Join the public library for a hands on workshop exploring robotics and coding with your family."
+        let title = ListingTranslationInput(listingID: "one", field: "title", source: "Robotics Club", sourceHint: hint)
+        let changed = ListingTranslationInput(listingID: "one", field: "title", source: "Coding Club", sourceHint: hint)
+        let otherField = ListingTranslationInput(listingID: "one", field: "city", source: "Robotics Club", sourceHint: hint)
+        session.setTranslationDemand(owner: UUID(), inputs: [title])
+        let batch = try XCTUnwrap(session.nextTranslationBatch())
+        session.finishTranslationBatch(batch, results: ["0": "Club de robotique"])
+        XCTAssertEqual(session.translatedText(for: title), "Club de robotique")
+        XCTAssertEqual(session.translatedText(for: changed), changed.source)
+        XCTAssertEqual(session.translatedText(for: otherField), otherField.source)
+    }
+
+    func testTranslationIdentityUsesExactBytesAndSourceHint() {
+        let composed = ListingTranslationInput(listingID: "one", field: "title", source: "Café", sourceHint: "English context")
+        let decomposed = ListingTranslationInput(listingID: "one", field: "title", source: "Cafe\u{301}", sourceHint: "English context")
+        let changedHint = ListingTranslationInput(listingID: "one", field: "title", source: "Café", sourceHint: "Contexte français")
+        XCTAssertNotEqual(composed, decomposed)
+        XCTAssertNotEqual(composed.key(target: "fr"), decomposed.key(target: "fr"))
+        XCTAssertNotEqual(composed.key(target: "fr"), changedHint.key(target: "fr"))
+        let noHint = ListingTranslationInput(listingID: "one", field: "description", source: "Text")
+        let selfHint = ListingTranslationInput(listingID: "one", field: "description", source: "Text", sourceHint: "Text")
+        XCTAssertEqual(noHint, selfHint)
+        XCTAssertEqual(noHint.key(target: "fr"), selfHint.key(target: "fr"))
+    }
+
+    func testDescriptionSegmentationPreservesExactBytesAndAtomicResponses() throws {
+        let source = String(repeating: "Café e\u{301} مرحباً 👩🏽‍💻.  Second sentence preserves spaces.\n", count: 20)
+        let input = ListingTranslationInput(listingID: "one", field: "description", source: source)
+        let plan = try XCTUnwrap(ListingTranslationPlan.make([input]))
+        XCTAssertGreaterThan(plan.requests.count, 1)
+        XCTAssertTrue(plan.fields[0].map(\.source).joined().utf8.elementsEqual(source.utf8))
+        let outputs = plan.requests.map { ListingTranslationPlan.Result(id: $0.id, source: $0.source, target: "traduction") }
+        XCTAssertNotNil(plan.assemble(outputs.reversed().map { $0 })["0"], "Responses may arrive out of order when IDs match")
+        XCTAssertNil(plan.assemble(Array(outputs.dropLast()))["0"], "A missing sentence must not publish a partial description")
+        XCTAssertNil(plan.assemble(outputs + [outputs[0]])["0"], "A duplicate response must not publish a field")
+        var wrong = outputs
+        wrong[0] = .init(id: outputs[0].id, source: "different source", target: "traduction")
+        XCTAssertNil(plan.assemble(wrong)["0"], "Responses must echo the exact source bytes")
+    }
+
+    func testReportedFullDescriptionIsSegmentedWithoutLosingBytes() throws {
+        let url = try XCTUnwrap(AppResources.url(forResource: "opportunities", withExtension: "json"))
+        let feed = try JSONDecoder().decode(OpportunityListResponse.self, from: Data(contentsOf: url))
+        let item = try XCTUnwrap(feed.data.first { $0.id == "tpl-rss-6a2afd9cf56bd86e00b61de1" })
+        let plan = try XCTUnwrap(ListingTranslationPlan.make([.init(listingID: item.id, field: "description", source: item.description)]))
+        XCTAssertGreaterThan(plan.requests.count, 1)
+        XCTAssertTrue(plan.fields[0].map(\.source).joined().utf8.elementsEqual(item.description.utf8))
+        XCTAssertTrue(plan.fields[0].map(\.source).joined().contains("September 15 - December 8"))
+    }
+
+    func testPreparedOverlayBindsSourceRecordsAndRejectsTamperedSnapshot() throws {
+        let item = opportunity(id: "pack-one", title: "Science café", organization: "Library", description: "A complete source description.")
+        let encoded = try JSONEncoder().encode(item)
+        let object = try JSONSerialization.jsonObject(with: encoded)
+        let feed = try JSONSerialization.data(withJSONObject: ["count": 1, "opportunities": [object]], options: [.sortedKeys])
+        let titleHash = FullDescriptionBinding.hash(item.title)
+        let bodyHash = FullDescriptionBinding.hash(item.description)
+        func entry(_ source: String, _ translated: String) -> [String: Any] {
+            ["segments": [["ordinal": 0, "source": source, "target": translated,
+                            "targetSHA256": FullDescriptionBinding.hash(translated), "endedNormally": true]]]
+        }
+        let packObject: [String: Any] = [
+            "schemaVersion": 1, "locale": "fr", "generatedAt": "2026-11-10T00:00:00Z", "expiresAt": "2026-11-11T00:00:00Z",
+            "sourceIndex": ["sourceFeedSHA256": FullDescriptionBinding.hashBytes(feed), "records": [["id": item.id, "provider": item.organization,
+                "sourceURL": item.sourceUrl, "titleSHA256": titleHash, "descriptionSHA256": bodyHash]]],
+            "entryCount": 2, "entries": [titleHash: entry(item.title, "Café scientifique"), bodyHash: entry(item.description, "Rassemblement éducatif.")]
+        ]
+        let pack = try JSONSerialization.data(withJSONObject: packObject, options: [.sortedKeys])
+        let now = ISO8601DateFormatter().date(from: "2026-11-10T12:00:00Z")!
+        let digest = FullDescriptionBinding.hashBytes(pack)
+        let overlay = try PreparedListingOverlay.validate(data: pack, sourceFeedData: feed, locale: .fr, expectedPackSHA256: digest, now: now)
+        let feedHash = FullDescriptionBinding.hashBytes(feed)
+        XCTAssertEqual(overlay.resolve(item, now: now)?.title, "Café scientifique")
+        XCTAssertEqual(overlay.resolve(item, now: now)?.description, "Rassemblement éducatif.")
+        let searchIndex = LocalOpportunitySnapshot.prepareSearchIndex([item], displayLanguage: .fr, overlay: overlay, feedSHA256: feedHash, now: now)
+        let results = LocalOpportunitySnapshot.filter([item], query: "rassemblement", mode: .all, filters: OpportunityFilters(), displayLanguage: .fr, now: now, preparedSearchIndex: searchIndex, preparedOverlay: overlay, currentFeedSHA256: feedHash)
+        XCTAssertEqual(results.map(\.id), [item.id])
+        let wrongFeed = FullDescriptionBinding.hashBytes(feed + Data(" ".utf8))
+        let wrongIndex = LocalOpportunitySnapshot.prepareSearchIndex([item], displayLanguage: .fr, overlay: overlay, feedSHA256: wrongFeed, now: now)
+        let wrongResults = LocalOpportunitySnapshot.filter([item], query: "rassemblement", mode: .all, filters: OpportunityFilters(), displayLanguage: .fr, now: now, preparedSearchIndex: wrongIndex, preparedOverlay: overlay, currentFeedSHA256: wrongFeed)
+        XCTAssertEqual(wrongResults.map(\.id), [item.id], "Unrelated feed metadata must not hide a matching translated record")
+        let changed = opportunity(id: item.id, title: item.title, organization: item.organization, description: "A changed source description.")
+        XCTAssertNil(overlay.resolve(changed, now: now))
+        XCTAssertNil(overlay.resolve(opportunity(id: item.id, title: "Changed title", organization: item.organization, description: item.description), now: now))
+        XCTAssertNil(overlay.resolve(opportunity(id: item.id, title: item.title, organization: "Different provider", description: item.description), now: now))
+        XCTAssertNil(overlay.resolve(opportunity(id: item.id, title: item.title, organization: item.organization, description: item.description, sourceURL: "https://example.com/changed"), now: now))
+        XCTAssertNil(overlay.resolve(opportunity(id: "new-record", title: item.title, organization: item.organization, description: item.description), now: now))
+        XCTAssertNil(overlay.resolve(item, now: now.addingTimeInterval(2 * 24 * 60 * 60)))
+        XCTAssertThrowsError(try PreparedListingOverlay.validate(data: pack, sourceFeedData: feed, locale: .es, expectedPackSHA256: digest, now: now))
+        XCTAssertThrowsError(try PreparedListingOverlay.validate(data: pack, sourceFeedData: feed + Data(" ".utf8), locale: .fr, expectedPackSHA256: digest, now: now))
+        XCTAssertThrowsError(try PreparedListingOverlay.validate(data: pack + Data(" ".utf8), sourceFeedData: feed, locale: .fr, expectedPackSHA256: digest, now: now))
+    }
+
+    func testPreparedOverlayAllowsOnlyExactReviewedVerbatimIdentifiers() throws {
+        let now = ISO8601DateFormatter().date(from: "2026-11-10T12:00:00Z")!
+        func candidate(_ literal: String, target: String, kind: String, ended: Bool, modelEnded: Bool) throws -> (Data, Data) {
+            let item = opportunity(id: "identifier-test", title: "Explore \(literal) today", organization: "Library", description: "Complete source.")
+            let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(item))
+            let feed = try JSONSerialization.data(withJSONObject: ["count": 1, "opportunities": [object]], options: [.sortedKeys])
+            let titleHash = FullDescriptionBinding.hash(item.title), bodyHash = FullDescriptionBinding.hash(item.description)
+            func segment(_ ordinal: Int, _ source: String, _ value: String, _ normal: Bool, _ kind: String? = nil) -> [String: Any] {
+                var row: [String: Any] = ["ordinal": ordinal, "source": source, "target": value, "targetSHA256": FullDescriptionBinding.hash(value), "endedNormally": normal]
+                if let kind {
+                    row["kind"] = kind
+                    if kind == "verbatim-identifier" {
+                        row["sourceTokenID"] = NSNull(); row["targetTokenID"] = NSNull(); row["responseLocale"] = NSNull()
+                    }
+                }
+                return row
+            }
+            let title = [segment(0, "Explore ", "Explorer ", modelEnded), segment(1, literal, target, ended, kind), segment(2, " today", " aujourd’hui", true)]
+            let body = [segment(0, item.description, "Source complète.", true)]
+            let pack: [String: Any] = ["schemaVersion": 1, "locale": "fr", "generatedAt": "2026-11-10T00:00:00Z", "expiresAt": "2026-11-11T00:00:00Z",
+                "sourceIndex": ["sourceFeedSHA256": FullDescriptionBinding.hashBytes(feed), "records": [["id": item.id, "provider": item.organization, "sourceURL": item.sourceUrl, "titleSHA256": titleHash, "descriptionSHA256": bodyHash]]],
+                "entryCount": 2, "entries": [titleHash: ["segments": title], bodyHash: ["segments": body]]]
+            return (try JSONSerialization.data(withJSONObject: pack, options: [.sortedKeys]), feed)
+        }
+        func validate(_ pair: (Data, Data)) throws -> PreparedListingOverlay {
+            try PreparedListingOverlay.validate(data: pair.0, sourceFeedData: pair.1, locale: .fr, expectedPackSHA256: FullDescriptionBinding.hashBytes(pair.0), now: now)
+        }
+        for literal in ["AI", "API", "CSS", "HTML", "SQL", "STEAM", "STEM", " AI "] {
+            XCTAssertNoThrow(try validate(candidate(literal, target: literal, kind: "verbatim-identifier", ended: false, modelEnded: true)))
+        }
+        XCTAssertThrowsError(try validate(candidate("AI", target: "NAI", kind: "verbatim-identifier", ended: false, modelEnded: true)))
+        XCTAssertThrowsError(try validate(candidate("XYZ", target: "XYZ", kind: "verbatim-identifier", ended: false, modelEnded: true)))
+        XCTAssertThrowsError(try validate(candidate("AI", target: "AI", kind: "verbatim-identifier", ended: true, modelEnded: true)))
+        XCTAssertThrowsError(try validate(candidate("AI", target: "AI", kind: "unknown", ended: false, modelEnded: true)))
+        let oversize = String(repeating: " ", count: 127) + "AI"
+        XCTAssertThrowsError(try validate(candidate(oversize, target: oversize, kind: "verbatim-identifier", ended: false, modelEnded: true)))
+        let validPair = try candidate("AI", target: "AI", kind: "verbatim-identifier", ended: false, modelEnded: true)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: validPair.0) as? [String: Any])
+        var entries = try XCTUnwrap(object["entries"] as? [String: [String: Any]])
+        let titleHash = FullDescriptionBinding.hash("Explore AI today")
+        var entry = try XCTUnwrap(entries[titleHash])
+        var segments = try XCTUnwrap(entry["segments"] as? [[String: Any]])
+        segments[1]["sourceTokenID"] = 42
+        entry["segments"] = segments; entries[titleHash] = entry; object["entries"] = entries
+        let invalidIDs = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+        XCTAssertThrowsError(try validate((invalidIDs, validPair.1)))
+        segments[1]["sourceTokenID"] = NSNull(); segments[1].removeValue(forKey: "responseLocale")
+        entry["segments"] = segments; entries[titleHash] = entry; object["entries"] = entries
+        let missingEvidence = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+        XCTAssertThrowsError(try validate((missingEvidence, validPair.1)))
+        XCTAssertThrowsError(try validate(candidate("AI", target: "AI", kind: "verbatim-identifier", ended: false, modelEnded: false)))
+    }
+
+    @MainActor
+    func testPreparedOverlayStoreRetainsMatchingRecordsAndExpires() async throws {
+        let defaults = UserDefaults.standard
+        let oldLanguage = defaults.string(forKey: AppLanguage.preferredLanguageDefaultsKey)
+        defer {
+            if let oldLanguage { defaults.set(oldLanguage, forKey: AppLanguage.preferredLanguageDefaultsKey) }
+            else { defaults.removeObject(forKey: AppLanguage.preferredLanguageDefaultsKey) }
+        }
+        defaults.set("fr", forKey: AppLanguage.preferredLanguageDefaultsKey)
+        var clock = ISO8601DateFormatter().date(from: "2026-11-10T12:00:00Z")!
+        let item = opportunity(id: "store-pack", title: "Science café", organization: "Library", description: "A complete source description.")
+        let itemObject = try JSONSerialization.jsonObject(with: JSONEncoder().encode(item))
+        let feed = try JSONSerialization.data(withJSONObject: ["count": 1, "opportunities": [itemObject]], options: [.sortedKeys])
+        let titleHash = FullDescriptionBinding.hash(item.title), bodyHash = FullDescriptionBinding.hash(item.description)
+        func entry(_ source: String, _ translated: String) -> [String: Any] {
+            ["segments": [["ordinal": 0, "source": source, "target": translated,
+                            "targetSHA256": FullDescriptionBinding.hash(translated), "endedNormally": true]]]
+        }
+        let packObject: [String: Any] = ["schemaVersion": 1, "locale": "fr", "generatedAt": "2026-11-10T00:00:00Z", "expiresAt": "2026-11-11T00:00:00Z",
+            "sourceIndex": ["sourceFeedSHA256": FullDescriptionBinding.hashBytes(feed), "records": [["id": item.id, "provider": item.organization,
+                "sourceURL": item.sourceUrl, "titleSHA256": titleHash, "descriptionSHA256": bodyHash]]],
+            "entryCount": 2, "entries": [titleHash: entry(item.title, "Café scientifique"), bodyHash: entry(item.description, "Rassemblement éducatif.")]]
+        let pack = try JSONSerialization.data(withJSONObject: packObject, options: [.sortedKeys])
+        let response = OpportunityListResponse(data: [item], meta: .init(activeCount: 1, lastUpdated: nil), sourceFeedBytes: feed)
+        let store = OpportunityStore(api: APIClient(), defaults: UserDefaults(suiteName: "PreparedStore.\(UUID().uuidString)")!, now: { clock })
+        await store.retainPreparedFeedForTesting(response)
+        store.query = "rassemblement"
+        let installed = try await store.installPreparedOverlay(data: pack, expectedPackSHA256: FullDescriptionBinding.hashBytes(pack), locale: .fr)
+        XCTAssertTrue(installed)
+        XCTAssertEqual(store.opportunities.map(\.id), [item.id])
+        XCTAssertEqual(store.preparedText(for: item, locale: .fr)?.title, "Café scientifique")
+        clock.addTimeInterval(24 * 60 * 60)
+        await store.reconcilePreparedOverlay()
+        XCTAssertNil(store.preparedText(for: item, locale: .fr))
+        XCTAssertTrue(store.opportunities.isEmpty, "Expired translated search terms must not retain stale results")
+
+        clock.addTimeInterval(-24 * 60 * 60)
+        _ = try await store.installPreparedOverlay(data: pack, expectedPackSHA256: FullDescriptionBinding.hashBytes(pack), locale: .fr)
+        let changedBytes = feed + Data(" ".utf8)
+        await store.retainPreparedFeedForTesting(OpportunityListResponse(data: [item], meta: response.meta, sourceFeedBytes: changedBytes))
+        XCTAssertEqual(store.preparedText(for: item, locale: .fr)?.title, "Café scientifique", "Unchanged record remains bound after metadata-only feed changes")
+        let changedItem = opportunity(id: item.id, title: item.title, organization: item.organization, description: "Changed source.")
+        XCTAssertNil(store.preparedText(for: changedItem, locale: .fr), "Changed content may not reuse an older translation")
+        do {
+            _ = try await store.installPreparedOverlay(data: pack, expectedPackSHA256: FullDescriptionBinding.hashBytes(pack), locale: .fr)
+            XCTFail("Current feed bytes must not masquerade as the original pinned source snapshot")
+        } catch { }
+        let repinned = try await store.installPreparedOverlay(data: pack, expectedPackSHA256: FullDescriptionBinding.hashBytes(pack), locale: .fr, pinnedSourceFeed: feed)
+        XCTAssertTrue(repinned)
+        XCTAssertEqual(store.preparedText(for: item, locale: .fr)?.title, "Café scientifique")
+    }
+
+    func testBundledTranslationsRequireExactCurrentSourceIdentity() {
+        let original = opportunity(id: "same-id", title: "Science café", organization: "Library", description: "Original source.")
+        let same = opportunity(id: "same-id", title: "Science café", organization: "Library", description: "Original source.")
+        let changedBody = opportunity(id: "same-id", title: "Science café", organization: "Library", description: "Changed source.")
+        let changedBytes = opportunity(id: "same-id", title: "Science cafe\u{301}", organization: "Library", description: "Original source.")
+        let changedProvider = opportunity(id: "same-id", title: "Science café", organization: "Other Library", description: "Original source.")
+        XCTAssertTrue(APIClient.sameBundledSource(original, same))
+        XCTAssertFalse(APIClient.sameBundledSource(original, changedBody))
+        XCTAssertFalse(APIClient.sameBundledSource(original, changedBytes))
+        XCTAssertFalse(APIClient.sameBundledSource(original, changedProvider))
+    }
+
+    @MainActor
+    func testUpdatedSourceReplacesOwnerDemandAndRejectsOldBatch() throws {
+        let session = SessionStore(defaults: UserDefaults(suiteName: "TranslationRefresh.\(UUID().uuidString)")!, preferredLanguages: ["en"])
+        session.preferredLanguageCode = AppLanguage.fr.rawValue
+        let original = ListingTranslationInput(listingID: "one", field: "description", source: "Join the public library for a hands on workshop exploring robotics and coding with your family.")
+        let updated = ListingTranslationInput(listingID: "one", field: "description", source: "Join the public library for a different workshop exploring science and engineering with your family.")
+        let owner = UUID()
+        session.setTranslationDemand(owner: owner, inputs: [original])
+        let oldBatch = try XCTUnwrap(session.nextTranslationBatch())
+        session.setTranslationDemand(owner: owner, inputs: [updated])
+        XCTAssertFalse(session.isTranslationBatchDemanded(oldBatch))
+        session.abandonTranslationBatch(oldBatch)
+        let newBatch = try XCTUnwrap(session.nextTranslationBatch())
+        XCTAssertEqual(newBatch.inputs, [updated])
+        session.finishTranslationBatch(oldBatch, results: ["0": "stale"])
+        session.finishTranslationBatch(newBatch, results: ["0": "nouveau"])
+        XCTAssertEqual(session.translatedText(for: updated), "nouveau")
+        XCTAssertEqual(session.translatedText(for: original), original.source)
+    }
+
+    @MainActor
+    func testTranslationSameLanguageKeepsOriginalWithoutRequest() {
+        let session = SessionStore(defaults: UserDefaults(suiteName: "TranslationSame.\(UUID().uuidString)")!, preferredLanguages: ["en"])
+        session.preferredLanguageCode = AppLanguage.en.rawValue
+        let input = ListingTranslationInput(listingID: "one", field: "description", source: "Join the public library for a hands on workshop exploring robotics and coding with your family.")
+        session.setTranslationDemand(owner: UUID(), inputs: [input])
+        XCTAssertNil(session.nextTranslationBatch())
+        XCTAssertEqual(session.translationState(for: input), .original)
+        XCTAssertEqual(session.translatedText(for: input), input.source)
+    }
+
+    func testTranslationDetectsActualFrenchTextBeforeEnglishHint() {
+        let input = ListingTranslationInput(listingID: "one", field: "title", source: "Découvrez les sciences et les technologies avec toute votre famille", sourceHint: "Join the public library for a hands on workshop exploring robotics and coding with your family.")
+        XCTAssertEqual(SessionStore.detectTranslationSource(input), "fr")
+    }
+
+    func testTranslationResponseLanguageMustMatchRequestedTarget() {
+        XCTAssertTrue(SessionStore.acceptsTranslationTarget(requested: "yue-Hant", returned: "zh-HK"))
+        XCTAssertTrue(SessionStore.acceptsTranslationTarget(requested: "yue-Hant", returned: "yue"))
+        XCTAssertFalse(SessionStore.acceptsTranslationTarget(requested: "yue-Hant", returned: "zh"))
+        XCTAssertFalse(SessionStore.acceptsTranslationTarget(requested: "yue-Hant", returned: "zh-TW"))
+        XCTAssertTrue(SessionStore.acceptsTranslationTarget(requested: "zh-Hans", returned: "zh"))
+        XCTAssertFalse(SessionStore.acceptsTranslationTarget(requested: "zh-Hans", returned: "zh-HK"))
+        XCTAssertFalse(SessionStore.acceptsTranslationTarget(requested: "zh-Hans", returned: "zh-Hant"))
+        XCTAssertTrue(SessionStore.acceptsTranslationTarget(requested: "fr", returned: "fr-CA"))
+        XCTAssertTrue(SessionStore.acceptsTranslationTarget(requested: "fil", returned: "tl"))
+        XCTAssertFalse(SessionStore.acceptsTranslationTarget(requested: "fr", returned: "es"))
+    }
+
+    @MainActor
+    func testTranslationDemandOverBudgetReportsUnavailableAndPublishes() {
+        let session = SessionStore(defaults: UserDefaults(suiteName: "TranslationBudget.\(UUID().uuidString)")!, preferredLanguages: ["en"])
+        session.preferredLanguageCode = AppLanguage.fr.rawValue
+        let inputs = (0..<41).map { ListingTranslationInput(listingID: "one", field: "note-\($0)", source: "A public library activity for children and their families.") }
+        let previousRevision = session.translationWorkRevision
+        session.setTranslationDemand(owner: UUID(), inputs: inputs)
+        XCTAssertGreaterThan(session.translationWorkRevision, previousRevision)
+        XCTAssertEqual(session.translationState(for: inputs[40]), .unavailable)
+        XCTAssertEqual(session.translatedText(for: inputs[40]), inputs[40].source)
+    }
+
+    @MainActor
+    func testSameLanguageDemandContinuesBeyondClassificationLimit() {
+        let session = SessionStore(defaults: UserDefaults(suiteName: "TranslationDrain.\(UUID().uuidString)")!, preferredLanguages: ["en"])
+        session.preferredLanguageCode = AppLanguage.en.rawValue
+        let inputs = (0..<300).map { ListingTranslationInput(listingID: "listing-\($0)", field: "description", source: "Join the public library for a hands on workshop exploring robotics and coding with your family.") }
+        for start in stride(from: 0, to: inputs.count, by: 40) {
+            session.setTranslationDemand(owner: UUID(), inputs: Array(inputs[start..<min(start + 40, inputs.count)]))
+        }
+        let revision = session.translationWorkRevision
+        XCTAssertNil(session.nextTranslationBatch())
+        XCTAssertGreaterThan(session.translationWorkRevision, revision)
+        for _ in 0..<30 where inputs.contains(where: { session.translationState(for: $0) == .waiting }) {
+            XCTAssertNil(session.nextTranslationBatch())
+        }
+        XCTAssertTrue(inputs.allSatisfy { session.translationState(for: $0) == .original })
+    }
+
+    @MainActor
+    func testEvictedActiveTranslationDoesNotClaimTranslatedOrLoop() throws {
+        let session = SessionStore(defaults: UserDefaults(suiteName: "TranslationEviction.\(UUID().uuidString)")!, preferredLanguages: ["en"])
+        session.preferredLanguageCode = AppLanguage.fr.rawValue
+        let inputs = (0..<257).map { ListingTranslationInput(listingID: "listing-\($0)", field: "description", source: "Join the public library for a hands on workshop exploring robotics and coding with your family.") }
+        for start in stride(from: 0, to: inputs.count, by: 40) {
+            session.setTranslationDemand(owner: UUID(), inputs: Array(inputs[start..<min(start + 40, inputs.count)]))
+        }
+        var batchCount = 0
+        while let batch = session.nextTranslationBatch() {
+            batchCount += 1
+            XCTAssertLessThan(batchCount, 40, "Active cache eviction must not requeue forever")
+            session.finishTranslationBatch(batch, results: Dictionary(uniqueKeysWithValues: batch.inputs.indices.map { (String($0), "texte traduit") }))
+        }
+        let evicted = inputs.filter { session.translationState(for: $0) == .failed }
+        XCTAssertEqual(evicted.count, 1)
+        XCTAssertEqual(session.translatedText(for: try XCTUnwrap(evicted.first)), inputs[0].source)
+    }
+
+    @MainActor
+    func testLanguageDetectionAllowsMainActorHeartbeat() async {
+        let session = SessionStore(defaults: UserDefaults(suiteName: "TranslationHeartbeat.\(UUID().uuidString)")!, preferredLanguages: ["en"])
+        session.preferredLanguageCode = AppLanguage.fr.rawValue
+        let body = String(repeating: "Join the public library for a workshop on science, robotics and engineering. ", count: 25)
+        let inputs = (0..<12).map { ListingTranslationInput(listingID: "listing-\($0)", field: "description", source: body) }
+        session.setTranslationDemand(owner: UUID(), inputs: inputs)
+        let heartbeat = Task { @MainActor in
+            let start = Date()
+            try? await Task.sleep(nanoseconds: 20_000_000)
+            return Date().timeIntervalSince(start)
+        }
+        await Task.yield()
+        let prepared = await session.prepareTranslationDetections()
+        let delay = await heartbeat.value
+        XCTAssertTrue(prepared)
+        XCTAssertLessThan(delay, 0.5, "Language detection must not block the main actor for half a second")
+        XCTAssertNotNil(session.nextTranslationBatch(allowSynchronousDetection: false))
+    }
+
+    @MainActor
+    func testIncompleteTranslationBatchDoesNotInventMissingText() throws {
+        let session = SessionStore(defaults: UserDefaults(suiteName: "TranslationPartial.\(UUID().uuidString)")!, preferredLanguages: ["en"])
+        session.preferredLanguageCode = AppLanguage.fr.rawValue
+        let hint = "Join the public library for a hands on workshop exploring robotics and coding with your family."
+        let a = ListingTranslationInput(listingID: "one", field: "title", source: "Robotics Club", sourceHint: hint)
+        let b = ListingTranslationInput(listingID: "two", field: "title", source: "Coding Club", sourceHint: hint)
+        session.setTranslationDemand(owner: UUID(), inputs: [a, b])
+        let batch = try XCTUnwrap(session.nextTranslationBatch())
+        XCTAssertEqual(batch.inputs, [a, b])
+        session.finishTranslationBatch(batch, results: ["0": "Club de robotique"])
+        XCTAssertEqual(session.translationState(for: a), .translated)
+        XCTAssertEqual(session.translationState(for: b), .failed)
+        XCTAssertEqual(session.translatedText(for: b), b.source)
     }
 
     @MainActor
@@ -3662,6 +4176,7 @@ final class APIClientTests: XCTestCase {
         ageMin: Int = 10,
         ageMax: Int? = 18,
         language: [String] = ["en"],
+        cost: String = "Free",
         status: String = "active",
         volunteerHoursEligible: Bool = false,
         coopEligible: Bool = false,
@@ -3690,7 +4205,7 @@ final class APIClientTests: XCTestCase {
             ageMin: ageMin,
             ageMax: ageMax,
             language: language,
-            cost: "Free",
+            cost: cost,
             sourceUrl: resolvedSourceURL,
             registrationUrl: resolvedSourceURL,
             status: status,

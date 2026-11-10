@@ -1,9 +1,6 @@
 import MapKit
 import SwiftData
 import SwiftUI
-#if canImport(Translation)
-import Translation
-#endif
 #if canImport(EventKitUI)
 import EventKit
 import EventKitUI
@@ -66,10 +63,33 @@ struct OpportunityDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appStorageAccess) private var storageAccess
     @EnvironmentObject private var session: SessionStore
+    @EnvironmentObject private var store: OpportunityStore
     @Query(sort: \SavedOpportunityRecord.savedAt, order: .reverse) private var savedRecords: [SavedOpportunityRecord]
     let opportunity: Opportunity
     @State private var saveErrorMessage: String?
     @State private var calendarPresented = false
+    @State private var translationOwner = UUID()
+    @State private var showOriginalDescription = false
+    @State private var translationCancelled = false
+
+    private func translationInput(_ field: String, _ source: String) -> ListingTranslationInput {
+        ListingTranslationInput(listingID: opportunity.id, field: field, source: source, sourceHint: opportunity.description)
+    }
+
+    private var translationInputs: [ListingTranslationInput] {
+        let prepared = store.preparedText(for: opportunity, locale: session.language)
+        var inputs = [translationInput("organization", opportunity.organization), translationInput("city", opportunity.city)]
+        if prepared == nil {
+            inputs += [translationInput("title", opportunity.title), translationInput("description", opportunity.description)]
+        }
+        let notes = opportunity.accessibility.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        inputs += notes.enumerated().map { translationInput("note-\($0.offset)", $0.element) }
+        for (index, row) in (opportunity.accessibilitySupport?.evidence ?? []).enumerated() {
+            inputs.append(translationInput("evidence-\(index)", row.evidenceText))
+            inputs += (row.conditions ?? []).enumerated().map { translationInput("condition-\(index)-\($0.offset)", $0.element) }
+        }
+        return inputs
+    }
 
     var body: some View {
         ZStack {
@@ -96,6 +116,18 @@ struct OpportunityDetailView: View {
         .navigationTitle(session.text("details"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .topBarTrailing) { ThemeToolbarButton(showLabel: false) } }
+        .onAppear {
+            if !translationCancelled { session.setTranslationDemand(owner: translationOwner, inputs: translationInputs, priority: 100) }
+        }
+        .onDisappear { session.removeTranslationDemand(owner: translationOwner) }
+        .onChange(of: session.preferredLanguageCode) { _, _ in
+            showOriginalDescription = false
+            translationCancelled = false
+            session.setTranslationDemand(owner: translationOwner, inputs: translationInputs, priority: 100)
+        }
+        .onChange(of: translationInputs) { _, updated in
+            if !translationCancelled { session.setTranslationDemand(owner: translationOwner, inputs: updated, priority: 100) }
+        }
 #if canImport(EventKitUI)
 #if DEBUG
         .task {
@@ -107,9 +139,9 @@ struct OpportunityDetailView: View {
         .sheet(isPresented: $calendarPresented) {
             OpportunityCalendarEditor(
                 opportunity: opportunity,
-                title: session.title(for: opportunity),
+                title: store.title(for: opportunity, session: session),
                 location: opportunity.address ?? session.city(for: opportunity),
-                notes: session.fullDescription(for: opportunity)
+                notes: preferredFullDescription
             )
         }
 #endif
@@ -117,31 +149,58 @@ struct OpportunityDetailView: View {
 
     @ViewBuilder
     private var listingDescription: some View {
-#if canImport(Translation)
-        if #available(iOS 18.0, macCatalyst 26.0, *) {
-            let key = ListingTranslationKey(listingID: opportunity.id, source: opportunity.description,
-                                            targetLocale: session.language.localeIdentifier)
-            OnDeviceListingDescription(source: opportunity.description, key: key)
-                .id(key)
-        } else {
-            originalListingDescription
+        let input = translationInput("description", opportunity.description)
+        let providerText = opportunity.localizedDescription(language: session.language)
+        let prepared = store.preparedText(for: opportunity, locale: session.language)
+        let qualified = !providerText.utf8.elementsEqual(opportunity.description.utf8) ? providerText : prepared?.description
+        VStack(alignment: .leading, spacing: 8) {
+            Text(showOriginalDescription ? opportunity.description : (qualified ?? session.translatedText(for: input)))
+                .font(PortfolioTypography.body).foregroundStyle(Brand.outline(for: colorScheme))
+                .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                .accessibilityIdentifier("listing-full-description")
+            if qualified != nil {
+                Button(showOriginalDescription ? session.text("translateListing") : session.text("showOriginal")) {
+                    showOriginalDescription.toggle()
+                }
+                .accessibilityIdentifier("listing-show-original")
+            } else if translationCancelled {
+                Button(session.text("translateListing")) {
+                    translationCancelled = false
+                    showOriginalDescription = false
+                    session.retryTranslations()
+                    session.setTranslationDemand(owner: translationOwner, inputs: translationInputs, priority: 100)
+                }
+                .accessibilityIdentifier("listing-translation-resume")
+            } else { switch session.translationState(for: input) {
+            case .waiting:
+                ProgressView(session.text("translatingListing"))
+                Button(session.text("cancelTranslation")) {
+                    translationCancelled = true
+                    showOriginalDescription = true
+                    session.removeTranslationDemand(owner: translationOwner)
+                }
+                .accessibilityIdentifier("listing-translation-cancel")
+            case .translated:
+                Text(session.text("translatedOnDevice")).font(PortfolioTypography.footnote)
+                Button(showOriginalDescription ? session.text("translateListing") : session.text("showOriginal")) {
+                    showOriginalDescription.toggle()
+                }
+                .accessibilityIdentifier("listing-show-original")
+            case .unavailable:
+                Text(session.text("translationUnavailable")).font(PortfolioTypography.footnote)
+                Button(session.text("translateListing")) { session.retryTranslations() }
+            case .failed:
+                Text(session.text("translationFailed")).font(PortfolioTypography.footnote)
+                Button(session.text("translateListing")) { session.retryTranslations() }
+            case .original: EmptyView()
+            } }
         }
-#else
-        originalListingDescription
-#endif
     }
 
-    private var originalListingDescription: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(opportunity.description)
-                .font(PortfolioTypography.body)
-                .foregroundStyle(Brand.outline(for: colorScheme))
-                .fixedSize(horizontal: false, vertical: true)
-                .textSelection(.enabled)
-            Text(session.text("translationRequiresNewerSystem"))
-                .font(PortfolioTypography.footnote)
-                .foregroundStyle(Brand.mutedText(for: colorScheme))
-        }
+    private var preferredFullDescription: String {
+        let providerText = opportunity.localizedDescription(language: session.language)
+        if !providerText.utf8.elementsEqual(opportunity.description.utf8) { return providerText }
+        return store.preparedText(for: opportunity, locale: session.language)?.description ?? session.fullDescription(for: opportunity)
     }
 
     @ViewBuilder
@@ -155,8 +214,7 @@ struct OpportunityDetailView: View {
                     .accessibilityAddTraits(.isHeader)
                 Text(session.text("accessibilitySupportExplanation")).font(PortfolioTypography.footnote)
                     .fixedSize(horizontal: false, vertical: true)
-                if session.language != .en { Text(session.text("notesInSourceLanguage")).font(PortfolioTypography.footnote) }
-                ForEach(Array(support.evidence.enumerated()), id: \.offset) { _, row in
+                ForEach(Array(support.evidence.enumerated()), id: \.offset) { index, row in
                     if let category = AccessibilitySupportKind(rawValue: row.category) {
                         let decision = support.displayDecision(for: row, now: .now,
                             venueID: ReviewedAccessibilityVenue.id(for: opportunity))
@@ -166,9 +224,9 @@ struct OpportunityDetailView: View {
                             Text(session.text(row.scope == "venue" ? "supportScopeVenue" : row.scope == "activity" ? "supportScopeActivity" : "supportScopePolicy"))
                                 .font(PortfolioTypography.footnote)
                             if let venue = row.venue { Text(venue.name).font(PortfolioTypography.footnote) }
-                            Text(row.evidenceText).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
-                            ForEach(Array((row.conditions ?? []).enumerated()), id: \.offset) { _, condition in
-                                Text(condition).font(PortfolioTypography.footnote).fixedSize(horizontal: false, vertical: true)
+                            translatedProviderText(field: "evidence-\(index)", source: row.evidenceText)
+                            ForEach(Array((row.conditions ?? []).enumerated()), id: \.offset) { conditionIndex, condition in
+                                translatedProviderText(field: "condition-\(index)-\(conditionIndex)", source: condition)
                             }
                             Text(session.text("lastChecked") + ": " + SupportEvidenceDateDisplay.string(
                                 for: row.checkedInstant, locale: Locale(identifier: session.language.localeIdentifier)
@@ -201,6 +259,19 @@ struct OpportunityDetailView: View {
         }
     }
 
+    private func translatedProviderText(field: String, source: String) -> some View {
+        let input = translationInput(field, source)
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(showOriginalDescription ? source : session.translatedText(for: input)).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+            if !translationCancelled { switch session.translationState(for: input) {
+            case .waiting: Text(session.text("translatingListing")).font(PortfolioTypography.footnote)
+            case .unavailable: Text(session.text("translationUnavailable")).font(PortfolioTypography.footnote)
+            case .failed: Text(session.text("translationFailed")).font(PortfolioTypography.footnote)
+            case .original, .translated: EmptyView()
+            } }
+        }
+    }
+
     @ViewBuilder
     private var accessibilityNotes: some View {
         let notes = opportunity.accessibility.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
@@ -211,13 +282,8 @@ struct OpportunityDetailView: View {
                     .accessibilityAddTraits(.isHeader)
                 Text(session.text("confirmAccessibilityWithProvider"))
                     .font(PortfolioTypography.footnote)
-                if session.language != .en {
-                    Text(session.text("notesInSourceLanguage"))
-                        .font(PortfolioTypography.footnote)
-                }
-                ForEach(Array(notes.enumerated()), id: \.offset) { _, note in
-                    Text(note).font(PortfolioTypography.body).fixedSize(horizontal: false, vertical: true)
-                        .textSelection(.enabled)
+                ForEach(Array(notes.enumerated()), id: \.offset) { index, note in
+                    translatedProviderText(field: "note-\(index)", source: note).font(PortfolioTypography.body)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -235,7 +301,7 @@ struct OpportunityDetailView: View {
                 .font(PortfolioTypography.caption.weight(.semibold))
                 .foregroundStyle(Brand.lake)
                 .fixedSize(horizontal: false, vertical: true)
-            Text(session.title(for: opportunity))
+            Text(store.title(for: opportunity, session: session))
                 .font(PortfolioTypography.title2.weight(.bold))
                 .foregroundStyle(Brand.outline(for: colorScheme))
                 .fixedSize(horizontal: false, vertical: true)
@@ -253,7 +319,7 @@ struct OpportunityDetailView: View {
                 if let ageGuide = OpportunityRow.ageGuideRange(for: opportunity) {
                     Text("\(session.text("ageGuide")): \(ageGuide)")
                 }
-                Label(opportunity.localizedCost(language: session.language), systemImage: "ticket")
+                Label(session.cost(for: opportunity), systemImage: "ticket")
                 if opportunity.virtual {
                     Label(session.text("onlineActivity"), systemImage: "globe")
                 } else {
@@ -289,11 +355,11 @@ struct OpportunityDetailView: View {
                 center: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
                 span: MKCoordinateSpan(latitudeDelta: 0.04, longitudeDelta: 0.04)
             ))) {
-                Marker("\(session.title(for: opportunity)) · \(session.city(for: opportunity))",
+                Marker("\(store.title(for: opportunity, session: session)) · \(session.city(for: opportunity))",
                        coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude))
                     .tint(Brand.actionFill(for: colorScheme))
             }
-            .accessibilityLabel("\(session.text("map")): \(session.title(for: opportunity)), \(session.city(for: opportunity))")
+            .accessibilityLabel("\(session.text("map")): \(store.title(for: opportunity, session: session)), \(session.city(for: opportunity))")
             .frame(height: 220)
             .clipShape(RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
         }
@@ -525,148 +591,4 @@ private func markCalendarReviewPresented() {
     try? Data(nonce.utf8).write(to: cache.appendingPathComponent("gta-free-stem-calendar-review-ready"), options: .atomic)
 }
 #endif
-#endif
-
-#if canImport(Translation)
-@available(iOS 18.0, macCatalyst 26.0, *)
-private struct OnDeviceListingDescription: View {
-    @Environment(\.colorScheme) private var colorScheme
-    @EnvironmentObject private var session: SessionStore
-    let source: String
-    let key: ListingTranslationKey
-
-    private enum Phase {
-        case original, checking, translating, translated(String), unavailable, failed
-    }
-    @State private var phase: Phase = .original
-    @State private var configuration: TranslationSession.Configuration?
-    @State private var availabilityTask: Task<Void, Never>?
-    @State private var generation = UUID()
-
-    var body: some View {
-        let input = source
-        VStack(alignment: .leading, spacing: 8) {
-            Text(displayedText)
-                .font(PortfolioTypography.body)
-                .foregroundStyle(Brand.outline(for: colorScheme))
-                .fixedSize(horizontal: false, vertical: true)
-                .textSelection(.enabled)
-            switch phase {
-            case .translated:
-                Text(session.text("translatedOnDevice")).font(PortfolioTypography.footnote)
-                Button(session.text("showOriginal"), action: cancel)
-            case .checking, .translating:
-                ProgressView(session.text("translatingListing"))
-                Button(session.text("cancelTranslation"), action: cancel)
-            case .unavailable:
-                Text(session.text("translationUnavailable")).font(PortfolioTypography.footnote)
-                Button(session.text("translateListing"), action: begin)
-            case .failed:
-                Text(session.text("translationFailed")).font(PortfolioTypography.footnote)
-                Button(session.text("translateListing"), action: begin)
-            case .original:
-                Button(session.text("translateListing"), action: begin)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .translationTask(configuration) { @Sendable translator in
-            let requestGeneration = await MainActor.run { generation }
-            do {
-                let result = try await translator.translate(input)
-                guard !Task.isCancelled else { return }
-                let translated = result.targetText
-                await MainActor.run {
-                    guard generation == requestGeneration else { return }
-                    guard !translated.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                          translated.utf8.count <= 600_000 else {
-                        phase = .failed
-                        configuration = nil
-                        return
-                    }
-                    ListingTranslationCache.shared.insert(translated, for: key)
-                    phase = .translated(translated)
-                    configuration = nil
-                }
-            } catch {
-                guard !Task.isCancelled else { return }
-                await MainActor.run {
-                    guard generation == requestGeneration else { return }
-                    phase = .failed
-                    configuration = nil
-                }
-            }
-        }
-        .onDisappear(perform: cancel)
-    }
-
-    private var displayedText: String {
-        if case .translated(let text) = phase { return text }
-        return source
-    }
-
-    private func begin() {
-        cancel()
-        if let cached = ListingTranslationCache.shared.value(for: key) {
-            phase = .translated(cached)
-            return
-        }
-        guard !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              source.utf8.count <= 100_000 else {
-            phase = .unavailable
-            return
-        }
-        let requestGeneration = generation
-        let target = Locale.Language(identifier: key.targetLocale)
-        phase = .checking
-        availabilityTask = Task {
-            do {
-                let status = try await Self.checkAvailability(source: source, targetLocale: key.targetLocale)
-                guard !Task.isCancelled, generation == requestGeneration else { return }
-                switch status {
-                case .installed, .supported:
-                    phase = .translating
-                    if #available(iOS 26.4, macCatalyst 26.4, *) {
-                        configuration = .init(source: nil, target: target, preferredStrategy: .lowLatency)
-                    } else {
-                        configuration = .init(source: nil, target: target)
-                    }
-                case .unsupported:
-                    phase = .unavailable
-                @unknown default:
-                    phase = .unavailable
-                }
-            } catch {
-                guard !Task.isCancelled, generation == requestGeneration else { return }
-                phase = .unavailable
-            }
-        }
-    }
-
-    // Keep Apple's non-Sendable availability object in one nonisolated async
-    // operation. Only its Sendable status returns to the view's main actor.
-    nonisolated private static func checkAvailability(source: String, targetLocale: String) async throws -> LanguageAvailability.Status {
-        let availability: LanguageAvailability
-        if #available(iOS 26.4, macCatalyst 26.4, *) {
-            availability = LanguageAvailability(preferredStrategy: .lowLatency)
-        } else {
-            availability = LanguageAvailability()
-        }
-        // A matching fallback must not silently turn Cantonese into Mandarin.
-        if targetLocale == "yue-Hant" {
-            let languages = await availability.supportedLanguages
-            guard languages.contains(where: { $0.languageCode?.identifier == "yue" }) else {
-                return .unsupported
-            }
-        }
-        return try await availability.status(for: source, to: Locale.Language(identifier: targetLocale))
-    }
-
-    private func cancel() {
-        generation = UUID()
-        availabilityTask?.cancel()
-        availabilityTask = nil
-        configuration = nil
-        phase = .original
-    }
-}
 #endif

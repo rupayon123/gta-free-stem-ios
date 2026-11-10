@@ -1278,6 +1278,9 @@ struct OpportunityListResponse: Codable, Sendable {
     let sourceHealth: SourceHealth?
     let contentRights: ContentRights?
     let publicationRevision: String?
+    /// Exact original accepted feed bytes, never reconstructed from models.
+    /// Not encoded into model snapshots or sent to any endpoint.
+    let sourceFeedBytes: Data?
 
     private enum CodingKeys: String, CodingKey {
         case data
@@ -1295,7 +1298,8 @@ struct OpportunityListResponse: Codable, Sendable {
         meta: Metadata?,
         sourceHealth: SourceHealth? = nil,
         contentRights: ContentRights? = nil,
-        publicationRevision: String? = nil
+        publicationRevision: String? = nil,
+        sourceFeedBytes: Data? = nil
     ) {
         let eligibleData = data.filter(\.isExplicitlyFree)
         self.data = eligibleData
@@ -1305,9 +1309,11 @@ struct OpportunityListResponse: Codable, Sendable {
         self.sourceHealth = sourceHealth
         self.contentRights = contentRights
         self.publicationRevision = publicationRevision
+        self.sourceFeedBytes = sourceFeedBytes
     }
 
     init(from decoder: Decoder) throws {
+        sourceFeedBytes = nil
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let decodedData: [Opportunity]
         if container.contains(.data) {

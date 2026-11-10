@@ -26,6 +26,7 @@ struct HoursNotebookView: View {
     @ObservedObject var youth: HighSchoolHubStore
     @Environment(\.appStorageAccess) private var storageAccess
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var draft: HoursDraft?
     @State private var deleting: YouthHub.HoursEntry?
     @State private var exportDocument: HoursCSVDocument?
@@ -36,44 +37,40 @@ struct HoursNotebookView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
-                Text("Hours notebook").font(PortfolioTypography.caption)
-                if session.language != .en {
-                    Text("The notebook is currently in English. App navigation stays in your selected language.")
-                        .font(PortfolioTypography.footnote).accessibilityIdentifier("hours-untranslated-notice")
-                }
-                Text("Actual completed time").font(PortfolioTypography.title.weight(.bold)).accessibilityAddTraits(.isHeader)
-                Text("These are your own records, not a signed school form or confirmation of approved hours.")
+                Text(session.text("hsHoursNotebook")).font(PortfolioTypography.caption)
+                Text(session.text("hsActualCompletedTime")).font(PortfolioTypography.title.weight(.bold)).accessibilityAddTraits(.isHeader)
+                Text(session.text("hsOwnRecordsNotice"))
                     .font(PortfolioTypography.body)
                 if let archive = youth.archive {
                     let minutes = archive.entries.reduce(0) { $0 + $1.actualMinutes }
-                    Text("\(minutes / 60) h \(minutes % 60) min self-recorded")
+                    Text(SchoolLocalized.format(session, "hsTotalFormat", ["hours": SchoolLocalized.number(minutes / 60, session), "minutes": SchoolLocalized.number(minutes % 60, session)]))
                         .font(PortfolioTypography.title2.weight(.bold)).accessibilityIdentifier("hours-recorded-total")
-                    if archive.entries.isEmpty { Text("Record work after you complete it. No scheduled time is added automatically.") }
+                    if archive.entries.isEmpty { Text(session.text("hsRecordAfterCompletion")) }
                     ForEach(archive.entries.sorted { $0.activityLocalDate > $1.activityLocalDate }, id: \.id) { entry in
                         VStack(alignment: .leading, spacing: 10) {
                             Text(entry.role).font(PortfolioTypography.headline)
                             Text(entry.provider).font(PortfolioTypography.body)
-                            Text("\(entry.activityLocalDate) · \(entry.actualMinutes) actual minutes").font(PortfolioTypography.subheadline)
+                            Text(SchoolLocalized.format(session, "hsEntryMinutesFormat", ["date": SchoolLocalized.localDate(entry.activityLocalDate, session), "minutes": SchoolLocalized.number(entry.actualMinutes, session)])).font(PortfolioTypography.subheadline)
                             if !entry.notes.isEmpty { Text(entry.notes).font(PortfolioTypography.callout) }
                             HStack {
-                                Button("Edit") { draft = HoursDraft(entry: entry) }.accessibilityIdentifier("hours-edit-\(entry.id)")
+                                Button(session.text("hsEdit")) { draft = HoursDraft(entry: entry) }.accessibilityIdentifier("hours-edit-\(entry.id)")
                                 Spacer()
-                                Button("Delete", role: .destructive) { deleting = entry }
+                                Button(session.text("hsDelete"), role: .destructive) { deleting = entry }
                             }.buttonStyle(StoryButtonStyle(kind: .quiet))
                                 .disabled(!storageAccess.allowsPersistentChanges || youth.busy)
                         }.frame(maxWidth: .infinity, alignment: .leading).cardSurface()
                     }
                 }
                 if let message = youth.notebookError {
-                    Text(message).foregroundStyle(Brand.coral).accessibilityIdentifier("hours-storage-error")
+                    Text(SchoolLocalized.message(message, session)).foregroundStyle(Brand.coral).accessibilityIdentifier("hours-storage-error")
                 }
-                Button("Reload latest saved notebook") { Task { await youth.reloadNotebook() } }
+                Button(session.text("hsReloadNotebook")) { Task { await youth.reloadNotebook() } }
                     .buttonStyle(StoryButtonStyle(kind: .quiet)).disabled(youth.busy)
-                Button("Record completed work") { draft = HoursDraft(entry: nil) }
+                Button(session.text("hsRecordCompletedWork")) { draft = HoursDraft(entry: nil) }
                     .buttonStyle(StoryButtonStyle(kind: .primary))
                     .disabled(!storageAccess.allowsPersistentChanges || youth.archive == nil || youth.busy || youth.notebookError != nil)
                     .accessibilityIdentifier("hours-add")
-                Button("Export latest saved records as CSV") {
+                Button(session.text("hsExportCSV")) {
                     let generation = youth.resetID
                     Task {
                         exportGeneration = generation; exportDocument = nil; exportMessage = nil
@@ -84,7 +81,7 @@ struct HoursNotebookView: View {
                 if let exportMessage { Text(exportMessage).font(PortfolioTypography.footnote) }
             }.padding(20).frame(maxWidth: 720).frame(maxWidth: .infinity)
         }
-        .background(StorybookBackground()).navigationTitle("My completed hours").navigationBarTitleDisplayMode(.inline)
+        .background(StorybookBackground()).navigationTitle(session.text("hsMyCompletedHours")).navigationBarTitleDisplayMode(.inline)
         .task { await youth.reloadNotebook() }
         .onChange(of: youth.resetID) { _, _ in
             draft = nil; deleting = nil; exportDocument = nil; exporting = false; exportMessage = nil; exportGeneration = nil
@@ -92,9 +89,10 @@ struct HoursNotebookView: View {
         .sheet(item: $draft) { value in
             HoursEntryEditor(youth: youth, existing: value.entry)
                 .environment(\.appStorageAccess, storageAccess)
+                .environment(\.dynamicTypeSize, dynamicTypeSize)
         }
-        .confirmationDialog("Delete this self-recorded entry?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
-            Button("Delete entry", role: .destructive) {
+        .confirmationDialog(session.text("hsDeleteEntryConfirm"), isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+            Button(session.text("hsDeleteEntry"), role: .destructive) {
                 if let entry = deleting {
                     let generation = youth.resetID
                     Task { await youth.delete(entry, writable: storageAccess.allowsPersistentChanges, generation: generation) }
@@ -105,15 +103,16 @@ struct HoursNotebookView: View {
         .fileExporter(isPresented: $exporting, document: exportDocument, contentType: .commaSeparatedText, defaultFilename: "gta-hours-notebook") { result in
             guard exportGeneration == youth.resetID else { return }
             switch result {
-            case .success: exportMessage = "Exported the latest saved records. This is not school approval."
+            case .success: exportMessage = session.text("hsExportSuccess")
             case .failure(let error):
-                if (error as NSError).code != CocoaError.Code.userCancelled.rawValue { exportMessage = "The export did not complete. Your notebook is unchanged." }
+                if (error as NSError).code != CocoaError.Code.userCancelled.rawValue { exportMessage = session.text("hsExportFailed") }
             }
         }
     }
 }
 
 private struct HoursEntryEditor: View {
+    @EnvironmentObject private var session: SessionStore
     @ObservedObject var youth: HighSchoolHubStore
     @Environment(\.appStorageAccess) private var storageAccess
     @Environment(\.dismiss) private var dismiss
@@ -160,44 +159,49 @@ private struct HoursEntryEditor: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Provider / organisation", text: $provider).accessibilityIdentifier("hours-provider").focused($focused, equals: .provider)
-                    TextField("Work you completed", text: $role).accessibilityIdentifier("hours-role").focused($focused, equals: .role)
-                    DatePicker("Activity date", selection: $date, in: ...Date(), displayedComponents: .date)
-                    TextField("Actual minutes completed", text: $minutes).accessibilityIdentifier("hours-minutes").keyboardType(.numberPad).focused($focused, equals: .minutes)
-                    TextField("Notes (optional)", text: $notes, axis: .vertical).accessibilityIdentifier("hours-notes").focused($focused, equals: .notes)
-                } header: { Text("Self-recorded completed work") }
+                    TextField(session.text("hsProviderOrganisation"), text: $provider).accessibilityIdentifier("hours-provider").focused($focused, equals: .provider)
+                    TextField(session.text("hsCompletedWork"), text: $role).accessibilityIdentifier("hours-role").focused($focused, equals: .role)
+                    DatePicker(session.text("hsActivityDate"), selection: $date, in: ...Date(), displayedComponents: .date)
+                    TextField(session.text("hsActualMinutes"), text: $minutes).accessibilityIdentifier("hours-minutes").keyboardType(.numberPad).focused($focused, equals: .minutes)
+                    TextField(session.text("hsNotesOptional"), text: $notes, axis: .vertical).accessibilityIdentifier("hours-notes").focused($focused, equals: .notes)
+                } header: {
+                    Text(session.text("hsSelfRecordedWork"))
+#if DEBUG
+                        .accessibilityIdentifier("hours-editor-type-size")
+                        .accessibilityValue(dynamicTypeSize >= .accessibility3 ? "accessibility3-or-larger" : "below-accessibility3")
+#endif
+                }
                 Section {
-                    Text("Enter actual time, not a provider’s estimated commitment. Your school decides eligibility and approval.")
+                    Text(session.text("hsActualTimeSchoolDecision"))
                     if let error = youth.notebookError {
-                        Text(error).foregroundStyle(Brand.coral).accessibilityIdentifier("hours-draft-error")
-                        Button("Reload latest without discarding this draft") { Task { await youth.reloadNotebook() } }
+                        Text(SchoolLocalized.message(error, session)).foregroundStyle(Brand.coral).accessibilityIdentifier("hours-draft-error")
+                        Button(session.text("hsReloadPreserveDraft")) { Task { await youth.reloadNotebook() } }
                             .disabled(youth.busy)
                     }
                     if let latest = youth.archive?.entries.first(where: { $0.id == draftID }), base == nil || latest.revision != base?.revision {
-                        Button("Use latest saved version instead") { replaceDraft = true }.disabled(youth.busy)
+                        Button(session.text("hsUseLatestInstead")) { replaceDraft = true }.disabled(youth.busy)
                     }
-                    Button(youth.busy ? "Saving…" : "Save completed work") {
-                        guard let count = Int(minutes), (1...1440).contains(count) else { return }
+                    Button(youth.busy ? session.text("hsSaving") : session.text("hsSaveCompletedWork")) {
+                        guard let count = SchoolLocalized.enteredMinutes(minutes), (1...1440).contains(count) else { return }
                         let timestamp = youth.timestamp
                         let entry = YouthHub.HoursEntry(id: draftID, revision: (base?.revision ?? 0) + 1,
                             curatedRoleId: base?.curatedRoleId, provider: provider, role: role,
                             activityLocalDate: Self.formatter.string(from: date), actualMinutes: count, notes: notes,
                             createdAt: createdAt, updatedAt: timestamp)
                         Task { if await youth.save(entry, expectedRevision: base?.revision, writable: storageAccess.allowsPersistentChanges, generation: editorGeneration) { dismiss() } }
-                    }.disabled(!storageAccess.allowsPersistentChanges || youth.busy || provider.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || role.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || Int(minutes).map { !(1...1440).contains($0) } != false)
+                    }.disabled(!storageAccess.allowsPersistentChanges || youth.busy || provider.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || role.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || SchoolLocalized.enteredMinutes(minutes).map { !(1...1440).contains($0) } != false)
                         .accessibilityIdentifier("hours-save")
                 }
             }
             .scrollContentBackground(.hidden).background(StorybookBackground())
             .font(PortfolioTypography.body)
-            .navigationTitle(dynamicTypeSize >= .accessibility3
-                ? (base == nil ? "Add hours" : "Edit hours")
-                : (base == nil ? "Record completed work" : "Edit completed work"))
+            .navigationTitle(base == nil ? session.text("hsAddHours") : session.text("hsEditHours"))
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { if dirty { discard = true } else { dismiss() } }.disabled(youth.busy)
+                    Button(session.text("hsCancel")) { if dirty { discard = true } else { dismiss() } }.disabled(youth.busy)
                 }
-                ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Done") { focused = nil }.accessibilityIdentifier("hours-keyboard-done") }
+                ToolbarItemGroup(placement: .keyboard) { Spacer(); Button(session.text("done")) { focused = nil }.accessibilityIdentifier("hours-keyboard-done") }
             }
             .interactiveDismissDisabled(dirty || youth.busy)
             .onChange(of: youth.resetID) { _, _ in
@@ -205,11 +209,11 @@ private struct HoursEntryEditor: View {
                 provider = ""; role = ""; notes = ""; minutes = ""; base = nil
                 dismiss()
             }
-            .confirmationDialog("Discard this unsaved draft?", isPresented: $discard, titleVisibility: .visible) {
-                Button("Discard draft", role: .destructive) { dismiss() }
+            .confirmationDialog(session.text("hsDiscardDraftConfirm"), isPresented: $discard, titleVisibility: .visible) {
+                Button(session.text("hsDiscardDraft"), role: .destructive) { dismiss() }
             }
-            .confirmationDialog("Replace your draft with the latest saved version?", isPresented: $replaceDraft, titleVisibility: .visible) {
-                Button("Use latest saved version", role: .destructive) {
+            .confirmationDialog(session.text("hsReplaceDraftConfirm"), isPresented: $replaceDraft, titleVisibility: .visible) {
+                Button(session.text("hsUseLatestSaved"), role: .destructive) {
                     if let latest = youth.archive?.entries.first(where: { $0.id == draftID }) {
                         base = latest; createdAt = latest.createdAt; provider = latest.provider; role = latest.role; notes = latest.notes
                         minutes = String(latest.actualMinutes); date = Self.formatter.date(from: latest.activityLocalDate) ?? date
@@ -217,6 +221,6 @@ private struct HoursEntryEditor: View {
                 }
             }
         }
-        .environment(\.locale, Locale(identifier: "en_CA")).environment(\.layoutDirection, .leftToRight)
+        .environment(\.locale, Locale(identifier: session.language.localeIdentifier)).environment(\.layoutDirection, session.language.layoutDirection)
     }
 }

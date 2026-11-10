@@ -203,6 +203,7 @@ struct SettingsView: View {
             }
             .pickerStyle(.navigationLink)
             .storyPickerRow()
+            .accessibilityIdentifier("settings-language-picker")
 
             Text(session.text("theme"))
                 .font(PortfolioTypography.headline.weight(.semibold))

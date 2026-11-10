@@ -461,7 +461,7 @@ struct BrowseView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("\(session.text("source")): \(session.title(for: opportunity))")
+                        .accessibilityLabel("\(session.text("source")): \(store.title(for: opportunity, session: session))")
                         .accessibilityHint(session.text("sourceDetails"))
                         .accessibilityIdentifier(opportunity.id == store.opportunities.last?.id ? "browse-last-result-source" : "browse-result-source-\(opportunity.id)")
                     }
@@ -611,7 +611,7 @@ struct BrowseView: View {
                             NavigationLink(value: opportunity) {
                                 HStack(alignment: .top) {
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text(session.title(for: opportunity)).font(PortfolioTypography.subheadline.weight(.semibold))
+                                        Text(store.title(for: opportunity, session: session)).font(PortfolioTypography.subheadline.weight(.semibold))
                                         Text(session.organization(for: opportunity)).font(PortfolioTypography.caption)
                                         if let schedule = session.formattedSchedule(start: opportunity.startDate, end: opportunity.endDate) {
                                             Text(schedule)
@@ -629,6 +629,7 @@ struct BrowseView: View {
                             .buttonStyle(.plain)
                             .accessibilityHint(session.text("details"))
                             .accessibilityIdentifier("map-opportunity-\(opportunity.id)")
+                            .modifier(ListingTranslationDemand(opportunity: opportunity))
                             Divider()
                         }
                     }
@@ -655,7 +656,7 @@ struct BrowseView: View {
 
     private func venueTitle(_ venue: OpportunityMapVenue) -> String {
         venue.opportunities.count == 1
-            ? session.title(for: venue.opportunities[0])
+            ? store.title(for: venue.opportunities[0], session: session)
             : "\(venue.opportunities.count) \(session.text("navOpportunities")) · \(session.city(for: venue.opportunities[0]))"
     }
 
@@ -757,10 +758,36 @@ struct BrowseView: View {
     }
 }
 
+struct ListingTranslationDemand: ViewModifier {
+    @EnvironmentObject private var session: SessionStore
+    @EnvironmentObject private var store: OpportunityStore
+    @State private var owner = UUID()
+    let opportunity: Opportunity
+
+    private var inputs: [ListingTranslationInput] {
+        let titleFields: [(String, String)] = store.preparedText(for: opportunity, locale: session.language) == nil ? [("title", opportunity.title)] : []
+        return (titleFields + [("organization", opportunity.organization), ("city", opportunity.city)])
+            .map { ListingTranslationInput(listingID: opportunity.id, field: $0.0, source: $0.1, sourceHint: opportunity.description) }
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear { session.setTranslationDemand(owner: owner, inputs: inputs) }
+            .onDisappear { session.removeTranslationDemand(owner: owner) }
+            .onChange(of: session.preferredLanguageCode) { _, _ in
+                session.setTranslationDemand(owner: owner, inputs: inputs)
+            }
+            .onChange(of: inputs) { _, updated in
+                session.setTranslationDemand(owner: owner, inputs: updated)
+            }
+    }
+}
+
 struct OpportunityRow: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @EnvironmentObject private var session: SessionStore
+    @EnvironmentObject private var store: OpportunityStore
     let opportunity: Opportunity
     var showsDisclosure = true
 
@@ -774,10 +801,15 @@ struct OpportunityRow: View {
                     .font(PortfolioTypography.caption.weight(.semibold))
                     .foregroundStyle(Brand.lake)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(session.title(for: opportunity))
+                Text(store.title(for: opportunity, session: session))
                     .font(PortfolioTypography.headline.weight(.semibold))
                     .foregroundStyle(Brand.outline(for: colorScheme))
                     .fixedSize(horizontal: false, vertical: true)
+                if let notice = translationNotice {
+                    Text(notice).font(PortfolioTypography.footnote)
+                        .foregroundStyle(Brand.mutedText(for: colorScheme))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 Text("\(session.organization(for: opportunity)) · \(session.city(for: opportunity))")
                     .font(PortfolioTypography.subheadline)
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
@@ -792,7 +824,7 @@ struct OpportunityRow: View {
                     if let ageGuide = Self.ageGuideRange(for: opportunity) {
                         Text("\(session.text("ageGuide")): \(ageGuide)")
                     }
-                    Label(opportunity.localizedCost(language: session.language), systemImage: "ticket")
+                    Label(session.cost(for: opportunity), systemImage: "ticket")
                     if opportunity.status == "needs_review" || opportunity.isNewFind == true {
                         Label(session.text("newFind"), systemImage: "sparkles")
                     }
@@ -821,6 +853,7 @@ struct OpportunityRow: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint(session.text("openDetailsHint"))
+        .modifier(ListingTranslationDemand(opportunity: opportunity))
     }
 
     static func ageGuideRange(for opportunity: Opportunity) -> String? {
@@ -830,17 +863,30 @@ struct OpportunityRow: View {
         return "\(opportunity.ageMin)\(opportunity.ageMax.map { "–\($0)" } ?? "+")"
     }
 
+    private var translationNotice: String? {
+        if !opportunity.localizedTitle(language: session.language).utf8.elementsEqual(opportunity.title.utf8) { return nil }
+        if store.preparedText(for: opportunity, locale: session.language) != nil { return nil }
+        let input = ListingTranslationInput(listingID: opportunity.id, field: "title", source: opportunity.title, sourceHint: opportunity.description)
+        switch session.translationState(for: input) {
+        case .waiting: return session.text("translatingListing")
+        case .unavailable: return session.text("translationUnavailable")
+        case .failed: return session.text("translationFailed")
+        case .original, .translated: return nil
+        }
+    }
+
     private var accessibilityLabel: String {
         var parts = [
-            "\(session.text("details")): \(session.title(for: opportunity))",
+            "\(session.text("details")): \(store.title(for: opportunity, session: session))",
             "\(session.text("category")): \(session.categoryName(for: opportunity))",
             "\(session.text("hostOrgName")): \(session.organization(for: opportunity))",
             "\(session.text("city")) \(session.city(for: opportunity))"
         ]
+        if let notice = translationNotice { parts.append(notice) }
         if let ageGuide = Self.ageGuideRange(for: opportunity) {
             parts.append("\(session.text("ageGuide")) \(ageGuide)")
         }
-        parts.append(opportunity.localizedCost(language: session.language))
+        parts.append(session.cost(for: opportunity))
         if opportunity.status == "needs_review" || opportunity.isNewFind == true {
             parts.append(session.text("newFind"))
         }

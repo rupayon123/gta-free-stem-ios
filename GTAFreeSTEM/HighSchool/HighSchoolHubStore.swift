@@ -3,7 +3,22 @@ import Combine
 
 @MainActor
 final class HighSchoolHubStore: ObservableObject {
-    static let shared = HighSchoolHubStore()
+    static let shared: HighSchoolHubStore = {
+#if DEBUG
+        // A uniquely named, disposable notebook is used only by explicit UI tests.
+        let arguments = ProcessInfo.processInfo.arguments
+        if AppRuntime.isFrontendLayoutReview,
+           let index = arguments.firstIndex(of: "-review-notebook-nonce"),
+           arguments.indices.contains(index + 1), let nonce = UUID(uuidString: arguments[index + 1]) {
+            let file = FileManager.default.temporaryDirectory
+                .appendingPathComponent("gta-review-notebook-\(nonce.uuidString).json")
+            let repository = HighSchoolRepository(storage: YouthHoursFileStorage(fileURL: file),
+                catalogueURL: Bundle.main.url(forResource: "youth-reviewed", withExtension: "json"))
+            return HighSchoolHubStore(repository: repository)
+        }
+#endif
+        return HighSchoolHubStore()
+    }()
     @Published private(set) var resetID = UUID()
     private var lease: UUID?
     @Published private(set) var listings: [YouthHub.Listing] = []

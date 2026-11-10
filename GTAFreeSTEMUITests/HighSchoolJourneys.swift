@@ -440,6 +440,209 @@ final class HighSchoolJourneys: XCTestCase {
         XCTAssertEqual(app.state, .runningForeground)
     }
 
+    func test16MacTranslationReplayLongTextAndFooter() {
+        for (language, title, lastWords, darkLarge) in [
+            ("zh", "数据分析基础学习圈", "者应承诺遵守课程的持续时间，并每周参加一次课程。 完成课程的学习者将能够：获得数字徽章 下载完成证书", false),
+            ("fr", "Cercles d'apprentissage essentiels en analyse de données", "umérique et télécharger un certificat de réussite.", false),
+            ("ar", "دائرة التعلم الأساسية لتحليل البيانات", "رة من: الحصول على شارة رقمية وتنزيل شهادة الإكمال.", true)
+        ] {
+            app.launchArguments = ["-frontend-layout-review", "-review-screen", "home", "-review-language", language,
+                                   "-screenshot-mode", "-review-mac-translation-replay"] + (darkLarge ? ["-review-dark", "-review-large-text"] : [])
+            app.launch()
+            let initialNavigation = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'tab-'")).firstMatch
+            XCTAssertTrue(initialNavigation.waitForExistence(timeout: 20), "Navigation must finish loading before selecting Browse")
+            tap("tab-browse")
+            let listing = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", title)).firstMatch
+            // At accessibility text sizes the lazy result lies below the initial viewport.
+            reveal(listing, swipeX: 0.02)
+            XCTAssertTrue(listing.waitForExistence(timeout: 30), "Mac-replayed title should appear in Browse")
+            capture("mac-replay-\(language)-browse"); listing.tap()
+            let description = app.staticTexts["listing-full-description"]
+            let translated = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS %@", lastWords), object: description)
+            XCTAssertEqual(XCTWaiter.wait(for: [translated], timeout: 30), .completed, "Complete replay must include the last sentence")
+            let original = app.buttons["listing-show-original"]
+            reveal(original, swipeX: 0.02)
+            let footer = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'tab-'")).firstMatch
+            XCTAssertTrue(original.isHittable)
+            XCTAssertTrue(footer.exists && footer.isHittable)
+            XCTAssertLessThanOrEqual(original.frame.maxY, footer.frame.minY - 20, "Description end and original control must clear the footer")
+            capture("mac-replay-\(language)-detail-end")
+            original.tap()
+            XCTAssertTrue(description.label.contains("Interested in learning about data analytics?"), "Original source remains available")
+            app.terminate()
+        }
+    }
+
+    func test21ReviewedYouthBundleDisplaysAndRestoresOriginal() {
+        app.launchArguments = ["-frontend-layout-review", "-review-screen", "home", "-review-language", "pa", "-screenshot-mode"]
+        app.launch()
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'tab-'")).firstMatch.waitForExistence(timeout: 20))
+        tap("tab-highSchool"); tap("school-pathway-volunteer")
+        let row = element("school-record-yres-volunteer-success-program")
+        reveal(row)
+        let title = app.staticTexts.matching(NSPredicate(format: "label == %@", "ਵਲੰਟੀਅਰ ਸਫਲਤਾ ਪ੍ਰੋਗਰਾਮ — 120 ਘੰਟਿਆਂ ਦੀ ਵਚਨਬੱਧਤਾ")).firstMatch
+        XCTAssertTrue(title.waitForExistence(timeout: 20), "Reviewed bundled title must appear without Apple model support")
+        row.tap()
+        let audience = app.staticTexts.matching(NSPredicate(format: "label == %@", "ਉਮਰ 12–30 ਸਾਲ। 1 ਅਕਤੂਬਰ 2026 ਤੋਂ ਵਲੰਟੀਅਰਾਂ ਨੂੰ ਘੱਟੋ-ਘੱਟ 120 ਘੰਟੇ ਪੂਰੇ ਕਰਨ ਦੀ ਵਚਨਬੱਧਤਾ ਕਰਨੀ ਪਵੇਗੀ।")).firstMatch
+        XCTAssertTrue(audience.waitForExistence(timeout: 20), "Reviewed audience text must appear in selected language")
+        let original = app.buttons["school-listing-original"]
+        reveal(original); original.tap()
+        XCTAssertFalse(audience.exists)
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Ages 12–30.")).firstMatch.exists)
+        app.terminate()
+    }
+
+    func test20LocalizedNotebookSavesAndSurvivesRelaunch() {
+        let nonce = UUID().uuidString
+        app.launchArguments = ["-frontend-layout-review", "-review-screen", "home", "-review-language", "fr",
+                               "-screenshot-mode", "-review-notebook-nonce", nonce]
+        func openIsolatedNotebook() {
+            XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'tab-'")).firstMatch.waitForExistence(timeout: 20))
+            tap("tab-highSchool"); tap("school-hours-notebook")
+        }
+        app.launch(); openIsolatedNotebook(); tap("hours-add")
+        fill("hours-provider", "QA Library")
+        fill("hours-role", "QA completed work")
+        fill("hours-minutes", "45")
+        if app.keyboards.firstMatch.exists {
+            let done = app.buttons["hours-keyboard-done"]
+            XCTAssertTrue(done.waitForExistence(timeout: 5)); done.tap()
+        }
+        tap("hours-save")
+        XCTAssertTrue(app.staticTexts["QA completed work"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["0 h 45 min consignées par vous"].exists, "The localized total must reflect saved actual minutes")
+        app.terminate()
+        app.launch(); openIsolatedNotebook()
+        XCTAssertTrue(app.staticTexts["QA completed work"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["0 h 45 min consignées par vous"].exists, "The isolated notebook must survive relaunch")
+        app.terminate()
+    }
+
+    func test19LocalizedGuideAndNotebook() {
+        for (language, headline, notice, editorNotice, editorTitle, darkLarge) in [
+            ("zh", "探索下一步。", "这些是您自己的记录，不是已签署的学校表格，也不表示小时数已获批准。", "请输入实际时间，而非提供方估计的投入时间。是否符合要求及是否批准由学校决定。", "添加小时数", false),
+            ("fr", "Trouvez votre prochaine étape.", "Ce sont vos propres dossiers, et non un formulaire scolaire signé ni une confirmation d’heures approuvées.", "Indiquez le temps réel, et non l’engagement estimé par un fournisseur. Votre école décide de l’admissibilité et de l’approbation.", "Ajouter des heures", false),
+            ("ar", "اكتشف خطوتك التالية.", "هذه سجلاتك الخاصة، وليست نموذجًا مدرسيًا موقّعًا أو تأكيدًا لساعات معتمدة.", "أدخل الوقت الفعلي، لا الالتزام الذي تقدره الجهة المقدمة. تقرر مدرستك الأهلية والموافقة.", "إضافة ساعات", true)
+        ] {
+            app.launchArguments = ["-frontend-layout-review", "-review-screen", "home", "-review-language", language,
+                                   "-screenshot-mode", "-review-translation-fixture"] + (darkLarge ? ["-review-dark", "-review-large-text"] : [])
+            app.launch()
+            XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'tab-'")).firstMatch.waitForExistence(timeout: 20))
+            tap("tab-highSchool")
+            XCTAssertTrue(app.staticTexts[headline].waitForExistence(timeout: 15), "Guide label should use the selected language")
+            tap("school-hours-notebook")
+            let noticeView = app.staticTexts.matching(NSPredicate(format: "label == %@", notice)).firstMatch
+            reveal(noticeView); XCTAssertTrue(noticeView.exists)
+            let add = app.buttons["hours-add"]
+            reveal(add)
+            let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: add)
+            XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 15), .completed); add.tap()
+            XCTAssertTrue(app.navigationBars[editorTitle].waitForExistence(timeout: 10), "The localized editor title must remain accessible")
+            if darkLarge {
+                let size = element("hours-editor-type-size")
+                XCTAssertEqual(size.value as? String, "accessibility3-or-larger", "The presented editor must inherit the large text setting")
+            }
+            let editor = app.staticTexts.matching(NSPredicate(format: "label == %@", editorNotice)).firstMatch
+            reveal(editor); XCTAssertTrue(editor.exists)
+            capture("localized-guide-notebook-\(language)")
+            app.terminate()
+        }
+    }
+
+    func test18YouthPublicFieldsUseSharedTranslation() {
+        app.launchArguments = ["-frontend-layout-review", "-review-screen", "home", "-review-language", "zh",
+                               "-screenshot-mode", "-review-translation-fixture"]
+        app.launch()
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'tab-'")).firstMatch.waitForExistence(timeout: 20))
+        tap("tab-highSchool")
+        tap("school-pathway-volunteer")
+        let row = element("school-record-yres-volunteer-success-program")
+        reveal(row)
+        let title = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "[LAYOUT FIXTURE zh-Hans] Volunteer Success Program")).firstMatch
+        XCTAssertTrue(title.waitForExistence(timeout: 30), "The visible public title should use shared translation")
+        row.tap()
+        let audience = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "[LAYOUT FIXTURE zh-Hans] Ages 12–30.")).firstMatch
+        XCTAssertTrue(audience.waitForExistence(timeout: 30), "Provider audience text must be translated as its own source field")
+        let original = app.buttons["school-listing-original"]
+        reveal(original); original.tap()
+        XCTAssertFalse(audience.exists, "Original control must replace fixture output")
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Ages 12–30.")).firstMatch.exists)
+        app.terminate()
+    }
+
+    func test17LanguageChangeReplacesMacReplayText() {
+        app.launchArguments = ["-frontend-layout-review", "-review-screen", "home", "-review-language", "zh",
+                               "-screenshot-mode", "-review-mac-translation-replay"]
+        app.launch()
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'tab-'")).firstMatch.waitForExistence(timeout: 20))
+        tap("tab-browse")
+        let oldTitle = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "数据分析基础学习圈")).firstMatch
+        reveal(oldTitle); XCTAssertTrue(oldTitle.exists)
+        tap("tab-account")
+        // SwiftUI exposes the navigation picker as the second localized language text.
+        let languagePicker = app.staticTexts.matching(identifier: "语言").element(boundBy: 1)
+        reveal(languagePicker); XCTAssertTrue(languagePicker.isHittable); languagePicker.tap()
+        let french = app.buttons["Français - French"].firstMatch
+        reveal(french); XCTAssertTrue(french.isHittable); french.tap()
+        tap("tab-browse")
+        let newTitle = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Cercles d'apprentissage essentiels en analyse de données")).firstMatch
+        reveal(newTitle); XCTAssertTrue(newTitle.exists)
+        XCTAssertFalse(oldTitle.exists, "A prior language must not remain in the visible listing")
+        newTitle.tap()
+        let body = app.staticTexts["listing-full-description"]
+        let translated = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS %@", "certificat de réussite."), object: body)
+        XCTAssertEqual(XCTWaiter.wait(for: [translated], timeout: 30), .completed)
+        XCTAssertFalse(body.label.contains("下载完成证书"))
+        capture("mac-replay-language-switch-fr")
+        app.terminate()
+    }
+
+    func test15TranslationCancellationShowsOriginalAndCanResume() {
+        app.launchArguments = ["-frontend-layout-review", "-review-screen", "home", "-review-language", "zh",
+                               "-review-support", "-screenshot-mode", "-review-translation-fixture-hold"]
+        app.launch()
+        tap("tab-browse")
+        let listing = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Sample: Build a Solar Robot")).firstMatch
+        XCTAssertTrue(listing.waitForExistence(timeout: 20))
+        reveal(listing); listing.tap()
+        let cancel = app.buttons["listing-translation-cancel"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 20))
+        reveal(cancel, swipeX: 0.02); cancel.tap()
+        let original = app.staticTexts["listing-full-description"]
+        XCTAssertTrue(original.label.contains("Fictional preview listing created by GTA FREE STEM"))
+        let resume = app.buttons["listing-translation-resume"]
+        reveal(resume, swipeX: 0.02)
+        XCTAssertTrue(resume.isHittable)
+        resume.tap()
+        XCTAssertTrue(cancel.waitForExistence(timeout: 10))
+        app.terminate()
+    }
+
+    func test14TranslationLayoutFixtureAcrossLanguages() {
+        for (language, locale, extra) in [
+            ("zh", "zh-Hans", [String]()),
+            ("fr", "fr", [String]()),
+            ("ar", "ar", ["-review-dark", "-review-large-text"])
+        ] {
+            app.launchArguments = ["-frontend-layout-review", "-review-screen", "home", "-review-language", language,
+                                   "-review-support", "-screenshot-mode", "-review-translation-fixture"] + extra
+            app.launch()
+            tap("tab-browse")
+            let marker = "[LAYOUT FIXTURE \(locale)]"
+            let listing = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", marker)).firstMatch
+            XCTAssertTrue(listing.waitForExistence(timeout: 30), "Fixture title should reach a visible result")
+            reveal(listing)
+            capture("translation-fixture-\(language)-browse")
+            listing.tap()
+            let description = app.staticTexts["listing-full-description"]
+            let translated = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS %@", marker), object: description)
+            XCTAssertEqual(XCTWaiter.wait(for: [translated], timeout: 30), .completed, "Fixture content should reach the full detail description")
+            reveal(description, swipeX: 0.02)
+            capture("translation-fixture-\(language)-detail")
+            app.terminate()
+        }
+    }
+
     func test13SupportFilterUpdatesResultsSavesAndRestoresWithoutLeavingBrowse() {
         app.launchArguments = ["-frontend-layout-review", "-review-screen", "home",
                                "-review-language", "en", "-review-support", "-screenshot-mode"]

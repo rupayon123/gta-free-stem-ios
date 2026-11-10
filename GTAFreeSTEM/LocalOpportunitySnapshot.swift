@@ -18,7 +18,9 @@ enum LocalOpportunitySnapshot {
         else {
             throw APIError.invalidResponse
         }
-        return response
+        return OpportunityListResponse(data: response.data, meta: response.meta, sourceHealth: response.sourceHealth,
+                                       contentRights: response.contentRights, publicationRevision: response.publicationRevision,
+                                       sourceFeedBytes: data)
     }
 
     static func load(query: String, mode: SearchMode, filters: OpportunityFilters, displayLanguage: AppLanguage = preferredLanguage) throws -> OpportunityListResponse {
@@ -41,7 +43,9 @@ enum LocalOpportunitySnapshot {
         filters: OpportunityFilters,
         displayLanguage: AppLanguage = preferredLanguage,
         now: Date = .now,
-        preparedSearchIndex: [String: String]? = nil
+        preparedSearchIndex: [String: String]? = nil,
+        preparedOverlay: PreparedListingOverlay? = nil,
+        currentFeedSHA256: String? = nil
     ) -> [Opportunity] {
         let normalizedTerms = normalizedSearchTerms(query)
         let selectedAge = filters.age.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -49,6 +53,7 @@ enum LocalOpportunitySnapshot {
         let normalizedAge = Int(selectedAge)
 
         let filtered = opportunities.filter { opportunity in
+            guard !Task.isCancelled else { return false }
             guard opportunity.isExplicitlyFree else { return false }
             guard isCurrentlyAvailable(opportunity, on: now) else { return false }
             guard filters.region == "All" || opportunity.region == filters.region else { return false }
@@ -88,7 +93,7 @@ enum LocalOpportunitySnapshot {
                 guard distanceKm(fromLatitude: latitude, longitude: longitude, toLatitude: opportunityLatitude, longitude: opportunityLongitude) <= filters.distanceKm else { return false }
             }
             if !normalizedTerms.isEmpty {
-                let searchable = preparedSearchIndex?[opportunity.id] ?? searchableText(for: opportunity, language: displayLanguage)
+                let searchable = preparedSearchIndex?[opportunity.id] ?? searchableText(for: opportunity, language: displayLanguage, overlay: preparedOverlay, feedSHA256: currentFeedSHA256, now: now)
                 guard normalizedTerms.allSatisfy({ searchable.contains($0) }) else { return false }
             }
             if filters.blackFocused {
@@ -146,11 +151,14 @@ enum LocalOpportunitySnapshot {
             }
         }
 
+        guard !Task.isCancelled else { return [] }
         return sort(
             filtered,
             queryTerms: normalizedTerms,
             filters: filters,
             displayLanguage: displayLanguage,
+            overlay: preparedOverlay,
+            feedSHA256: currentFeedSHA256,
             now: now
         )
     }
@@ -241,6 +249,8 @@ enum LocalOpportunitySnapshot {
         queryTerms: [String],
         filters: OpportunityFilters,
         displayLanguage: AppLanguage,
+        overlay: PreparedListingOverlay?,
+        feedSHA256: String?,
         now: Date
     ) -> [Opportunity] {
         switch filters.sort {
@@ -261,7 +271,7 @@ enum LocalOpportunitySnapshot {
                 return sortedByDate(opportunities, now: now)
             }
             let ranked: [(opportunity: Opportunity, score: Int, date: Date)] = opportunities.map { opportunity in
-                let score = relevance(opportunity, queryTerms: queryTerms, language: displayLanguage)
+                let score = relevance(opportunity, queryTerms: queryTerms, language: displayLanguage, overlay: overlay, feedSHA256: feedSHA256, now: now)
                 let date = dateValue(opportunity, now: now)
                 return (opportunity: opportunity, score: score, date: date)
             }
@@ -288,14 +298,20 @@ enum LocalOpportunitySnapshot {
 
     /// The retained feed has validated unique IDs. Build this immutable index
     /// once per feed and display language, off the UI actor, then reuse it.
-    static func prepareSearchIndex(_ opportunities: [Opportunity], displayLanguage: AppLanguage) -> [String: String] {
-        Dictionary(opportunities.map {
-            ($0.id, searchableText(for: $0, language: displayLanguage))
-        }, uniquingKeysWith: { first, _ in first })
+    static func prepareSearchIndex(_ opportunities: [Opportunity], displayLanguage: AppLanguage, overlay: PreparedListingOverlay? = nil, feedSHA256: String? = nil, now: Date = .now) -> [String: String] {
+        var index: [String: String] = [:]
+        for opportunity in opportunities {
+            guard !Task.isCancelled else { return [:] }
+            if index[opportunity.id] == nil {
+                index[opportunity.id] = searchableText(for: opportunity, language: displayLanguage, overlay: overlay, feedSHA256: feedSHA256, now: now)
+            }
+        }
+        return index
     }
 
-    private static func searchableText(for opportunity: Opportunity, language: AppLanguage) -> String {
-        normalizedText(searchableFields(for: opportunity, language: language).joined(separator: " "))
+    private static func searchableText(for opportunity: Opportunity, language: AppLanguage, overlay: PreparedListingOverlay? = nil, feedSHA256: String? = nil, now: Date = .now) -> String {
+        let prepared = feedSHA256.flatMap { _ in overlay?.locale == language ? overlay?.resolve(opportunity, now: now) : nil }
+        return normalizedText((searchableFields(for: opportunity, language: language) + [prepared?.title, prepared?.description].compactMap { $0 }).joined(separator: " "))
     }
 
     private static func searchableFields(for opportunity: Opportunity, language: AppLanguage) -> [String] {
@@ -402,7 +418,9 @@ enum LocalOpportunitySnapshot {
         return earthRadiusKm * 2 * atan2(sqrt(a), sqrt(1 - a))
     }
 
-    private static func relevance(_ opportunity: Opportunity, queryTerms: [String], language: AppLanguage) -> Int {
+    private static func relevance(_ opportunity: Opportunity, queryTerms: [String], language: AppLanguage, overlay: PreparedListingOverlay?, feedSHA256: String?, now: Date) -> Int {
+        let prepared = feedSHA256.flatMap { _ in overlay?.locale == language ? overlay?.resolve(opportunity, now: now) : nil }
+        let preparedFields = [(prepared?.title, 8), (prepared?.description, 2)].compactMap { text, weight in text.map { ($0, weight) } }
         let weightedFields = uniqueWeightedFields([
             (opportunity.localizedTitle(language: language), 8),
             (opportunity.title, 8),
@@ -418,7 +436,7 @@ enum LocalOpportunitySnapshot {
             (opportunity.description, 2),
             (opportunity.localizedRegion(language: language), 1),
             (opportunity.region, 1)
-        ] + opportunity.localizedTags(language: language).map { ($0, 3) } + opportunity.tags.map { ($0, 3) })
+        ] + preparedFields + opportunity.localizedTags(language: language).map { ($0, 3) } + opportunity.tags.map { ($0, 3) })
 
         return weightedFields.reduce(0) { score, field in
             let normalizedField = normalizedText(field.0)

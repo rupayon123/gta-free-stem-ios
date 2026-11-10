@@ -296,16 +296,29 @@ final class OpportunityStore: ObservableObject {
     private var lastRefreshStartedAt: Date?
     private var inMemoryFeed: OpportunityListResponse?
     private var catalogueGeneration = 0
+    private var overlayInstallGeneration = 0
+    private var overlayExpiryTask: Task<Void, Never>?
     private var retainedFeedSource: DataSource = .publicLiveFeed
-    private var preparedSearchIndex: (generation: Int, language: AppLanguage, values: [String: String])?
+    @Published private(set) var preparedListingOverlay: PreparedListingOverlay?
+    @Published private(set) var retainedFeedSHA256: String?
+    private var preparedSearchIndex: (generation: Int, language: AppLanguage, packSHA256: String?, values: [String: String])?
 
     /// Catalogue scans are CPU work. Keep them off the UI actor and publish
     /// their inventory only if this is still the retained feed on completion.
     @discardableResult
     private func retainFullFeed(_ response: OpportunityListResponse?, source: DataSource) async -> Int {
         catalogueGeneration &+= 1
+        overlayInstallGeneration &+= 1
+        overlayExpiryTask?.cancel()
+        overlayExpiryTask = nil
         let generation = catalogueGeneration
+        let preservedOverlay = preparedListingOverlay.flatMap { overlay in
+            response?.sourceFeedBytes != nil && overlay.locale == AppLanguage.preferred() &&
+                overlay.generatedAt <= now() && now() < overlay.expiresAt ? overlay : nil
+        }
         inMemoryFeed = response
+        preparedListingOverlay = preservedOverlay
+        retainedFeedSHA256 = nil
         preparedSearchIndex = nil
         retainedFeedSource = source
         availableHomePathwayModes = []
@@ -313,6 +326,12 @@ final class OpportunityStore: ObservableObject {
         availableFilterCategories = []
         homeTopics = []
         guard let response else { return generation }
+        if let bytes = response.sourceFeedBytes {
+            let digest = await Task.detached(priority: .utility) { FullDescriptionBinding.hashBytes(bytes) }.value
+            guard generation == catalogueGeneration, !Task.isCancelled else { return generation }
+            retainedFeedSHA256 = digest
+            if let preservedOverlay { scheduleOverlayExpiry(preservedOverlay) }
+        }
         let snapshotNow = now()
         let inventory = await Task.detached(priority: .userInitiated) {
             let modes = HomePathwayInventory.availableModes(in: response.data, now: snapshotNow)
@@ -340,6 +359,89 @@ final class OpportunityStore: ObservableObject {
         homeTopics = Array(ordered.prefix(6))
         return generation
     }
+
+    /// No transport is provided here. The expected digest must come from a
+    /// separately authenticated and approved publication, not the pack itself.
+    @discardableResult
+    func installPreparedOverlay(data: Data, expectedPackSHA256: String, locale: AppLanguage, pinnedSourceFeed: Data? = nil) async throws -> Bool {
+        guard let feed = inMemoryFeed, let bytes = feed.sourceFeedBytes, let digest = retainedFeedSHA256,
+              locale == AppLanguage.preferred() else { return false }
+        let generation = catalogueGeneration
+        overlayInstallGeneration &+= 1
+        let installGeneration = overlayInstallGeneration
+        let overlay = try await PreparedListingOverlay.validateOffMain(data: data, sourceFeedData: pinnedSourceFeed ?? bytes,
+                                                                        locale: locale, expectedPackSHA256: expectedPackSHA256, now: now())
+        guard !Task.isCancelled, generation == catalogueGeneration, installGeneration == overlayInstallGeneration, digest == retainedFeedSHA256,
+              locale == AppLanguage.preferred() else { return false }
+        if let retained = preparedListingOverlay {
+            guard overlay.generatedAt >= retained.generatedAt,
+                  overlay.generatedAt != retained.generatedAt || overlay.packSHA256 == retained.packSHA256 else { return false }
+        }
+        let snapshotQuery = query, snapshotMode = mode, snapshotFilters = filters, snapshotNow = now()
+        let worker = Task.detached(priority: .userInitiated) {
+            let index = LocalOpportunitySnapshot.prepareSearchIndex(feed.data, displayLanguage: locale, overlay: overlay, feedSHA256: digest, now: snapshotNow)
+            let filtered = LocalOpportunitySnapshot.filter(feed.data, query: snapshotQuery, mode: snapshotMode, filters: snapshotFilters,
+                displayLanguage: locale, now: snapshotNow, preparedSearchIndex: index, preparedOverlay: overlay, currentFeedSHA256: digest)
+            return (index, filtered)
+        }
+        let result = await withTaskCancellationHandler(operation: { await worker.value }, onCancel: { worker.cancel() })
+        guard !Task.isCancelled, generation == catalogueGeneration, installGeneration == overlayInstallGeneration, digest == retainedFeedSHA256,
+              locale == AppLanguage.preferred(), snapshotQuery == query, snapshotMode == mode, snapshotFilters == filters,
+              now() < overlay.expiresAt else { return false }
+        preparedListingOverlay = overlay
+        preparedSearchIndex = (generation, locale, overlay.packSHA256, result.0)
+        apply(OpportunityListResponse(data: result.1, meta: .init(activeCount: result.1.count, lastUpdated: feed.meta?.lastUpdated),
+                                      publicationRevision: feed.publicationRevision), source: retainedFeedSource)
+        scheduleOverlayExpiry(overlay)
+        return true
+    }
+
+    private func scheduleOverlayExpiry(_ overlay: PreparedListingOverlay) {
+        overlayExpiryTask?.cancel()
+        let seconds = max(0, overlay.expiresAt.timeIntervalSince(now()))
+        overlayExpiryTask = Task { [weak self] in
+            do { try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) } catch { return }
+            guard let self, self.preparedListingOverlay?.packSHA256 == overlay.packSHA256 else { return }
+            if self.now() < overlay.expiresAt { self.scheduleOverlayExpiry(overlay); return }
+            self.overlayExpiryTask = nil
+            await self.reconcilePreparedOverlay()
+        }
+    }
+
+    func reconcilePreparedOverlay() async {
+        guard let overlay = preparedListingOverlay else { return }
+        guard overlay.locale != AppLanguage.preferred() || retainedFeedSHA256 == nil ||
+              now() < overlay.generatedAt || now() >= overlay.expiresAt else { return }
+        overlayInstallGeneration &+= 1
+        overlayExpiryTask?.cancel()
+        overlayExpiryTask = nil
+        preparedListingOverlay = nil
+        preparedSearchIndex = nil
+        guard let feed = inMemoryFeed else { return }
+        let generation = catalogueGeneration
+        let result = await responseForCurrentHunt(from: feed)
+        guard !Task.isCancelled, generation == catalogueGeneration, preparedListingOverlay == nil else { return }
+        apply(result, source: retainedFeedSource)
+    }
+
+    func preparedText(for opportunity: Opportunity, locale: AppLanguage) -> (title: String, description: String)? {
+        guard let overlay = preparedListingOverlay, overlay.locale == locale, retainedFeedSHA256 != nil else { return nil }
+        return overlay.resolve(opportunity, now: now())
+    }
+
+    func title(for opportunity: Opportunity, session: SessionStore) -> String {
+        let providerText = opportunity.localizedTitle(language: session.language)
+        if !providerText.utf8.elementsEqual(opportunity.title.utf8) { return providerText }
+        return preparedText(for: opportunity, locale: session.language)?.title ?? session.title(for: opportunity)
+    }
+
+#if DEBUG
+    /// Test-only seam: exercises the same retained-feed transition without a
+    /// network or a signed publication. Never called by production UI.
+    func retainPreparedFeedForTesting(_ response: OpportunityListResponse) async {
+        await retainFullFeed(response, source: .previewDatabase)
+    }
+#endif
 
     init(
         api: APIClient,
@@ -604,6 +706,11 @@ final class OpportunityStore: ObservableObject {
     /// intentionally ignores disk cache and never starts a network request.
     @discardableResult
     func prepareScreenshotSnapshot() async -> Bool {
+#if DEBUG
+        if AppRuntime.isFrontendLayoutReview && ProcessInfo.processInfo.arguments.contains("-review-mac-translation-replay") {
+            return await prepareMacTranslationReplay()
+        }
+#endif
         let fullFeed = ScreenshotOpportunityFixtures.fullFeed
 
         await retainFullFeed(fullFeed, source: .previewDatabase)
@@ -614,6 +721,20 @@ final class OpportunityStore: ObservableObject {
     }
 
 #if DEBUG
+    /// Isolated, source-linked record for a labelled replay of Mac output. Never published.
+    func prepareMacTranslationReplay() async -> Bool {
+        guard let feed = try? await Task.detached(priority: .userInitiated, operation: { try LocalOpportunitySnapshot.loadFull() }).value,
+              let listing = feed.data.first(where: { $0.id == MacTranslationLayoutReplay.id }),
+              FullDescriptionBinding.hash(listing.title) == MacTranslationLayoutReplay.titleHash,
+              FullDescriptionBinding.hash(listing.description) == MacTranslationLayoutReplay.descriptionHash else { return false }
+        let isolated = OpportunityListResponse(data: [listing], meta: .init(activeCount: 1, lastUpdated: feed.meta?.lastUpdated))
+        await retainFullFeed(isolated, source: .previewDatabase)
+        apply(isolated, source: retainedFeedSource)
+        huntPhase = .cached
+        errorMessage = nil
+        return true
+    }
+
     /// Labelled, isolated app-owned samples only; exercises the real baseline/delta engine.
     func prepareNamedSearchLayoutReview() async {
         let rows = ScreenshotOpportunityFixtures.fullFeed.data
@@ -984,6 +1105,10 @@ final class OpportunityStore: ObservableObject {
     nonisolated static func encodeCachePayload(_ response: OpportunityListResponse, limit: Int) async -> Data? {
         guard !Task.isCancelled else { return nil }
         let worker = Task.detached(priority: .utility) { () -> Data? in
+            if let original = response.sourceFeedBytes {
+                guard !Task.isCancelled, original.count <= limit else { return nil }
+                return original
+            }
             guard !Task.isCancelled, let payload = try? JSONEncoder().encode(response),
                   !Task.isCancelled, payload.count <= limit else { return nil }
             return payload
@@ -1031,7 +1156,7 @@ final class OpportunityStore: ObservableObject {
         await Task.detached(priority: .userInitiated) { () -> OpportunityListResponse? in
             guard let response = try? JSONDecoder().decode(OpportunityListResponse.self, from: payload),
                   response.hasValidPublicationRevision(now: now) else { return nil }
-            return response
+            return APIClient.applyBundledTranslations(from: response, sourceFeedBytes: payload)
         }.value
     }
 
@@ -1185,30 +1310,43 @@ final class OpportunityStore: ObservableObject {
             let snapshotFilters = filters
             let snapshotLanguage = AppLanguage.preferred()
             let snapshotNow = now()
+            let overlay = preparedListingOverlay.flatMap { value in
+                value.locale == snapshotLanguage && retainedFeedSHA256 != nil &&
+                value.generatedAt <= snapshotNow && snapshotNow < value.expiresAt ? value : nil
+            }
+            if preparedListingOverlay != nil && overlay == nil {
+                preparedListingOverlay = nil
+                preparedSearchIndex = nil
+            }
+            let feedSHA = retainedFeedSHA256
+            let packSHA = overlay?.packSHA256
             let cachedIndex = preparedSearchIndex.flatMap {
-                $0.generation == generation && $0.language == snapshotLanguage ? $0.values : nil
+                $0.generation == generation && $0.language == snapshotLanguage && $0.packSHA256 == packSHA ? $0.values : nil
             }
             let result = await Task.detached(priority: .userInitiated) {
                 let index = snapshotQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                     ? cachedIndex
-                    : cachedIndex ?? LocalOpportunitySnapshot.prepareSearchIndex(feed.data, displayLanguage: snapshotLanguage)
+                    : cachedIndex ?? LocalOpportunitySnapshot.prepareSearchIndex(feed.data, displayLanguage: snapshotLanguage, overlay: overlay, feedSHA256: feedSHA, now: snapshotNow)
                 let filtered = LocalOpportunitySnapshot.filter(
                     feed.data, query: snapshotQuery, mode: snapshotMode,
                     filters: snapshotFilters, displayLanguage: snapshotLanguage, now: snapshotNow,
-                    preparedSearchIndex: index
+                    preparedSearchIndex: index, preparedOverlay: overlay, currentFeedSHA256: feedSHA
                 )
                 return (filtered: filtered, index: index)
             }.value
             // Reuse a completed index even if the query changed meanwhile;
             // its identity is the public feed and language, never the query.
-            if generation == catalogueGeneration, snapshotLanguage == AppLanguage.preferred(), let index = result.index {
-                preparedSearchIndex = (generation, snapshotLanguage, index)
+            if generation == catalogueGeneration, snapshotLanguage == AppLanguage.preferred(),
+               preparedListingOverlay?.packSHA256 == packSHA, let index = result.index {
+                preparedSearchIndex = (generation, snapshotLanguage, packSHA, index)
             }
             // A keystroke, filter, language or accepted feed can change while
             // the worker runs. Never replace the newest hunt with an old result.
             guard generation == catalogueGeneration,
                   snapshotQuery == query, snapshotMode == mode,
-                  snapshotFilters == filters, snapshotLanguage == AppLanguage.preferred()
+                  snapshotFilters == filters, snapshotLanguage == AppLanguage.preferred(),
+                  preparedListingOverlay?.packSHA256 == packSHA,
+                  overlay.map({ now() < $0.expiresAt }) ?? true
             else { continue }
             return OpportunityListResponse(
                 data: result.filtered,

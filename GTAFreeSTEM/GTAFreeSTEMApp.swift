@@ -228,6 +228,18 @@ private struct AppWindowContent: View {
                     .modelContainer(GTAFreeSTEMApp.sharedModelContainer)
             }
         }
+        .background {
+            if !AppRuntime.isFrontendLayoutReview { ListingTranslationHost().id(session.language) }
+        }
+#if DEBUG
+        .overlay(alignment: .bottom) {
+            if AppRuntime.isFrontendLayoutReview && ProcessInfo.processInfo.arguments.contains("-review-translation-fixture") {
+                Text("LAYOUT FIXTURE · not translated")
+                    .font(.caption2.bold()).padding(4).background(.yellow).foregroundStyle(.black)
+                    .allowsHitTesting(false).accessibilityHidden(true)
+            }
+        }
+#endif
         // The stored language belongs to the complete window, including the
         // launch experience, so RTL users never see an LTR-first handoff.
         .environment(\.locale, Locale(identifier: session.language.localeIdentifier))
@@ -291,12 +303,16 @@ private struct AppWindowContent: View {
             if phase == .background {
                 GTAFreeSTEMApp.scheduleAppRefresh()
             } else if phase == .active {
+                Task { await opportunities.reconcilePreparedOverlay() }
 #if os(iOS) && !targetEnvironment(macCatalyst)
                 if GTAFreeSTEMApp.modelContainerResolution.storageAccess.allowsPersistentChanges {
                     WatchSavedOpportunitySync.shared.sync(in: ModelContext(GTAFreeSTEMApp.sharedModelContainer))
                 }
 #endif
             }
+        }
+        .onChange(of: session.preferredLanguageCode) { _, _ in
+            Task { await opportunities.reconcilePreparedOverlay() }
         }
     }
 }

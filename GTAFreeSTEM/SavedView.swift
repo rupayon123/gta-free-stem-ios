@@ -6,6 +6,7 @@ struct SavedView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appStorageAccess) private var storageAccess
     @EnvironmentObject private var session: SessionStore
+    @EnvironmentObject private var store: OpportunityStore
     @Query(sort: \SavedOpportunityRecord.savedAt, order: .reverse) private var savedRecords: [SavedOpportunityRecord]
     @State private var saveErrorMessage: String?
 
@@ -151,6 +152,7 @@ private struct SavedOpportunityEntry: Identifiable {
 
 private struct SavedOpportunityListItem: View {
     @EnvironmentObject private var session: SessionStore
+    @EnvironmentObject private var store: OpportunityStore
     let opportunity: Opportunity
 
     var body: some View {
@@ -168,7 +170,7 @@ private struct SavedOpportunityListItem: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("\(session.text("source")): \(session.title(for: opportunity))")
+                .accessibilityLabel("\(session.text("source")): \(store.title(for: opportunity, session: session))")
                 .accessibilityHint(session.text("sourceDetails"))
             }
         }

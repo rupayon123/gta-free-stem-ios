@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E123B011F82B46F5964A0011 /* source-bound-small-translations.json in Resources */ = {isa = PBXBuildFile; fileRef = E123B011F82B46F5964A0012 /* source-bound-small-translations.json */; };
 		0FEC777605D5C112F928C309 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 21AFF436C007F0677616CD97 /* LaunchScreen.storyboard */; };
 		15C4002643726DEDEE370E34 /* opportunities.json in Resources */ = {isa = PBXBuildFile; fileRef = 0D340C91FCBE390D875ED59B /* opportunities.json */; };
 		168AF57FFB6496AE3B843362 /* APIClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6401728357C617A014393A8C /* APIClientTests.swift */; };
@@ -84,6 +85,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		E123B011F82B46F5964A0012 /* source-bound-small-translations.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "source-bound-small-translations.json"; sourceTree = "<group>"; };
 		075A6BF3E1AAE190CCD6FA31 /* hi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = hi; path = hi.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		0CCB8D45730C284CAF039598 /* hu */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = hu; path = hu.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		0D340C91FCBE390D875ED59B /* opportunities.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = opportunities.json; sourceTree = "<group>"; };
@@ -246,6 +248,7 @@
 				6BED4315443417048972BE2E /* youth-reviewed.json */,
 
 				A4D516C7B3AD1D417ABBDC9C /* app_strings.json */,
+				E123B011F82B46F5964A0012 /* source-bound-small-translations.json */,
 				3DE6C81FFC5D0CA49C886213 /* Nunito-OFL.txt */,
 				06EA72B71A62F95FBFD93BCB /* Nunito.ttf */,
 				0D340C91FCBE390D875ED59B /* opportunities.json */,
@@ -410,6 +413,7 @@
 				0FEC777605D5C112F928C309 /* LaunchScreen.storyboard in Resources */,
 				EE09F46022F670609FDFE888 /* PrivacyInfo.xcprivacy in Resources */,
 				475FC5B26D8388188FEC26C1 /* app_strings.json in Resources */,
+				E123B011F82B46F5964A0011 /* source-bound-small-translations.json in Resources */,
 				FDE9080A6C7E9C086FDDD7C6 /* Nunito-OFL.txt in Resources */,
 				0F8FE5E37B21E671E1A6E5EC /* Nunito.ttf in Resources */,
 				15C4002643726DEDEE370E34 /* opportunities.json in Resources */,

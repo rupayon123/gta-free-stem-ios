@@ -804,7 +804,7 @@ struct FrontendLayoutReview: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Text(session.text("layoutReviewBanner"))
+            Text(ProcessInfo.processInfo.arguments.contains("-review-mac-translation-replay") ? "MAC TRANSLATION REPLAY · NOT PHONE" : session.text("layoutReviewBanner"))
                 .font(.caption.weight(.semibold))
                 .frame(maxWidth: .infinity)
                 .padding(8)
@@ -812,6 +812,7 @@ struct FrontendLayoutReview: View {
                 .background(Brand.sun)
             reviewContent
         }
+        .background { ListingTranslationHost().id(session.language) }
         .environmentObject(session)
         .environmentObject(store)
         .modelContainer(container)
@@ -822,7 +823,8 @@ struct FrontendLayoutReview: View {
         .preferredColorScheme(followsSystemTheme ? nil : (isDark ? .dark : .light))
         .task {
             guard !ready else { return }
-            let prepared = await store.prepareScreenshotSnapshot()
+            let prepared = ProcessInfo.processInfo.arguments.contains("-review-mac-translation-replay")
+                ? await store.prepareMacTranslationReplay() : await store.prepareScreenshotSnapshot()
             guard prepared else { return }
             if screen == "home-saved" { await store.prepareNamedSearchLayoutReview() }
             if screen == "saved" {

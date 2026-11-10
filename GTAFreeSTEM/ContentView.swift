@@ -462,6 +462,9 @@ struct ContentView: View {
         Text(session.text(tab.titleKey))
             .font(PortfolioTypography.caption.weight(selectedTab == tab ? .semibold : .regular))
             .multilineTextAlignment(footerColumnCount <= 2 ? .leading : .center)
+            .lineLimit(footerColumnCount > 2 ? 1 : nil)
+            .allowsTightening(footerColumnCount > 2)
+            .minimumScaleFactor(footerColumnCount > 2 ? 0.75 : 1)
             .fixedSize(horizontal: false, vertical: true)
     }
 
