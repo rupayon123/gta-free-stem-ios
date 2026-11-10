@@ -21,7 +21,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git rev-parse HEAD^)" = 098f5f6feacfeaa8bcee73ba7481b396a6cb2132
+          test "$(git rev-parse HEAD^)" = dba8a4d5b5864a53acdcb35568b76085a5a3a32d
           test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = .github/workflows/ios-release-readiness.yml
           test -z "$(git status --porcelain)"
           shasum -a 256 -c .github/native-ci-source.sha256
@@ -81,8 +81,8 @@ jobs:
           set -euo pipefail
           git fetch -q --no-tags --depth=1 origin ee6edf3b9852db149390c38a18c48023f5a3f509
           git worktree add -q --detach "$RUNNER_TEMP/build19-reader" ee6edf3b9852db149390c38a18c48023f5a3f509
-          curl -fsSL --max-time 30 'https://raw.githubusercontent.com/rupayon123/gta-free-stem-opportunities/refs/heads/codex/hunter-dual-review-20261110-42773144005/opportunities.json' -o "$RUNNER_TEMP/build19-reader/GTAFreeSTEM/Resources/opportunities.json"
-          printf '%s  %s\n' 'a7acceb3d12d38989eb3083a369b570d178277d5046ee0311a04acc1473ec4ae' "$RUNNER_TEMP/build19-reader/GTAFreeSTEM/Resources/opportunities.json" | shasum -a 256 -c -
+          curl -fsSL --max-time 30 'https://raw.githubusercontent.com/rupayon123/gta-free-stem-opportunities/refs/heads/codex/backend-fresh-review-20261110-42775949636/opportunities.json' -o "$RUNNER_TEMP/build19-reader/GTAFreeSTEM/Resources/opportunities.json"
+          printf '%s  %s\n' 'b1bc634cf7be59ac0ecf0799f717f0726660978f2356e51d57fc55848635fc9b' "$RUNNER_TEMP/build19-reader/GTAFreeSTEM/Resources/opportunities.json" | shasum -a 256 -c -
           xcodebuild test -project "$RUNNER_TEMP/build19-reader/GTAFreeSTEM.xcodeproj" -scheme GTAFreeSTEM \
             -configuration Debug -destination "$TEST_DESTINATION" -destination-timeout 90 \
             -jobs 1 -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 \
@@ -175,7 +175,7 @@ jobs:
           run_id = os.environ['GITHUB_RUN_ID']; attempt = os.environ['GITHUB_RUN_ATTEMPT']
           if not re.fullmatch(r'\d+', run_id) or not re.fullmatch(r'\d+', attempt): raise SystemExit('Invalid run ID')
           ref = 'codex/ios-beta-evidence-' + run_id + '-' + attempt
-          (evidence / 'manifest.json').write_text(json.dumps({'workflowCommit': os.environ['GITHUB_SHA'], 'sourceCommit': '098f5f6feacfeaa8bcee73ba7481b396a6cb2132', 'simulatorOnly': True, 'images': entries}, indent=2) + '\n')
+          (evidence / 'manifest.json').write_text(json.dumps({'workflowCommit': os.environ['GITHUB_SHA'], 'sourceCommit': 'dba8a4d5b5864a53acdcb35568b76085a5a3a32d', 'simulatorOnly': True, 'images': entries}, indent=2) + '\n')
           askpass = temp / 'gta-evidence-askpass.sh'
           askpass.write_text('#!/bin/sh\ncase "$1" in *Username*) printf "%s\\n" x-access-token ;; *) printf "%s\\n" "$EVIDENCE_GITHUB_TOKEN" ;; esac\n')
           askpass.chmod(0o700)
