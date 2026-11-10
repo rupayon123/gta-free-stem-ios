@@ -21,7 +21,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git rev-parse HEAD^)" = 5db96f1989616493e94c88c36488b2d8cf0cb0bc
+          test "$(git rev-parse HEAD^)" = 98da340979a28856d79debf81bb2caa68d17067c
           test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = .github/workflows/ios-release-readiness.yml
           test -z "$(git status --porcelain)"
           shasum -a 256 -c .github/native-ci-source.sha256
@@ -61,6 +61,28 @@ jobs:
           xcrun simctl bootstatus "$TEST_DEVICE" -b
           xcrun simctl spawn "$TEST_DEVICE" launchctl print system >/dev/null
           echo 'Selected simulator boot and launch services ready'
+      - name: Verify capture filters keep samples offline
+        timeout-minutes: 15
+        shell: bash
+        env:
+          TEST_DESTINATION: ${{ steps.destination.outputs.value }}
+        run: |
+          set -euo pipefail
+          xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM \
+            -configuration Debug -destination "$TEST_DESTINATION" -destination-timeout 90 \
+            -jobs 1 -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 \
+            -only-testing:GTAFreeSTEMTests/OpportunityStoreTests/testApplyingScreenshotFiltersKeepsSamplesAndDoesNotFetch \
+            -derivedDataPath "$RUNNER_TEMP/nav-derived" -resultBundlePath "$RUNNER_TEMP/capture-filter.xcresult" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/capture-filter.log"
+          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/capture-filter.xcresult" > "$RUNNER_TEMP/capture-filter-summary.json"
+          python3 - <<'CHECK'
+          import json, os
+          from pathlib import Path
+          s=json.loads((Path(os.environ['RUNNER_TEMP'])/'capture-filter-summary.json').read_text())
+          print('CAPTURE_FILTER_SUMMARY '+json.dumps(s))
+          if s.get('result')!='Passed' or s.get('totalTestCount')!=1 or s.get('passedTests')!=1 or s.get('failedTests')!=0 or s.get('skippedTests')!=0:
+              raise SystemExit('Capture filter regression did not pass')
+          CHECK
       - name: Run bottom-content diagnostic
         id: ui
         timeout-minutes: 22
@@ -129,9 +151,10 @@ jobs:
           for test in records:
               for attachment in test.get('attachments', []):
                   name=attachment.get('suggestedHumanReadableName',''); fn=attachment.get('exportedFileName','')
-                  if (name.startswith('support-filter-actual') or attachment.get('isAssociatedWithFailure')) and fn.lower().endswith('.png') and Path(fn).name == fn:
+                  if (name.startswith(('support-filter-actual','support-switch-after-tap')) or attachment.get('isAssociatedWithFailure')) and fn.lower().endswith('.png') and Path(fn).name == fn:
                       candidates.append((name,root/fn))
           match=next(((n,p) for n,p in candidates if n.startswith('support-filter-actual')),None)
+          if match is None: match=next(((n,p) for n,p in candidates if n.startswith('support-switch-after-tap')),None)
           if match is None: match=next(iter(candidates),None)
           if match is None: raise SystemExit('No support diagnostic screenshot')
           name,path=match;raw=path.read_bytes()
