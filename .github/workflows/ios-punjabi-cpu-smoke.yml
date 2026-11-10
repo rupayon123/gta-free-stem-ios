@@ -1,0 +1,92 @@
+name: iOS Punjabi CPU synthetic candidate smoke
+
+# Review-only proposal. A future push of these paths to this dedicated branch
+# WILL start one smoke job; do not push until that execution is authorized.
+on:
+  push:
+    branches:
+      - codex/ios-translation-cpu-smoke-20261110
+    paths:
+      - .github/workflows/ios-punjabi-cpu-smoke.yml
+      - tools/translation-smoke/**
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-cpu-smoke:
+    if: github.repository == 'rupayon123/gta-free-stem-ios' && github.ref == 'refs/heads/codex/ios-translation-cpu-smoke-20261110' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Fetch public source without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          export GIT_TERMINAL_PROMPT=0 GIT_CONFIG_NOSYSTEM=1
+          [[ "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ ]]
+          git init --quiet "$RUNNER_TEMP/reviewed-repo"
+          git -C "$RUNNER_TEMP/reviewed-repo" -c credential.helper= remote add origin 'https://github.com/rupayon123/gta-free-stem-ios.git'
+          git -C "$RUNNER_TEMP/reviewed-repo" -c credential.helper= fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          test "$(git -C "$RUNNER_TEMP/reviewed-repo" rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
+          git -C "$RUNNER_TEMP/reviewed-repo" -c core.hooksPath=/dev/null checkout --quiet --detach FETCH_HEAD
+      - name: Verify exact local smoke sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/reviewed-repo"
+          sha256sum -c <<'CHECKSUMS'
+          ac61a68bc5d271926578f243a3ae83238e9e25e5a752efee668e8d3c2daf0940  tools/translation-smoke/madlad_worker_linux.cpp
+          30da1c38137eb04ace34fcef4634bb08a73cd13f9e8e86e6e4204ccf4d3cdb1b  tools/translation-smoke/madlad_linux_smoke.py
+          CHECKSUMS
+      - name: Fetch and verify official pinned runtime and headers
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/llama-runtime" "$RUNNER_TEMP/llama-headers"
+          curl --fail --location --proto '=https' --tlsv1.2 --max-time 60 --max-filesize 25000000 \
+            'https://github.com/ggml-org/llama.cpp/releases/download/b12110/llama-b12110-bin-ubuntu-x64.tar.gz' -o "$RUNNER_TEMP/runtime.tar.gz"
+          echo '368227edcc229be5f9bed16a2223d79b5e41d0ac2e19bcf5825e82291c060e55  '"$RUNNER_TEMP/runtime.tar.gz" | sha256sum -c -
+          python3 - "$RUNNER_TEMP/runtime.tar.gz" "$RUNNER_TEMP/llama-runtime" <<'PY'
+          import sys, tarfile
+          with tarfile.open(sys.argv[1], 'r:gz') as archive:
+              members = archive.getmembers()
+              if len(members) > 5000 or sum(max(0, x.size) for x in members) > 500_000_000:
+                  raise SystemExit('runtime archive exceeds extraction bounds')
+              archive.extractall(sys.argv[2], members=members, filter='data')
+          PY
+          source='https://raw.githubusercontent.com/ggml-org/llama.cpp/cd959bae99ff4bed22bef2604f45241c09bbb8c8'
+          curl --fail --location --proto '=https' --tlsv1.2 --max-time 20 "$source/include/llama.h" -o "$RUNNER_TEMP/llama-headers/llama.h"
+          for name in ggml.h ggml-cpu.h ggml-backend.h ggml-opt.h gguf.h ggml-alloc.h; do
+            curl --fail --location --proto '=https' --tlsv1.2 --max-time 20 "$source/ggml/include/$name" -o "$RUNNER_TEMP/llama-headers/$name"
+          done
+          (cd "$RUNNER_TEMP/llama-headers" && sha256sum -c <<'CHECKSUMS'
+          f07ffbabd3fbe9ef21d97b4d4ce8328d9c2a123ccbf5266f04a3146d70ce4f91  llama.h
+          1aef7a5f465b1c19de305dd6f9a0c303f88e485133a94b9a0ee1cce6345c9101  ggml.h
+          316279e004cdeb8e6ef78599acb602bf79a8abdf897fed9fd1914808c1518c6e  ggml-cpu.h
+          34464da4b46314c710cd634626578c6f2a6811431d41eddaf5e8aa77082fea2a  ggml-backend.h
+          3586de1bc8a934b5c72339e2b6937b0641e8f149b512231e666f67de0736eea2  ggml-opt.h
+          e56714aab702e5ce62ee587a409643c08f7e93e8fbb77f48ef7cc85075f96fa4  gguf.h
+          d114067f9099c4a0e2bbc0625c676d4894d9cf0ea27168ee072c7de0e71bb51d  ggml-alloc.h
+          CHECKSUMS
+          )
+      - name: Fetch and verify pinned model data
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --proto '=https' --tlsv1.2 --max-time 180 --max-filesize 1800000000 \
+            'https://huggingface.co/fernandoruiz/madlad400-3b-mt-Q4_K_S-GGUF/resolve/729a608ecde19c586df74775843a0e57f7dda969/madlad400-3b-mt-q4_k_s.gguf' -o "$RUNNER_TEMP/model.gguf"
+          test "$(stat -c '%s' "$RUNNER_TEMP/model.gguf")" = 1733606464
+          echo 'b88a996a59de9f958ac87ada8045c17895deb2f6684909f5375c24a8656bba70  '"$RUNNER_TEMP/model.gguf" | sha256sum -c -
+      - name: Compile CPU-only worker and run three fixed synthetic clauses
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/reviewed-repo"
+          library="$(find "$RUNNER_TEMP/llama-runtime" -type f -name 'libllama.so*' -print -quit)"
+          test -n "$library"
+          library_dir="$(dirname "$library")"
+          g++ -std=c++17 -O2 -Wall -Wextra -DGTA_MODEL_GPU_LAYERS=0 -DGTA_MODEL_RSS_LIMIT=5900000000ULL \
+            -I"$RUNNER_TEMP/llama-headers" tools/translation-smoke/madlad_worker_linux.cpp "$library" \
+            -Wl,-rpath,"$library_dir" -o "$RUNNER_TEMP/punjabi-cpu-smoke"
+          LD_LIBRARY_PATH="$library_dir" python3 -B tools/translation-smoke/madlad_linux_smoke.py "$RUNNER_TEMP/punjabi-cpu-smoke" "$RUNNER_TEMP/model.gguf"
