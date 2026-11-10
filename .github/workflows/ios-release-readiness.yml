@@ -21,7 +21,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git rev-parse HEAD^)" = c741e9211d5a1b5f579d683c27dd8ec4306980cd
+          test "$(git rev-parse HEAD^)" = 99f8c40b3432cd2f0df380271ca494ad57e85a9a
           test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = .github/workflows/ios-release-readiness.yml
           test -z "$(git status --porcelain)"
           shasum -a 256 -c .github/native-ci-source.sha256
@@ -69,7 +69,7 @@ jobs:
           if summary.get('result') != 'Passed' or total < 200 or summary.get('passedTests') != total or summary.get('failedTests') != 0 or summary.get('skippedTests') != 0:
               raise SystemExit('The complete unit suite did not pass')
           tests = (root / 'units-tests.json').read_text()
-          for name in ('testSourceAccessibilityNotesSurviveFeedCacheArchiveAndTranslationMerge', 'testFullDescriptionBindingRequiresExactIdentityLocaleAndSourceBytes'):
+          for name in ('testSourceAccessibilityNotesSurviveFeedCacheArchiveAndTranslationMerge', 'testFullDescriptionBindingRequiresExactIdentityLocaleAndSourceBytes', 'testOnDeviceListingCacheBindsExactSourceAndBoundsMemory'):
               if name not in tests: raise SystemExit('Missing required regression: ' + name)
           PY
       - name: Run bottom-content diagnostic
