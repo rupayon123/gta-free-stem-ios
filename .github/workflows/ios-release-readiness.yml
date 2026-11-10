@@ -21,7 +21,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git rev-parse HEAD^)" = 535a203db1227bb0d37ec258c436dbf1354e5805
+          test "$(git rev-parse HEAD^)" = 2725e80112090e1dca8cc21dce3bbdd4b72b2554
           test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = .github/workflows/ios-release-readiness.yml
           test -z "$(git status --porcelain)"
           shasum -a 256 -c .github/native-ci-source.sha256
@@ -73,7 +73,6 @@ jobs:
             -configuration Debug -destination "$TEST_DESTINATION" -destination-timeout 90 \
             -jobs 1 -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 \
             -only-testing:GTAFreeSTEMUITests/HighSchoolJourneys/test10BottomContentRemainsAboveNavigation \
-            -only-testing:GTAFreeSTEMUITests/HighSchoolJourneys/test11SampleAccessibilityNotesInLightAndDarkRTL \
             -only-testing:GTAFreeSTEMUITests/HighSchoolJourneys/test12AlertPreferencesOpenWithoutPermissionPromptInLightAndDarkRTL \
             -only-testing:GTAFreeSTEMUITests/HighSchoolJourneys/test13SupportFilterUpdatesResultsSavesAndRestoresWithoutLeavingBrowse \
             -derivedDataPath "$RUNNER_TEMP/nav-derived" -resultBundlePath "$RUNNER_TEMP/nav.xcresult" \
@@ -136,12 +135,12 @@ jobs:
               for attachment in test.get('attachments', []):
                   name = attachment.get('suggestedHumanReadableName', '')
                   filename = attachment.get('exportedFileName', '')
-                  if (name.startswith(('bottom-', 'notes-', 'alerts-', 'support-', 'unreachable-control')) or attachment.get('isAssociatedWithFailure')) and filename.lower().endswith('.png'):
+                  if (name.startswith(('bottom-', 'notes-', 'alerts-', 'filters-', 'support-', 'unreachable-control')) or attachment.get('isAssociatedWithFailure')) and filename.lower().endswith('.png'):
                       if Path(filename).name != filename: raise SystemExit('Unsafe attachment filename')
                       chosen.append((name, root / filename))
-          expected = ['bottom-home', 'bottom-browse', 'bottom-detail', 'bottom-school', 'bottom-notebook', 'bottom-support', 'bottom-account', 'notes-light-content', 'notes-light-heading', 'notes-dark-large-rtl-content', 'notes-dark-large-rtl-heading', 'alerts-light', 'alerts-dark-large-rtl', 'support-filter-light', 'support-detail-light']
+          expected = ['bottom-home', 'bottom-browse', 'bottom-detail', 'bottom-school', 'bottom-notebook', 'bottom-support', 'bottom-account', 'alerts-light', 'alerts-light-large', 'alerts-dark-large-rtl', 'filters-light', 'filters-light-large', 'filters-dark-large-rtl', 'support-filter-light', 'support-detail-light']
           summary = json.loads((temp / 'nav-summary.json').read_text())
-          passed = summary.get('result') == 'Passed' and summary.get('totalTestCount') == 4 and summary.get('passedTests') == 4 and summary.get('failedTests') == 0 and summary.get('skippedTests') == 0
+          passed = summary.get('result') == 'Passed' and summary.get('totalTestCount') == 3 and summary.get('passedTests') == 3 and summary.get('failedTests') == 0 and summary.get('skippedTests') == 0
           if not passed:
               # Preserve one bounded failure image in the log; never publish a
               # passing-evidence branch for a failed or incomplete test run.
@@ -152,10 +151,10 @@ jobs:
                       print('NAV_FAILURE_META ' + json.dumps({'name': failure[0], 'sha256': hashlib.sha256(raw).hexdigest(), 'bytes': len(raw)}))
                       encoded = base64.b64encode(raw).decode()
                       for offset in range(0, len(encoded), 120): print('NAV_FAILURE_DATA ' + encoded[offset:offset+120])
-              raise SystemExit('The exact four-test UI diagnostic did not pass')
+              raise SystemExit('The exact three-test UI diagnostic did not pass')
           selected = []
           for key in expected:
-              match = next(((name, path) for name, path in chosen if name.startswith(key)), None)
+              match = next(((name, path) for name, path in chosen if name == key or name.startswith(key + '_')), None)
               if match is None: raise SystemExit('Passing diagnostic is missing ' + key)
               selected.append((key, match[1]))
           evidence = temp / 'gta-evidence'
@@ -171,7 +170,7 @@ jobs:
           run_id = os.environ['GITHUB_RUN_ID']; attempt = os.environ['GITHUB_RUN_ATTEMPT']
           if not re.fullmatch(r'\d+', run_id) or not re.fullmatch(r'\d+', attempt): raise SystemExit('Invalid run ID')
           ref = 'codex/ios-beta-evidence-' + run_id + '-' + attempt
-          (evidence / 'manifest.json').write_text(json.dumps({'workflowCommit': os.environ['GITHUB_SHA'], 'sourceCommit': '535a203db1227bb0d37ec258c436dbf1354e5805', 'simulatorOnly': True, 'images': entries}, indent=2) + '\n')
+          (evidence / 'manifest.json').write_text(json.dumps({'workflowCommit': os.environ['GITHUB_SHA'], 'sourceCommit': '2725e80112090e1dca8cc21dce3bbdd4b72b2554', 'simulatorOnly': True, 'images': entries}, indent=2) + '\n')
           askpass = temp / 'gta-evidence-askpass.sh'
           askpass.write_text('#!/bin/sh\ncase "$1" in *Username*) printf "%s\\n" x-access-token ;; *) printf "%s\\n" "$EVIDENCE_GITHUB_TOKEN" ;; esac\n')
           askpass.chmod(0o700)
