@@ -8,7 +8,7 @@ import time
 
 EOS = '</s>'
 MAX_INPUT = 180
-MAX_OUTPUT = 256
+MAX_OUTPUT = 384
 MAX_BATCH = 8
 MAX_WALL = 120
 CONTROL = re.compile(r'<(?:2[^>]*|/?s|unk)>', re.I)
@@ -18,11 +18,11 @@ def digest(value):
     return hashlib.sha256(value.encode('utf-8')).hexdigest()
 
 
-def encode_case(sp, text):
+def encode_case(sp, text, prefix='<2pa>'):
     if not isinstance(text, str) or not text.strip() or CONTROL.search(text):
         raise ValueError('empty or control-bearing input')
-    tokens = sp.encode('<2pa> ' + text, out_type=str) + [EOS]
-    if not tokens or len(tokens) > MAX_INPUT or '<2pa>' not in tokens:
+    tokens = sp.encode(prefix + ' ' + text, out_type=str) + [EOS]
+    if not tokens or len(tokens) > MAX_INPUT or prefix not in tokens:
         raise ValueError('token limit or language prefix')
     return tokens
 
@@ -50,7 +50,7 @@ def validate_cases(cases):
             raise ValueError('duplicate id')
 
 
-def main(model, fixture_path):
+def main(model, fixture_path, locale):
     import ctranslate2
     import sentencepiece as spm
     start = time.monotonic()
@@ -58,7 +58,12 @@ def main(model, fixture_path):
         cases = json.load(f)
     validate_cases(cases)
     sp = spm.SentencePieceProcessor(model_file=os.path.join(model, 'spiece.model'))
-    encoded = [encode_case(sp, c['text']) for c in cases]
+    codes = {'pa':'pa', 'ur':'ur', 'ta':'ta', 'tl':'fil', 'fa':'fa', 'gu':'gu', 'bn':'bn', 'hu':'hu'}
+    if locale not in codes: raise ValueError('unsupported trial locale')
+    prefix = '<2' + codes[locale] + '>'
+    if sp.piece_to_id(prefix) <= 0 or sp.id_to_piece(sp.piece_to_id(prefix)) != prefix:
+        raise ValueError('missing exact target token')
+    encoded = [encode_case(sp, c['text'], prefix) for c in cases]
     load = time.monotonic()
     translator = ctranslate2.Translator(model, device='cpu', compute_type='int8', intra_threads=4, inter_threads=1)
     loaded = time.monotonic()
@@ -90,13 +95,13 @@ def main(model, fixture_path):
                        'source': case['text'], 'translation': text, 'actualEOS': True,
                        'outputTokens': len(tokens)})
     print(json.dumps({'scope': 'public CPU batch trial; meaning requires human review',
-                      'computeType': translator.compute_type, 'threads': 4, 'batchMaximum': MAX_BATCH,
+                      'locale': locale, 'prefix': prefix, 'computeType': translator.compute_type, 'threads': 4, 'batchMaximum': MAX_BATCH,
                       'loadSeconds': round(loaded-load, 3), 'batchSeconds': round(elapsed, 3),
                       'totalSeconds': round(time.monotonic()-start, 3), 'negativeControlRejected': negative_rejected,
                       'results': result}, ensure_ascii=False))
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 3 or sys.platform != 'linux':
-        raise SystemExit('usage on Linux: trial.py MODEL_DIR FIXTURES_JSON')
+    if len(sys.argv) != 4 or sys.platform != 'linux':
+        raise SystemExit('usage on Linux: trial.py MODEL_DIR FIXTURES_JSON LOCALE')
     main(*sys.argv[1:])

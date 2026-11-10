@@ -1,4 +1,4 @@
-name: iOS Punjabi bounded batched CPU trial
+name: iOS eight-language bounded CPU trials
 
 # A push to these paths on this one branch starts a real public compute job.
 on:
@@ -15,7 +15,13 @@ jobs:
     if: github.repository == 'rupayon123/gta-free-stem-ios' && github.ref == 'refs/heads/codex/ios-translation-cpu-smoke-20261110' && github.event.repository.private == false
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        locale: [pa, ur, ta, tl, fa, gu, bn, hu]
     env:
+      TRIAL_LOCALE: ${{ matrix.locale }}
       HF_HUB_DISABLE_TELEMETRY: '1'
       HF_HUB_OFFLINE: '1'
       PIP_DISABLE_PIP_VERSION_CHECK: '1'
@@ -40,7 +46,7 @@ jobs:
           24a34acc37b369d1968784632a3081c42c67ed7612946b1ab27aa7514739a6a4  tools/translation-batched/guard.py
           226cb1dd741afc2d01190103b4d8f73d5d633862751d4777c9924966bf6a9491  tools/translation-batched/requirements.txt
           59fca7a3ac4b6995721bd670c028aff9e4789b95541b8c11011ed04c06529943  tools/translation-batched/test_trial.py
-          782fd628a91d68c6af946f12c817dceead92e5d0877c11b16956ee1374038485  tools/translation-batched/trial.py
+          0076335058ca63d16f0c161630c9e67d027cf2a74c955213555d134813e854d1  tools/translation-batched/trial.py
           CHECKSUMS
       - name: Use existing Python 3.11 and install hash-pinned wheels
         shell: bash
@@ -74,4 +80,4 @@ jobs:
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP/reviewed-repo"
-          "$RUNNER_TEMP/ct2-venv/bin/python" -B tools/translation-batched/guard.py "$RUNNER_TEMP/ct2-venv/bin/python" -B tools/translation-batched/trial.py "$RUNNER_TEMP/ct2-model" tools/translation-batched/fixtures.json
+          "$RUNNER_TEMP/ct2-venv/bin/python" -B tools/translation-batched/guard.py "$RUNNER_TEMP/ct2-venv/bin/python" -B tools/translation-batched/trial.py "$RUNNER_TEMP/ct2-model" tools/translation-batched/fixtures.json "$TRIAL_LOCALE"
