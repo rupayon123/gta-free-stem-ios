@@ -705,7 +705,7 @@ struct HomeView: View {
                     if ProcessInfo.processInfo.arguments.contains("-navigation-diagnostic") {
                         // One-point marker lets the test prove it reached the
                         // actual end, rather than trusting a clipped text frame.
-                        Text("End of Home content")
+                        Text(session.text("home"))
                             .font(.system(size: 1))
                             .foregroundStyle(.clear)
                             .accessibilityIdentifier("home-content-end")
