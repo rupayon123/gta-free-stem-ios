@@ -1,0 +1,72 @@
+[
+  {
+    "id": "age-free",
+    "text": "Free science workshop for children aged 6 to 12.",
+    "sha256": "eae445eff6cd9ae2492d45e1e883ebf853f1c2dffee5f27060715f5b2903b7f4"
+  },
+  {
+    "id": "date",
+    "text": "Register by November 20.",
+    "sha256": "bbf5c9cae4f4338562c97e65ac59f4f0d1845c9169531996c978b3980775607b"
+  },
+  {
+    "id": "parent",
+    "text": "A parent must attend.",
+    "sha256": "74ae3be3afb6574747c5350a961611747c9e79fc0ffbd283cf4739dec5abfc9d"
+  },
+  {
+    "id": "ai-negation",
+    "text": "This AI workshop is not a medical diagnosis.",
+    "sha256": "5fdf0dac1f9956072d7399436658f08e320d3d24a9ce3cdaf07b48a6f1149cb5"
+  },
+  {
+    "id": "public-title",
+    "text": "Data Analytics Essentials Learning Circle",
+    "sha256": "c70dcdf7529af12b53369795b746ab9ce9ea16b679dd5ba683f9b211202a89c0"
+  },
+  {
+    "id": "public-body-0",
+    "text": "Interested in learning about data analytics? ",
+    "sha256": "6f454cc0cdb2a0c6f0801ac82880fd36ac9ffa4bb11d45548679d7201d6d6733"
+  },
+  {
+    "id": "public-body-1",
+    "text": "Let's take a free online course together in a welcoming space! ",
+    "sha256": "afafe81c4ebff0aa2f38371996cb69cbcc1a5106048e6c4011dfdf95b0b46923"
+  },
+  {
+    "id": "public-body-2",
+    "text": "A learning circle is a study group, guided by library staff, for people who want to take a free online course together in a supportive and welcoming environment. ",
+    "sha256": "9ce238c05671c8104e64947bbbec52667d26359f739a0e75832947922477194c"
+  },
+  {
+    "id": "public-body-3",
+    "text": "Organizations all over the world recognize the value of analytics. ",
+    "sha256": "bd360a6354505f48a4659602e263d90fcf51066f54b1c123c7d6ce6c8c42bb47"
+  },
+  {
+    "id": "public-body-4",
+    "text": "Together, we'll learn about the essential tools used in this field. ",
+    "sha256": "58095a0c706e189975ae5644d536b9d56bb20640f7e106b1fa16e5883ddcc22e"
+  },
+  {
+    "id": "public-body-5",
+    "text": "In this 12-week learning circle, we will work through the Data Analytics Essentials course from Cisco Networking Academy. ",
+    "sha256": "60444dfb7345f037b8e490f5ed80dfaf4f2de448b151620fbd646ceee63688f0"
+  },
+  {
+    "id": "public-body-6",
+    "text": "We will explore the fundamental tools of a data analyst, including how to: transform, organize and visualize data with spreadsheet tools like Excel query data from a relational database using SQL improve data presentations using business intelligence tools like Tableau We will meet weekly, in-person, every Tuesday afternoon, September 15 - December 8, 2-3:30 PM (12 sessions). ",
+    "sha256": "358c4d3bd974169f6f514b1e14024e06183025c1503813dd0aaf04c1505240a3"
+  },
+  {
+    "id": "public-body-7",
+    "text": "Participants are expected to commit to the duration of the course and attend sessions on a weekly basis. ",
+    "sha256": "7ef173f37f647df790d4ae9b8e501a913b99ce517bc56f2b962ed6b1431ed42e"
+  },
+  {
+    "id": "public-body-8",
+    "text": "Learners who complete the course will be able to: earn a digital badge download a certificate of completion",
+    "sha256": "24665f0971bb444ea915cb9e2415a1fbddde360a580bdf08b6fe4514e31b89a3"
+  }
+]

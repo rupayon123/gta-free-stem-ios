@@ -1,0 +1,77 @@
+name: iOS Punjabi bounded batched CPU trial
+
+# A push to these paths on this one branch starts a real public compute job.
+on:
+  push:
+    branches:
+      - codex/ios-translation-cpu-smoke-20261110
+    paths:
+      - .github/workflows/ios-punjabi-batched-trial.yml
+      - tools/translation-batched/**
+permissions:
+  contents: read
+jobs:
+  public-batch-trial:
+    if: github.repository == 'rupayon123/gta-free-stem-ios' && github.ref == 'refs/heads/codex/ios-translation-cpu-smoke-20261110' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_HUB_OFFLINE: '1'
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
+      PIP_NO_CACHE_DIR: '1'
+      OMP_NUM_THREADS: '4'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - name: Fetch exact public source without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          export GIT_TERMINAL_PROMPT=0 GIT_CONFIG_NOSYSTEM=1
+          [[ "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ ]]
+          git init --quiet "$RUNNER_TEMP/reviewed-repo"
+          git -C "$RUNNER_TEMP/reviewed-repo" -c credential.helper= remote add origin 'https://github.com/rupayon123/gta-free-stem-ios.git'
+          git -C "$RUNNER_TEMP/reviewed-repo" -c credential.helper= fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          test "$(git -C "$RUNNER_TEMP/reviewed-repo" rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
+          git -C "$RUNNER_TEMP/reviewed-repo" -c core.hooksPath=/dev/null checkout --quiet --detach FETCH_HEAD
+          cd "$RUNNER_TEMP/reviewed-repo"
+          sha256sum -c <<'CHECKSUMS'
+          c656d77413cdfc605c63564d41dc2eee825c9baa75603c02bf6841ea907249e8  tools/translation-batched/fixtures.json
+          c55ea6f11b53fa0e49ae714ad691eacd9049322454ed383b9d9af3d3e5dd3b2e  tools/translation-batched/guard.py
+          226cb1dd741afc2d01190103b4d8f73d5d633862751d4777c9924966bf6a9491  tools/translation-batched/requirements.txt
+          5ec885cda43b1188b71dc834c27ac17ef011d737a3eafae4810442abe5fe1aea  tools/translation-batched/test_trial.py
+          782fd628a91d68c6af946f12c817dceead92e5d0877c11b16956ee1374038485  tools/translation-batched/trial.py
+          CHECKSUMS
+      - name: Use existing Python 3.11 and install hash-pinned wheels
+        shell: bash
+        run: |
+          set -euo pipefail
+          python_bin="$(find "$RUNNER_TOOL_CACHE/Python" -path '*/3.11.*/x64/bin/python3.11' -type f | sort -V | tail -1)"
+          test -x "$python_bin"
+          "$python_bin" -m venv "$RUNNER_TEMP/ct2-venv"
+          "$RUNNER_TEMP/ct2-venv/bin/python" -m pip install --require-hashes --only-binary=:all: -r "$RUNNER_TEMP/reviewed-repo/tools/translation-batched/requirements.txt"
+          "$RUNNER_TEMP/ct2-venv/bin/python" -m pip check
+          cd "$RUNNER_TEMP/reviewed-repo"
+          "$RUNNER_TEMP/ct2-venv/bin/python" -B -m unittest discover -s tools/translation-batched -p 'test_*.py'
+      - name: Fetch and verify immutable public model files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/ct2-model"
+          cd "$RUNNER_TEMP/ct2-model"
+          base='https://huggingface.co/Nextcloud-AI/madlad400-3b-mt-ct2-int8/resolve/aa32bbdeba7880eff2096ec044cb155a340a9400'
+          curl --fail --location --proto '=https' --tlsv1.2 --max-time 180 --max-filesize 3000000000 "$base/model.bin" -o model.bin
+          test "$(stat -c '%s' model.bin)" = 2950208329
+          echo '77b9fd9ab97c1259d07089b5f854393dad81bc5fb5647d3f9a5d101c94f40daa  model.bin' | sha256sum -c -
+          for file in config.json shared_vocabulary.json spiece.model; do
+            curl --fail --location --proto '=https' --tlsv1.2 --max-time 30 --max-filesize 6000000 "$base/$file" -o "$file"
+          done
+          test "$(git hash-object config.json)" = 582af3144634f98327a9c4c4187fd7aa034d7c7f
+          test "$(git hash-object shared_vocabulary.json)" = 2a0954b3566298446fcd39a117e8a3a860bf525a
+          echo 'ef11ac9a22c7503492f56d48dce53be20e339b63605983e9f27d2cd0e0f3922c  spiece.model' | sha256sum -c -
+      - name: Run bounded public batch trial
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/reviewed-repo"
+          "$RUNNER_TEMP/ct2-venv/bin/python" -B tools/translation-batched/guard.py "$RUNNER_TEMP/ct2-venv/bin/python" -B tools/translation-batched/trial.py "$RUNNER_TEMP/ct2-model" tools/translation-batched/fixtures.json
