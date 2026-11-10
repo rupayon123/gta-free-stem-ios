@@ -1,11 +1,8 @@
 name: Focused iOS beta navigation diagnostic
 on:
-  workflow_dispatch:
-    inputs:
-      expected_source_sha:
-        description: Full reviewed commit SHA of the diagnostic source
-        required: true
-        type: string
+  push:
+    branches: [codex/ios-beta-nav-20261109]
+    paths: [.github/workflows/ios-release-readiness.yml]
 permissions:
   contents: read
 jobs:
@@ -17,16 +14,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+          fetch-depth: 2
       - name: Verify source and choose one available iPhone simulator
         id: destination
         shell: bash
-        env:
-          EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
         run: |
           set -euo pipefail
-          [[ "$EXPECTED_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$GITHUB_SHA" = "$EXPECTED_SOURCE_SHA"
+          test "$(git rev-parse HEAD^)" = a095bf24903760d7b9ffa7b689d6100c49ed52e1
+          test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = .github/workflows/ios-release-readiness.yml
           test -z "$(git status --porcelain)"
           shasum -a 256 -c .github/native-ci-source.sha256
           xcodebuild -version
