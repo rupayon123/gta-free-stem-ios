@@ -21,7 +21,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git rev-parse HEAD^)" = 219dd4af7685a94156c853869d61c42501807a0c
+          test "$(git rev-parse HEAD^)" = 5db96f1989616493e94c88c36488b2d8cf0cb0bc
           test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = .github/workflows/ios-release-readiness.yml
           test -z "$(git status --porcelain)"
           shasum -a 256 -c .github/native-ci-source.sha256
@@ -42,8 +42,25 @@ jobs:
           _, device, runtime = max(candidates)
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
               output.write('value=platform=iOS Simulator,id=' + device + '\n')
+              output.write('device=' + device + '\n')
           print('Selected iPhone 17 Pro', runtime, device)
           PY
+      - name: Boot the selected simulator and wait for readiness
+        timeout-minutes: 6
+        shell: bash
+        env:
+          TEST_DEVICE: ${{ steps.destination.outputs.device }}
+        run: |
+          set -euo pipefail
+          state=$(xcrun simctl list devices available --json | python3 -c 'import json,sys,os; ds=json.load(sys.stdin)["devices"]; print(next(x["state"] for entries in ds.values() for x in entries if x["udid"]==os.environ["TEST_DEVICE"]))')
+          case "$state" in
+            Shutdown) xcrun simctl boot "$TEST_DEVICE" ;;
+            Booted) ;;
+            *) echo "Unexpected simulator state: $state"; exit 1 ;;
+          esac
+          xcrun simctl bootstatus "$TEST_DEVICE" -b
+          xcrun simctl spawn "$TEST_DEVICE" launchctl print system >/dev/null
+          echo 'Selected simulator boot and launch services ready'
       - name: Run bottom-content diagnostic
         id: ui
         timeout-minutes: 22
@@ -58,6 +75,39 @@ jobs:
             -only-testing:GTAFreeSTEMUITests/HighSchoolJourneys/test13SupportFilterUpdatesResultsSavesAndRestoresWithoutLeavingBrowse \
             -derivedDataPath "$RUNNER_TEMP/nav-derived" -resultBundlePath "$RUNNER_TEMP/nav.xcresult" \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/nav.log"
+      - name: Collect bounded launch diagnostics on failure
+        if: failure() && steps.ui.outcome == 'failure'
+        timeout-minutes: 3
+        shell: bash
+        env:
+          TEST_DEVICE: ${{ steps.destination.outputs.device }}
+        run: |
+          python3 - <<'DIAG'
+          import os, subprocess
+          from pathlib import Path
+          device=os.environ['TEST_DEVICE']
+          def command(label,args):
+              print('LAUNCH_DIAGNOSTIC_BEGIN '+label, flush=True)
+              try:
+                  p=subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=35)
+                  data=p.stdout[-120_000:].decode('utf-8','replace')
+                  print('exit='+str(p.returncode)+' output_tail_bytes='+str(min(len(p.stdout),120_000)))
+                  print(data)
+              except subprocess.TimeoutExpired:
+                  print('Diagnostic command timed out')
+              print('LAUNCH_DIAGNOSTIC_END '+label, flush=True)
+          command('simulator-state',['xcrun','simctl','list','devices','available'])
+          command('app-and-launch-services',['xcrun','simctl','spawn',device,'log','show','--last','8m','--style','compact','--predicate','process == "GTAFreeSTEM" OR process == "GTAFreeSTEMUITests-Runner" OR process == "SpringBoard"','--info'])
+          roots=[Path.home()/'Library/Logs/DiagnosticReports',Path.home()/'Library/Developer/CoreSimulator/Devices'/device/'data/Library/Logs/CrashReporter']
+          reports=[]
+          for root in roots:
+              if root.is_dir():
+                  reports.extend(p for p in root.glob('*') if p.is_file() and ('GTAFreeSTEM' in p.name) and p.suffix in ('.ips','.crash'))
+          for p in sorted(reports,key=lambda x:x.stat().st_mtime,reverse=True)[:2]:
+              print('APP_CRASH_REPORT '+p.name)
+              print(p.read_text(errors='replace')[-32_000:])
+          if not reports: print('No matching app crash reports found in checked simulator locations')
+          DIAG
       - name: Export support diagnostic screenshot
         if: always() && steps.ui.outcome != 'skipped'
         timeout-minutes: 4
