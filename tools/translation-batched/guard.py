@@ -11,6 +11,7 @@ started = time.monotonic()
 p = subprocess.Popen(sys.argv[1:], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 peak = 0
 reason = None
+missing_samples = 0
 while p.poll() is None:
     if time.monotonic() - started > 120:
         reason = '120 second limit'; p.kill(); break
@@ -18,13 +19,19 @@ while p.poll() is None:
         with open(f'/proc/{p.pid}/status', encoding='ascii') as f:
             status = f.read()
         rss = next(int(x.split()[1]) * 1024 for x in status.splitlines() if x.startswith('VmRSS:'))
+        missing_samples = 0
         peak = max(peak, rss)
         if rss >= 8_000_000_000:
             reason = '8 GB RSS limit'; p.kill(); break
     except (OSError, StopIteration, ValueError):
-        if p.poll() is None:
-            reason = 'RSS monitor unavailable'; p.kill()
-        break
+        # A normally exiting Linux process may briefly have no VmRSS while
+        # waitpid has not yet observed its exit. Retry rather than discard a
+        # completed result; fail closed if a live process stays unobservable.
+        if p.poll() is not None:
+            break
+        missing_samples += 1
+        if missing_samples >= 5:
+            reason = 'RSS monitor unavailable'; p.kill(); break
     time.sleep(0.1)
 out, err = p.communicate()
 if len(out) > 100000 or len(err) > 100000:

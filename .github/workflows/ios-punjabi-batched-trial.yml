@@ -37,9 +37,9 @@ jobs:
           cd "$RUNNER_TEMP/reviewed-repo"
           sha256sum -c <<'CHECKSUMS'
           c656d77413cdfc605c63564d41dc2eee825c9baa75603c02bf6841ea907249e8  tools/translation-batched/fixtures.json
-          c55ea6f11b53fa0e49ae714ad691eacd9049322454ed383b9d9af3d3e5dd3b2e  tools/translation-batched/guard.py
+          24a34acc37b369d1968784632a3081c42c67ed7612946b1ab27aa7514739a6a4  tools/translation-batched/guard.py
           226cb1dd741afc2d01190103b4d8f73d5d633862751d4777c9924966bf6a9491  tools/translation-batched/requirements.txt
-          5ec885cda43b1188b71dc834c27ac17ef011d737a3eafae4810442abe5fe1aea  tools/translation-batched/test_trial.py
+          59fca7a3ac4b6995721bd670c028aff9e4789b95541b8c11011ed04c06529943  tools/translation-batched/test_trial.py
           782fd628a91d68c6af946f12c817dceead92e5d0877c11b16956ee1374038485  tools/translation-batched/trial.py
           CHECKSUMS
       - name: Use existing Python 3.11 and install hash-pinned wheels
