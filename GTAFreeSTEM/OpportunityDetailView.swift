@@ -71,6 +71,7 @@ struct OpportunityDetailView: View {
                         .foregroundStyle(Brand.outline(for: colorScheme))
                         .fixedSize(horizontal: false, vertical: true)
                         .textSelection(.enabled)
+                    accessibilityNotes
                     mapPreview
                     details
                     actions
@@ -101,6 +102,30 @@ struct OpportunityDetailView: View {
             )
         }
 #endif
+    }
+
+    @ViewBuilder
+    private var accessibilityNotes: some View {
+        let notes = opportunity.accessibility.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        if !notes.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(session.text("sourceAccessibilityNotes"))
+                    .font(PortfolioTypography.headline.weight(.semibold))
+                    .accessibilityAddTraits(.isHeader)
+                Text(session.text("confirmAccessibilityWithProvider"))
+                    .font(PortfolioTypography.footnote)
+                if session.language != .en {
+                    Text(session.text("notesInSourceLanguage"))
+                        .font(PortfolioTypography.footnote)
+                }
+                ForEach(Array(notes.enumerated()), id: \.offset) { _, note in
+                    Text(note).font(PortfolioTypography.body).fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("opportunity-accessibility-notes")
+        }
     }
 
     private var isSaved: Bool {

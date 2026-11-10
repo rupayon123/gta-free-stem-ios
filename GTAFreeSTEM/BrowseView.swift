@@ -77,17 +77,11 @@ struct BrowseView: View {
                         if displayMode == .list { hero }
                         searchControls
 
-                        // A phone's first viewport should answer the question the user came
-                        // to ask: what can I join? The full hunt controls remain one natural
-                        // scroll below the live results, while larger layouts retain the
-                        // research controls before the directory.
-                        if prioritizesResultsOnCompactLayout {
-                            resultsContent
-                            huntPanel
-                        } else {
-                            huntPanel
-                            resultsContent
-                        }
+                        // Controls must stay reachable even when a live feed has
+                        // thousands of results. Putting them after the directory
+                        // made Alerts and Nearby effectively disappear on phones.
+                        huntPanel
+                        resultsContent
                     }
                     .frame(maxWidth: 880)
                     .frame(maxWidth: .infinity)
@@ -178,10 +172,6 @@ struct BrowseView: View {
                 Task { await store.refresh(cache: persistenceContext) }
             }
         }
-    }
-
-    private var prioritizesResultsOnCompactLayout: Bool {
-        horizontalSizeClass == .compact
     }
 
     private var queryField: some View {
@@ -466,6 +456,7 @@ struct BrowseView: View {
                         .buttonStyle(.plain)
                         .accessibilityLabel("\(session.text("source")): \(session.title(for: opportunity))")
                         .accessibilityHint(session.text("sourceDetails"))
+                        .accessibilityIdentifier(opportunity.id == store.opportunities.last?.id ? "browse-last-result-source" : "browse-result-source-\(opportunity.id)")
                     }
                 }
                 .padding(.vertical, 16)

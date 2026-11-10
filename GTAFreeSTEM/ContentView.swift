@@ -701,6 +701,16 @@ struct HomeView: View {
                     }
                     pathwayGrid
                     sourceFootnote
+#if DEBUG
+                    if ProcessInfo.processInfo.arguments.contains("-navigation-diagnostic") {
+                        // One-point marker lets the test prove it reached the
+                        // actual end, rather than trusting a clipped text frame.
+                        Text("End of Home content")
+                            .font(.system(size: 1))
+                            .foregroundStyle(.clear)
+                            .accessibilityIdentifier("home-content-end")
+                    }
+#endif
                 }
                 .frame(maxWidth: 720)
                 .frame(maxWidth: .infinity)

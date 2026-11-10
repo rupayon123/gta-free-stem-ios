@@ -253,7 +253,8 @@ final class APIClient: @unchecked Sendable {
             isNewFind: opportunity.isNewFind,
             sourceConfidence: opportunity.sourceConfidence,
             translations: mergedTranslations,
-            virtual: opportunity.virtual
+            virtual: opportunity.virtual,
+            accessibility: opportunity.accessibility
         )
     }
 

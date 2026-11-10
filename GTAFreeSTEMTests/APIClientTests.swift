@@ -25,6 +25,28 @@ private func bundledSnapshotTestNow() throws -> Date {
 }
 
 final class APIClientTests: XCTestCase {
+    @MainActor
+    func testSourceAccessibilityNotesSurviveFeedCacheArchiveAndTranslationMerge() throws {
+        let original = opportunity(id: "notes", title: "Community workshop")
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
+        json.removeValue(forKey: "accessibility")
+        let legacy = try JSONDecoder().decode(Opportunity.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertEqual(legacy.accessibility, [], "Older feeds and saved records remain readable")
+
+        let notes = ["Step-free entrance; contact the provider.", "  Spaces may be limited.  ", ""]
+        json["accessibility"] = notes
+        let decoded = try JSONDecoder().decode(Opportunity.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertEqual(decoded.accessibility, notes)
+        let cached = try JSONDecoder().decode(Opportunity.self, from: JSONEncoder().encode(decoded))
+        XCTAssertEqual(cached.accessibility, notes)
+        XCTAssertEqual(cached.replacingStatus(with: "archived").accessibility, notes)
+        XCTAssertEqual(try SavedOpportunityRecord(opportunity: cached).opportunity?.accessibility, notes)
+        XCTAssertEqual(APIClient.mergingBundledTranslations([:], into: cached).accessibility, notes)
+
+        json["accessibility"] = ["Valid note", 42] as [Any]
+        XCTAssertThrowsError(try JSONDecoder().decode(Opportunity.self, from: JSONSerialization.data(withJSONObject: json)))
+    }
+
     func testFullDescriptionBindingRequiresExactIdentityLocaleAndSourceBytes() throws {
         let title = "Science café"
         let description = "First line.\nSecond line. "
@@ -2197,18 +2219,6 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(watchView.contains(".minimumScaleFactor(0.72)"))
         XCTAssertTrue(watchView.contains(".lineLimit(2)"))
         XCTAssertTrue(watchView.contains("$0.trimmingCharacters(in: .whitespacesAndNewlines)"))
-    }
-
-    func testCompactBrowseLayoutPrioritizesLiveResults() throws {
-        let repoRoot = testRepositoryRoot
-        let browseView = repoRoot.appendingPathComponent("GTAFreeSTEM/BrowseView.swift")
-        let contents = try String(contentsOf: browseView)
-
-        XCTAssertTrue(contents.contains("horizontalSizeClass == .compact"))
-        XCTAssertFalse(contents.contains("horizontalSizeClass == .compact && displayMode == .list"),
-                       "Compact map results should also precede the research controls")
-        XCTAssertTrue(contents.contains("if prioritizesResultsOnCompactLayout {"))
-        XCTAssertTrue(contents.contains("resultsContent\n                            huntPanel"))
     }
 
     func testAPIClientRejectsPlainHTTP() async throws {

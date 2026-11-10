@@ -272,6 +272,7 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
     let sourceConfidence: String?
     let translations: [String: OpportunityTranslation]
     let virtual: Bool
+    let accessibility: [String]
 
     var isExplicitlyFree: Bool {
         OpportunityCostEligibility.isExplicitlyFree(cost)
@@ -313,6 +314,7 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
         case localizations
         case localized
         case virtual
+        case accessibility
     }
 
     private enum AgeKeys: String, CodingKey {
@@ -349,7 +351,8 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
         isNewFind: Bool?,
         sourceConfidence: String?,
         translations: [String: OpportunityTranslation] = [:],
-        virtual: Bool = false
+        virtual: Bool = false,
+        accessibility: [String] = []
     ) {
         self.id = id
         self.title = title
@@ -385,6 +388,7 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
         self.sourceConfidence = sourceConfidence
         self.translations = Self.normalizedTranslations(translations)
         self.virtual = virtual
+        self.accessibility = accessibility
     }
 
     init(from decoder: Decoder) throws {
@@ -469,7 +473,8 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
             isNewFind: try? container.decodeIfPresent(Bool.self, forKey: .isNewFind),
             sourceConfidence: try? container.decodeIfPresent(String.self, forKey: .sourceConfidence),
             translations: decodedTranslations,
-            virtual: try container.decodeIfPresent(Bool.self, forKey: .virtual) ?? false
+            virtual: try container.decodeIfPresent(Bool.self, forKey: .virtual) ?? false,
+            accessibility: try container.decodeIfPresent([String].self, forKey: .accessibility) ?? []
         )
     }
 
@@ -547,6 +552,7 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
         try container.encodeIfPresent(registrationUrl, forKey: .registrationUrl)
         try container.encode(status, forKey: .status)
         try container.encode(virtual, forKey: .virtual)
+        try container.encode(accessibility, forKey: .accessibility)
         try container.encode(volunteerHoursEligible, forKey: .volunteerHoursEligible)
         try container.encode(coopEligible, forKey: .coopEligible)
         try container.encode(tags, forKey: .tags)
@@ -609,7 +615,8 @@ struct Opportunity: Identifiable, Codable, Hashable, Sendable {
             isNewFind: isNewFind,
             sourceConfidence: sourceConfidence,
             translations: translations,
-            virtual: virtual
+            virtual: virtual,
+            accessibility: accessibility
         )
     }
 

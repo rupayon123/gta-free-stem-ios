@@ -381,7 +381,7 @@ final class HighSchoolJourneys: XCTestCase {
     }
 
     func test10BottomContentRemainsAboveNavigation() {
-        app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_CA"]
+        app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_CA", "-navigation-diagnostic"]
         app.launch()
         let footer = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tab-")).firstMatch
         XCTAssertTrue(footer.waitForExistence(timeout: 15))
@@ -394,15 +394,28 @@ final class HighSchoolJourneys: XCTestCase {
             capture("bottom-" + name)
         }
 
-        check(app.staticTexts["For every age and interest. Check the provider’s page for eligibility and registration."], "home")
+        check(element("home-content-end"), "home")
+        let homeNote = app.staticTexts["For every age and interest. Check the provider’s page for eligibility and registration."]
+        XCTAssertTrue(homeNote.exists && homeNote.isHittable)
+        XCTAssertLessThanOrEqual(homeNote.frame.maxY, footer.frame.minY + 1)
         tap("tab-browse")
         let firstListing = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Details: ")).firstMatch
         reveal(firstListing)
         XCTAssertTrue(firstListing.waitForExistence(timeout: 15))
+        let visibleTitle = String(firstListing.label.dropFirst("Details: ".count)).components(separatedBy: ". Category: ").first ?? ""
+        XCTAssertFalse(visibleTitle.isEmpty, "Use the title of a real visible result for the bounded search")
         firstListing.tap()
         check(app.buttons["Save"], "detail")
         back()
-        check(app.buttons["Alerts"], "browse")
+        reveal(app.buttons["Alerts"])
+        XCTAssertTrue(app.buttons["Alerts"].isHittable, "Alerts should be reachable before the results")
+        let query = element("browse-query")
+        reveal(query)
+        query.tap()
+        query.typeText(visibleTitle + XCUIKeyboardKey.return.rawValue)
+        let keyboardHidden = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: app.keyboards.firstMatch)
+        XCTAssertEqual(XCTWaiter.wait(for: [keyboardHidden], timeout: 10), .completed)
+        check(element("browse-last-result-source"), "browse")
         tap("browse-filters")
         let community = app.switches["Black-focused"]
         XCTAssertTrue(community.waitForExistence(timeout: 5))
