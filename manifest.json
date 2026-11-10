@@ -1,0 +1,82 @@
+{
+  "workflowCommit": "7ab7d52b04c260f21abf964c21cbce6d4edd588b",
+  "sourceCommit": "535a203db1227bb0d37ec258c436dbf1354e5805",
+  "simulatorOnly": true,
+  "images": [
+    {
+      "file": "bottom-home.png",
+      "bytes": 239161,
+      "sha256": "a67ed978363821ab262c028bf7725757e8d2015e9c877d39d41fef1220ff0bd5"
+    },
+    {
+      "file": "bottom-browse.png",
+      "bytes": 303215,
+      "sha256": "82bd711cbd938e8799c3f0ad4dc9eb9f0885d4e80085c4e5b6d9d27d6e765615"
+    },
+    {
+      "file": "bottom-detail.png",
+      "bytes": 407237,
+      "sha256": "72d2484f84b5580d5133b5ea3ffcb04921f19918a67fa84231a244cd5263ebca"
+    },
+    {
+      "file": "bottom-school.png",
+      "bytes": 447800,
+      "sha256": "12c2157a67e5e2c72815b5eb3b3486eb28dc95960fe9a955538267e10a60b5b5"
+    },
+    {
+      "file": "bottom-notebook.png",
+      "bytes": 254501,
+      "sha256": "3e60d48ed9155a58701903e87c6c5fbb1e4386ca047f9d6c6f40a63b1f871e5d"
+    },
+    {
+      "file": "bottom-support.png",
+      "bytes": 248185,
+      "sha256": "f11a34d0f1fa67fef1c30c5d99c16f3760acf30629e0778da566f4683b63a46f"
+    },
+    {
+      "file": "bottom-account.png",
+      "bytes": 420233,
+      "sha256": "59f5573ce606f326b6ef157c35049b5522f8a6434c32f9da2fa88ade6fc109b4"
+    },
+    {
+      "file": "notes-light-content.png",
+      "bytes": 284343,
+      "sha256": "9955fcaf814c834ba46c71b82a8b623d54b9c7981c1112434c8f0df45fc46d0e"
+    },
+    {
+      "file": "notes-light-heading.png",
+      "bytes": 284343,
+      "sha256": "9955fcaf814c834ba46c71b82a8b623d54b9c7981c1112434c8f0df45fc46d0e"
+    },
+    {
+      "file": "notes-dark-large-rtl-content.png",
+      "bytes": 402216,
+      "sha256": "b7ceaa0fc7e73070f78d8efd63f24c9bfcf62caa629df6c44ead6be2d14c2cc5"
+    },
+    {
+      "file": "notes-dark-large-rtl-heading.png",
+      "bytes": 402216,
+      "sha256": "b7ceaa0fc7e73070f78d8efd63f24c9bfcf62caa629df6c44ead6be2d14c2cc5"
+    },
+    {
+      "file": "alerts-light.png",
+      "bytes": 231952,
+      "sha256": "102d8ce9a56d0c9171759b0fd8ae6834bd1236b0270f51a471369590b327e47d"
+    },
+    {
+      "file": "alerts-dark-large-rtl.png",
+      "bytes": 209164,
+      "sha256": "49e3fd7aeafdfc531e6075de680f8b102c2b34229f1ebcd86f64f90c225d920f"
+    },
+    {
+      "file": "support-filter-light.png",
+      "bytes": 414589,
+      "sha256": "8ddba90ac57292f07fe3d8679fe325c7900734fbce897bdfd176d68d65b97fa4"
+    },
+    {
+      "file": "support-detail-light.png",
+      "bytes": 337371,
+      "sha256": "8f935d798ecfd18195de55329fd5335127bd43bb7121a4083755431c1ffbff26"
+    }
+  ]
+}
