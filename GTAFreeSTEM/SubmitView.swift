@@ -80,6 +80,7 @@ struct SubmitView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(StoryButtonStyle(kind: .quiet))
+            .accessibilityIdentifier("support-terms-link")
         }
         .cardSurface()
     }

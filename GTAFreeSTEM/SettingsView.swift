@@ -241,6 +241,7 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(StoryButtonStyle(kind: .quiet))
+            .accessibilityIdentifier("account-support-link")
         }
         .cardSurface()
     }

@@ -348,49 +348,43 @@ struct BrowseView: View {
     }
 
     private var huntPanel: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            HStack(spacing: AppSpacing.medium) {
-                HuntActivityIcon(phase: store.huntPhase, isActive: store.isLoading, size: 58)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(surface == .highSchool ? session.text("highSchoolHuntEngine") : session.text("searchHuntEngine"))
-                        .font(PortfolioTypography.headline.weight(.semibold))
-                        .foregroundStyle(Brand.outline(for: colorScheme))
-                    Text(huntSubtitle)
-                        .font(PortfolioTypography.subheadline)
-                        .foregroundStyle(Brand.mutedText(for: colorScheme))
-                }
-
-                Spacer(minLength: 8)
-            }
-
-            HuntRefreshButton(isLoading: store.isLoading, title: session.text("refreshResearch")) {
-                Task { await store.refresh(cache: persistenceContext) }
-            }
-
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 10) {
-                    nearbyButton
-                    alertsButton
-                }
-
+        VStack(alignment: .leading, spacing: 10) {
+            if dynamicTypeSize.isAccessibilitySize {
                 VStack(spacing: 10) {
                     nearbyButton
                     alertsButton
                 }
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) {
+                        nearbyButton
+                        alertsButton
+                    }
+
+                    VStack(spacing: 10) {
+                        nearbyButton
+                        alertsButton
+                    }
+                }
             }
 
-            FlowLabels {
-                StickerBadge(text: radiusLabel, color: Brand.sky, systemImage: "scope")
-                StickerBadge(text: session.text(store.filters.sort.textKey), color: Brand.lavender, systemImage: "arrow.up.arrow.down")
-                if store.filters.includeNewFinds {
-                    StickerBadge(text: session.text("newFindsIncluded"), color: Brand.sun, systemImage: "sparkles")
-                }
-                if store.newMatchesCount > 0 {
-                    StickerBadge(text: session.text("newCountShort").replacingOccurrences(of: "{count}", with: "\(store.newMatchesCount)"), color: Brand.coral, systemImage: "burst.fill")
+            if store.filters.hasLocation || store.filters.sort != .date || store.newMatchesCount > 0 {
+                FlowLabels {
+                    if store.filters.hasLocation {
+                        StickerBadge(text: radiusLabel, color: Brand.sky, systemImage: "scope")
+                    }
+                    if store.filters.sort != .date {
+                        StickerBadge(text: session.text(store.filters.sort.textKey), color: Brand.lavender, systemImage: "arrow.up.arrow.down")
+                    }
+                    if store.newMatchesCount > 0 {
+                        StickerBadge(text: session.text("newCountShort").replacingOccurrences(of: "{count}", with: "\(store.newMatchesCount)"), color: Brand.coral, systemImage: "burst.fill")
+                    }
                 }
             }
 
+            if store.isLoading && displayMode == .map {
+                ProgressView(session.text("checkingLiveSources"))
+            }
             if let message = locationManager.message ?? store.notificationStatusMessage {
                 Text(message)
                     .font(PortfolioTypography.footnote)
@@ -404,7 +398,7 @@ struct BrowseView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .cardSurface()
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var nearbyButton: some View {
@@ -412,6 +406,8 @@ struct BrowseView: View {
             locationManager.requestOneShotLocation()
         } label: {
             Label(locationButtonTitle, systemImage: "location.circle.fill")
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.vertical, 6)
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(StoryButtonStyle(kind: .secondary))
@@ -422,6 +418,8 @@ struct BrowseView: View {
             Task { await store.requestNotificationPermission() }
         } label: {
             Label(session.text("alerts"), systemImage: "bell.badge.fill")
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.vertical, 6)
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(StoryButtonStyle(kind: .quiet))
@@ -707,12 +705,6 @@ struct BrowseView: View {
 
     private var highSchoolSummary: String {
         "\(session.text("volunteerHours")) · \(session.text("coop")) · \(session.text("mentorship")) · \(session.text("leadership"))"
-    }
-
-    private var huntSubtitle: String {
-        let area = store.filters.hasLocation ? session.text("nearYourLocation") : (store.filters.city.isEmpty ? session.text("acrossGTA") : session.text("inCity").replacingOccurrences(of: "{city}", with: store.filters.city))
-        let status = store.isLoading ? session.text("checkingLiveSources") : session.text(store.huntPhase.titleKey)
-        return "\(status) · \(area)"
     }
 
     private var locationButtonTitle: String {
@@ -1118,30 +1110,6 @@ struct OpportunityFilterSheet: View {
         .accessibilityIdentifier("done-filters")
     }
 
-}
-
-private struct HuntRefreshButton: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    let isLoading: Bool
-    let title: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 7) {
-                Image(systemName: isLoading ? "arrow.triangle.2.circlepath" : "arrow.clockwise")
-                    .font(.system(size: 15, weight: .semibold))
-                    .symbolEffect(.pulse, options: .repeating, isActive: isLoading && !reduceMotion)
-                    .accessibilityHidden(true)
-                Text(title)
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(StoryButtonStyle(kind: .primary))
-        .disabled(isLoading)
-        .accessibilityLabel(title)
-    }
 }
 
 /// Projection runs only when filtered records are published, never on map gestures.

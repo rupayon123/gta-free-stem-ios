@@ -1199,7 +1199,13 @@ private enum ScreenshotOpportunityFixtures {
         ageMax: Int,
         tags: [String]
     ) -> Opportunity {
-        Opportunity(
+        #if DEBUG
+        let sampleAccessibility = ProcessInfo.processInfo.arguments.contains("-review-accessibility-notes")
+            ? ["Sample: Step-free entrance; contact the provider for details."] : []
+        #else
+        let sampleAccessibility: [String] = []
+        #endif
+        return Opportunity(
             id: id,
             title: title,
             organization: "GTA FREE STEM Sample Studio",
@@ -1226,7 +1232,8 @@ private enum ScreenshotOpportunityFixtures {
             tags: tags,
             distanceKm: nil,
             isNewFind: nil,
-            sourceConfidence: "App-authored screenshot sample"
+            sourceConfidence: "App-authored screenshot sample",
+            accessibility: sampleAccessibility
         )
     }
 }

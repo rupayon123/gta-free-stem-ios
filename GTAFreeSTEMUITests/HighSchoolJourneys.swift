@@ -428,10 +428,32 @@ final class HighSchoolJourneys: XCTestCase {
         check(element("hours-export-latest"), "notebook")
 
         tap("tab-support")
-        check(app.links["Terms of Service and Privacy Notice"], "support")
+        check(element("support-terms-link"), "support")
         tap("tab-account")
-        check(app.links["Support"], "account")
+        check(element("account-support-link"), "account")
         XCTAssertEqual(app.state, .runningForeground)
+    }
+
+    func test11SampleAccessibilityNotesInLightAndDarkRTL() {
+        let sample = "Sample: Step-free entrance; contact the provider for details."
+        for (language, extra, heading, name) in [
+            ("en", [String](), "Accessibility notes from the source", "notes-light"),
+            ("ar", ["-review-dark", "-review-large-text"], "ملاحظات إمكانية الوصول من المصدر", "notes-dark-large-rtl")
+        ] {
+            app.launchArguments = ["-frontend-layout-review", "-review-screen", "calendar",
+                                   "-review-language", language, "-review-accessibility-notes"] + extra
+            app.launch()
+            let note = app.staticTexts[sample]
+            XCTAssertTrue(note.waitForExistence(timeout: 15), "The labelled app-owned sample must load")
+            reveal(note)
+            XCTAssertTrue(note.isHittable)
+            capture(name + "-content")
+            let header = app.staticTexts[heading]
+            reveal(header)
+            XCTAssertTrue(header.isHittable)
+            capture(name + "-heading")
+            app.terminate()
+        }
     }
 
     func test05PhysicalPhoneReadOnlyJourney() {
