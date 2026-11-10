@@ -21,7 +21,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git rev-parse HEAD^)" = 2fdb80ae00b5a125fb658eb61276cb3c7fcede2a
+          test "$(git rev-parse HEAD^)" = c741e9211d5a1b5f579d683c27dd8ec4306980cd
           test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = .github/workflows/ios-release-readiness.yml
           test -z "$(git status --porcelain)"
           shasum -a 256 -c .github/native-ci-source.sha256
