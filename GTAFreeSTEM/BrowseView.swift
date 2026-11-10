@@ -125,6 +125,7 @@ struct BrowseView: View {
                 OpportunityAlertsSheet().environmentObject(session).environmentObject(store)
                     .environment(\.layoutDirection, session.language.layoutDirection)
                     .environment(\.locale, Locale(identifier: session.language.localeIdentifier))
+                    .dynamicTypeSize(dynamicTypeSize)
             }
             .sheet(isPresented: $saveSearchPresented) {
                 SaveNamedSearchSheet().environmentObject(session).environmentObject(store)
@@ -147,6 +148,7 @@ struct BrowseView: View {
                 .environmentObject(session)
                 .environment(\.layoutDirection, session.language.layoutDirection)
                 .environment(\.locale, Locale(identifier: session.language.localeIdentifier))
+                .dynamicTypeSize(dynamicTypeSize)
             }
             .task {
                 await preparePresentedSurface()
@@ -1600,6 +1602,7 @@ private struct OpportunityAlertsSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(session.text("done")) { dismiss() }
                         .frame(minWidth: 60, minHeight: 44)
+                        .accessibilityIdentifier("alerts-done")
                 }
             }
         }

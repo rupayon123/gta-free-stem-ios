@@ -432,6 +432,10 @@ final class HighSchoolJourneys: XCTestCase {
         tap("tab-support")
         check(element("support-terms-link"), "support")
         tap("tab-account")
+        let languages = app.staticTexts["Languages"].firstMatch
+        reveal(languages)
+        XCTAssertTrue(languages.exists && languages.isHittable)
+        XCTAssertFalse(app.staticTexts["Site language"].exists)
         check(element("account-support-link"), "account")
         XCTAssertEqual(app.state, .runningForeground)
     }
@@ -483,16 +487,30 @@ final class HighSchoolJourneys: XCTestCase {
         print("SUPPORT_DATE_DIAGNOSTIC idExists=\(checked.exists) textExists=\(visibleDate.exists) hierarchy=\(app.debugDescription)")
         capture("support-detail-before-date")
         reveal(visibleDate)
+        let footer = app.buttons["tab-home"]
+        XCTAssertTrue(footer.exists)
+        if visibleDate.frame.maxY > footer.frame.minY - 24 {
+            // The footer background starts above its buttons; move the entire
+            // date and source link into view, not just the text's centre.
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.70))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.40))
+            start.press(forDuration: 0.05, thenDragTo: end)
+        }
         XCTAssertTrue(visibleDate.exists && visibleDate.isHittable, "The provider's last checked date must be visible and accessible")
+        XCTAssertLessThanOrEqual(visibleDate.frame.maxY, footer.frame.minY - 24, "The complete date must sit above the navigation background")
         XCTAssertTrue(visibleDate.label.contains(String(Calendar.current.component(.year, from: .now))), "The sample check should show its current year")
         XCTAssertNil(visibleDate.label.range(of: #"\d{4}-\d{2}-\d{2}T"#, options: .regularExpression), "Provider checks should use a readable date")
+        XCTAssertTrue(app.buttons["Source"].firstMatch.isHittable, "The provider source link must remain accessible")
         capture("support-detail-light")
         app.terminate()
     }
 
     func test12AlertPreferencesOpenWithoutPermissionPromptInLightAndDarkRTL() {
+        var normalAlertHeight: CGFloat = 0
+        var normalFilterHeight: CGFloat = 0
         for (language, extra, name) in [
             ("en", [String](), "alerts-light"),
+            ("en", ["-review-large-text"], "alerts-light-large"),
             ("ar", ["-review-dark", "-review-large-text"], "alerts-dark-large-rtl")
         ] {
             app.launchArguments = ["-frontend-layout-review", "-review-screen", "home-saved",
@@ -507,6 +525,12 @@ final class HighSchoolJourneys: XCTestCase {
             XCTAssertTrue(daily.waitForExistence(timeout: 10))
             XCTAssertTrue(daily.isHittable)
             XCTAssertEqual(daily.value as? String, "0", "Reminders must be opt-in")
+            let dailyHeight = daily.frame.height
+            if extra.isEmpty { normalAlertHeight = dailyHeight }
+            if extra.contains("-review-large-text"), language == "en" {
+                XCTAssertGreaterThan(dailyHeight, normalAlertHeight * 1.15, "The alert switch row must grow at accessibility text sizes")
+            }
+            print("ALERT_DYNAMIC_TYPE language=\(language) large=\(extra.contains("-review-large-text")) rowHeight=\(dailyHeight)")
             let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
             XCTAssertFalse(springboard.alerts.firstMatch.exists, "Opening settings must not request notification permission")
             capture(name)
@@ -514,6 +538,18 @@ final class HighSchoolJourneys: XCTestCase {
             reveal(savedToggle)
             XCTAssertTrue(savedToggle.exists && savedToggle.isHittable)
             XCTAssertEqual(savedToggle.value as? String, "0", "Existing saved filters must stay opted out")
+            tap("alerts-done")
+            tap("browse-filters")
+            let support = app.switches["support-filter-sensory-friendly"]
+            reveal(support)
+            XCTAssertTrue(support.exists && support.isHittable)
+            let filterHeight = support.frame.height
+            if extra.isEmpty { normalFilterHeight = filterHeight }
+            if extra.contains("-review-large-text"), language == "en" {
+                XCTAssertGreaterThan(filterHeight, normalFilterHeight * 1.15, "The filter switch row must grow at accessibility text sizes")
+            }
+            print("FILTER_DYNAMIC_TYPE language=\(language) large=\(extra.contains("-review-large-text")) rowHeight=\(filterHeight)")
+            capture(name.replacingOccurrences(of: "alerts", with: "filters"))
             app.terminate()
         }
     }
