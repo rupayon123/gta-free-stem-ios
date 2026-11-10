@@ -80,7 +80,7 @@ def main(model, fixture_path, locale):
         raise ValueError('negative control unexpectedly ended normally')
     begin = time.monotonic()
     rows = translator.translate_batch(encoded, max_batch_size=MAX_BATCH, batch_type='examples',
-                                      beam_size=1, max_input_length=0, max_decoding_length=MAX_OUTPUT,
+                                      beam_size=4, max_input_length=0, max_decoding_length=MAX_OUTPUT,
                                       return_end_token=True)
     elapsed = time.monotonic() - begin
     if elapsed > MAX_WALL or len(rows) != len(cases):
@@ -95,7 +95,7 @@ def main(model, fixture_path, locale):
                        'source': case['text'], 'translation': text, 'actualEOS': True,
                        'outputTokens': len(tokens)})
     print(json.dumps({'scope': 'public CPU batch trial; meaning requires human review',
-                      'locale': locale, 'prefix': prefix, 'computeType': translator.compute_type, 'threads': 4, 'batchMaximum': MAX_BATCH,
+                      'locale': locale, 'prefix': prefix, 'computeType': translator.compute_type, 'threads': 4, 'batchMaximum': MAX_BATCH, 'beamSize': 4,
                       'loadSeconds': round(loaded-load, 3), 'batchSeconds': round(elapsed, 3),
                       'totalSeconds': round(time.monotonic()-start, 3), 'negativeControlRejected': negative_rejected,
                       'results': result}, ensure_ascii=False))
