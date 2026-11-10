@@ -479,8 +479,13 @@ final class HighSchoolJourneys: XCTestCase {
         reveal(provider)
         XCTAssertTrue(app.staticTexts["Sample: a quieter activity with a quiet break space."].exists)
         let checked = element("support-last-checked")
-        reveal(checked)
-        XCTAssertNil(checked.label.range(of: #"\d{4}-\d{2}-\d{2}T"#, options: .regularExpression), "Provider checks should use a readable date")
+        let visibleDate = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Last checked:")).firstMatch
+        print("SUPPORT_DATE_DIAGNOSTIC idExists=\(checked.exists) textExists=\(visibleDate.exists) hierarchy=\(app.debugDescription)")
+        capture("support-detail-before-date")
+        reveal(visibleDate)
+        XCTAssertTrue(visibleDate.exists && visibleDate.isHittable, "The provider's last checked date must be visible and accessible")
+        XCTAssertTrue(visibleDate.label.contains(String(Calendar.current.component(.year, from: .now))), "The sample check should show its current year")
+        XCTAssertNil(visibleDate.label.range(of: #"\d{4}-\d{2}-\d{2}T"#, options: .regularExpression), "Provider checks should use a readable date")
         capture("support-detail-light")
         app.terminate()
     }
