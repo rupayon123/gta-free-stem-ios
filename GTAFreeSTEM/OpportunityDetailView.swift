@@ -1,6 +1,9 @@
 import MapKit
 import SwiftData
 import SwiftUI
+#if canImport(Translation)
+import Translation
+#endif
 #if canImport(EventKitUI)
 import EventKit
 import EventKitUI
@@ -66,11 +69,7 @@ struct OpportunityDetailView: View {
                     titleCard
                     keyFacts
                     providerAction
-                    Text(session.fullDescription(for: opportunity))
-                        .font(PortfolioTypography.body)
-                        .foregroundStyle(Brand.outline(for: colorScheme))
-                        .fixedSize(horizontal: false, vertical: true)
-                        .textSelection(.enabled)
+                    listingDescription
                     accessibilityNotes
                     mapPreview
                     details
@@ -102,6 +101,35 @@ struct OpportunityDetailView: View {
             )
         }
 #endif
+    }
+
+    @ViewBuilder
+    private var listingDescription: some View {
+#if canImport(Translation)
+        if #available(iOS 18.0, macCatalyst 26.0, *) {
+            let key = ListingTranslationKey(listingID: opportunity.id, source: opportunity.description,
+                                            targetLocale: session.language.localeIdentifier)
+            OnDeviceListingDescription(source: opportunity.description, key: key)
+                .id(key)
+        } else {
+            originalListingDescription
+        }
+#else
+        originalListingDescription
+#endif
+    }
+
+    private var originalListingDescription: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(opportunity.description)
+                .font(PortfolioTypography.body)
+                .foregroundStyle(Brand.outline(for: colorScheme))
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+            Text(session.text("translationRequiresNewerSystem"))
+                .font(PortfolioTypography.footnote)
+                .foregroundStyle(Brand.mutedText(for: colorScheme))
+        }
     }
 
     @ViewBuilder
@@ -424,4 +452,137 @@ private func markCalendarReviewPresented() {
     try? Data(nonce.utf8).write(to: cache.appendingPathComponent("gta-free-stem-calendar-review-ready"), options: .atomic)
 }
 #endif
+#endif
+
+#if canImport(Translation)
+@available(iOS 18.0, macCatalyst 26.0, *)
+private struct OnDeviceListingDescription: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject private var session: SessionStore
+    let source: String
+    let key: ListingTranslationKey
+
+    private enum Phase {
+        case original, checking, translating, translated(String), unavailable, failed
+    }
+    @State private var phase: Phase = .original
+    @State private var configuration: TranslationSession.Configuration?
+    @State private var availabilityTask: Task<Void, Never>?
+    @State private var generation = UUID()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(displayedText)
+                .font(PortfolioTypography.body)
+                .foregroundStyle(Brand.outline(for: colorScheme))
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+            switch phase {
+            case .translated:
+                Text(session.text("translatedOnDevice")).font(PortfolioTypography.footnote)
+                Button(session.text("showOriginal"), action: cancel)
+            case .checking, .translating:
+                ProgressView(session.text("translatingListing"))
+                Button(session.text("cancelTranslation"), action: cancel)
+            case .unavailable:
+                Text(session.text("translationUnavailable")).font(PortfolioTypography.footnote)
+                Button(session.text("translateListing"), action: begin)
+            case .failed:
+                Text(session.text("translationFailed")).font(PortfolioTypography.footnote)
+                Button(session.text("translateListing"), action: begin)
+            case .original:
+                Button(session.text("translateListing"), action: begin)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .translationTask(configuration) { translator in
+            let requestGeneration = generation
+            do {
+                let result = try await translator.translate(source)
+                guard !Task.isCancelled, generation == requestGeneration else { return }
+                let translated = result.targetText
+                guard !translated.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                      translated.utf8.count <= 600_000 else {
+                    phase = .failed
+                    configuration = nil
+                    return
+                }
+                ListingTranslationCache.shared.insert(translated, for: key)
+                phase = .translated(translated)
+                configuration = nil
+            } catch {
+                guard !Task.isCancelled, generation == requestGeneration else { return }
+                phase = .failed
+                configuration = nil
+            }
+        }
+        .onDisappear(perform: cancel)
+    }
+
+    private var displayedText: String {
+        if case .translated(let text) = phase { return text }
+        return source
+    }
+
+    private func begin() {
+        cancel()
+        if let cached = ListingTranslationCache.shared.value(for: key) {
+            phase = .translated(cached)
+            return
+        }
+        guard !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              source.utf8.count <= 100_000 else {
+            phase = .unavailable
+            return
+        }
+        let requestGeneration = generation
+        let target = Locale.Language(identifier: key.targetLocale)
+        phase = .checking
+        availabilityTask = Task {
+            do {
+                let availability: LanguageAvailability
+                if #available(iOS 26.4, macCatalyst 26.4, *) {
+                    availability = LanguageAvailability(preferredStrategy: .lowLatency)
+                } else {
+                    availability = LanguageAvailability()
+                }
+                // A matching fallback must not silently turn Cantonese into Mandarin.
+                if key.targetLocale == "yue-Hant" {
+                    let languages = await availability.supportedLanguages
+                    guard !Task.isCancelled, generation == requestGeneration else { return }
+                    guard languages.contains(where: { $0.languageCode?.identifier == "yue" }) else {
+                        phase = .unavailable
+                        return
+                    }
+                }
+                let status = try await availability.status(for: source, to: target)
+                guard !Task.isCancelled, generation == requestGeneration else { return }
+                switch status {
+                case .installed, .supported:
+                    phase = .translating
+                    if #available(iOS 26.4, macCatalyst 26.4, *) {
+                        configuration = .init(source: nil, target: target, preferredStrategy: .lowLatency)
+                    } else {
+                        configuration = .init(source: nil, target: target)
+                    }
+                case .unsupported:
+                    phase = .unavailable
+                @unknown default:
+                    phase = .unavailable
+                }
+            } catch {
+                guard !Task.isCancelled, generation == requestGeneration else { return }
+                phase = .unavailable
+            }
+        }
+    }
+
+    private func cancel() {
+        generation = UUID()
+        availabilityTask?.cancel()
+        availabilityTask = nil
+        configuration = nil
+        phase = .original
+    }
+}
 #endif

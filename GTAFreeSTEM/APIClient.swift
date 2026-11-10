@@ -59,6 +59,49 @@ enum FullDescriptionBinding {
     }
 }
 
+/// A small, process-only cache; the exact source bytes and target language are
+/// part of the key so an updated listing cannot reuse an older translation.
+struct ListingTranslationKey: Hashable {
+    let listingHash: String
+    let sourceHash: String
+    let targetLocale: String
+    let field: String
+
+    init(listingID: String, source: String, targetLocale: String) {
+        listingHash = FullDescriptionBinding.hash(listingID)
+        sourceHash = FullDescriptionBinding.hash(source)
+        self.targetLocale = targetLocale
+        field = "description"
+    }
+}
+
+@MainActor
+final class ListingTranslationCache {
+    static let shared = ListingTranslationCache()
+    private var entries: [ListingTranslationKey: String] = [:]
+    private var order: [ListingTranslationKey] = []
+    private let limit: Int
+    private let byteLimit: Int
+
+    init(limit: Int = 20, byteLimit: Int = 600_000) {
+        self.limit = max(0, limit)
+        self.byteLimit = max(0, byteLimit)
+    }
+
+    func value(for key: ListingTranslationKey) -> String? { entries[key] }
+
+    func insert(_ value: String, for key: ListingTranslationKey) {
+        guard limit > 0, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              value.utf8.count <= byteLimit else { return }
+        entries[key] = value
+        order.removeAll { $0 == key }
+        order.append(key)
+        while order.count > limit || entries.values.reduce(0, { $0 + $1.utf8.count }) > byteLimit {
+            entries.removeValue(forKey: order.removeFirst())
+        }
+    }
+}
+
 enum APIError: Error, LocalizedError {
     case badURL
     case invalidResponse

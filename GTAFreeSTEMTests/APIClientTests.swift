@@ -26,6 +26,27 @@ private func bundledSnapshotTestNow() throws -> Date {
 
 final class APIClientTests: XCTestCase {
     @MainActor
+    func testOnDeviceListingCacheBindsExactSourceAndBoundsMemory() {
+        let cache = ListingTranslationCache(limit: 2, byteLimit: 12)
+        func key(_ source: String, _ language: String = "fr", _ id: String = "event") -> ListingTranslationKey {
+            ListingTranslationKey(listingID: id, source: source, targetLocale: language)
+        }
+        let original = key("café")
+        cache.insert("bonjour", for: original)
+        XCTAssertEqual(cache.value(for: original), "bonjour")
+        XCTAssertNil(cache.value(for: key("cafe\u{301}")), "Canonical equivalence must not hide changed source bytes")
+        XCTAssertNil(cache.value(for: key("café ")))
+        XCTAssertNil(cache.value(for: key("café", "yue-Hant")))
+        XCTAssertNil(cache.value(for: key("café", "fr", "different")))
+        cache.insert("salut", for: key("another"))
+        cache.insert("oui", for: key("third"))
+        XCTAssertNil(cache.value(for: original))
+        XCTAssertEqual(cache.value(for: key("third")), "oui")
+        cache.insert(String(repeating: "x", count: 13), for: original)
+        XCTAssertNil(cache.value(for: original))
+    }
+
+    @MainActor
     func testSourceAccessibilityNotesSurviveFeedCacheArchiveAndTranslationMerge() throws {
         let original = opportunity(id: "notes", title: "Community workshop")
         var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
@@ -3180,7 +3201,8 @@ final class APIClientTests: XCTestCase {
         XCTAssertNotNil(OpportunityDetailView.directionsURL(for: addressOnly, language: .en), "Real address fallback must remain available")
         let source = try String(contentsOf: testRepositoryRoot.appendingPathComponent("GTAFreeSTEM/OpportunityDetailView.swift"))
         XCTAssertFalse(source.contains("opportunity.language.map"), "Producer language defaults are not evidence of provider delivery languages")
-        XCTAssertTrue(source.contains("Text(session.fullDescription(for: opportunity))"), "The complete provider body must remain visible")
+        XCTAssertTrue(source.contains("OnDeviceListingDescription(source: opportunity.description"), "The translation view must receive the original listing text")
+        XCTAssertTrue(source.contains("return source"), "The original text must remain available")
     }
 
     @MainActor
