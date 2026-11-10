@@ -475,6 +475,7 @@ private struct OnDeviceListingDescription: View {
     @State private var generation = UUID()
 
     var body: some View {
+        let input = source
         VStack(alignment: .leading, spacing: 8) {
             Text(displayedText)
                 .font(PortfolioTypography.body)
@@ -499,25 +500,31 @@ private struct OnDeviceListingDescription: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .translationTask(configuration) { translator in
-            let requestGeneration = generation
+        .translationTask(configuration) { @Sendable translator in
+            let requestGeneration = await MainActor.run { generation }
             do {
-                let result = try await translator.translate(source)
-                guard !Task.isCancelled, generation == requestGeneration else { return }
+                let result = try await translator.translate(input)
+                guard !Task.isCancelled else { return }
                 let translated = result.targetText
-                guard !translated.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                      translated.utf8.count <= 600_000 else {
+                await MainActor.run {
+                    guard generation == requestGeneration else { return }
+                    guard !translated.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                          translated.utf8.count <= 600_000 else {
+                        phase = .failed
+                        configuration = nil
+                        return
+                    }
+                    ListingTranslationCache.shared.insert(translated, for: key)
+                    phase = .translated(translated)
+                    configuration = nil
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    guard generation == requestGeneration else { return }
                     phase = .failed
                     configuration = nil
-                    return
                 }
-                ListingTranslationCache.shared.insert(translated, for: key)
-                phase = .translated(translated)
-                configuration = nil
-            } catch {
-                guard !Task.isCancelled, generation == requestGeneration else { return }
-                phase = .failed
-                configuration = nil
             }
         }
         .onDisappear(perform: cancel)
