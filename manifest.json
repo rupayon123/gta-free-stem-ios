@@ -1,0 +1,82 @@
+{
+  "workflowCommit": "f36a6569d1e515fa90e8be35f552206b2b5012a4",
+  "sourceCommit": "2725e80112090e1dca8cc21dce3bbdd4b72b2554",
+  "simulatorOnly": true,
+  "images": [
+    {
+      "file": "bottom-home.png",
+      "bytes": 239249,
+      "sha256": "47cede82d8b0b620ecf8355d59b30cdc3c63ae7839c19c543fc97a747ee29e87"
+    },
+    {
+      "file": "bottom-browse.png",
+      "bytes": 303253,
+      "sha256": "9dca1a53692af691ca8cbb5eee57e12cbec8f4d1743c1b87fea1e1e095bb6d4f"
+    },
+    {
+      "file": "bottom-detail.png",
+      "bytes": 407356,
+      "sha256": "3dc4e6dfc4c83ac9056fc7ad2e720c12c5d2116fe315bd3a0e92831c0aec4d14"
+    },
+    {
+      "file": "bottom-school.png",
+      "bytes": 447075,
+      "sha256": "2716f5abe4b0d1156a085f4b411f8bcfee4edf4c10872d190fa7b7ee74d0d1ce"
+    },
+    {
+      "file": "bottom-notebook.png",
+      "bytes": 253623,
+      "sha256": "b249cdea056c11d156f84c6af2ae4d293189f3daf7b17e3fd6a94f0e31f96e78"
+    },
+    {
+      "file": "bottom-support.png",
+      "bytes": 248128,
+      "sha256": "a123a9d79ef58a0374050eb4801defd60f5df7876ffb56e8384c39d3d1e2ae10"
+    },
+    {
+      "file": "bottom-account.png",
+      "bytes": 417185,
+      "sha256": "7bb2a03ed6e6611dba6e1eb8487bed60bcb37ef13e310a65e88d56e8f7cabd2a"
+    },
+    {
+      "file": "alerts-light.png",
+      "bytes": 232423,
+      "sha256": "d25415f7a7bd8547f8c471d9b0aa507e1a530650086105ab7e51519784805782"
+    },
+    {
+      "file": "alerts-light-large.png",
+      "bytes": 262911,
+      "sha256": "534391f44b95e26b8e26c4bce09483093ab6777550d0c29014c78307a1fce8f3"
+    },
+    {
+      "file": "alerts-dark-large-rtl.png",
+      "bytes": 254698,
+      "sha256": "ef3580daee868b4daa4cd89c9766940b4c22a7e0cf4a918872620f0f8e67544a"
+    },
+    {
+      "file": "filters-light.png",
+      "bytes": 497595,
+      "sha256": "06a7999e3b35069e89351fb22eddc01b9a06db2bd2fd7abe2920ee5fe4715f53"
+    },
+    {
+      "file": "filters-light-large.png",
+      "bytes": 548715,
+      "sha256": "89a94b234eb6665183c5ac9d9ddb2426599eb30d580467d886157f09fa96f489"
+    },
+    {
+      "file": "filters-dark-large-rtl.png",
+      "bytes": 619872,
+      "sha256": "cc7afbba54f7f2a774dca01f9dee4275c10c6aa3e5cc4dff78fa18db5ce4c192"
+    },
+    {
+      "file": "support-filter-light.png",
+      "bytes": 419474,
+      "sha256": "1f15011058364a2bb342408f23b91cc1fa3024b0f5fc196a3be48fad02ca2c23"
+    },
+    {
+      "file": "support-detail-light.png",
+      "bytes": 428110,
+      "sha256": "69960d2981f76e01484de62dc44586be0b3d4a50ae65375e7ad1e0b4f29ca7f8"
+    }
+  ]
+}
