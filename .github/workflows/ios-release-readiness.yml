@@ -1,36 +1,108 @@
-name: iOS Release Readiness
-
+name: Focused iOS beta navigation diagnostic
 on:
-  pull_request:
-  push:
-    branches:
-      - main
   workflow_dispatch:
-
+    inputs:
+      expected_source_sha:
+        description: Full reviewed commit SHA of the diagnostic source
+        required: true
+        type: string
 permissions:
   contents: read
-
 jobs:
-  release-readiness:
-    name: Release readiness
-    runs-on: macos-latest
-    timeout-minutes: 45
-
+  navigation:
+    if: github.event.repository.visibility == 'public'
+    runs-on: macos-26
+    timeout-minutes: 30
     steps:
-      - name: Check out repository
-        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
-
-      - name: Show Xcode version
-        run: xcodebuild -version
-
-      - name: Ensure release-check tools are available
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Verify source and choose one available iPhone simulator
+        id: destination
+        shell: bash
+        env:
+          EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
         run: |
-          missing=()
-          command -v jq >/dev/null 2>&1 || missing+=(jq)
-          command -v rg >/dev/null 2>&1 || missing+=(ripgrep)
-          if (( ${#missing[@]} > 0 )); then
-            brew install "${missing[@]}"
-          fi
-
-      - name: Run CI release-readiness checks
-        run: bash docs/scripts/check-ci-release-readiness.sh
+          set -euo pipefail
+          [[ "$EXPECTED_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$GITHUB_SHA" = "$EXPECTED_SOURCE_SHA"
+          test -z "$(git status --porcelain)"
+          shasum -a 256 -c .github/native-ci-source.sha256
+          xcodebuild -version
+          xcrun simctl list devices available --json > "$RUNNER_TEMP/devices.json"
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          devices = json.loads((Path(os.environ['RUNNER_TEMP']) / 'devices.json').read_text())['devices']
+          candidates = []
+          for runtime, entries in devices.items():
+              match = re.fullmatch(r'com\.apple\.CoreSimulator\.SimRuntime\.iOS-(\d+)-(\d+)', runtime)
+              if not match: continue
+              for entry in entries:
+                  if entry.get('isAvailable') and entry.get('name') == 'iPhone 17 Pro':
+                      candidates.append((tuple(map(int, match.groups())), entry['udid'], runtime))
+          if not candidates: raise SystemExit('No available iPhone 17 Pro simulator; no silent device substitution')
+          _, device, runtime = max(candidates)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('value=platform=iOS Simulator,id=' + device + '\n')
+          print('Selected iPhone 17 Pro', runtime, device)
+          PY
+      - name: Run bottom-content diagnostic
+        id: ui
+        timeout-minutes: 22
+        shell: bash
+        env:
+          TEST_DESTINATION: ${{ steps.destination.outputs.value }}
+        run: |
+          set -euo pipefail
+          xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAHighSchoolUIQA \
+            -configuration Debug -destination "$TEST_DESTINATION" -destination-timeout 90 \
+            -jobs 1 -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 \
+            -only-testing:GTAFreeSTEMUITests/HighSchoolJourneys/test10BottomContentRemainsAboveNavigation \
+            -derivedDataPath "$RUNNER_TEMP/nav-derived" -resultBundlePath "$RUNNER_TEMP/nav.xcresult" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/nav.log"
+      - name: Export bounded simulator evidence to job log
+        if: always() && steps.ui.outcome != 'skipped'
+        timeout-minutes: 3
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d "$RUNNER_TEMP/nav.xcresult"
+          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/nav.xcresult" | tee "$RUNNER_TEMP/nav-summary.json"
+          mkdir -p "$RUNNER_TEMP/nav-attachments"
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/nav.xcresult" --output-path "$RUNNER_TEMP/nav-attachments"
+          python3 - <<'PY'
+          import base64, hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'nav-attachments'
+          manifest = root / 'manifest.json'
+          if not manifest.exists(): raise SystemExit('No attachment manifest')
+          records = json.loads(manifest.read_text())
+          chosen = []
+          for test in records:
+              for attachment in test.get('attachments', []):
+                  name = attachment.get('suggestedHumanReadableName', '')
+                  filename = attachment.get('exportedFileName', '')
+                  if (name.startswith('bottom-') or name.startswith('unreachable-control') or attachment.get('isAssociatedWithFailure')) and filename.lower().endswith('.png'):
+                      if Path(filename).name != filename: raise SystemExit('Unsafe attachment filename')
+                      chosen.append((name, root / filename))
+          expected = ['bottom-home', 'bottom-browse', 'bottom-detail', 'bottom-school', 'bottom-notebook', 'bottom-support', 'bottom-account']
+          if not any(name.startswith('bottom-') for name, _ in chosen):
+              raise SystemExit('No named bottom-content PNG evidence was exported')
+          summary = json.loads((Path(os.environ['RUNNER_TEMP']) / 'nav-summary.json').read_text())
+          if summary.get('result') == 'Passed' and any(not any(name.startswith(key) for name, _ in chosen) for key in expected):
+              raise SystemExit('Passing diagnostic is missing named screen evidence')
+          total = 0
+          for index, (name, path) in enumerate(chosen[:8]):
+              raw = path.read_bytes()
+              total += len(raw)
+              if len(raw) > 4_000_000 or total > 12_000_000: raise SystemExit('Original PNG evidence exceeds the log limit')
+              print('NAV_FRAME_META ' + json.dumps({'index': index, 'name': name, 'source': path.name, 'commit': os.environ['GITHUB_SHA'], 'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest(), 'format': 'original PNG', 'simulatorOnly': True}), flush=True)
+              print('NAV_FRAME_BEGIN ' + str(index), flush=True)
+              encoded = base64.b64encode(raw).decode()
+              for offset in range(0, len(encoded), 120): print('NAV_FRAME_DATA ' + encoded[offset:offset+120], flush=True)
+              print('NAV_FRAME_END ' + str(index), flush=True)
+          if summary.get('result') != 'Passed' or summary.get('totalTestCount') != 1 or summary.get('passedTests') != 1 or summary.get('failedTests') != 0 or summary.get('skippedTests') != 0:
+              raise SystemExit('The exact one-test navigation diagnostic did not pass')
+          PY

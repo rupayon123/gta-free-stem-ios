@@ -186,6 +186,9 @@ struct ContentView: View {
     @EnvironmentObject private var store: OpportunityStore
     @State private var selectedTab: AppTab = AppTab.launchDefault
     @State private var keyboardVisible = false
+    @State private var accessibleNavigationPresented = false
+    @State private var highSchoolActivities = false
+    @StateObject private var youth = HighSchoolHubStore.shared
 
     var body: some View {
         Group {
@@ -232,6 +235,7 @@ struct ContentView: View {
         }
         .onOpenURL { url in
             guard let tab = AppTab(url: url) else { return }
+            if tab == .highSchool { highSchoolActivities = Self.opensSchoolActivities(url) }
             selectedTab = tab
             configureStore(for: tab)
         }
@@ -239,6 +243,7 @@ struct ContentView: View {
             guard !AppRuntime.isRunningTests else { return }
             applyScreenshotConfigurationIfNeeded()
             if AppLaunchConfiguration.isScreenshotCapture {
+                if selectedTab == .highSchool && !highSchoolActivities { return }
                 // App Store capture uses the exact release UI with app-owned,
                 // clearly labelled sample content. Static marketing images
                 // cannot carry third-party providers' required clickable links.
@@ -262,36 +267,129 @@ struct ContentView: View {
     }
 
     private var tabNavigation: some View {
-        TabView(selection: $selectedTab) {
-            ForEach(AppTab.allCases, id: \.self) { tab in
-                tabContent(for: tab)
-                    .toolbar(.hidden, for: .tabBar)
-                    .tabItem {
-                        Label {
-                            Text(session.text(tab.titleKey))
-                        } icon: {
-                            PortfolioArtwork.tabImage(
-                                tab.artworkAssetName,
-                                scheme: colorScheme,
-                                fallbackSystemImage: tab.symbolName
-                            )
+        // TabView owns a UIKit-backed navigation hierarchy. Give its pages their
+        // actual available height instead of overlaying the custom footer via
+        // a parent safe-area inset, which left the guide's last controls covered.
+        VStack(spacing: 0) {
+            TabView(selection: $selectedTab) {
+                ForEach(AppTab.allCases, id: \.self) { tab in
+                    tabContent(for: tab)
+                        .toolbar(.hidden, for: .tabBar)
+                        .tabItem {
+                            Label {
+                                Text(session.text(tab.titleKey))
+                            } icon: {
+                                PortfolioArtwork.tabImage(
+                                    tab.artworkAssetName,
+                                    scheme: colorScheme,
+                                    fallbackSystemImage: tab.symbolName
+                                )
+                            }
                         }
-                    }
-                    .tag(tab)
+                        .tag(tab)
+                }
             }
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
             if !keyboardVisible {
-                footerNavigation
+                if dynamicTypeSize >= .accessibility3 {
+                    accessibleFooterNavigation
+                } else {
+                    footerNavigation
+                }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
+            // A sheet owns its keyboard. Changing the underlying TabView's
+            // footer at the same time perturbs its layout during keyboard input.
+            if !keyboardVisible && RootFooterKeyboard.isPresentingModal { return }
             if let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
                 keyboardVisible = frame.height > 0
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            // A keyboard may begin on the main page before a sheet opens.
+            // Always restore the footer when it hides, including that transition.
             keyboardVisible = false
+        }
+    }
+
+    /// A compact trigger leaves room for content at the largest text sizes.
+    /// The native sheet retains fully labeled, independently accessible choices.
+    private var accessibleFooterNavigation: some View {
+        VStack(spacing: 0) {
+            Button { accessibleNavigationPresented = true } label: {
+                HStack(spacing: 10) {
+                    footerIcon(for: selectedTab)
+                    Text(session.text(selectedTab.titleKey))
+                        .font(PortfolioTypography.caption.weight(.semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .accessibilityHidden(true)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                .foregroundStyle(Brand.outline(for: colorScheme))
+                .background(Brand.selectionFill(for: colorScheme), in: RoundedRectangle(cornerRadius: AppRadius.control))
+                .overlay(RoundedRectangle(cornerRadius: AppRadius.control).strokeBorder(Brand.surfaceStroke(for: colorScheme), lineWidth: 1.5))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(session.text(selectedTab.titleKey))
+            .accessibilityIdentifier("tab-navigation-menu")
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Brand.cardFill(for: colorScheme).ignoresSafeArea(edges: .bottom))
+        .overlay(alignment: .top) {
+            Rectangle().fill(Brand.surfaceStroke(for: colorScheme)).frame(height: 1)
+        }
+        .accessibilityElement(children: .contain)
+        .sheet(isPresented: $accessibleNavigationPresented) {
+            NavigationStack {
+                ScrollView {
+                    VStack(spacing: 8) {
+                        ForEach(AppTab.allCases, id: \.self) { tab in
+                            Button {
+                                selectPrimaryTab(tab)
+                                accessibleNavigationPresented = false
+                            } label: {
+                                HStack(spacing: 12) {
+                                    footerIcon(for: tab)
+                                    Text(session.text(tab.titleKey))
+                                        .font(PortfolioTypography.body)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                    Spacer(minLength: 0)
+                                    if selectedTab == tab {
+                                        Image(systemName: "checkmark")
+                                            .accessibilityHidden(true)
+                                    }
+                                }
+                                .padding(12)
+                                .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                                .foregroundStyle(Brand.outline(for: colorScheme))
+                                .background(selectedTab == tab ? Brand.selectionFill(for: colorScheme) : Brand.cardFill(for: colorScheme), in: RoundedRectangle(cornerRadius: AppRadius.control))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(session.text(tab.titleKey))
+                            .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
+                            .accessibilityIdentifier("tab-\(tab.titleKey)")
+                        }
+                    }.padding(20)
+                }
+                .accessibilityIdentifier("navigation-choices")
+                .accessibilityElement(children: .contain)
+                .background(StorybookBackground())
+                .navigationTitle(session.text(selectedTab.titleKey))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(session.text("done")) { accessibleNavigationPresented = false }
+                            .accessibilityIdentifier("navigation-done")
+                    }
+                }
+            }
+            .environment(\.layoutDirection, session.language.layoutDirection)
+            .environment(\.locale, Locale(identifier: session.language.localeIdentifier))
         }
     }
 
@@ -309,7 +407,7 @@ struct ContentView: View {
         ) {
             ForEach(AppTab.allCases, id: \.self) { tab in
                 Button {
-                    selectedTab = tab
+                    selectPrimaryTab(tab)
                 } label: {
                     Group {
                         if footerColumnCount <= 2 {
@@ -373,7 +471,7 @@ struct ContentView: View {
                 Section(Brand.compactName) {
                     ForEach(AppTab.allCases, id: \.self) { tab in
                         Button {
-                            selectedTab = tab
+                            selectPrimaryTab(tab)
                         } label: {
                             Label {
                                 Text(session.text(tab.titleKey))
@@ -416,18 +514,25 @@ struct ContentView: View {
     private func tabContent(for tab: AppTab) -> some View {
         switch tab {
         case .home:
-            HomeView(selectedTab: $selectedTab)
+            HomeView(selectedTab: $selectedTab, onOpenSchoolActivities: { highSchoolActivities = true })
         case .opportunities:
             BrowseView(surface: .opportunities)
         case .highSchool:
-            BrowseView(surface: .highSchool)
+            if highSchoolActivities {
+                BrowseView(surface: .highSchool, onReturnToHub: { highSchoolActivities = false })
+            } else {
+                HighSchoolHubView(youth: youth) {
+                    highSchoolActivities = true
+                    configureStore(for: .highSchool)
+                }
+            }
         case .support:
             SubmitView()
         case .account:
             if AppRuntime.isFrontendSavedLayoutReview {
                 SavedView()
             } else {
-                SettingsView()
+                SettingsView(youth: youth)
             }
         }
     }
@@ -441,7 +546,7 @@ struct ContentView: View {
     }
 
     private var accessibilityStatus: OpportunityAccessibilityStatus {
-        guard selectedTab == .home || selectedTab == .opportunities || selectedTab == .highSchool else {
+        guard selectedTab == .home || selectedTab == .opportunities || (selectedTab == .highSchool && highSchoolActivities) else {
             return .inactive
         }
         if store.isLoading {
@@ -479,7 +584,19 @@ struct ContentView: View {
         OpportunityResultCountText.string(count, language: session.language)
     }
 
+    private func selectPrimaryTab(_ tab: AppTab) {
+        if tab == .highSchool { highSchoolActivities = false }
+        selectedTab = tab
+    }
+
+    /// Plain School URLs open the hub; explicit activity URLs retain the legacy browser.
+    static func opensSchoolActivities(_ url: URL) -> Bool {
+        url.pathComponents.contains("activities") || URLComponents(url: url, resolvingAgainstBaseURL: false)?
+            .queryItems?.contains(where: { $0.name == "view" && $0.value == "activities" }) == true
+    }
+
     private func configureStore(for tab: AppTab) {
+        guard tab != .highSchool || highSchoolActivities else { return }
         store.mode = AppNavigationModePolicy.mode(for: tab, currentMode: store.mode)
         guard !AppLaunchConfiguration.isScreenshotCapture else { return }
         switch tab {
@@ -552,6 +669,7 @@ struct HomeView: View {
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
     @Binding var selectedTab: AppTab
+    var onOpenSchoolActivities: (() -> Void)? = nil
     @State private var deletingSearch: NamedSavedSearch?
     @State private var deletionNotice = false
 
@@ -671,6 +789,7 @@ struct HomeView: View {
                         Button {
                             Task {
                                 if await store.openNamedSearch(search.id, acknowledge: storageAccess.allowsPersistentChanges) {
+                                    if search.criteria.mode != .all { onOpenSchoolActivities?() }
                                     selectedTab = search.criteria.mode == .all ? .opportunities : .highSchool
                                 }
                             }
@@ -764,6 +883,7 @@ struct HomeView: View {
     private func openPathway(_ mode: SearchMode) {
         store.beginNewSearch()
         store.mode = mode
+        onOpenSchoolActivities?()
         selectedTab = .highSchool
     }
 }
@@ -804,5 +924,25 @@ enum OpportunityResultCountText {
         let key = count == 1 ? "resultCountOne" : "resultCountMany"
         return AppText.shared.string(key, language: language)
             .replacingOccurrences(of: "{count}", with: formattedCount)
+    }
+}
+
+/// Keyboard notifications are app-wide, including keyboards inside sheets.
+/// Keep the root footer reaction scoped to its own page's keyboard.
+@MainActor
+private enum RootFooterKeyboard {
+    static var isPresentingModal: Bool {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            .filter { $0.activationState == .foregroundActive }
+        let windows = scenes.flatMap(\.windows)
+            .filter { $0.isKeyWindow && !$0.isHidden && $0.windowLevel == .normal }
+        // In ambiguous scene states retain the existing root keyboard behavior.
+        guard windows.count == 1, let root = windows[0].rootViewController else { return false }
+        return hasPresentedController(root)
+    }
+
+    private static func hasPresentedController(_ controller: UIViewController) -> Bool {
+        if controller.presentedViewController != nil { return true }
+        return controller.children.contains(where: hasPresentedController)
     }
 }

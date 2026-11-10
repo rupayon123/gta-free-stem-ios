@@ -1,0 +1,915 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Synthetic reference outputs for native ports; not published opportunities.",
+  "cases": [
+    {
+      "id": "teen-free-role",
+      "input": {
+        "schemaVersion": 1,
+        "id": "teen-free-role",
+        "listingKind": "role",
+        "pathway": "volunteer",
+        "title": "teen-free-role",
+        "provider": "Synthetic fixture provider",
+        "sourceUrl": "https://example.org/teen-free-role",
+        "checkedAt": "2026-10-29T12:00:00-04:00",
+        "reviewStatus": "approved",
+        "audience": {
+          "context": "high-school",
+          "original": "High-school students, grades 9–12",
+          "grades": [
+            9,
+            10,
+            11,
+            12
+          ]
+        },
+        "cost": {
+          "status": "no-fee-evidence",
+          "original": "Synthetic evidence: no-fee-evidence",
+          "requiredCosts": []
+        },
+        "availability": {
+          "status": "open",
+          "original": "open",
+          "conflicting": false
+        },
+        "hours": {
+          "status": "not-stated"
+        }
+      },
+      "context": {
+        "now": "2026-10-29T12:00:00-04:00"
+      },
+      "output": {
+        "teenHub": true,
+        "reviewed": true,
+        "selectedAgeEligible": null,
+        "selectedGradeEligible": null,
+        "directorySection": false,
+        "volunteerRole": true,
+        "verifiedFreeRoles": true,
+        "verifiedFreePrograms": false,
+        "freeBadge": true,
+        "effectiveStatus": "open",
+        "evidenceCurrent": true,
+        "statusLabel": "Open",
+        "costLabel": "No fee evidenced",
+        "applyNow": true,
+        "schoolApproved": false,
+        "autoCredit": 0,
+        "inferUserIdentity": false,
+        "inventDate": false,
+        "inventHours": false,
+        "mapPin": false,
+        "ageMin": null,
+        "ageMax": null,
+        "providerHours": null,
+        "restrictions": [],
+        "residency": null
+      }
+    },
+    {
+      "id": "grade12-age18",
+      "input": {
+        "schemaVersion": 1,
+        "id": "grade12-age18",
+        "listingKind": "program",
+        "pathway": "learning",
+        "title": "grade12-age18",
+        "provider": "Synthetic fixture provider",
+        "sourceUrl": "https://example.org/grade12-age18",
+        "checkedAt": "2026-10-29T12:00:00-04:00",
+        "reviewStatus": "approved",
+        "audience": {
+          "context": "high-school",
+          "original": "Grade 12 students",
+          "ageMin": 18,
+          "ageMax": 19,
+          "grades": [
+            12
+          ]
+        },
+        "cost": {
+          "status": "no-fee-evidence",
+          "original": "Synthetic evidence: no-fee-evidence",
+          "requiredCosts": []
+        },
+        "availability": {
+          "status": "open",
+          "original": "open",
+          "conflicting": false
+        },
+        "hours": {
+          "status": "not-stated"
+        }
+      },
+      "context": {
+        "now": "2026-10-29T12:00:00-04:00",
+        "selectedAge": 18
+      },
+      "output": {
+        "teenHub": true,
+        "reviewed": true,
+        "selectedAgeEligible": true,
+        "selectedGradeEligible": null,
+        "directorySection": false,
+        "volunteerRole": false,
+        "verifiedFreeRoles": false,
+        "verifiedFreePrograms": true,
+        "freeBadge": true,
+        "effectiveStatus": "open",
+        "evidenceCurrent": true,
+        "statusLabel": "Open",
+        "costLabel": "No fee evidenced",
+        "applyNow": true,
+        "schoolApproved": false,
+        "autoCredit": 0,
+        "inferUserIdentity": false,
+        "inventDate": false,
+        "inventHours": false,
+        "mapPin": false,
+        "ageMin": 18,
+        "ageMax": 19,
+        "providerHours": null,
+        "restrictions": [],
+        "residency": null
+      }
+    },
+    {
+      "id": "adult-only-mentor",
+      "input": {
+        "schemaVersion": 1,
+        "id": "adult-only-mentor",
+        "listingKind": "role",
+        "pathway": "volunteer",
+        "title": "adult-only-mentor",
+        "provider": "Synthetic fixture provider",
+        "sourceUrl": "https://example.org/adult-only-mentor",
+        "checkedAt": "2026-10-29T12:00:00-04:00",
+        "reviewStatus": "approved",
+        "audience": {
+          "context": "adult",
+          "original": "Adult mentors aged 21+",
+          "ageMin": 21
+        },
+        "cost": {
+          "status": "no-fee-evidence",
+          "original": "Synthetic evidence: no-fee-evidence",
+          "requiredCosts": []
+        },
+        "availability": {
+          "status": "open",
+          "original": "open",
+          "conflicting": false
+        },
+        "hours": {
+          "status": "not-stated"
+        }
+      },
+      "context": {
+        "now": "2026-10-29T12:00:00-04:00"
+      },
+      "output": {
+        "teenHub": false,
+        "reviewed": true,
+        "selectedAgeEligible": null,
+        "selectedGradeEligible": null,
+        "directorySection": false,
+        "volunteerRole": true,
+        "verifiedFreeRoles": false,
+        "verifiedFreePrograms": false,
+        "freeBadge": false,
+        "effectiveStatus": "open",
+        "evidenceCurrent": true,
+        "statusLabel": "Open",
+        "costLabel": "No fee evidenced",
+        "applyNow": false,
+        "schoolApproved": false,
+        "autoCredit": 0,
+        "inferUserIdentity": false,
+        "inventDate": false,
+        "inventHours": false,
+        "mapPin": false,
+        "ageMin": 21,
+        "ageMax": null,
+        "providerHours": null,
+        "restrictions": [],
+        "residency": null
+      }
+    },
+    {
+      "id": "child-parent-workshop",
+      "input": {
+        "schemaVersion": 1,
+        "id": "child-parent-workshop",
+        "listingKind": "event",
+        "pathway": "learning",
+        "title": "child-parent-workshop",
+        "provider": "Synthetic fixture provider",
+        "sourceUrl": "https://example.org/child-parent-workshop",
+        "checkedAt": "2026-10-29T12:00:00-04:00",
+        "reviewStatus": "approved",
+        "audience": {
+          "context": "child-with-adult",
+          "original": "Children aged 3–5 with a parent",
+          "ageMin": 3,
+          "ageMax": 99
+        },
+        "cost": {
+          "status": "no-fee-evidence",
+          "original": "Synthetic evidence: no-fee-evidence",
+          "requiredCosts": []
+        },
+        "availability": {
+          "status": "open",
+          "original": "open",
+          "conflicting": false
+        },
+        "hours": {
+          "status": "not-stated"
+        }
+      },
+      "context": {
+        "now": "2026-10-29T12:00:00-04:00"
+      },
+      "output": {
+        "teenHub": false,
+        "reviewed": true,
+        "selectedAgeEligible": null,
+        "selectedGradeEligible": null,
+        "directorySection": false,
+        "volunteerRole": false,
+        "verifiedFreeRoles": false,
+        "verifiedFreePrograms": false,
+        "freeBadge": false,
+        "effectiveStatus": "open",
+        "evidenceCurrent": true,
+        "statusLabel": "Open",
+        "costLabel": "No fee evidenced",
+        "applyNow": false,
+        "schoolApproved": false,
+        "autoCredit": 0,
+        "inferUserIdentity": false,
+        "inventDate": false,
+        "inventHours": false,
+        "mapPin": false,
+        "ageMin": 3,
+        "ageMax": 99,
+        "providerHours": null,
+        "restrictions": [],
+        "residency": null
+      }
+    },
+    {
+      "id": "volunteers-mentioned-attendance",
+      "input": {
+        "schemaVersion": 1,
+        "id": "volunteers-mentioned-attendance",
+        "listingKind": "event",
+        "pathway": "learning",
+        "title": "volunteers-mentioned-attendance",
+        "provider": "Synthetic fixture provider",
+        "sourceUrl": "https://example.org/volunteers-mentioned-attendance",
+        "checkedAt": "2026-10-29T12:00:00-04:00",
+        "reviewStatus": "approved",
+        "audience": {
+          "context": "teen",
+          "original": "Teens aged 13–18",
+          "ageMin": 13,
+          "ageMax": 18
+        },
+        "cost": {
+          "status": "no-fee-evidence",
+          "original": "Synthetic evidence: no-fee-evidence",
+          "requiredCosts": []
+        },
+        "availability": {
+          "status": "open",
+          "original": "open",
+          "conflicting": false
+        },
+        "hours": {
+          "status": "not-stated"
+        }
+      },
+      "context": {
+        "now": "2026-10-29T12:00:00-04:00"
+      },
+      "output": {
+        "teenHub": true,
+        "reviewed": true,
+        "selectedAgeEligible": null,
+        "selectedGradeEligible": null,
+        "directorySection": false,
+        "volunteerRole": false,
+        "verifiedFreeRoles": false,
+        "verifiedFreePrograms": true,
+        "freeBadge": true,
+        "effectiveStatus": "open",
+        "evidenceCurrent": true,
+        "statusLabel": "Open",
+        "costLabel": "No fee evidenced",
+        "applyNow": true,
+        "schoolApproved": false,
+        "autoCredit": 0,
+        "inferUserIdentity": false,
+        "inventDate": false,
+        "inventHours": false,
+        "mapPin": false,
+        "ageMin": 13,
+        "ageMax": 18,
+        "providerHours": null,
+        "restrictions": [],
+        "residency": null
+      }
+    },
+    {
+      "id": "required-background-check-cost",
+      "input": {
+        "schemaVersion": 1,
+        "id": "required-background-check-cost",
+        "listingKind": "role",
+        "pathway": "volunteer",
+        "title": "required-background-check-cost",
+        "provider": "Synthetic fixture provider",
+        "sourceUrl": "https://example.org/required-background-check-cost",
+        "checkedAt": "2026-10-29T12:00:00-04:00",
+        "reviewStatus": "approved",
+        "audience": {
+          "context": "high-school",
+          "original": "High-school students"
+        },
+        "cost": {
+          "status": "required-cost",
+          "original": "A required background check costs $20.",
+          "requiredCosts": [
+            {
+              "description": "A required background check costs $20.",
+              "mandatory": true
+            }
+          ]
+        },
+        "availability": {
+          "status": "open",
+          "original": "open",
+          "conflicting": false
+        },
+        "hours": {
+          "status": "not-stated"
+        }
+      },
+      "context": {
+        "now": "2026-10-29T12:00:00-04:00"
+      },
+      "output": {
+        "teenHub": true,
+        "reviewed": true,
+        "selectedAgeEligible": null,
+        "selectedGradeEligible": null,
+        "directorySection": false,
+        "volunteerRole": true,
+        "verifiedFreeRoles": false,
+        "verifiedFreePrograms": false,
+        "freeBadge": false,
+        "effectiveStatus": "open",
+        "evidenceCurrent": true,
+        "statusLabel": "Open",
+        "costLabel": "Required cost",
+        "applyNow": false,
+        "schoolApproved": false,
+        "autoCredit": 0,
+        "inferUserIdentity": false,
+        "inventDate": false,
+        "inventHours": false,
+        "mapPin": false,
+        "ageMin": null,
+        "ageMax": null,
+        "providerHours": null,
+        "restrictions": [],
+        "residency": null
+      }
+    },
+    {
+      "id": "unpaid-cost-unknown",
+      "input": {
+        "schemaVersion": 1,
+        "id": "unpaid-cost-unknown",
+        "listingKind": "role",
+        "pathway": "volunteer",
+        "title": "unpaid-cost-unknown",
+        "provider": "Synthetic fixture provider",
+        "sourceUrl": "https://example.org/unpaid-cost-unknown",
+        "checkedAt": "2026-10-29T12:00:00-04:00",
+        "reviewStatus": "approved",
+        "audience": {
+          "context": "high-school",
+          "original": "High-school students"
+        },
+        "cost": {
+          "status": "unknown",
+          "original": "Synthetic evidence: unknown",
+          "requiredCosts": []
+        },
+        "availability": {
+          "status": "open",
+          "original": "open",
+          "conflicting": false
+        },
+        "hours": {
+          "status": "not-stated"
+        }
+      },
+      "context": {
+        "now": "2026-10-29T12:00:00-04:00"
+      },
+      "output": {
+        "teenHub": true,
+        "reviewed": true,
+        "selectedAgeEligible": null,
+        "selectedGradeEligible": null,
+        "directorySection": false,
+        "volunteerRole": true,
+        "verifiedFreeRoles": false,
+        "verifiedFreePrograms": false,
+        "freeBadge": false,
+        "effectiveStatus": "open",
+        "evidenceCurrent": true,
+        "statusLabel": "Open",
+        "costLabel": "Cost unknown",
+        "applyNow": false,
+        "schoolApproved": false,
+        "autoCredit": 0,
+        "inferUserIdentity": false,
+        "inventDate": false,
+        "inventHours": false,
+        "mapPin": false,
+        "ageMin": null,
+        "ageMax": null,
+        "providerHours": null,
+        "restrictions": [],
+        "residency": null
+      }
+    },
+    {
+      "id": "provider-directory",
+      "input": {
+        "schemaVersion": 1,
+        "id": "provider-directory",
+        "listingKind": "provider-directory",
+        "pathway": "volunteer",
+        "title": "provider-directory",
+        "provider": "Synthetic fixture provider",
+        "sourceUrl": "https://example.org/provider-directory",
+        "checkedAt": "2026-10-29T12:00:00-04:00",
+        "reviewStatus": "approved",
+        "audience": {
+          "context": "unknown",
+          "original": "Youth roles listed separately by provider"
+        },
+        "cost": {
+          "status": "unknown",
+          "original": "Synthetic evidence: unknown",
+          "requiredCosts": []
+        },
+        "availability": {
+          "status": "unknown",
+          "original": "unknown",
+          "conflicting": false
+        },
+        "hours": {
+          "status": "not-stated"
+        }
+      },
+      "context": {
+        "now": "2026-10-29T12:00:00-04:00"
+      },
+      "output": {
+        "teenHub": false,
+        "reviewed": true,
+        "selectedAgeEligible": null,
+        "selectedGradeEligible": null,
+        "directorySection": true,
+        "volunteerRole": false,
+        "verifiedFreeRoles": false,
+        "verifiedFreePrograms": false,
+        "freeBadge": false,
+        "effectiveStatus": "unknown",
+        "evidenceCurrent": true,
+        "statusLabel": "Confirm with provider",
+        "costLabel": "Cost unknown",
+        "applyNow": false,
+        "schoolApproved": false,
+        "autoCredit": 0,
+        "inferUserIdentity": false,
+        "inventDate": false,
+        "inventHours": false,
+        "mapPin": false,
+        "ageMin": null,
+        "ageMax": null,
+        "providerHours": null,
+        "restrictions": [],
+        "residency": null
+      }
+    },
+    {
+      "id": "closed-teen-role",
+      "input": {
+        "schemaVersion": 1,
+        "id": "closed-teen-role",
+        "listingKind": "role",
+        "pathway": "volunteer",
+        "title": "closed-teen-role",
+        "provider": "Synthetic fixture provider",
+        "sourceUrl": "https://example.org/closed-teen-role",
+        "checkedAt": "2026-10-29T12:00:00-04:00",
+        "reviewStatus": "approved",
+        "audience": {
+          "context": "high-school",
+          "original": "Grades 9–12",
+          "grades": [
+            9,
+            10,
+            11,
+            12
+          ]
+        },
+        "cost": {
+          "status": "no-fee-evidence",
+          "original": "Synthetic evidence: no-fee-evidence",
+          "requiredCosts": []
+        },
+        "availability": {
+          "status": "closed",
+          "original": "closed",
+          "conflicting": false
+        },
+        "hours": {
+          "status": "not-stated"
+        }
+      },
+      "context": {
+        "now": "2026-10-29T12:00:00-04:00"
+      },
+      "output": {
+        "teenHub": true,
+        "reviewed": true,
+        "selectedAgeEligible": null,
+        "selectedGradeEligible": null,
+        "directorySection": false,
+        "volunteerRole": true,
+        "verifiedFreeRoles": false,
+        "verifiedFreePrograms": false,
+        "freeBadge": false,
+        "effectiveStatus": "closed",
+        "evidenceCurrent": true,
+        "statusLabel": "Closed",
+        "costLabel": "No fee evidenced",
+        "applyNow": false,
+        "schoolApproved": false,
+        "autoCredit": 0,
+        "inferUserIdentity": false,
+        "inventDate": false,
+        "inventHours": false,
+        "mapPin": false,
+        "ageMin": null,
+        "ageMax": null,
+        "providerHours": null,
+        "restrictions": [],
+        "residency": null
+      }
+    },
+    {
+      "id": "conflicting-source-status",
+      "input": {
+        "schemaVersion": 1,
+        "id": "conflicting-source-status",
+        "listingKind": "role",
+        "pathway": "volunteer",
+        "title": "conflicting-source-status",
+        "provider": "Synthetic fixture provider",
+        "sourceUrl": "https://example.org/conflicting-source-status",
+        "checkedAt": "2026-10-29T12:00:00-04:00",
+        "reviewStatus": "approved",
+        "audience": {
+          "context": "high-school",
+          "original": "Grades 7–12",
+          "grades": [
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+          ]
+        },
+        "cost": {
+          "status": "unknown",
+          "original": "Synthetic evidence: unknown",
+          "requiredCosts": []
+        },
+        "availability": {
+          "status": "unknown",
+          "original": "Top of page says closed; Lower section says ongoing",
+          "conflicting": true
+        },
+        "hours": {
+          "status": "not-stated"
+        }
+      },
+      "context": {
+        "now": "2026-10-29T12:00:00-04:00"
+      },
+      "output": {
+        "teenHub": true,
+        "reviewed": true,
+        "selectedAgeEligible": null,
+        "selectedGradeEligible": null,
+        "directorySection": false,
+        "volunteerRole": true,
+        "verifiedFreeRoles": false,
+        "verifiedFreePrograms": false,
+        "freeBadge": false,
+        "effectiveStatus": "conflicting",
+        "evidenceCurrent": true,
+        "statusLabel": "Confirm with provider",
+        "costLabel": "Cost unknown",
+        "applyNow": false,
+        "schoolApproved": false,
+        "autoCredit": 0,
+        "inferUserIdentity": false,
+        "inventDate": false,
+        "inventHours": false,
+        "mapPin": false,
+        "ageMin": null,
+        "ageMax": null,
+        "providerHours": null,
+        "restrictions": [],
+        "residency": null
+      }
+    },
+    {
+      "id": "opens-next-week",
+      "input": {
+        "schemaVersion": 1,
+        "id": "opens-next-week",
+        "listingKind": "program",
+        "pathway": "learning",
+        "title": "opens-next-week",
+        "provider": "Synthetic fixture provider",
+        "sourceUrl": "https://example.org/opens-next-week",
+        "checkedAt": "2026-10-29T12:00:00-04:00",
+        "reviewStatus": "approved",
+        "audience": {
+          "context": "high-school",
+          "original": "Grades 10–11, Canadian students who identify as Black",
+          "grades": [
+            10,
+            11
+          ]
+        },
+        "cost": {
+          "status": "no-fee-evidence",
+          "original": "Synthetic evidence: no-fee-evidence",
+          "requiredCosts": []
+        },
+        "availability": {
+          "status": "upcoming",
+          "original": "upcoming",
+          "conflicting": false,
+          "opensAt": "2026-11-02T09:00:00-05:00",
+          "closesAt": "2027-03-29T23:59:59-04:00"
+        },
+        "hours": {
+          "status": "not-stated"
+        }
+      },
+      "context": {
+        "now": "2026-10-29T12:00:00-04:00"
+      },
+      "output": {
+        "teenHub": true,
+        "reviewed": true,
+        "selectedAgeEligible": null,
+        "selectedGradeEligible": null,
+        "directorySection": false,
+        "volunteerRole": false,
+        "verifiedFreeRoles": false,
+        "verifiedFreePrograms": false,
+        "freeBadge": true,
+        "effectiveStatus": "upcoming",
+        "evidenceCurrent": true,
+        "statusLabel": "Opens November 2",
+        "costLabel": "No fee evidenced",
+        "applyNow": false,
+        "schoolApproved": false,
+        "autoCredit": 0,
+        "inferUserIdentity": false,
+        "inventDate": false,
+        "inventHours": false,
+        "mapPin": false,
+        "ageMin": null,
+        "ageMax": null,
+        "providerHours": null,
+        "restrictions": [],
+        "residency": null
+      }
+    },
+    {
+      "id": "grade-not-inferred-age",
+      "input": {
+        "schemaVersion": 1,
+        "id": "grade-not-inferred-age",
+        "listingKind": "role",
+        "pathway": "volunteer",
+        "title": "grade-not-inferred-age",
+        "provider": "Synthetic fixture provider",
+        "sourceUrl": "https://example.org/grade-not-inferred-age",
+        "checkedAt": "2026-10-29T12:00:00-04:00",
+        "reviewStatus": "approved",
+        "audience": {
+          "context": "high-school",
+          "original": "Students in grades 9–12",
+          "grades": [
+            9,
+            10,
+            11,
+            12
+          ]
+        },
+        "cost": {
+          "status": "no-fee-evidence",
+          "original": "Synthetic evidence: no-fee-evidence",
+          "requiredCosts": []
+        },
+        "availability": {
+          "status": "unknown",
+          "original": "unknown",
+          "conflicting": false
+        },
+        "hours": {
+          "status": "not-stated"
+        }
+      },
+      "context": {
+        "now": "2026-10-29T12:00:00-04:00"
+      },
+      "output": {
+        "teenHub": true,
+        "reviewed": true,
+        "selectedAgeEligible": null,
+        "selectedGradeEligible": null,
+        "directorySection": false,
+        "volunteerRole": true,
+        "verifiedFreeRoles": false,
+        "verifiedFreePrograms": false,
+        "freeBadge": false,
+        "effectiveStatus": "unknown",
+        "evidenceCurrent": true,
+        "statusLabel": "Confirm with provider",
+        "costLabel": "No fee evidenced",
+        "applyNow": false,
+        "schoolApproved": false,
+        "autoCredit": 0,
+        "inferUserIdentity": false,
+        "inventDate": false,
+        "inventHours": false,
+        "mapPin": false,
+        "ageMin": null,
+        "ageMax": null,
+        "providerHours": null,
+        "restrictions": [],
+        "residency": null
+      }
+    },
+    {
+      "id": "school-approval-separate",
+      "input": {
+        "schemaVersion": 1,
+        "id": "school-approval-separate",
+        "listingKind": "role",
+        "pathway": "volunteer",
+        "title": "school-approval-separate",
+        "provider": "Synthetic fixture provider",
+        "sourceUrl": "https://example.org/school-approval-separate",
+        "checkedAt": "2026-10-29T12:00:00-04:00",
+        "reviewStatus": "approved",
+        "audience": {
+          "context": "high-school",
+          "original": "High-school students"
+        },
+        "cost": {
+          "status": "no-fee-evidence",
+          "original": "Synthetic evidence: no-fee-evidence",
+          "requiredCosts": []
+        },
+        "availability": {
+          "status": "open",
+          "original": "open",
+          "conflicting": false
+        },
+        "hours": {
+          "status": "provider-stated",
+          "minutes": 180,
+          "original": "Provider states 3 hours"
+        }
+      },
+      "context": {
+        "now": "2026-10-29T12:00:00-04:00"
+      },
+      "output": {
+        "teenHub": true,
+        "reviewed": true,
+        "selectedAgeEligible": null,
+        "selectedGradeEligible": null,
+        "directorySection": false,
+        "volunteerRole": true,
+        "verifiedFreeRoles": true,
+        "verifiedFreePrograms": false,
+        "freeBadge": true,
+        "effectiveStatus": "open",
+        "evidenceCurrent": true,
+        "statusLabel": "Open",
+        "costLabel": "No fee evidenced",
+        "applyNow": true,
+        "schoolApproved": false,
+        "autoCredit": 0,
+        "inferUserIdentity": false,
+        "inventDate": false,
+        "inventHours": false,
+        "mapPin": false,
+        "ageMin": null,
+        "ageMax": null,
+        "providerHours": 3,
+        "restrictions": [],
+        "residency": null
+      }
+    },
+    {
+      "id": "universal-free-claim-invalid",
+      "input": {
+        "schemaVersion": 1,
+        "id": "universal-free-claim-invalid",
+        "listingKind": "program",
+        "pathway": "learning",
+        "title": "universal-free-claim-invalid",
+        "provider": "Synthetic fixture provider",
+        "sourceUrl": "https://example.org/universal-free-claim-invalid",
+        "checkedAt": "2026-10-29T12:00:00-04:00",
+        "reviewStatus": "approved",
+        "audience": {
+          "context": "teen",
+          "original": "Teens aged 14–18"
+        },
+        "cost": {
+          "status": "required-cost",
+          "original": "Tuition is charged; a bursary application is available.",
+          "requiredCosts": [
+            {
+              "description": "Tuition is charged; a bursary application is available.",
+              "mandatory": true
+            }
+          ]
+        },
+        "availability": {
+          "status": "open",
+          "original": "open",
+          "conflicting": false
+        },
+        "hours": {
+          "status": "not-stated"
+        }
+      },
+      "context": {
+        "now": "2026-10-29T12:00:00-04:00"
+      },
+      "output": {
+        "teenHub": true,
+        "reviewed": true,
+        "selectedAgeEligible": null,
+        "selectedGradeEligible": null,
+        "directorySection": false,
+        "volunteerRole": false,
+        "verifiedFreeRoles": false,
+        "verifiedFreePrograms": false,
+        "freeBadge": false,
+        "effectiveStatus": "open",
+        "evidenceCurrent": true,
+        "statusLabel": "Open",
+        "costLabel": "Required cost",
+        "applyNow": false,
+        "schoolApproved": false,
+        "autoCredit": 0,
+        "inferUserIdentity": false,
+        "inventDate": false,
+        "inventHours": false,
+        "mapPin": false,
+        "ageMin": null,
+        "ageMax": null,
+        "providerHours": null,
+        "restrictions": [],
+        "residency": null
+      }
+    }
+  ]
+}

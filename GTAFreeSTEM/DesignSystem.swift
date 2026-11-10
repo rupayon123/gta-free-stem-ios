@@ -285,10 +285,12 @@ struct BrandLogoImage: View {
 struct HuntActivityIcon: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     let phase: HuntPhase
     let isActive: Bool
     var size: CGFloat = 62
-    @State private var isOrbiting = false
+    @State private var orbitStarted = Date()
+    @State private var isVisible = false
 
     var body: some View {
         ZStack {
@@ -309,20 +311,35 @@ struct HuntActivityIcon: View {
                 .foregroundStyle(iconPrimaryColor)
 
             if isActive {
-                Circle()
-                    .trim(from: 0.06, to: 0.26)
-                    .stroke(
-                        Brand.sun,
-                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
-                    )
-                    .frame(width: size - 3, height: size - 3)
-                    .rotationEffect(.degrees(isOrbiting ? 360 : 0))
+                // A clock exists only while this status is visible in an active scene.
+                // Completed work and removed browsers retain no repeating transaction.
+                if isVisible && scenePhase == .active {
+                    TimelineView(.animation(minimumInterval: 1.0 / 30.0,
+                                            paused: reduceMotion || !isVisible || scenePhase != .active)) { context in
+                        let elapsed = max(0, context.date.timeIntervalSince(orbitStarted))
+                        let angle = reduceMotion ? 0 : elapsed.truncatingRemainder(dividingBy: 1.25) / 1.25 * 360
+                        orbitArc(angle)
+                    }
+                } else {
+                    orbitArc(0)
+                }
             }
         }
         .frame(width: size, height: size)
-        .onAppear { updateMotion() }
-        .onChange(of: isActive) { _, _ in updateMotion() }
+        .onAppear { orbitStarted = Date(); isVisible = true }
+        .onDisappear { isVisible = false }
+        .onChange(of: isActive) { _, active in if active { orbitStarted = Date() } }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { orbitStarted = Date() } }
+        .onChange(of: reduceMotion) { _, reduced in if !reduced { orbitStarted = Date() } }
         .accessibilityHidden(true)
+    }
+
+    private func orbitArc(_ angle: Double) -> some View {
+        Circle()
+            .trim(from: 0.06, to: 0.26)
+            .stroke(Brand.sun, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+            .frame(width: size - 3, height: size - 3)
+            .rotationEffect(.degrees(angle))
     }
 
     private var iconPrimaryColor: Color {
@@ -333,17 +350,6 @@ struct HuntActivityIcon: View {
             Brand.lake
         default:
             Brand.coral
-        }
-    }
-
-    private func updateMotion() {
-        guard isActive, !reduceMotion else {
-            isOrbiting = false
-            return
-        }
-        isOrbiting = false
-        withAnimation(.linear(duration: 1.25).repeatForever(autoreverses: false)) {
-            isOrbiting = true
         }
     }
 }

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "purpose": "Synthetic cross-platform acceptance cases, not published opportunities or proof of implemented behavior.",
+  "evaluationDate": "2026-10-29",
+  "cases": [
+    {"id":"teen-free-role","listingKind":"role","audience":"High-school students, grades 9–12","grades":[9,10,11,12],"pathway":"volunteer","costStatus":"no-fee-evidence","applicationStatus":"open","expected":{"teenHub":true,"verifiedFreeRoles":true,"schoolApproved":false}},
+    {"id":"grade12-age18","listingKind":"program","audience":"Grade 12 students","ageMin":18,"ageMax":19,"grades":[12],"pathway":"learning","costStatus":"no-fee-evidence","applicationStatus":"open","selectedAge":18,"expected":{"teenHub":true,"selectedAgeEligible":true,"volunteerRole":false}},
+    {"id":"adult-only-mentor","listingKind":"role","audience":"Adult mentors aged 21+","ageMin":21,"pathway":"volunteer","costStatus":"no-fee-evidence","applicationStatus":"open","expected":{"teenHub":false,"verifiedFreeRoles":false}},
+    {"id":"child-parent-workshop","listingKind":"event","audience":"Children aged 3–5 with a parent","ageMin":3,"ageMax":99,"pathway":"learning","costStatus":"no-fee-evidence","applicationStatus":"open","expected":{"teenHub":false,"volunteerRole":false}},
+    {"id":"volunteers-mentioned-attendance","listingKind":"event","audience":"Teens aged 13–18","description":"Attend a free art workshop led by volunteer instructors.","ageMin":13,"ageMax":18,"pathway":"learning","costStatus":"no-fee-evidence","applicationStatus":"open","expected":{"teenHub":true,"volunteerRole":false,"verifiedFreeRoles":false}},
+    {"id":"required-background-check-cost","listingKind":"role","audience":"High-school students","pathway":"volunteer","costStatus":"required-cost","requiredCosts":"A required background check costs $20.","applicationStatus":"open","expected":{"verifiedFreeRoles":false,"costLabel":"Required cost"}},
+    {"id":"unpaid-cost-unknown","listingKind":"role","audience":"High-school students","pathway":"volunteer","costStatus":"unknown","applicationStatus":"open","expected":{"verifiedFreeRoles":false,"freeBadge":false}},
+    {"id":"provider-directory","listingKind":"provider-directory","audience":"Youth roles listed separately by provider","pathway":"volunteer","costStatus":"unknown","applicationStatus":"unknown","expected":{"directorySection":true,"verifiedFreeRoles":false,"inventDate":false,"mapPin":false,"applyNow":false}},
+    {"id":"closed-teen-role","listingKind":"role","audience":"Grades 9–12","grades":[9,10,11,12],"pathway":"volunteer","costStatus":"no-fee-evidence","applicationStatus":"closed","expected":{"applyNow":false,"verifiedFreeRoles":false,"statusLabel":"Closed"}},
+    {"id":"conflicting-source-status","listingKind":"role","audience":"Grades 7–12","grades":[7,8,9,10,11,12],"pathway":"volunteer","costStatus":"unknown","applicationStatus":"unknown","availabilityEvidence":["Top of page says closed","Lower section says ongoing"],"expected":{"applyNow":false,"freeBadge":false,"statusLabel":"Confirm with provider"}},
+    {"id":"opens-next-week","listingKind":"program","audience":"Grades 10–11, Canadian students who identify as Black","grades":[10,11],"pathway":"learning","costStatus":"no-fee-evidence","applicationStatus":"upcoming","opensAt":"2026-11-02T09:00:00-05:00","closesAt":"2027-03-29T23:59:59-04:00","expected":{"applyNow":false,"statusLabel":"Opens November 2","inferUserIdentity":false}},
+    {"id":"grade-not-inferred-age","listingKind":"role","audience":"Students in grades 9–12","grades":[9,10,11,12],"pathway":"volunteer","costStatus":"no-fee-evidence","applicationStatus":"unknown","expected":{"ageMin":null,"ageMax":null,"inventHours":false,"schoolApproved":false}},
+    {"id":"school-approval-separate","listingKind":"role","audience":"High-school students","pathway":"volunteer","costStatus":"no-fee-evidence","applicationStatus":"open","providerStatesHours":true,"providerHours":3,"expected":{"providerHours":3,"schoolApproved":false,"autoCredit":0}},
+    {"id":"universal-free-claim-invalid","listingKind":"program","audience":"Teens aged 14–18","pathway":"learning","costStatus":"required-cost","requiredCosts":"Tuition is charged; a bursary application is available.","applicationStatus":"open","expected":{"verifiedFreePrograms":false,"freeBadge":false}}
+  ]
+}

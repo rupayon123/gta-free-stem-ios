@@ -8,6 +8,7 @@ enum AppLegalLinks {
 }
 
 struct SettingsView: View {
+    @ObservedObject var youth: HighSchoolHubStore = .shared
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appStorageAccess) private var storageAccess
@@ -33,7 +34,7 @@ struct SettingsView: View {
                         preferencesCard
                         legalCard
                         if let accountMessage {
-                            messageCard(accountMessage)
+                            messageCard(accountMessage).accessibilityIdentifier("account-operation-message")
                         }
                     }
                     .frame(maxWidth: 720)
@@ -56,7 +57,7 @@ struct SettingsView: View {
         ) {
             Button(session.text(session.hasLocalProfile ? "deleteAccount" : "deleteLocalData"), role: .destructive) {
                 deleteLocalProfileAndSaves()
-            }
+            }.accessibilityIdentifier("account-confirm-delete-all")
         }
     }
 
@@ -123,6 +124,7 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(StoryButtonStyle(kind: .destructive))
+        .accessibilityIdentifier("account-delete-all-local")
         .disabled(!storageAccess.allowsPersistentChanges)
         .accessibilityHint(
             storageAccess.allowsPersistentChanges
@@ -139,6 +141,7 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(StoryButtonStyle(kind: .destructive))
+        .accessibilityIdentifier("account-delete-all-local")
         .disabled(!storageAccess.allowsPersistentChanges)
         .accessibilityHint(
             storageAccess.allowsPersistentChanges
@@ -307,6 +310,7 @@ struct SettingsView: View {
         let hadLocalProfile = session.hasLocalProfile
         Task {
             do {
+                try await youth.resetAll(writable: storageAccess.allowsPersistentChanges)
                 try SavedOpportunityLibrary.deleteAll(in: modelContext)
                 try await opportunities.clearPersonalHistory(in: modelContext)
                 session.clearLocalProfile()

@@ -25,6 +25,43 @@ private func bundledSnapshotTestNow() throws -> Date {
 }
 
 final class APIClientTests: XCTestCase {
+    func testFullDescriptionBindingRequiresExactIdentityLocaleAndSourceBytes() throws {
+        let title = "Science café"
+        let description = "First line.\nSecond line. "
+        let titleHash = FullDescriptionBinding.hash(title)
+        let descriptionHash = FullDescriptionBinding.hash(description)
+        let record = FullDescriptionBinding.SourceRecord(
+            id: "event-1", organization: "Toronto Public Library",
+            sourceURL: "https://tpl.bibliocommons.com/events/123",
+            titleSHA256: titleHash, descriptionSHA256: descriptionHash
+        )
+        let titleEntry = FullDescriptionBinding.Entry(text: "Café scientifique", sourceSegmentCount: 1, translatedSegmentCount: 1, endedNormally: true)
+        let descriptionEntry = FullDescriptionBinding.Entry(text: "Première ligne. Deuxième ligne.", sourceSegmentCount: 2, translatedSegmentCount: 2, endedNormally: true)
+        let entries = [titleHash: titleEntry, descriptionHash: descriptionEntry]
+        func resolve(_ currentDescription: String = description, _ language: AppLanguage = .fr,
+                     _ pack: String = "fr", _ url: String = "https://tpl.bibliocommons.com/events/123") -> FullDescriptionBinding.Result? {
+            FullDescriptionBinding.resolve(id: "event-1", organization: "Toronto Public Library", sourceURL: url,
+                                           title: title, description: currentDescription, requestedLanguage: language,
+                                           packLanguage: pack, record: record, entries: entries)
+        }
+        let matched = try XCTUnwrap(resolve())
+        XCTAssertEqual(matched.title, titleEntry.text)
+        XCTAssertEqual(matched.description, descriptionEntry.text)
+        let edited = try XCTUnwrap(resolve(description + "Updated."))
+        XCTAssertEqual(edited.title, titleEntry.text)
+        XCTAssertNil(edited.description, "A source edit invalidates only its own field")
+        XCTAssertNil(resolve(description.trimmingCharacters(in: .whitespacesAndNewlines))?.description)
+        XCTAssertNil(resolve(description, .yue, "zh"), "Cantonese must never use a Mandarin pack")
+        XCTAssertNil(resolve(description, .fr, "fr", "https://tpl.bibliocommons.com/events/other"))
+        XCTAssertNotEqual(FullDescriptionBinding.hash("é"), FullDescriptionBinding.hash("e\u{301}"))
+        let incomplete = [titleHash: titleEntry, descriptionHash: FullDescriptionBinding.Entry(
+            text: "Truncated", sourceSegmentCount: 2, translatedSegmentCount: 1, endedNormally: false)]
+        XCTAssertNil(FullDescriptionBinding.resolve(id: "event-1", organization: "Toronto Public Library",
+                                                     sourceURL: record.sourceURL, title: title, description: description,
+                                                     requestedLanguage: .fr, packLanguage: "fr", record: record,
+                                                     entries: incomplete)?.description)
+    }
+
     func testWindowRootFactoryCanBeCalledOffMainThread() async {
         let wasMainThread = await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {

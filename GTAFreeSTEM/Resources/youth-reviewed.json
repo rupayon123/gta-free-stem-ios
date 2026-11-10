@@ -1,0 +1,343 @@
+[
+  {
+    "schemaVersion": 1,
+    "id": "yres-volunteer-success-program",
+    "listingKind": "program",
+    "pathway": "volunteer",
+    "title": "Volunteer Success Program — a 120-hour commitment",
+    "provider": "York Region Educational Services",
+    "sourceUrl": "https://www.yorkeducation.org/volunteer",
+    "checkedAt": "2026-10-30T04:15:49Z",
+    "reviewStatus": "approved",
+    "audience": {
+      "context": "teen",
+      "original": "Ages 12–30. Since October 1, 2026, volunteers must commit to completing at least 120 hours.",
+      "ageMin": 12,
+      "ageMax": 30,
+      "restrictions": [
+        "Placement is arranged by the provider; joining is not a guaranteed role.",
+        "A minimum 120-hour commitment is required, exceeding the standard Ontario school requirement.",
+        "Access to a computer and internet is required by the provider.",
+        "Virtual volunteering requires at least 10 hours each month, alongside the overall 120-hour commitment.",
+        "Camp counsellor-in-training roles require age 14 or older; general programme age does not establish role eligibility."
+      ],
+      "residency": "Must reside in Canada throughout the volunteer period."
+    },
+    "cost": {
+      "status": "no-fee-evidence",
+      "original": "The provider describes this programme as completely free.",
+      "requiredCosts": []
+    },
+    "availability": {
+      "status": "open",
+      "original": "Current page invites intake applications and states it is accepting volunteers who can commit to at least 120 hours.",
+      "conflicting": false
+    },
+    "hours": {
+      "status": "not-stated"
+    },
+    "delivery": "hybrid",
+    "commitmentOriginal": "At least 120 hours overall; the virtual programme also states a minimum 10 hours per month. Confirm tasks, schedule, placement-specific conditions and school eligibility before committing. Provider selection is required; availability is not a shift confirmation.",
+    "regions": [
+      "Toronto",
+      "York",
+      "Peel",
+      "Durham",
+      "Halton"
+    ]
+  },
+  {
+    "schemaVersion": 1,
+    "id": "ymca-youth-entrepreneurship",
+    "listingKind": "program",
+    "pathway": "leadership-careers",
+    "title": "Youth for Entrepreneurship",
+    "provider": "YMCA of Greater Toronto",
+    "sourceUrl": "https://www.ymcagta.org/youth-programs",
+    "checkedAt": "2026-10-30T04:15:49Z",
+    "reviewStatus": "approved",
+    "audience": {
+      "context": "teen",
+      "original": "Youth ages 15–24. Virtual across Canada; in-person programming in Ontario and Newfoundland and Labrador.",
+      "ageMin": 15,
+      "ageMax": 24
+    },
+    "cost": {
+      "status": "no-fee-evidence",
+      "original": "The provider states the programme is free.",
+      "requiredCosts": []
+    },
+    "availability": {
+      "status": "unknown",
+      "original": "Programme is described, but this page does not establish a current session date or available place. Ask the provider.",
+      "conflicting": false
+    },
+    "hours": {
+      "status": "not-stated"
+    },
+    "delivery": "hybrid",
+    "commitmentOriginal": "Workshops and mentorship about starting projects and businesses. Confirm the next session and local arrangements.",
+    "regions": [
+      "Toronto",
+      "York",
+      "Peel",
+      "Durham",
+      "Halton"
+    ]
+  },
+  {
+    "schemaVersion": 1,
+    "id": "ymca-black-achievers",
+    "listingKind": "program",
+    "pathway": "leadership-careers",
+    "title": "Black Achievers Mentorship Program",
+    "provider": "YMCA of Greater Toronto",
+    "sourceUrl": "https://www.ymcagta.org/youth-programs",
+    "checkedAt": "2026-10-30T04:15:49Z",
+    "reviewStatus": "approved",
+    "audience": {
+      "context": "high-school",
+      "original": "Black youth in high school in the Greater Toronto Area.",
+      "residency": "Greater Toronto Area",
+      "restrictions": [
+        "For Black high-school students. GTA does not infer a visitor's identity."
+      ]
+    },
+    "cost": {
+      "status": "no-fee-evidence",
+      "original": "The provider states the programme is free.",
+      "requiredCosts": []
+    },
+    "availability": {
+      "status": "unknown",
+      "original": "Current intake dates and places are not established on this programme overview. Confirm with the provider.",
+      "conflicting": false
+    },
+    "hours": {
+      "status": "not-stated"
+    },
+    "delivery": "hybrid",
+    "commitmentOriginal": "Mentoring and workshops for school and career planning.",
+    "regions": [
+      "Toronto",
+      "York",
+      "Peel",
+      "Durham",
+      "Halton"
+    ]
+  },
+  {
+    "schemaVersion": 1,
+    "id": "ymca-newcomer-youth-leadership",
+    "listingKind": "program",
+    "pathway": "leadership-careers",
+    "title": "Newcomer Youth Leadership Development",
+    "provider": "YMCA of Greater Toronto",
+    "sourceUrl": "https://www.ymcagta.org/youth-programs",
+    "checkedAt": "2026-10-30T04:15:49Z",
+    "reviewStatus": "approved",
+    "audience": {
+      "context": "teen",
+      "original": "Newcomer youth ages 13–24 living in the Greater Toronto Area.",
+      "ageMin": 13,
+      "ageMax": 24,
+      "residency": "Greater Toronto Area",
+      "restrictions": [
+        "For newcomer youth; confirm the provider's eligibility conditions."
+      ]
+    },
+    "cost": {
+      "status": "no-fee-evidence",
+      "original": "The provider states the programme is free.",
+      "requiredCosts": []
+    },
+    "availability": {
+      "status": "unknown",
+      "original": "Programme overview does not establish current session availability. Confirm with the provider.",
+      "conflicting": false
+    },
+    "hours": {
+      "status": "not-stated"
+    },
+    "delivery": "in-person",
+    "commitmentOriginal": "Group activities developing leadership and community connections. Attending is not automatically a volunteer role or school credit.",
+    "regions": [
+      "Toronto",
+      "York",
+      "Peel",
+      "Durham",
+      "Halton"
+    ]
+  },
+  {
+    "schemaVersion": 1,
+    "id": "uoft-blueprint-2027",
+    "listingKind": "program",
+    "pathway": "learning",
+    "title": "Blueprint 2027 — engineering enrichment",
+    "provider": "University of Toronto Engineering Outreach",
+    "sourceUrl": "https://outreach.engineering.utoronto.ca/blueprint/",
+    "checkedAt": "2026-10-30T04:15:49Z",
+    "reviewStatus": "approved",
+    "audience": {
+      "context": "high-school",
+      "original": "Canadian citizens or permanent residents who identify as Black and are in Grades 10 or 11 in the 2026–2027 academic year.",
+      "grades": [
+        10,
+        11
+      ],
+      "residency": "Canadian citizenship or permanent residency required",
+      "restrictions": [
+        "For students who identify as Black; GTA does not infer identity.",
+        "Full four-week attendance is required."
+      ]
+    },
+    "cost": {
+      "status": "unknown",
+      "original": "Tuition is free. Travel, accommodation and lunches/snacks are not included. Bring your own lunch or buy it; confirm necessary expenses and possible travel support.",
+      "requiredCosts": [
+        {
+          "description": "Travel to the in-person programme and accommodation if needed. Lunches/snacks are not supplied; bring your own or buy them. Necessary costs depend on circumstances.",
+          "mandatory": true
+        }
+      ]
+    },
+    "availability": {
+      "status": "upcoming",
+      "original": "Applications open November 2, 2026 at 9:00am. Summer programme runs July 5–30, 2027, followed by school-year engagement. Application deadline: March 29, 2027; no exact closing time is stated.",
+      "conflicting": false,
+      "opensAt": "2026-11-02T09:00:00-05:00"
+    },
+    "hours": {
+      "status": "not-stated"
+    },
+    "regions": [
+      "Toronto"
+    ],
+    "delivery": "in-person",
+    "commitmentOriginal": "Four summer weeks plus later school-year engagement. This is learning, not a volunteer placement; no school volunteer hours are promised."
+  },
+  {
+    "schemaVersion": 1,
+    "id": "ontario-postsecondary-funding-guide",
+    "listingKind": "resource",
+    "pathway": "funding",
+    "title": "Plan for scholarships, bursaries and student aid",
+    "provider": "Government of Ontario",
+    "sourceUrl": "https://www.ontario.ca/page/student-loans-grants-scholarships-and-bursaries",
+    "checkedAt": "2026-10-30T04:15:49Z",
+    "reviewStatus": "approved",
+    "audience": {
+      "context": "high-school",
+      "original": "Planning to study at college, university or an apprenticeship after high school. Each funding programme has its own eligibility."
+    },
+    "cost": {
+      "status": "unknown",
+      "original": "Official information resource, not a particular award or a promise of funding.",
+      "requiredCosts": []
+    },
+    "availability": {
+      "status": "unknown",
+      "original": "This is guidance, not an open scholarship listing. Check each award's own conditions and dates.",
+      "conflicting": false
+    },
+    "hours": {
+      "status": "not-stated"
+    },
+    "commitmentOriginal": "Compare scholarships and bursaries with repayable loans. Ask your school or chosen institution about its awards; GTA does not assess financial-aid eligibility."
+  },
+  {
+    "schemaVersion": 1,
+    "id": "volunteer-toronto-youth-directory",
+    "listingKind": "provider-directory",
+    "pathway": "volunteer",
+    "title": "Find youth-suitable roles with Volunteer Toronto",
+    "provider": "Volunteer Toronto",
+    "sourceUrl": "https://www.volunteertoronto.ca/page/HighSchoolVolunteers",
+    "checkedAt": "2026-10-30T04:17:12.191Z",
+    "reviewStatus": "approved",
+    "audience": {
+      "context": "high-school",
+      "original": "Guidance for high-school volunteers, with links to its opportunity search. Each role has its own age and school requirements."
+    },
+    "cost": {
+      "status": "unknown",
+      "original": "Directory only. Check costs and requirements for the individual role; no free opening is asserted.",
+      "requiredCosts": []
+    },
+    "availability": {
+      "status": "unknown",
+      "original": "This page is a place to look, not a confirmed vacancy.",
+      "conflicting": false
+    },
+    "hours": {
+      "status": "not-stated"
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "id": "markham-library-volunteering-directory",
+    "listingKind": "provider-directory",
+    "pathway": "volunteer",
+    "title": "Explore Markham Public Library volunteering",
+    "provider": "Markham Public Library",
+    "sourceUrl": "https://markhampubliclibrary.ca/volunteering/",
+    "checkedAt": "2026-10-30T04:17:12.191Z",
+    "reviewStatus": "approved",
+    "audience": {
+      "context": "high-school",
+      "original": "Library volunteering information, including youth participation from age 14. Intake, selection and role requirements must be checked with the library.",
+      "ageMin": 14,
+      "restrictions": [
+        "Provider requires an account, interview, vulnerable-sector check and orientation. Confirm age-specific check arrangements before applying."
+      ]
+    },
+    "cost": {
+      "status": "unknown",
+      "original": "The page lists a $35 vulnerable-sector-check charge in its adult guidance. Confirm the check cost and any age-specific conditions with the library; this is not a verified zero-cost role.",
+      "requiredCosts": [
+        {
+          "description": "Required vulnerable-sector check; page lists a $35 charge in adult guidance. Confirm the fee applicable to you.",
+          "mandatory": true
+        }
+      ]
+    },
+    "availability": {
+      "status": "unknown",
+      "original": "This page is a place to look, not a confirmed vacancy.",
+      "conflicting": false
+    },
+    "hours": {
+      "status": "not-stated"
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "id": "ontario-high-school-hours-guidance",
+    "listingKind": "resource",
+    "pathway": "volunteer",
+    "title": "Understand your school community-involvement requirements",
+    "provider": "Government of Ontario",
+    "sourceUrl": "https://www.ontario.ca/page/get-your-high-school-volunteer-hours",
+    "checkedAt": "2026-10-30T04:17:12.191Z",
+    "reviewStatus": "approved",
+    "audience": {
+      "context": "high-school",
+      "original": "Ontario high-school students. Confirm your own graduation requirements and planned activity with your school."
+    },
+    "cost": {
+      "status": "unknown",
+      "original": "Official guidance, not a volunteer placement.",
+      "requiredCosts": []
+    },
+    "availability": {
+      "status": "unknown",
+      "original": "Information resource; it does not offer a role or approve an activity.",
+      "conflicting": false
+    },
+    "hours": {
+      "status": "not-stated"
+    },
+    "commitmentOriginal": "Ontario generally requires 40 community-involvement hours for the diploma. Students can start in the summer before Grade 9. Get school confirmation before starting; keep the required school record and any required parent or guardian sign-off. Paid work, course requirements and ordinary chores do not automatically qualify. GTA only records actual completed time and cannot certify school credit."
+  }
+]

@@ -42,6 +42,7 @@ struct BrowseView: View {
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var store: OpportunityStore
     let surface: BrowseSurface
+    let onReturnToHub: (() -> Void)?
     @StateObject private var locationManager = HuntLocationManager()
     @State private var saveSearchPresented = false
     @State private var filtersPresented = false
@@ -54,8 +55,9 @@ struct BrowseView: View {
     @State private var coincidentVenueIDs: Set<String> = []
     @FocusState private var searchFocused: Bool
 
-    init(surface: BrowseSurface = .opportunities) {
+    init(surface: BrowseSurface = .opportunities, onReturnToHub: (() -> Void)? = nil) {
         self.surface = surface
+        self.onReturnToHub = onReturnToHub
 #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-review-map") {
             _displayMode = State(initialValue: .map)
@@ -105,6 +107,12 @@ struct BrowseView: View {
             .navigationTitle(session.text(surface.titleKey))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                if let onReturnToHub, navigationPath.isEmpty {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button(action: onReturnToHub) { Label(session.text("highSchool"), systemImage: "chevron.backward") }
+                            .accessibilityIdentifier("school-return-hub")
+                    }
+                }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
                         Task { await store.refresh(cache: persistenceContext) }
@@ -324,6 +332,9 @@ struct BrowseView: View {
 
     private var filterButton: some View {
         Button {
+            // The filter sheet owns input until Done; do not refocus the page's
+            // search field (and reopen its keyboard) when the sheet dismisses.
+            searchFocused = false
             filtersPresented = true
         } label: {
             Label(session.text("filters"), systemImage: store.filters.hasActiveFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
@@ -331,6 +342,7 @@ struct BrowseView: View {
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(StoryButtonStyle(kind: .quiet))
+        .accessibilityIdentifier("browse-filters")
     }
 
     private var huntButton: some View {
@@ -888,6 +900,13 @@ struct OpportunityFilterSheet: View {
         NavigationStack {
             Form {
                 savedFiltersSection
+                Section(session.text("equity")) {
+                    Toggle(session.text("black"), isOn: $filters.blackFocused)
+                    Toggle(session.text("girls"), isOn: $filters.girlsFocused)
+                    Toggle(session.text("indigenous"), isOn: $filters.indigenousFocused)
+                    Toggle(session.text("leadership"), isOn: $filters.leadership)
+                }
+
                 Section(session.text("region")) {
                     Picker(session.text("region"), selection: $filters.region) {
                         Text(session.text("allGta")).tag("All")
@@ -952,12 +971,6 @@ struct OpportunityFilterSheet: View {
                     }
                 }
 
-                Section(session.text("equity")) {
-                    Toggle(session.text("black"), isOn: $filters.blackFocused)
-                    Toggle(session.text("girls"), isOn: $filters.girlsFocused)
-                    Toggle(session.text("indigenous"), isOn: $filters.indigenousFocused)
-                    Toggle(session.text("leadership"), isOn: $filters.leadership)
-                }
             }
             .scrollContentBackground(.hidden)
             .background(Brand.canvas(for: colorScheme))

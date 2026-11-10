@@ -1,4 +1,63 @@
 import Foundation
+import CryptoKit
+
+/// Field-level binding for a translation pack after its manifest, source index,
+/// provenance and bytes have been independently validated. This does not fetch
+/// or enable a catalog: a qualified public endpoint does not yet exist.
+enum FullDescriptionBinding {
+    struct SourceRecord {
+        let id: String
+        let organization: String
+        let sourceURL: String
+        let titleSHA256: String
+        let descriptionSHA256: String
+    }
+
+    struct Entry {
+        let text: String
+        let sourceSegmentCount: Int
+        let translatedSegmentCount: Int
+        let endedNormally: Bool
+    }
+
+    struct Result {
+        let title: String?
+        let description: String?
+    }
+
+    static func hash(_ text: String) -> String {
+        SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    static func resolve(
+        id: String, organization: String, sourceURL: String,
+        title: String, description: String,
+        requestedLanguage: AppLanguage, packLanguage: String,
+        record: SourceRecord, entries: [String: Entry]
+    ) -> Result? {
+        // Compare identity bytes as well as the actual field hashes. Swift's
+        // normal String equality permits Unicode canonical equivalence.
+        func sameBytes(_ left: String, _ right: String) -> Bool {
+            left.utf8.elementsEqual(right.utf8)
+        }
+        guard requestedLanguage != .en,
+              sameBytes(requestedLanguage.rawValue, packLanguage),
+              sameBytes(id, record.id), sameBytes(organization, record.organization),
+              sameBytes(sourceURL, record.sourceURL) else { return nil }
+
+        func boundText(_ original: String, _ expectedHash: String) -> String? {
+            guard hash(original) == expectedHash, let entry = entries[expectedHash],
+                  entry.sourceSegmentCount > 0,
+                  entry.sourceSegmentCount == entry.translatedSegmentCount,
+                  entry.endedNormally,
+                  !entry.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  entry.text.utf8.count <= 600_000 else { return nil }
+            return entry.text
+        }
+        return Result(title: boundText(title, record.titleSHA256),
+                      description: boundText(description, record.descriptionSHA256))
+    }
+}
 
 enum APIError: Error, LocalizedError {
     case badURL
