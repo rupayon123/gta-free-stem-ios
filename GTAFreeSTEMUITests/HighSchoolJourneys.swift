@@ -446,7 +446,10 @@ final class HighSchoolJourneys: XCTestCase {
         reveal(sensory); sensory.tap()
         let count = element("filter-result-count")
         reveal(count)
-        XCTAssertTrue(app.staticTexts["1 result"].waitForExistence(timeout: 10))
+        let showsOne = app.staticTexts["1 result"].waitForExistence(timeout: 10)
+        print("SUPPORT_FILTER_DIAGNOSTIC switch=\(String(describing: sensory.value)) label=\(count.label) value=\(String(describing: count.value)) count=\(count.debugDescription)")
+        capture("support-filter-actual")
+        XCTAssertTrue(showsOne, "The sensory-friendly sample must produce exactly one result")
         capture("support-filter-light")
         tap("save-named-search")
         let name = app.textFields["saved-search-name"]
