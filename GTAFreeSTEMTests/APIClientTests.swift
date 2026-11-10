@@ -4985,6 +4985,19 @@ final class OpportunityStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testApplyingScreenshotFiltersKeepsSamplesAndDoesNotFetch() async throws {
+        let url = URL(string: "https://primary.example/capture-filter.json")!
+        let store = OpportunityStore(api: APIClient(feedURL: url, session: makeURLSessionForStub()))
+        let prepared = await store.prepareScreenshotSnapshot()
+        XCTAssertTrue(prepared)
+        store.query = "Family Math Makers"
+        await store.applyFilterSelection(cache: nil, screenshotCapture: true)
+        XCTAssertEqual(store.opportunities.map(\.id), ["sample-family-math"])
+        XCTAssertEqual(store.dataSourceLabel, .previewDatabase)
+        XCTAssertEqual(URLProtocolStub.requestCount, 0)
+    }
+
+    @MainActor
     func testPublishedHomePathwayInventoryUsesRetainedFullFeed() async throws {
         let feedURL = URL(string: "https://gta-free-stem.vercel.app/opportunities.json")!
         let store = OpportunityStore(

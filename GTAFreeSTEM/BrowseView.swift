@@ -138,7 +138,7 @@ struct BrowseView: View {
                     surface: surface,
                     apply: {
                         filtersPresented = false
-                        Task { await store.refresh(cache: persistenceContext) }
+                        Task { await store.applyFilterSelection(cache: persistenceContext) }
                     },
                     reset: {
                         store.resetFilters()

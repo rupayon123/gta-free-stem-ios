@@ -9,7 +9,7 @@ final class HighSchoolJourneys: XCTestCase {
     private func element(_ id: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: id).firstMatch
     }
-    private func reveal(_ item: XCUIElement, in application: XCUIApplication? = nil, swipeX: CGFloat = 0.5) {
+    private func reveal(_ item: XCUIElement, in application: XCUIApplication? = nil, swipeX: CGFloat = 0.5, preferDownWhenMissing: Bool = false) {
         let surface = application ?? app
         for step in 0..<16 {
             let bounds = surface.frame
@@ -32,7 +32,7 @@ final class HighSchoolJourneys: XCTestCase {
             // then tapped y934 below the actual footer (y839..914), in the Home gesture area.
             // Require its centre in the observed content viewport before accepting a hit.
             if item.exists && item.isHittable && (isFooter || isNavigationControl || (frame.midY >= top && frame.midY < bottom)) { return }
-            let swipeUp = frame.height > 0 ? frame.midY >= (top + bottom) / 2 : step < 8
+            let swipeUp = frame.height > 0 ? frame.midY >= (top + bottom) / 2 : (!preferDownWhenMissing && step < 8)
             let height = max(80, bottom - top)
             let origin = surface.coordinate(withNormalizedOffset: .zero)
             let high = origin.withOffset(CGVector(dx: bounds.width * swipeX, dy: top - bounds.minY + height * 0.2))
@@ -443,9 +443,15 @@ final class HighSchoolJourneys: XCTestCase {
         tap("tab-browse")
         tap("browse-filters")
         let sensory = app.switches["support-filter-sensory-friendly"]
-        reveal(sensory); sensory.tap()
+        reveal(sensory)
+        print("SUPPORT_SWITCH_BEFORE_TAP \(sensory.debugDescription)")
+        sensory.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        print("SUPPORT_SWITCH_AFTER_TAP value=\(String(describing: sensory.value))")
+        capture("support-switch-after-tap")
+        XCTAssertEqual(sensory.value as? String, "1", "The sensory-friendly switch must turn on")
         let count = element("filter-result-count")
-        reveal(count)
+        reveal(count, swipeX: 0.02, preferDownWhenMissing: true)
+        XCTAssertEqual(sensory.value as? String, "1", "The switch must stay on while scrolling")
         let showsOne = app.staticTexts["1 result"].waitForExistence(timeout: 10)
         print("SUPPORT_FILTER_DIAGNOSTIC switch=\(String(describing: sensory.value)) label=\(count.label) value=\(String(describing: count.value)) count=\(count.debugDescription)")
         capture("support-filter-actual")
@@ -464,7 +470,7 @@ final class HighSchoolJourneys: XCTestCase {
         app.buttons["Sample sensory filter"].tap()
         reveal(sensory)
         XCTAssertEqual(sensory.value as? String, "1")
-        reveal(count)
+        reveal(count, swipeX: 0.02, preferDownWhenMissing: true)
         XCTAssertTrue(app.staticTexts["1 result"].waitForExistence(timeout: 10))
         tap("done-filters")
         let listing = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Details: Sample: Build a Solar Robot")).firstMatch
