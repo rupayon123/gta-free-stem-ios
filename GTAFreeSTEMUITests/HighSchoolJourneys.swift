@@ -9,7 +9,7 @@ final class HighSchoolJourneys: XCTestCase {
     private func element(_ id: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: id).firstMatch
     }
-    private func reveal(_ item: XCUIElement, in application: XCUIApplication? = nil) {
+    private func reveal(_ item: XCUIElement, in application: XCUIApplication? = nil, swipeX: CGFloat = 0.5) {
         let surface = application ?? app
         for step in 0..<16 {
             let bounds = surface.frame
@@ -35,8 +35,8 @@ final class HighSchoolJourneys: XCTestCase {
             let swipeUp = frame.height > 0 ? frame.midY >= (top + bottom) / 2 : step < 8
             let height = max(80, bottom - top)
             let origin = surface.coordinate(withNormalizedOffset: .zero)
-            let high = origin.withOffset(CGVector(dx: bounds.width / 2, dy: top - bounds.minY + height * 0.2))
-            let low = origin.withOffset(CGVector(dx: bounds.width / 2, dy: top - bounds.minY + height * 0.8))
+            let high = origin.withOffset(CGVector(dx: bounds.width * swipeX, dy: top - bounds.minY + height * 0.2))
+            let low = origin.withOffset(CGVector(dx: bounds.width * swipeX, dy: top - bounds.minY + height * 0.8))
             if swipeUp { low.press(forDuration: 0.05, thenDragTo: high) }
             else { high.press(forDuration: 0.05, thenDragTo: low) }
         }
@@ -387,7 +387,9 @@ final class HighSchoolJourneys: XCTestCase {
         XCTAssertTrue(footer.waitForExistence(timeout: 15))
 
         func check(_ item: XCUIElement, _ name: String) {
-            reveal(item)
+            // Detail contains an interactive map. Start vertical scrolling in
+            // the page gutter so the map does not consume the drag as a pan.
+            reveal(item, swipeX: name == "detail" ? 0.02 : 0.5)
             XCTAssertTrue(item.exists, name)
             XCTAssertTrue(item.isHittable, name)
             XCTAssertLessThanOrEqual(item.frame.maxY, footer.frame.minY + 1, "\(name) is covered by navigation")
@@ -436,7 +438,7 @@ final class HighSchoolJourneys: XCTestCase {
 
     func test13SupportFilterUpdatesResultsSavesAndRestoresWithoutLeavingBrowse() {
         app.launchArguments = ["-frontend-layout-review", "-review-screen", "home",
-                               "-review-language", "en", "-review-support"]
+                               "-review-language", "en", "-review-support", "-screenshot-mode"]
         app.launch()
         tap("tab-browse")
         tap("browse-filters")
@@ -467,6 +469,9 @@ final class HighSchoolJourneys: XCTestCase {
         let provider = element("provider-support-details")
         reveal(provider)
         XCTAssertTrue(app.staticTexts["Sample: a quieter activity with a quiet break space."].exists)
+        let checked = element("support-last-checked")
+        reveal(checked)
+        XCTAssertNil(checked.label.range(of: #"\d{4}-\d{2}-\d{2}T"#, options: .regularExpression), "Provider checks should use a readable date")
         capture("support-detail-light")
         app.terminate()
     }

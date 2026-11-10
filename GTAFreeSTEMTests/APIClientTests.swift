@@ -40,6 +40,18 @@ final class APIClientTests: XCTestCase {
         try JSONDecoder().decode(AccessibilitySupport.self, from: JSONSerialization.data(withJSONObject: ["schemaVersion": 1, "evidence": rows]))
     }
 
+    func testSupportEvidenceCheckedDateUsesLocaleWithoutChangingStoredInstant() throws {
+        let evidence = try XCTUnwrap(supportMetadata([supportProof()]).evidence.first)
+        let zone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let english = SupportEvidenceDateDisplay.string(for: evidence.checkedInstant, locale: Locale(identifier: "en_CA"), timeZone: zone)
+        let french = SupportEvidenceDateDisplay.string(for: evidence.checkedInstant, locale: Locale(identifier: "fr_CA"), timeZone: zone)
+        XCTAssertNotEqual(english, french)
+        XCTAssertTrue(english.contains("2026"))
+        XCTAssertTrue(french.contains("2026"))
+        XCTAssertFalse(english.contains("T06:33:20"))
+        XCTAssertEqual(evidence.checkedAt, "2026-11-10T06:33:20.000Z")
+    }
+
     @MainActor
     func testStructuredSupportV1AndUnavailableMarkerSurviveFeedCacheArchiveAndCopies() throws {
         let original = opportunity(id: "support", title: "App-owned sample")
