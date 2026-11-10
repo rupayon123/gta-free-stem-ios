@@ -1,5 +1,7 @@
 # Screenshot provenance
 
+The current build-15 previews and their source/hash receipt are in [2026-10-27](2026-10-27/capture-receipt.json). The earlier captures below remain dated history and are not build-15 evidence.
+
 `ios-home-simulator-2026-10-25.jpg` is an unretouched normal-runtime iPhone simulator capture from October 25, 2026 at commit `a6b1a54deeefe1dfbb0aa28cda444e45dd605153`. Its capture receipt recorded 1,882 visible opportunities from the public live feed, last checked October 25. This is simulator evidence, not a physical-device or build 14 capture.
 
 `ios-browse-simulator-2026-10-27.jpg` is an unretouched normal-runtime iPhone 17 Pro simulator capture on iOS 26.5, using the same app source. The 20-second frame showed 1,856 public-feed listings, a Toronto Public Library activity, search, filters, and list/map controls. The [QA run](https://github.com/rupayon123/gta-free-stem-ios/actions/runs/40457611817) and local capture receipt also record matching interactive frames at 40 and 60 seconds. This does not establish physical-device or build 14 performance.

@@ -7,7 +7,7 @@ cd "$ROOT_DIR"
 STRICT_TRANSLATION_CHECK="${STRICT_TRANSLATION_CHECK:-0}"
 CHECK_APP_STORE_SCREENSHOTS="${CHECK_APP_STORE_SCREENSHOTS:-1}"
 REQUIRE_DIRECT_SUPPORT_CONTACT="${REQUIRE_DIRECT_SUPPORT_CONTACT:-1}"
-LIVE_FEED_URL="${LIVE_FEED_URL:-https://raw.githubusercontent.com/rupayon123/gta-free-stem-opportunities/main/public/opportunities.json}"
+LIVE_FEED_URL="${LIVE_FEED_URL:-https://raw.githubusercontent.com/rupayon123/gta-free-stem-opportunities/main/public/opportunities-v2.json}"
 APP_STRINGS="GTAFreeSTEM/Resources/app_strings.json"
 BUNDLED_FEED="GTAFreeSTEM/Resources/opportunities.json"
 LANGS='["fr","zh","yue","pa","ur","ta","tl","es","ar","fa","hi","pt","gu","bn","ja","ko","hu"]'
@@ -18,8 +18,13 @@ done
 
 echo "=== Version and project configuration ==="
 rg -Fq 'MARKETING_VERSION: "1.0"' project.yml
-rg -Fq 'CURRENT_PROJECT_VERSION: "12"' project.yml
+rg -Fq 'CURRENT_PROJECT_VERSION: "19"' project.yml
+rg -Fq 'CURRENT_PROJECT_VERSION = 19;' GTAFreeSTEM.xcodeproj/project.pbxproj
 rg -Fq 'GTA_RELEASE_SOURCE_COMMIT: UNSET' project.yml
+# Debug/local defaults remain unbound; Cloud Release uses the validated CI commit.
+rg -Fq 'GTA_RELEASE_SOURCE_COMMIT: "$(CI_COMMIT)"' project.yml
+rg -Fq 'GTA_RELEASE_SOURCE_COMMIT = "$(CI_COMMIT)";' GTAFreeSTEM.xcodeproj/project.pbxproj
+rg -Fq 'GTA_RELEASE_SOURCE_COMMIT = UNSET;' GTAFreeSTEM.xcodeproj/project.pbxproj
 rg -Fq 'ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon' project.yml
 for info_plist in GTAFreeSTEM/Info.plist GTAFreeSTEM/MacCatalyst-Info.plist GTAFreeSTEMWatch/Info.plist; do
   [ "$(plutil -extract GTAReleaseSourceCommit raw -o - "$info_plist")" = '$(GTA_RELEASE_SOURCE_COMMIT)' ] || {
@@ -28,7 +33,7 @@ for info_plist in GTAFreeSTEM/Info.plist GTAFreeSTEM/MacCatalyst-Info.plist GTAF
   }
 done
 rg -Fq '"GTA_RELEASE_SOURCE_COMMIT=$SOURCE_COMMIT"' docs/scripts/install-connected-device.sh
-echo "Version/build: 1.0 (12)"
+echo "Source version/build: 1.0 (19); EXTERNAL_BUILD19_STATUS.md is historical, and Cloud upload build must be verified separately."
 
 echo
 echo "=== Localized UI coverage ==="
@@ -129,17 +134,17 @@ echo "Verified Mac Catalyst sandbox, metadata, release settings, and automatic-s
 echo
 echo "=== Public URL availability ==="
 for url in \
-  https://gta-free-stem.vercel.app/ \
-  https://gta-free-stem.vercel.app/support/ \
-  https://gta-free-stem.vercel.app/privacy/ \
-  https://gta-free-stem.vercel.app/terms/; do
+  https://gta-free-stem.pages.dev/ \
+  https://gta-free-stem.pages.dev/support/ \
+  https://gta-free-stem.pages.dev/privacy/ \
+  https://gta-free-stem.pages.dev/terms/; do
   status="$(curl -fsSIL --max-time 15 -o /dev/null -w '%{http_code}' "$url" || true)"
   [ "$status" = "200" ] || { echo "$url returned $status"; exit 1; }
   echo "$url returns HTTP 200"
 done
 if [ "$REQUIRE_DIRECT_SUPPORT_CONTACT" != "0" ]; then
   SUPPORT_PAGE_FILE="$(mktemp "${TMPDIR:-/tmp}/gta-free-stem-support.XXXXXX")"
-  if ! curl -fsSL --max-time 15 https://gta-free-stem.vercel.app/support/ -o "$SUPPORT_PAGE_FILE"; then
+  if ! curl -fsSL --max-time 15 https://gta-free-stem.pages.dev/support/ -o "$SUPPORT_PAGE_FILE"; then
     rm -f "$SUPPORT_PAGE_FILE"
     echo "Could not download the production Support page."
     exit 1
@@ -190,9 +195,14 @@ if not keyword_value or len(keyword_value.encode("utf-8")) > 100 or ", " in keyw
     raise SystemExit("Keywords must be nonempty, no more than 100 bytes, and comma-separated without spaces")
 print(f"Keywords: {len(keyword_value.encode('utf-8'))}/100 bytes")
 
+# Historical build-15/16 evidence is retained separately from development17 and the retained
+# build-12 public-release packet. Neither set of text checks grants signoff.
 required = {
-    "README.md": ["1.0 (12)", "on-device", "Apple Watch"],
-    "docs/RELEASE_READINESS.md": ["iphone,ipad,watch,mac", "selected separate Mac App Store", "build/app-store-screenshots/final/"],
+    "docs/DEVELOPMENT_CANDIDATE.md": ["1.0 (17)", "TestFlight", "Home", "Saved filters", "CURRENT_RELEASE_HANDOFF.md"],
+    "README.md": ["1.0 (17)", "on-device", "Apple Watch", "docs/CURRENT_RELEASE_HANDOFF.md", "docs/showcase/2026-10-27/capture-receipt.json"],
+    "docs/CURRENT_RELEASE_HANDOFF.md": ["1.0 (15)", "08c172d20060ec0748fccae2677c7554c3fe8145", "178/178", "52/52", "62/62", "not complete", "https://gta-free-stem.pages.dev/", "c504a74575e7af9d39282e1d49ab9e0ad55fbc09228dccad845b26df6fc7a749"],
+    "docs/TESTFLIGHT.md": ["1.0 (15)", "CURRENT_RELEASE_HANDOFF.md", "App Review Is Separate"],
+    "docs/RELEASE_READINESS.md": ["1.0 (15)", "historical August 6, 2026 build 12", "iphone,ipad,watch,mac", "selected separate Mac App Store", "build/app-store-screenshots/final/"],
     "docs/APP_STORE_METADATA.md": ["iphone,ipad,watch,mac", "selected separate Mac App Store", "does not independently request or cache the public feed", "build/app-store-screenshots/final/"],
     "docs/APP_STORE_SUBMISSION_PACKET.md": ["Build:", "12", "iOS App Store Connect status:", "iOS TestFlight status:", "Mac App Store Connect status:", "Mac TestFlight status:", "App Review status:", "Watch bundle ID:", "Production legal/support truthfulness verified", "Terms of Use URL", "Custom EULA", "PUBLIC_RELEASE_PLATFORMS", "Coarse Location", "Other Diagnostic Data", "build/app-store-screenshots/final/", "13-file canonical package"],
     "docs/PUBLIC_RELEASE_RUNBOOK.md": ["1.0 (12)", "TestFlight", "App Review", "Apple Developer Program", "PUBLIC_RELEASE_PLATFORMS=iphone,ipad,watch,mac", "truthfulness", "Standard EULA", "selected separate Mac App Store"],
@@ -221,7 +231,7 @@ for path in [Path("README.md"), *Path("docs").glob("*.md")]:
     hit = [needle for needle in stale if needle in text]
     if hit:
         raise SystemExit(f"{path} contains stale release wording: {', '.join(hit)}")
-print("Release documentation matches build 1.0 (12).")
+print("Development candidate1.0(17) documentation is present; delivery status and historical build15/16 evidence remain separate.")
 PY
 
 echo

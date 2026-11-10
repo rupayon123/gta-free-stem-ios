@@ -30,11 +30,25 @@
 		E718E3102E49EA06E71F1C42 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3FA87A17DB14C2FA9B97306 /* SessionStore.swift */; };
 		E87B5B887C0C3F6DD71E443A /* GTAFreeSTEMWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A6CF6708A8D835D61B3180 /* GTAFreeSTEMWatchApp.swift */; };
 		EE09F46022F670609FDFE888 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F81D27386203249D913B5F66 /* PrivacyInfo.xcprivacy */; };
+		F1A5C4A52E00000000000001 /* WatchStrings.json in Resources */ = {isa = PBXBuildFile; fileRef = F1A5C4A52E00000000000002 /* WatchStrings.json */; };
 		EE6239C4E96CED0F0707F16D /* OpportunityDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07B77BBC9D9E87DAB34556E /* OpportunityDetailView.swift */; };
 		F2DBCAC93578B065A14CF04B /* SavedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2C45C1750835FF267CB51D1 /* SavedView.swift */; };
 		F86D0A49E7313A143E3031CA /* LocalOpportunitySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4A6C30734DAE0C6FF3F914B /* LocalOpportunitySnapshot.swift */; };
 		FEE1DAB0C0DE000000000005 /* FreeOpportunityEligibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE1DAB0C0DE000000000004 /* FreeOpportunityEligibilityTests.swift */; };
 		FEE1DAB0C0DE000000000002 /* FeedFreshness.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE1DAB0C0DE000000000001 /* FeedFreshness.swift */; };
+		0F8FE5E37B21E671E1A6E5EC /* Nunito.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 06EA72B71A62F95FBFD93BCB /* Nunito.ttf */; };
+		FDE9080A6C7E9C086FDDD7C6 /* Nunito-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = 3DE6C81FFC5D0CA49C886213 /* Nunito-OFL.txt */; };
+		ED75B1F76AC103CE1F31318D /* YouthListing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08B93891EA36F581B936DECD /* YouthListing.swift */; };
+		C1EB9DAA575388E6C6A1522A /* YouthHoursNotebook.swift in Sources */ = {isa = PBXBuildFile; fileRef = D432A9EFD097607B9DA611A2 /* YouthHoursNotebook.swift */; };
+		847FE0D7C6CB4B34CB23D0B5 /* YouthHoursFileStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D663619E7B1C6148F3A55B3 /* YouthHoursFileStorage.swift */; };
+		5B979B49B051FCA734CD943E /* HighSchoolHubStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1043918B6903BEC556FEED6D /* HighSchoolHubStore.swift */; };
+		B9D476A20F6E62198808E3A0 /* HighSchoolHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DF0BCCE8E57C1AAE1CD4275 /* HighSchoolHubView.swift */; };
+		56A418783F3D7C744513C2ED /* HoursNotebookView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BEB5224DD701603C03B1379 /* HoursNotebookView.swift */; };
+		7201242EF8F57B21A88CC436 /* YouthHighSchoolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62B3C596EC8118FF48E75455 /* YouthHighSchoolTests.swift */; };
+		EDF077B0E717CA5A675144A4 /* youth-reviewed.json in Resources */ = {isa = PBXBuildFile; fileRef = 6BED4315443417048972BE2E /* youth-reviewed.json */; };
+		C91373FC9FFCAF70CD5D322A /* HighSchoolFixtures in Resources */ = {isa = PBXBuildFile; fileRef = 31BD30BA934FD36BE3D32B85 /* HighSchoolFixtures */; };
+		C89079824D32C4214C419731 /* YouthHoursFileStorageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A29C9CFBE50D2C048B0DD9D /* YouthHoursFileStorageTests.swift */; };
+		7C7A3273C26152523223185E /* HighSchoolJourneys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D0B1C1157FF0C7893ABAB7C; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -52,6 +66,7 @@
 			remoteGlobalIDString = 76C67C0CBC761D0603D0F456;
 			remoteInfo = GTAFreeSTEMWatch;
 		};
+		02D38CA0636F5358F7985C0C = {isa = PBXContainerItemProxy; containerPortal = FA340A41CB4F72B4347F261E; proxyType = 1; remoteGlobalIDString = 3E42DDF6414C70F70054B63D; remoteInfo = GTAFreeSTEM; };
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -119,6 +134,21 @@
 		FEE1DAB0C0DE000000000001 /* FeedFreshness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedFreshness.swift; sourceTree = "<group>"; };
 		FAAEB0585D9E067B1270CC19 /* gu */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = gu; path = gu.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		FBD26104225597E7C756CFB0 /* ur */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ur; path = ur.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		F1A5C4A52E00000000000002 /* WatchStrings.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = WatchStrings.json; sourceTree = "<group>"; };
+		06EA72B71A62F95FBFD93BCB /* Nunito.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Nunito.ttf"; sourceTree = "<group>"; };
+		3DE6C81FFC5D0CA49C886213 /* Nunito-OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Nunito-OFL.txt"; sourceTree = "<group>"; };
+		08B93891EA36F581B936DECD /* YouthListing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HighSchool/YouthListing.swift"; sourceTree = "<group>"; };
+		D432A9EFD097607B9DA611A2 /* YouthHoursNotebook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HighSchool/YouthHoursNotebook.swift"; sourceTree = "<group>"; };
+		5D663619E7B1C6148F3A55B3 /* YouthHoursFileStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HighSchool/YouthHoursFileStorage.swift"; sourceTree = "<group>"; };
+		1043918B6903BEC556FEED6D /* HighSchoolHubStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HighSchool/HighSchoolHubStore.swift"; sourceTree = "<group>"; };
+		9DF0BCCE8E57C1AAE1CD4275 /* HighSchoolHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HighSchool/HighSchoolHubView.swift"; sourceTree = "<group>"; };
+		5BEB5224DD701603C03B1379 /* HoursNotebookView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HighSchool/HoursNotebookView.swift"; sourceTree = "<group>"; };
+		62B3C596EC8118FF48E75455 /* YouthHighSchoolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouthHighSchoolTests.swift; sourceTree = "<group>"; };
+		6BED4315443417048972BE2E /* youth-reviewed.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "youth-reviewed.json"; sourceTree = "<group>"; };
+		31BD30BA934FD36BE3D32B85 /* HighSchoolFixtures */ = {isa = PBXFileReference; lastKnownFileType = folder; path = HighSchoolFixtures; sourceTree = "<group>"; };
+		3A29C9CFBE50D2C048B0DD9D /* YouthHoursFileStorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouthHoursFileStorageTests.swift; sourceTree = "<group>"; };
+		8D0B1C1157FF0C7893ABAB7C /* HighSchoolJourneys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighSchoolJourneys.swift; sourceTree = "<group>"; };
+		0EFF9F17548A1AFB617E3A31 /* GTAFreeSTEMUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = GTAFreeSTEMUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -127,6 +157,7 @@
 			children = (
 				8DB1CE4E347C97CCE6867695 /* Assets.xcassets */,
 				B2A6CF6708A8D835D61B3180 /* GTAFreeSTEMWatchApp.swift */,
+				F1A5C4A52E00000000000002 /* WatchStrings.json */,
 				70574251FD7BDC234756AB68 /* Info.plist */,
 				E7CB6FE24D27F001F0CBF5C9 /* PrivacyInfo.xcprivacy */,
 			);
@@ -136,6 +167,11 @@
 		45CC2B233F6A3F7FA0BCBF31 /* GTAFreeSTEMTests */ = {
 			isa = PBXGroup;
 			children = (
+				3A29C9CFBE50D2C048B0DD9D /* YouthHoursFileStorageTests.swift */,
+				31BD30BA934FD36BE3D32B85 /* HighSchoolFixtures */,
+				62B3C596EC8118FF48E75455 /* YouthHighSchoolTests.swift */,
+
+
 				6401728357C617A014393A8C /* APIClientTests.swift */,
 				FEE1DAB0C0DE000000000004 /* FreeOpportunityEligibilityTests.swift */,
 				8B21BABCB9154E23096C0B6F /* Info.plist */,
@@ -146,6 +182,7 @@
 		602B303E4E395B99EB0D1315 = {
 			isa = PBXGroup;
 			children = (
+				A170086A0DA26E46F20F2629 /* GTAFreeSTEMUITests */,
 				B3581554EF7A318422A94FFF /* GTAFreeSTEM */,
 				45CC2B233F6A3F7FA0BCBF31 /* GTAFreeSTEMTests */,
 				24118630770379D30079EEA1 /* GTAFreeSTEMWatch */,
@@ -156,6 +193,13 @@
 		8238FD5CC5F0BBA01ABC1BD4 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				0EFF9F17548A1AFB617E3A31 /* GTAFreeSTEMUITests.xctest */,
+
+
+
+
+
+
 				CF02688AB14B0594AA699477 /* GTAFreeSTEM.app */,
 				443304F071235DDFB0AE9F60 /* GTAFreeSTEMTests.xctest */,
 				4660EB31E07CDB1070E208B5 /* GTAFreeSTEMWatch.app */,
@@ -166,6 +210,12 @@
 		B3581554EF7A318422A94FFF /* GTAFreeSTEM */ = {
 			isa = PBXGroup;
 			children = (
+				5BEB5224DD701603C03B1379 /* HoursNotebookView.swift */,
+				9DF0BCCE8E57C1AAE1CD4275 /* HighSchoolHubView.swift */,
+				1043918B6903BEC556FEED6D /* HighSchoolHubStore.swift */,
+				5D663619E7B1C6148F3A55B3 /* YouthHoursFileStorage.swift */,
+				D432A9EFD097607B9DA611A2 /* YouthHoursNotebook.swift */,
+				08B93891EA36F581B936DECD /* YouthListing.swift */,
 				A8090B462DA48C2000491E38 /* APIClient.swift */,
 				7CD854A982BF8398EE4B0699 /* AppShortcuts.swift */,
 				C905F5C3CADDDAD068E2AE5A /* Assets.xcassets */,
@@ -193,7 +243,11 @@
 		BD81B1E29FA39C11052C73F4 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				6BED4315443417048972BE2E /* youth-reviewed.json */,
+
 				A4D516C7B3AD1D417ABBDC9C /* app_strings.json */,
+				3DE6C81FFC5D0CA49C886213 /* Nunito-OFL.txt */,
+				06EA72B71A62F95FBFD93BCB /* Nunito.ttf */,
 				0D340C91FCBE390D875ED59B /* opportunities.json */,
 				F81D27386203249D913B5F66 /* PrivacyInfo.xcprivacy */,
 				7553722146CCDD02A80A91AD /* InfoPlist.strings */,
@@ -201,7 +255,12 @@
 			path = Resources;
 			sourceTree = "<group>";
 		};
+		A170086A0DA26E46F20F2629 /* GTAFreeSTEMUITests */ = {isa = PBXGroup; children = (8D0B1C1157FF0C7893ABAB7C,); path = GTAFreeSTEMUITests; sourceTree = "<group>"; };
 /* End PBXGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E8D70C97822A4CC4663D9266 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXNativeTarget section */
 		3E42DDF6414C70F70054B63D /* GTAFreeSTEM */ = {
@@ -228,7 +287,10 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = B74C8205010C286F49A4B49A /* Build configuration list for PBXNativeTarget "GTAFreeSTEMTests" */;
 			buildPhases = (
+				2225295C1BD8BF9A24EB49F9 /* Resources */,
+
 				3D85A0C36C79964037F267A8 /* Sources */,
+				F1A5C4A52E00000000000010 /* Stage source contract fixtures */,
 			);
 			buildRules = (
 			);
@@ -260,6 +322,17 @@
 			productReference = 4660EB31E07CDB1070E208B5 /* GTAFreeSTEMWatch.app */;
 			productType = "com.apple.product-type.application";
 		};
+		DAF6D0AB33412F4A21B06D1A /* GTAFreeSTEMUITests */ = {
+            isa = PBXNativeTarget;
+            buildConfigurationList = 60930E1ECF113DA820A1AEA6;
+            buildPhases = (AE97DBEABED4FD9600515C8C, E8D70C97822A4CC4663D9266, 77A39FA67D060ED95D86D58C,);
+            buildRules = ();
+            dependencies = (5AF754992E8A14FF48049D86,);
+            name = GTAFreeSTEMUITests;
+            productName = GTAFreeSTEMUITests;
+            productReference = 0EFF9F17548A1AFB617E3A31;
+            productType = "com.apple.product-type.bundle.ui-testing";
+        };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -310,6 +383,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				DAF6D0AB33412F4A21B06D1A /* GTAFreeSTEMUITests */,
 				3E42DDF6414C70F70054B63D /* GTAFreeSTEM */,
 				6DB3CA7F9E850F0D38F42DF4 /* GTAFreeSTEMTests */,
 				76C67C0CBC761D0603D0F456 /* GTAFreeSTEMWatch */,
@@ -322,11 +396,22 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EDF077B0E717CA5A675144A4 /* youth-reviewed.json in Resources */,
+
+
+
+
+
+
+
+
 				BAB832A177C638741DFD309F /* Assets.xcassets in Resources */,
 				2642A87CF3C8A8B20769CF63 /* InfoPlist.strings in Resources */,
 				0FEC777605D5C112F928C309 /* LaunchScreen.storyboard in Resources */,
 				EE09F46022F670609FDFE888 /* PrivacyInfo.xcprivacy in Resources */,
 				475FC5B26D8388188FEC26C1 /* app_strings.json in Resources */,
+				FDE9080A6C7E9C086FDDD7C6 /* Nunito-OFL.txt in Resources */,
+				0F8FE5E37B21E671E1A6E5EC /* Nunito.ttf in Resources */,
 				15C4002643726DEDEE370E34 /* opportunities.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -337,16 +422,52 @@
 			files = (
 				3EBDCD33EFB70EB1790F90A8 /* Assets.xcassets in Resources */,
 				37389CC9F5A30FB882A2E1CB /* PrivacyInfo.xcprivacy in Resources */,
+				F1A5C4A52E00000000000001 /* WatchStrings.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		2225295C1BD8BF9A24EB49F9 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (C91373FC9FFCAF70CD5D322A /* HighSchoolFixtures in Resources */,); runOnlyForDeploymentPostprocessing = 0; };
+		77A39FA67D060ED95D86D58C = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		F1A5C4A52E00000000000010 /* Stage source contract fixtures */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/GTAFreeSTEM",
+				"$(SRCROOT)/GTAFreeSTEMWatch",
+				"$(SRCROOT)/project.yml",
+				"$(SRCROOT)/GTAFreeSTEM.xcodeproj/project.pbxproj",
+			);
+			name = "Stage source contract fixtures";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/SourceFixtures",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -euo pipefail\nfixture_root=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/SourceFixtures\"\ncase \"${fixture_root}\" in\n  \"${TARGET_BUILD_DIR}\"/*/SourceFixtures) ;;\n  *) echo \"Refusing unsafe source-fixture path: ${fixture_root}\" >&2; exit 1 ;;\nesac\n/bin/rm -rf \"${fixture_root}\"\n/bin/mkdir -p \"${fixture_root}/GTAFreeSTEM.xcodeproj\"\n/usr/bin/ditto \"${SRCROOT}/GTAFreeSTEM\" \"${fixture_root}/GTAFreeSTEM\"\n/usr/bin/ditto \"${SRCROOT}/GTAFreeSTEMWatch\" \"${fixture_root}/GTAFreeSTEMWatch\"\n/bin/cp \"${SRCROOT}/project.yml\" \"${fixture_root}/project.yml\"\n/bin/cp \"${SRCROOT}/GTAFreeSTEM.xcodeproj/project.pbxproj\" \"${fixture_root}/GTAFreeSTEM.xcodeproj/project.pbxproj\"\n/usr/bin/touch \"${fixture_root}/.complete\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		255C0902FB86ABEC934502DA /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				56A418783F3D7C744513C2ED /* HoursNotebookView.swift in Sources */,
+				B9D476A20F6E62198808E3A0 /* HighSchoolHubView.swift in Sources */,
+				5B979B49B051FCA734CD943E /* HighSchoolHubStore.swift in Sources */,
+				847FE0D7C6CB4B34CB23D0B5 /* YouthHoursFileStorage.swift in Sources */,
+				C1EB9DAA575388E6C6A1522A /* YouthHoursNotebook.swift in Sources */,
+				ED75B1F76AC103CE1F31318D /* YouthListing.swift in Sources */,
 				7210461E6FC5A14FEDE2FCA0 /* APIClient.swift in Sources */,
 				795D1A1B39BAB88ED21AB068 /* AppShortcuts.swift in Sources */,
 				68A00260FA5F2E54B7D829AE /* BrowseView.swift in Sources */,
@@ -378,11 +499,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C89079824D32C4214C419731 /* YouthHoursFileStorageTests.swift in Sources */,
+				7201242EF8F57B21A88CC436 /* YouthHighSchoolTests.swift in Sources */,
 				168AF57FFB6496AE3B843362 /* APIClientTests.swift in Sources */,
 				FEE1DAB0C0DE000000000005 /* FreeOpportunityEligibilityTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AE97DBEABED4FD9600515C8C = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (7C7A3273C26152523223185E,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -399,6 +523,7 @@
 			target = 3E42DDF6414C70F70054B63D /* GTAFreeSTEM */;
 			targetProxy = 4DE1BC7834C2F141D7C3D1E2 /* PBXContainerItemProxy */;
 		};
+		5AF754992E8A14FF48049D86 = {isa = PBXTargetDependency; target = 3E42DDF6414C70F70054B63D; targetProxy = 02D38CA0636F5358F7985C0C; };
 /* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
@@ -490,7 +615,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 19;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -503,7 +628,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				GTA_RELEASE_SOURCE_COMMIT = UNSET;
+				GTA_RELEASE_SOURCE_COMMIT = "$(CI_COMMIT)";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
@@ -571,7 +696,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 19;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -614,6 +739,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = FE33NM88XX;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = GTAFreeSTEMTests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -634,6 +760,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = FE33NM88XX;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = GTAFreeSTEMTests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -687,6 +814,34 @@
 			};
 			name = Release;
 		};
+		19D1289E54A1A149D8A827BF = {isa = XCBuildConfiguration; buildSettings = {
+                CODE_SIGN_STYLE = Automatic;
+                DEVELOPMENT_TEAM = FE33NM88XX;
+                GENERATE_INFOPLIST_FILE = YES;
+                IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+                PRODUCT_BUNDLE_IDENTIFIER = com.rupayonhaldar.GTAFreeSTEMUITests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SDKROOT = iphoneos;
+                SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+                SUPPORTS_MACCATALYST = NO;
+                SWIFT_VERSION = 6.0;
+                TARGETED_DEVICE_FAMILY = "1,2";
+                TEST_TARGET_NAME = GTAFreeSTEM;
+            }; name = Debug; };
+		2A00D31B300DAE771411E541 = {isa = XCBuildConfiguration; buildSettings = {
+                CODE_SIGN_STYLE = Automatic;
+                DEVELOPMENT_TEAM = FE33NM88XX;
+                GENERATE_INFOPLIST_FILE = YES;
+                IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+                PRODUCT_BUNDLE_IDENTIFIER = com.rupayonhaldar.GTAFreeSTEMUITests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SDKROOT = iphoneos;
+                SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+                SUPPORTS_MACCATALYST = NO;
+                SWIFT_VERSION = 6.0;
+                TARGETED_DEVICE_FAMILY = "1,2";
+                TEST_TARGET_NAME = GTAFreeSTEM;
+            }; name = Release; };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -726,6 +881,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
+		60930E1ECF113DA820A1AEA6 = {isa = XCConfigurationList; buildConfigurations = (19D1289E54A1A149D8A827BF, 2A00D31B300DAE771411E541,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 	};
 	rootObject = FA340A41CB4F72B4347F261E /* Project object */;

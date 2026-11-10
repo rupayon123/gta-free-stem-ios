@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "today": "2026-10-30",
+  "archive": {
+    "schemaVersion": 1,
+    "entries": [
+      {
+        "id": "9fd00ad4-ffec-4bed-bef9-15146cd6d605",
+        "revision": 1,
+        "provider": "=SUM(1,2)",
+        "role": "Reading buddy",
+        "activityLocalDate": "2026-03-08",
+        "actualMinutes": 95,
+        "notes": "One, \"two\"\nবাংলা",
+        "createdAt": "2026-10-30T01:00:00Z",
+        "updatedAt": "2026-10-30T01:00:00Z"
+      }
+    ]
+  },
+  "totalActualMinutes": 95,
+  "formatted": {
+    "hours": 1,
+    "minutes": 35
+  },
+  "csv": "\"Activity local date\",\"Provider\",\"Role\",\"Actual minutes\",\"Notes\",\"Record type\"\r\n\"2026-03-08\",\"'=SUM(1,2)\",\"'Reading buddy\",\"95\",\"'One, \"\"two\"\"\nবাংলা\",\"Self-recorded; not school approval\"\r\n"
+}

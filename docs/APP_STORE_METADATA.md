@@ -92,7 +92,7 @@ The app is intended for families and students. It has no ads, purchases, gamblin
 
 ## Dynamic Content And Reliability Notes
 
-- Primary live feed: \`https://raw.githubusercontent.com/rupayon123/gta-free-stem-opportunities/main/public/opportunities.json\`.
+- Primary live feed for the new build: \`https://raw.githubusercontent.com/rupayon123/gta-free-stem-opportunities/main/public/opportunities-v2.json\`. Verify this endpoint is published and current before shipping; existing builds retain the v1 feed.
 - The release gate reports the current entry count and timestamp for both the live feed and bundled fallback. Run \`docs/scripts/sync-bundled-feed.sh\` and \`docs/scripts/check-release-readiness.sh\` immediately before upload; both feeds are rejected when older than 14 days.
 - Every remote source, including the primary feed and jsDelivr CDN mirror, is rejected unless it declares data no more than 14 days old.
 - The app opens from the latest valid local cache or bundled snapshot when available, refreshes the live feed on each cold launch, and revalidates active foreground content after 15 minutes. If neither local source is usable, the interactive app—not the branded loader—shows the live loading or error state so launch cannot become trapped behind a network timeout.

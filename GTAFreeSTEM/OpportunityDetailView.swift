@@ -1,6 +1,13 @@
 import MapKit
 import SwiftData
 import SwiftUI
+#if canImport(Translation)
+import Translation
+#endif
+#if canImport(EventKitUI)
+import EventKit
+import EventKitUI
+#endif
 
 enum AppleMapsDestinationURL {
     static func make(
@@ -46,10 +53,12 @@ enum AppleMapsDestinationURL {
 struct OpportunityDetailView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.appStorageAccess) private var storageAccess
     @EnvironmentObject private var session: SessionStore
     @Query(sort: \SavedOpportunityRecord.savedAt, order: .reverse) private var savedRecords: [SavedOpportunityRecord]
     let opportunity: Opportunity
     @State private var saveErrorMessage: String?
+    @State private var calendarPresented = false
 
     var body: some View {
         ZStack {
@@ -57,8 +66,13 @@ struct OpportunityDetailView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: AppSpacing.standard) {
-                    mapPreview
                     titleCard
+                    keyFacts
+                    providerAction
+                    listingDescription
+                    accessibilityNotes
+                    providerListedSupport
+                    mapPreview
                     details
                     actions
                 }
@@ -70,6 +84,130 @@ struct OpportunityDetailView: View {
         }
         .navigationTitle(session.text("details"))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement: .topBarTrailing) { ThemeToolbarButton(showLabel: false) } }
+#if canImport(EventKitUI)
+#if DEBUG
+        .task {
+            if AppRuntime.isFrontendLayoutReview && ProcessInfo.processInfo.arguments.contains("-review-present-calendar") {
+                calendarPresented = true
+            }
+        }
+#endif
+        .sheet(isPresented: $calendarPresented) {
+            OpportunityCalendarEditor(
+                opportunity: opportunity,
+                title: session.title(for: opportunity),
+                location: opportunity.address ?? session.city(for: opportunity),
+                notes: session.fullDescription(for: opportunity)
+            )
+        }
+#endif
+    }
+
+    @ViewBuilder
+    private var listingDescription: some View {
+#if canImport(Translation)
+        if #available(iOS 18.0, macCatalyst 26.0, *) {
+            let key = ListingTranslationKey(listingID: opportunity.id, source: opportunity.description,
+                                            targetLocale: session.language.localeIdentifier)
+            OnDeviceListingDescription(source: opportunity.description, key: key)
+                .id(key)
+        } else {
+            originalListingDescription
+        }
+#else
+        originalListingDescription
+#endif
+    }
+
+    private var originalListingDescription: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(opportunity.description)
+                .font(PortfolioTypography.body)
+                .foregroundStyle(Brand.outline(for: colorScheme))
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+            Text(session.text("translationRequiresNewerSystem"))
+                .font(PortfolioTypography.footnote)
+                .foregroundStyle(Brand.mutedText(for: colorScheme))
+        }
+    }
+
+    @ViewBuilder
+    private var providerListedSupport: some View {
+        if opportunity.accessibilitySupportUnavailable {
+            Text(session.text("supportDetailsUnavailable"))
+                .font(PortfolioTypography.footnote).fixedSize(horizontal: false, vertical: true)
+        } else if let support = opportunity.accessibilitySupport, !support.evidence.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(session.text("accessibilitySupportTitle")).font(PortfolioTypography.headline)
+                    .accessibilityAddTraits(.isHeader)
+                Text(session.text("accessibilitySupportExplanation")).font(PortfolioTypography.footnote)
+                    .fixedSize(horizontal: false, vertical: true)
+                if session.language != .en { Text(session.text("notesInSourceLanguage")).font(PortfolioTypography.footnote) }
+                ForEach(Array(support.evidence.enumerated()), id: \.offset) { _, row in
+                    if let category = AccessibilitySupportKind(rawValue: row.category) {
+                        let decision = support.displayDecision(for: row, now: .now,
+                            venueID: ReviewedAccessibilityVenue.id(for: opportunity))
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(session.text(category.textKey)).font(PortfolioTypography.headline)
+                            Text(session.text(supportStatusKey(decision.status)))
+                            Text(session.text(row.scope == "venue" ? "supportScopeVenue" : row.scope == "activity" ? "supportScopeActivity" : "supportScopePolicy"))
+                                .font(PortfolioTypography.footnote)
+                            if let venue = row.venue { Text(venue.name).font(PortfolioTypography.footnote) }
+                            Text(row.evidenceText).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                            ForEach(Array((row.conditions ?? []).enumerated()), id: \.offset) { _, condition in
+                                Text(condition).font(PortfolioTypography.footnote).fixedSize(horizontal: false, vertical: true)
+                            }
+                            Text(session.text("lastChecked") + ": " + row.checkedAt).font(PortfolioTypography.caption)
+                            if let url = ExternalOpportunityURL.make(from: row.sourceUrl) {
+                                Link(session.text("source"), destination: url)
+                            }
+                            if let raw = row.requestUrl, let url = ExternalOpportunityURL.make(from: raw) {
+                                Link(session.text("supportRequestProcess"), destination: url)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Divider()
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("provider-support-details")
+        }
+    }
+
+    private func supportStatusKey(_ status: String) -> String {
+        switch status {
+        case "provided": "supportProvided"
+        case "on-request": "supportNeedsRequest"
+        case "not-available": "supportNotAvailable"
+        default: "supportUnknown"
+        }
+    }
+
+    @ViewBuilder
+    private var accessibilityNotes: some View {
+        let notes = opportunity.accessibility.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        if !notes.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(session.text("sourceAccessibilityNotes"))
+                    .font(PortfolioTypography.headline.weight(.semibold))
+                    .accessibilityAddTraits(.isHeader)
+                Text(session.text("confirmAccessibilityWithProvider"))
+                    .font(PortfolioTypography.footnote)
+                if session.language != .en {
+                    Text(session.text("notesInSourceLanguage"))
+                        .font(PortfolioTypography.footnote)
+                }
+                ForEach(Array(notes.enumerated()), id: \.offset) { _, note in
+                    Text(note).font(PortfolioTypography.body).fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("opportunity-accessibility-notes")
+        }
     }
 
     private var isSaved: Bool {
@@ -77,81 +215,87 @@ struct OpportunityDetailView: View {
     }
 
     private var titleCard: some View {
-        ZStack(alignment: .topTrailing) {
-            VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                StickerBadge(text: session.categoryName(for: opportunity), color: Brand.sun, systemImage: "star.fill")
-                Text(session.title(for: opportunity))
-                    .font(.title.weight(.bold))
-                    .foregroundStyle(Brand.outline(for: colorScheme))
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(session.organization(for: opportunity))
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Brand.lake)
-                Text(session.summary(for: opportunity))
-                    .font(.body)
-                    .foregroundStyle(Brand.outline(for: colorScheme))
-                if session.language != .en, opportunity.hasTranslation(for: session.language) {
-                    Text(session.text("translationNote"))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Brand.mutedText(for: colorScheme))
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.trailing, 44)
-
-            ThemeToolbarButton(showLabel: false)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(session.categoryName(for: opportunity))
+                .font(PortfolioTypography.caption.weight(.semibold))
+                .foregroundStyle(Brand.lake)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(session.title(for: opportunity))
+                .font(PortfolioTypography.title2.weight(.bold))
+                .foregroundStyle(Brand.outline(for: colorScheme))
+                .fixedSize(horizontal: false, vertical: true)
+            Text(session.organization(for: opportunity))
+                .font(PortfolioTypography.subheadline.weight(.semibold))
+                .foregroundStyle(Brand.mutedText(for: colorScheme))
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .cardSurface(padding: AppSpacing.large, cornerRadius: AppRadius.feature)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var mapPreview: some View {
-        Group {
-            if OpportunityCoordinate.isValid(
-                latitude: opportunity.latitude,
-                longitude: opportunity.longitude
-            ), let latitude = opportunity.latitude, let longitude = opportunity.longitude {
-                Map(initialPosition: .region(MKCoordinateRegion(
-                    center: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
-                    span: MKCoordinateSpan(latitudeDelta: 0.04, longitudeDelta: 0.04)
-                ))) {
-                    Marker(
-                        "\(session.title(for: opportunity)) · \(session.city(for: opportunity))",
-                        coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-                    )
-                        .tint(Brand.lake)
+    private var keyFacts: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            FlowLabels {
+                if let ageGuide = OpportunityRow.ageGuideRange(for: opportunity) {
+                    Text("\(session.text("ageGuide")): \(ageGuide)")
                 }
-                .accessibilityLabel("\(session.text("map")): \(session.title(for: opportunity)), \(session.city(for: opportunity))")
-                .frame(height: 220)
-            } else {
-                RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-                    .fill(Brand.selectionFill(for: colorScheme))
-                    .frame(height: 180)
-                    .overlay {
-                        Label(session.city(for: opportunity), systemImage: "map")
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(Brand.outline(for: colorScheme))
-                    }
+                Label(opportunity.localizedCost(language: session.language), systemImage: "ticket")
+                if opportunity.virtual {
+                    Label(session.text("onlineActivity"), systemImage: "globe")
+                } else {
+                    Label(session.city(for: opportunity), systemImage: "mappin.and.ellipse")
+                }
+            }
+            if let scheduleDateValue {
+                Label(scheduleDateValue, systemImage: "calendar")
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-                .strokeBorder(Brand.surfaceStroke(for: colorScheme), lineWidth: 0.75)
+        .font(PortfolioTypography.subheadline)
+        .foregroundStyle(Brand.mutedText(for: colorScheme))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var providerAction: some View {
+        if let url = ExternalOpportunityURL.make(from: opportunity.registrationUrl ?? opportunity.sourceUrl) {
+            Link(destination: url) {
+                Label(session.text(opportunity.registrationUrl == nil || opportunity.registrationUrl?.trimmingCharacters(in: .whitespacesAndNewlines) == opportunity.sourceUrl.trimmingCharacters(in: .whitespacesAndNewlines) ? "openProgramPage" : "registerApply"), systemImage: "safari")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(StoryButtonStyle(kind: .primary))
         }
-        .shadow(color: Brand.deepOcean.opacity(colorScheme == .dark ? 0.18 : 0.07), radius: 12, x: 0, y: 6)
+    }
+
+    @ViewBuilder
+    private var mapPreview: some View {
+        if Self.canShowPhysicalMap(for: opportunity), let latitude = opportunity.latitude, let longitude = opportunity.longitude {
+            Map(initialPosition: .region(MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
+                span: MKCoordinateSpan(latitudeDelta: 0.04, longitudeDelta: 0.04)
+            ))) {
+                Marker("\(session.title(for: opportunity)) · \(session.city(for: opportunity))",
+                       coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude))
+                    .tint(Brand.actionFill(for: colorScheme))
+            }
+            .accessibilityLabel("\(session.text("map")): \(session.title(for: opportunity)), \(session.city(for: opportunity))")
+            .frame(height: 220)
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+        }
+    }
+
+    static func canShowPhysicalMap(for opportunity: Opportunity) -> Bool {
+        !opportunity.virtual && OpportunityCoordinate.isValid(latitude: opportunity.latitude, longitude: opportunity.longitude)
     }
 
     private var details: some View {
         VStack(alignment: .leading, spacing: 14) {
-            StorySectionTitle(text: session.text("details"), systemImage: "checklist")
-            DetailFact(title: session.text("city"), value: "\(session.city(for: opportunity)), \(session.region(for: opportunity))", icon: "mappin.and.ellipse")
-            DetailFact(title: session.text("ages"), value: "\(opportunity.ageMin)\(opportunity.ageMax.map { "–\($0)" } ?? "+")", icon: "person.2")
-            DetailFact(title: session.text("cost"), value: session.cost(for: opportunity), icon: "heart.fill")
-            if let scheduleDateValue {
-                DetailFact(title: session.text("date"), value: scheduleDateValue, icon: "calendar")
+            Divider()
+            if !opportunity.virtual {
+                DetailFact(title: session.text("city"), value: Self.cityAndRegion(session.city(for: opportunity), session.region(for: opportunity)), icon: "mappin.and.ellipse")
             }
             if let deadline = opportunity.deadline, shouldShowDeadline {
-                DetailFact(title: session.text("deadline"), value: session.formattedEventDateTime(deadline), icon: "alarm")
+                DetailFact(title: session.text("deadline"), value: session.formattedLocalEventDateTime(deadline), icon: "alarm")
             }
             if opportunity.volunteerHoursEligible {
                 DetailFact(title: session.text("pathway"), value: session.text("volunteerHours"), icon: "checkmark.seal")
@@ -159,12 +303,12 @@ struct OpportunityDetailView: View {
             if opportunity.coopEligible {
                 DetailFact(title: session.text("pathway"), value: session.text("coop"), icon: "briefcase")
             }
-            if !opportunity.language.isEmpty {
-                DetailFact(title: session.text("languages"), value: opportunity.language.map(languageName).joined(separator: ", "), icon: "globe")
-            }
             DetailFact(title: session.text("source"), value: opportunity.sourceUrl, icon: "link")
         }
-        .cardSurface()
+    }
+
+    static func cityAndRegion(_ city: String, _ region: String) -> String {
+        city == region ? city : "\(city), \(region)"
     }
 
     private var scheduleDateValue: String? {
@@ -177,14 +321,15 @@ struct OpportunityDetailView: View {
 
     private var actions: some View {
         VStack(spacing: 12) {
-            StorySectionTitle(text: session.text("registerApply"), systemImage: "paperplane.fill")
-            if let url = ExternalOpportunityURL.make(from: opportunity.registrationUrl ?? opportunity.sourceUrl) {
-                Link(destination: url) {
-                    Label(session.text("registerApply"), systemImage: "safari")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(StoryButtonStyle(kind: .primary))
+            StorySectionTitle(text: session.text("details"), systemImage: "paperplane.fill")
+#if canImport(EventKitUI)
+            Button { calendarPresented = true } label: {
+                Label(session.text("addToCalendar"), systemImage: "calendar.badge.plus")
+                    .frame(maxWidth: .infinity)
             }
+            .buttonStyle(StoryButtonStyle(kind: .secondary))
+            .accessibilityIdentifier("opportunity-calendar")
+#endif
             if let url = directionsURL {
                 Link(destination: url) {
                     Label(session.text("directions"), systemImage: "map")
@@ -193,6 +338,7 @@ struct OpportunityDetailView: View {
                 .buttonStyle(StoryButtonStyle(kind: .secondary))
             }
             Button {
+                guard storageAccess.allowsPersistentChanges else { return }
                 do {
                     _ = try SavedOpportunityLibrary.toggle(opportunity, in: modelContext)
                     saveErrorMessage = nil
@@ -204,36 +350,42 @@ struct OpportunityDetailView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(StoryButtonStyle(kind: .quiet))
-            .accessibilityHint(session.text("savedArchiveNote"))
+            .disabled(!storageAccess.allowsPersistentChanges)
+            .accessibilityHint(
+                session.text(
+                    storageAccess.allowsPersistentChanges
+                        ? "savedArchiveNote"
+                        : "localStorageUnavailableMessage"
+                )
+            )
 
             if let saveErrorMessage {
                 Label(saveErrorMessage, systemImage: "exclamationmark.triangle.fill")
-                    .font(.footnote)
+                    .font(PortfolioTypography.footnote)
                     .foregroundStyle(Brand.coral)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .cardSurface()
     }
 
     private var directionsURL: URL? {
-        AppleMapsDestinationURL.make(
+        Self.directionsURL(for: opportunity, language: session.language)
+    }
+
+    static func directionsURL(for opportunity: Opportunity, language: AppLanguage) -> URL? {
+        guard !opportunity.virtual else { return nil }
+        return AppleMapsDestinationURL.make(
             latitude: opportunity.latitude,
             longitude: opportunity.longitude,
-            address: opportunity.localizedAddress(language: session.language),
+            address: opportunity.localizedAddress(language: language),
             fallbackComponents: [
-                opportunity.localizedOrganization(language: session.language),
-                opportunity.localizedCity(language: session.language),
-                opportunity.localizedRegion(language: session.language)
+                opportunity.localizedOrganization(language: language),
+                opportunity.localizedCity(language: language),
+                opportunity.localizedRegion(language: language)
             ]
         )
     }
 
-    private func languageName(_ code: String) -> String {
-        let language = AppLanguage.normalized(code)
-        if language == .en && code != AppLanguage.en.rawValue { return code }
-        return session.languageName(language)
-    }
 }
 
 private struct DetailFact: View {
@@ -245,7 +397,7 @@ private struct DetailFact: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
-                .font(.subheadline.weight(.semibold))
+                .font(PortfolioTypography.subheadline.weight(.semibold))
                 .frame(width: 32, height: 32)
                 .background(Brand.selectionFill(for: colorScheme), in: Circle())
                 .foregroundStyle(Brand.lake)
@@ -253,10 +405,10 @@ private struct DetailFact: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.caption.weight(.semibold))
+                    .font(PortfolioTypography.caption.weight(.semibold))
                     .foregroundStyle(Brand.mutedText(for: colorScheme))
                 Text(value)
-                    .font(.subheadline)
+                    .font(PortfolioTypography.subheadline)
                     .foregroundStyle(Brand.outline(for: colorScheme))
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
@@ -265,3 +417,241 @@ private struct DetailFact: View {
         .padding(.vertical, 3)
     }
 }
+
+/// A draft for the person's system editor. No direct Calendar writes or reads.
+struct NativeCalendarDraft {
+    let start: Date?
+    let end: Date?
+    let allDay: Bool
+
+    init(start: String?, end: String?) {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Toronto")!
+        func day(_ raw: String?) -> Date? {
+            guard let raw, raw.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil else { return nil }
+            let parts = raw.split(separator: "-").compactMap { Int($0) }
+            guard parts.count == 3 else { return nil }
+            return calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
+        }
+        if let startDay = day(start) {
+            self.start = startDay
+            self.allDay = true
+            self.end = day(end).flatMap { $0 >= startDay ? calendar.date(byAdding: .day, value: 1, to: $0) : nil }
+        } else {
+            let startTime = start.flatMap { FeedFreshness.date(from: $0) }
+            self.start = startTime
+            self.allDay = false
+            self.end = end.flatMap { FeedFreshness.date(from: $0) }.flatMap { value in
+                startTime.flatMap { value > $0 ? value : nil }
+            }
+        }
+    }
+}
+
+#if canImport(EventKitUI)
+private struct OpportunityCalendarEditor: UIViewControllerRepresentable {
+    let opportunity: Opportunity
+    let title: String
+    let location: String
+    let notes: String
+    @Environment(\.dismiss) private var dismiss
+
+    func makeCoordinator() -> Coordinator { Coordinator { dismiss() } }
+    func makeUIViewController(context: Context) -> EKEventEditViewController {
+        let controller = EKEventEditViewController()
+        let store = EKEventStore()
+        controller.eventStore = store
+        let event = EKEvent(eventStore: store)
+        event.title = title
+        event.location = location
+        event.notes = "\(notes)\n\n\(opportunity.sourceUrl)"
+        event.url = ExternalOpportunityURL.make(from: opportunity.sourceUrl)
+        let draft = NativeCalendarDraft(start: opportunity.startDate, end: opportunity.endDate)
+        event.isAllDay = draft.allDay
+        event.timeZone = TimeZone(identifier: "America/Toronto")
+        if let start = draft.start { event.startDate = start }
+        if let end = draft.end { event.endDate = end }
+        controller.event = event
+        controller.editViewDelegate = context.coordinator
+#if DEBUG
+        if AppRuntime.isFrontendLayoutReview && ProcessInfo.processInfo.arguments.contains("-review-present-calendar") {
+            Task { @MainActor in
+                for _ in 0..<20 {
+                    try? await Task.sleep(nanoseconds: 250_000_000)
+                    if controller.viewIfLoaded?.window != nil {
+                        markCalendarReviewPresented()
+                        break
+                    }
+                }
+            }
+        }
+#endif
+        return controller
+    }
+    func updateUIViewController(_ controller: EKEventEditViewController, context: Context) {}
+    final class Coordinator: NSObject, EKEventEditViewDelegate {
+        let finish: () -> Void
+        init(finish: @escaping () -> Void) { self.finish = finish }
+        func eventEditViewController(_ controller: EKEventEditViewController, didCompleteWith action: EKEventEditViewAction) { finish() }
+    }
+}
+#if DEBUG
+/// Records a displayed system-controller window only for the bounded CI sample smoke.
+@MainActor
+private func markCalendarReviewPresented() {
+    let args = ProcessInfo.processInfo.arguments
+    guard AppRuntime.isFrontendLayoutReview,
+          let index = args.firstIndex(of: "-screenshot-ready-nonce"), args.indices.contains(index + 1),
+          let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+    else { return }
+    let nonce = args[index + 1]
+    guard !nonce.isEmpty, nonce.count <= 200 else { return }
+    FileHandle.standardOutput.write(Data(("GTA_CALENDAR_REVIEW_READY " + nonce + "\n").utf8))
+    try? Data(nonce.utf8).write(to: cache.appendingPathComponent("gta-free-stem-calendar-review-ready"), options: .atomic)
+}
+#endif
+#endif
+
+#if canImport(Translation)
+@available(iOS 18.0, macCatalyst 26.0, *)
+private struct OnDeviceListingDescription: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject private var session: SessionStore
+    let source: String
+    let key: ListingTranslationKey
+
+    private enum Phase {
+        case original, checking, translating, translated(String), unavailable, failed
+    }
+    @State private var phase: Phase = .original
+    @State private var configuration: TranslationSession.Configuration?
+    @State private var availabilityTask: Task<Void, Never>?
+    @State private var generation = UUID()
+
+    var body: some View {
+        let input = source
+        VStack(alignment: .leading, spacing: 8) {
+            Text(displayedText)
+                .font(PortfolioTypography.body)
+                .foregroundStyle(Brand.outline(for: colorScheme))
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+            switch phase {
+            case .translated:
+                Text(session.text("translatedOnDevice")).font(PortfolioTypography.footnote)
+                Button(session.text("showOriginal"), action: cancel)
+            case .checking, .translating:
+                ProgressView(session.text("translatingListing"))
+                Button(session.text("cancelTranslation"), action: cancel)
+            case .unavailable:
+                Text(session.text("translationUnavailable")).font(PortfolioTypography.footnote)
+                Button(session.text("translateListing"), action: begin)
+            case .failed:
+                Text(session.text("translationFailed")).font(PortfolioTypography.footnote)
+                Button(session.text("translateListing"), action: begin)
+            case .original:
+                Button(session.text("translateListing"), action: begin)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .translationTask(configuration) { @Sendable translator in
+            let requestGeneration = await MainActor.run { generation }
+            do {
+                let result = try await translator.translate(input)
+                guard !Task.isCancelled else { return }
+                let translated = result.targetText
+                await MainActor.run {
+                    guard generation == requestGeneration else { return }
+                    guard !translated.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                          translated.utf8.count <= 600_000 else {
+                        phase = .failed
+                        configuration = nil
+                        return
+                    }
+                    ListingTranslationCache.shared.insert(translated, for: key)
+                    phase = .translated(translated)
+                    configuration = nil
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    guard generation == requestGeneration else { return }
+                    phase = .failed
+                    configuration = nil
+                }
+            }
+        }
+        .onDisappear(perform: cancel)
+    }
+
+    private var displayedText: String {
+        if case .translated(let text) = phase { return text }
+        return source
+    }
+
+    private func begin() {
+        cancel()
+        if let cached = ListingTranslationCache.shared.value(for: key) {
+            phase = .translated(cached)
+            return
+        }
+        guard !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              source.utf8.count <= 100_000 else {
+            phase = .unavailable
+            return
+        }
+        let requestGeneration = generation
+        let target = Locale.Language(identifier: key.targetLocale)
+        phase = .checking
+        availabilityTask = Task {
+            do {
+                let status = try await Self.checkAvailability(source: source, targetLocale: key.targetLocale)
+                guard !Task.isCancelled, generation == requestGeneration else { return }
+                switch status {
+                case .installed, .supported:
+                    phase = .translating
+                    if #available(iOS 26.4, macCatalyst 26.4, *) {
+                        configuration = .init(source: nil, target: target, preferredStrategy: .lowLatency)
+                    } else {
+                        configuration = .init(source: nil, target: target)
+                    }
+                case .unsupported:
+                    phase = .unavailable
+                @unknown default:
+                    phase = .unavailable
+                }
+            } catch {
+                guard !Task.isCancelled, generation == requestGeneration else { return }
+                phase = .unavailable
+            }
+        }
+    }
+
+    // Keep Apple's non-Sendable availability object in one nonisolated async
+    // operation. Only its Sendable status returns to the view's main actor.
+    nonisolated private static func checkAvailability(source: String, targetLocale: String) async throws -> LanguageAvailability.Status {
+        let availability: LanguageAvailability
+        if #available(iOS 26.4, macCatalyst 26.4, *) {
+            availability = LanguageAvailability(preferredStrategy: .lowLatency)
+        } else {
+            availability = LanguageAvailability()
+        }
+        // A matching fallback must not silently turn Cantonese into Mandarin.
+        if targetLocale == "yue-Hant" {
+            let languages = await availability.supportedLanguages
+            guard languages.contains(where: { $0.languageCode?.identifier == "yue" }) else {
+                return .unsupported
+            }
+        }
+        return try await availability.status(for: source, to: Locale.Language(identifier: targetLocale))
+    }
+
+    private func cancel() {
+        generation = UUID()
+        availabilityTask?.cancel()
+        availabilityTask = nil
+        configuration = nil
+        phase = .original
+    }
+}
+#endif

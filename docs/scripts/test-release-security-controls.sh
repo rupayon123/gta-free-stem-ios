@@ -65,9 +65,9 @@ for fragment in (
 if 'git diff --quiet "$SOURCE_COMMIT"' not in device_install_script:
     raise SystemExit("Connected-device installs must reject source bytes that do not match the embedded commit.")
 
-if 'CHECK_PUBLIC_SUPPORT_CONTACT="${CHECK_PUBLIC_SUPPORT_CONTACT:-1}"' not in readiness_script:
+if 'REQUIRE_DIRECT_SUPPORT_CONTACT="${REQUIRE_DIRECT_SUPPORT_CONTACT:-1}"' not in readiness_script:
     raise SystemExit("Public support-contact verification must remain enabled by default.")
-if 'CHECK_PUBLIC_SUPPORT_CONTACT=0' not in ci_readiness_script:
+if 'REQUIRE_DIRECT_SUPPORT_CONTACT=0' not in ci_readiness_script:
     raise SystemExit("CI must explicitly defer the release-owner support-contact check.")
 
 if safe_export_options.get("destination") != "export":

@@ -1,4 +1,106 @@
 import Foundation
+import CryptoKit
+
+/// Field-level binding for a translation pack after its manifest, source index,
+/// provenance and bytes have been independently validated. This does not fetch
+/// or enable a catalog: a qualified public endpoint does not yet exist.
+enum FullDescriptionBinding {
+    struct SourceRecord {
+        let id: String
+        let organization: String
+        let sourceURL: String
+        let titleSHA256: String
+        let descriptionSHA256: String
+    }
+
+    struct Entry {
+        let text: String
+        let sourceSegmentCount: Int
+        let translatedSegmentCount: Int
+        let endedNormally: Bool
+    }
+
+    struct Result {
+        let title: String?
+        let description: String?
+    }
+
+    static func hash(_ text: String) -> String {
+        SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    static func resolve(
+        id: String, organization: String, sourceURL: String,
+        title: String, description: String,
+        requestedLanguage: AppLanguage, packLanguage: String,
+        record: SourceRecord, entries: [String: Entry]
+    ) -> Result? {
+        // Compare identity bytes as well as the actual field hashes. Swift's
+        // normal String equality permits Unicode canonical equivalence.
+        func sameBytes(_ left: String, _ right: String) -> Bool {
+            left.utf8.elementsEqual(right.utf8)
+        }
+        guard requestedLanguage != .en,
+              sameBytes(requestedLanguage.rawValue, packLanguage),
+              sameBytes(id, record.id), sameBytes(organization, record.organization),
+              sameBytes(sourceURL, record.sourceURL) else { return nil }
+
+        func boundText(_ original: String, _ expectedHash: String) -> String? {
+            guard hash(original) == expectedHash, let entry = entries[expectedHash],
+                  entry.sourceSegmentCount > 0,
+                  entry.sourceSegmentCount == entry.translatedSegmentCount,
+                  entry.endedNormally,
+                  !entry.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  entry.text.utf8.count <= 600_000 else { return nil }
+            return entry.text
+        }
+        return Result(title: boundText(title, record.titleSHA256),
+                      description: boundText(description, record.descriptionSHA256))
+    }
+}
+
+/// A small, process-only cache; the exact source bytes and target language are
+/// part of the key so an updated listing cannot reuse an older translation.
+struct ListingTranslationKey: Hashable {
+    let listingHash: String
+    let sourceHash: String
+    let targetLocale: String
+    let field: String
+
+    init(listingID: String, source: String, targetLocale: String) {
+        listingHash = FullDescriptionBinding.hash(listingID)
+        sourceHash = FullDescriptionBinding.hash(source)
+        self.targetLocale = targetLocale
+        field = "description"
+    }
+}
+
+@MainActor
+final class ListingTranslationCache {
+    static let shared = ListingTranslationCache()
+    private var entries: [ListingTranslationKey: String] = [:]
+    private var order: [ListingTranslationKey] = []
+    private let limit: Int
+    private let byteLimit: Int
+
+    init(limit: Int = 20, byteLimit: Int = 600_000) {
+        self.limit = max(0, limit)
+        self.byteLimit = max(0, byteLimit)
+    }
+
+    func value(for key: ListingTranslationKey) -> String? { entries[key] }
+
+    func insert(_ value: String, for key: ListingTranslationKey) {
+        guard limit > 0, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              value.utf8.count <= byteLimit else { return }
+        entries[key] = value
+        order.removeAll { $0 == key }
+        order.append(key)
+        while order.count > limit || entries.values.reduce(0, { $0 + $1.utf8.count }) > byteLimit {
+            entries.removeValue(forKey: order.removeFirst())
+        }
+    }
+}
 
 enum APIError: Error, LocalizedError {
     case badURL
@@ -20,11 +122,11 @@ enum APIError: Error, LocalizedError {
 }
 
 final class APIClient: @unchecked Sendable {
-    static let primaryPublicFeedURL = URL(string: "https://raw.githubusercontent.com/rupayon123/gta-free-stem-opportunities/main/public/opportunities.json")!
+    static let primaryPublicFeedURL = URL(string: "https://raw.githubusercontent.com/rupayon123/gta-free-stem-opportunities/main/public/opportunities-v2.json")!
     // A CDN mirror keeps a current, independent retrieval path when the raw
     // GitHub endpoint is temporarily unavailable. Every source is still held
     // to the same HTTPS, payload-size, schema, and freshness checks below.
-    static let fallbackPublicFeedURL = URL(string: "https://cdn.jsdelivr.net/gh/rupayon123/gta-free-stem-opportunities@main/public/opportunities.json")!
+    static let fallbackPublicFeedURL = URL(string: "https://cdn.jsdelivr.net/gh/rupayon123/gta-free-stem-opportunities@main/public/opportunities-v2.json")!
 
     let feedURL: URL
     private let fallbackFeedURLs: [URL]
@@ -94,7 +196,8 @@ final class APIClient: @unchecked Sendable {
             meta: OpportunityListResponse.Metadata(
                 activeCount: filtered.count,
                 lastUpdated: response.meta?.lastUpdated
-            )
+            ),
+            publicationRevision: response.publicationRevision
         )
     }
 
@@ -102,8 +205,10 @@ final class APIClient: @unchecked Sendable {
         var lastError: Error?
 
         for source in [feedURL] + fallbackFeedURLs {
+            try Task.checkCancellation()
             do {
                 let response: OpportunityListResponse = try await get(source)
+                try Task.checkCancellation()
                 guard FeedFreshness.isCurrent(response.meta?.lastUpdated, now: now()) else {
                     throw APIError.invalidResponse
                 }
@@ -113,11 +218,19 @@ final class APIClient: @unchecked Sendable {
                 guard !response.data.isEmpty else {
                     throw APIError.invalidResponse
                 }
-                guard response.hasValidUniqueIDs, response.hasHealthyDeclaredSources else {
+                guard response.hasValidUniqueIDs, response.hasHealthyDeclaredSources,
+                      response.hasValidPublicationRevision(now: now()) else {
+                    throw APIError.invalidResponse
+                }
+                guard response.hasReleaseReadyContentRights(now: now()) else {
                     throw APIError.invalidResponse
                 }
                 return applyBundledTranslations(from: response)
             } catch {
+                try Task.checkCancellation()
+                if error is CancellationError || (error as? URLError)?.code == .cancelled {
+                    throw error
+                }
                 lastError = error
             }
         }
@@ -130,7 +243,9 @@ final class APIClient: @unchecked Sendable {
         return OpportunityListResponse(
             data: mergedData,
             meta: response.meta,
-            sourceHealth: response.sourceHealth
+            sourceHealth: response.sourceHealth,
+            contentRights: response.contentRights,
+            publicationRevision: response.publicationRevision
         )
     }
 
@@ -138,11 +253,18 @@ final class APIClient: @unchecked Sendable {
         guard let bundled = Self.bundledTranslationIndex[opportunity.id] else {
             return opportunity
         }
+        return Self.mergingBundledTranslations(bundled, into: opportunity)
+    }
+
+    static func mergingBundledTranslations(_ bundled: [String: OpportunityTranslation], into opportunity: Opportunity) -> Opportunity {
         var translations = bundled
         for (key, remoteTranslation) in opportunity.translations {
-            let fallback = bundled[key] ?? bundled[AppLanguage.normalized(key).rawValue]
+            let supportedLanguage = AppLanguage.supportedLanguage(for: key)
+            let fallback = bundled[key] ?? supportedLanguage.flatMap { bundled[$0.rawValue] }
             translations[key] = remoteTranslation.merged(with: fallback)
-            translations[AppLanguage.normalized(key).rawValue] = translations[key]
+            if let supportedLanguage {
+                translations[supportedLanguage.rawValue] = translations[key]
+            }
         }
         let mergedTranslations = translations.compactMapValues { $0.hasContent ? $0 : nil }
         return Opportunity(
@@ -173,16 +295,56 @@ final class APIClient: @unchecked Sendable {
             distanceKm: opportunity.distanceKm,
             isNewFind: opportunity.isNewFind,
             sourceConfidence: opportunity.sourceConfidence,
-            translations: mergedTranslations
+            translations: mergedTranslations,
+            virtual: opportunity.virtual,
+            accessibility: opportunity.accessibility,
+            accessibilitySupport: opportunity.accessibilitySupport,
+            accessibilitySupportUnavailable: opportunity.accessibilitySupportUnavailable
         )
     }
 
     private func get<T: Decodable>(_ url: URL) async throws -> T {
+        try Task.checkCancellation()
         guard Self.isTrustedTransport(url) else { throw APIError.insecureConnection }
-        let (data, response) = try await session.data(from: url)
-        guard data.count <= Self.maxResponseBytes else { throw APIError.invalidResponse }
-        guard let http = response as? HTTPURLResponse, 200..<300 ~= http.statusCode else { throw APIError.invalidResponse }
-        return try JSONDecoder().decode(T.self, from: data)
+        let (bytes, response) = try await session.bytes(from: url)
+        let responseTask = bytes.task
+        do {
+            return try await withTaskCancellationHandler {
+                try Task.checkCancellation()
+                guard let http = response as? HTTPURLResponse, 200..<300 ~= http.statusCode else {
+                    throw APIError.invalidResponse
+                }
+                guard let finalURL = http.url, Self.isTrustedTransport(finalURL) else {
+                    throw APIError.insecureConnection
+                }
+                guard response.expectedContentLength <= Int64(Self.maxResponseBytes) else {
+                    throw APIError.invalidResponse
+                }
+
+                var data = Data()
+                if response.expectedContentLength > 0 {
+                    data.reserveCapacity(Int(response.expectedContentLength))
+                }
+                for try await byte in bytes {
+                    // Unknown or understated lengths still cannot grow the
+                    // retained payload beyond the cap while the body arrives.
+                    guard data.count < Self.maxResponseBytes else { throw APIError.invalidResponse }
+                    data.append(byte)
+                    if data.count.isMultiple(of: 65_536) {
+                        try Task.checkCancellation()
+                    }
+                }
+                try Task.checkCancellation()
+                return try JSONDecoder().decode(T.self, from: data)
+            } onCancel: {
+                responseTask.cancel()
+            }
+        } catch {
+            // Header rejection and byte overflow must stop the transfer, not
+            // leave a response downloading after the caller moves to a mirror.
+            responseTask.cancel()
+            throw error
+        }
     }
 
     private static func isTrustedTransport(_ url: URL) -> Bool {
