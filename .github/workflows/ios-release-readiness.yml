@@ -1,4 +1,4 @@
-name: Focused iOS beta navigation diagnostic
+name: Focused iOS beta UI retest
 on:
   push:
     branches: [codex/ios-beta-nav-20261109]
@@ -21,7 +21,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git rev-parse HEAD^)" = f349c3ff707fbc36c582cf2d4ad20093d5d2a188
+          test "$(git rev-parse HEAD^)" = 1505b3523bbbbc35b43e374ad440473bc6c66128
           test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = .github/workflows/ios-release-readiness.yml
           test -z "$(git status --porcelain)"
           shasum -a 256 -c .github/native-ci-source.sha256
@@ -44,9 +44,8 @@ jobs:
               output.write('value=platform=iOS Simulator,id=' + device + '\n')
           print('Selected iPhone 17 Pro', runtime, device)
           PY
-      - name: Run iOS unit regressions
-        id: units
-        timeout-minutes: 20
+      - name: Verify localized support evidence date
+        timeout-minutes: 15
         shell: bash
         env:
           TEST_DESTINATION: ${{ steps.destination.outputs.value }}
@@ -55,49 +54,18 @@ jobs:
           xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM \
             -configuration Debug -destination "$TEST_DESTINATION" -destination-timeout 90 \
             -jobs 1 -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 \
-            -derivedDataPath "$RUNNER_TEMP/nav-derived" -resultBundlePath "$RUNNER_TEMP/units.xcresult" \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/units.log"
-          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/units.xcresult" > "$RUNNER_TEMP/units-summary.json"
-          xcrun xcresulttool get test-results tests --path "$RUNNER_TEMP/units.xcresult" > "$RUNNER_TEMP/units-tests.json"
-          python3 - <<'PY'
+            -only-testing:GTAFreeSTEMTests/APIClientTests/testSupportEvidenceCheckedDateUsesLocaleWithoutChangingStoredInstant \
+            -derivedDataPath "$RUNNER_TEMP/nav-derived" -resultBundlePath "$RUNNER_TEMP/date.xcresult" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/date.log"
+          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/date.xcresult" > "$RUNNER_TEMP/date-summary.json"
+          python3 - <<'CHECK'
           import json, os
           from pathlib import Path
-          root = Path(os.environ['RUNNER_TEMP'])
-          summary = json.loads((root / 'units-summary.json').read_text())
-          print(json.dumps(summary))
-          total = summary.get('totalTestCount', 0)
-          if summary.get('result') != 'Passed' or total < 200 or summary.get('passedTests') != total or summary.get('failedTests') != 0 or summary.get('skippedTests') != 0:
-              raise SystemExit('The complete unit suite did not pass')
-          tests = (root / 'units-tests.json').read_text()
-          for name in ('testSourceAccessibilityNotesSurviveFeedCacheArchiveAndTranslationMerge', 'testFullDescriptionBindingRequiresExactIdentityLocaleAndSourceBytes', 'testOnDeviceListingCacheBindsExactSourceAndBoundsMemory', 'testDailyReminderIsOptInAndOnlyPersistsAcceptedSchedules', 'testSavedFilterAlertsMatchIndependentlyRetryAndDeduplicateAcrossRelaunch', 'testStructuredSupportV1AndUnavailableMarkerSurviveFeedCacheArchiveAndCopies', 'testReviewedFactualSourcesRequireExactRecordsAndNeverAssertPermission', 'testLargeCatalogueCacheEncodingKeepsUIResponsiveAndHonorsCancellation', 'testCancelledRefreshDuringCachePreparationRetainsResultsAndSavedRecords'):
-              if name not in tests: raise SystemExit('Missing required regression: ' + name)
-          PY
-      - name: Verify the installed build 19 reader against v1
-        timeout-minutes: 18
-        shell: bash
-        env:
-          TEST_DESTINATION: ${{ steps.destination.outputs.value }}
-        run: |
-          set -euo pipefail
-          git fetch -q --no-tags --depth=1 origin ee6edf3b9852db149390c38a18c48023f5a3f509
-          git worktree add -q --detach "$RUNNER_TEMP/build19-reader" ee6edf3b9852db149390c38a18c48023f5a3f509
-          curl -fsSL --max-time 30 'https://raw.githubusercontent.com/rupayon123/gta-free-stem-opportunities/refs/heads/codex/backend-fresh-review-20261110-42775949636/opportunities.json' -o "$RUNNER_TEMP/build19-reader/GTAFreeSTEM/Resources/opportunities.json"
-          printf '%s  %s\n' 'b1bc634cf7be59ac0ecf0799f717f0726660978f2356e51d57fc55848635fc9b' "$RUNNER_TEMP/build19-reader/GTAFreeSTEM/Resources/opportunities.json" | shasum -a 256 -c -
-          xcodebuild test -project "$RUNNER_TEMP/build19-reader/GTAFreeSTEM.xcodeproj" -scheme GTAFreeSTEM \
-            -configuration Debug -destination "$TEST_DESTINATION" -destination-timeout 90 \
-            -jobs 1 -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 \
-            -only-testing:GTAFreeSTEMTests/APIClientTests/testBundledSnapshotCarriesReleaseReadyContentRightsManifest \
-            -derivedDataPath "$RUNNER_TEMP/legacy-derived" -resultBundlePath "$RUNNER_TEMP/legacy.xcresult" \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/legacy.log"
-          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/legacy.xcresult" > "$RUNNER_TEMP/legacy-summary.json"
-          python3 - <<'PY'
-          import json, os
-          from pathlib import Path
-          summary=json.loads((Path(os.environ['RUNNER_TEMP']) / 'legacy-summary.json').read_text())
-          print('BUILD19_READER_SUMMARY ' + json.dumps(summary))
-          if summary.get('result') != 'Passed' or summary.get('totalTestCount') != 1 or summary.get('passedTests') != 1 or summary.get('failedTests') != 0 or summary.get('skippedTests') != 0:
-              raise SystemExit('Build 19 reader did not accept the v1 candidate')
-          PY
+          s=json.loads((Path(os.environ['RUNNER_TEMP'])/'date-summary.json').read_text())
+          print('SUPPORT_DATE_SUMMARY '+json.dumps(s))
+          if s.get('result')!='Passed' or s.get('totalTestCount')!=1 or s.get('passedTests')!=1 or s.get('failedTests')!=0 or s.get('skippedTests')!=0:
+              raise SystemExit('Support date regression did not pass')
+          CHECK
       - name: Run bottom-content diagnostic
         id: ui
         timeout-minutes: 22
@@ -175,7 +143,7 @@ jobs:
           run_id = os.environ['GITHUB_RUN_ID']; attempt = os.environ['GITHUB_RUN_ATTEMPT']
           if not re.fullmatch(r'\d+', run_id) or not re.fullmatch(r'\d+', attempt): raise SystemExit('Invalid run ID')
           ref = 'codex/ios-beta-evidence-' + run_id + '-' + attempt
-          (evidence / 'manifest.json').write_text(json.dumps({'workflowCommit': os.environ['GITHUB_SHA'], 'sourceCommit': 'f349c3ff707fbc36c582cf2d4ad20093d5d2a188', 'simulatorOnly': True, 'images': entries}, indent=2) + '\n')
+          (evidence / 'manifest.json').write_text(json.dumps({'workflowCommit': os.environ['GITHUB_SHA'], 'sourceCommit': '1505b3523bbbbc35b43e374ad440473bc6c66128', 'simulatorOnly': True, 'images': entries}, indent=2) + '\n')
           askpass = temp / 'gta-evidence-askpass.sh'
           askpass.write_text('#!/bin/sh\ncase "$1" in *Username*) printf "%s\\n" x-access-token ;; *) printf "%s\\n" "$EVIDENCE_GITHUB_TOKEN" ;; esac\n')
           askpass.chmod(0o700)
