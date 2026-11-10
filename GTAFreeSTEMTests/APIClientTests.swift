@@ -4550,9 +4550,13 @@ final class OpportunityStoreTests: XCTestCase {
         let bundleURL = try XCTUnwrap(AppResources.url(forResource: "opportunities", withExtension: "json"))
         var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: bundleURL)) as? [String: Any])
         var rows = try XCTUnwrap(json["opportunities"] as? [[String: Any]])
-        rows[0]["title"] = "Conflicting equal revision body"
+        let libraryIndex = try XCTUnwrap(rows.firstIndex { $0["organization"] as? String == "Toronto Public Library" })
+        rows[libraryIndex]["title"] = "Conflicting equal revision body"
         json["opportunities"] = rows
-        URLProtocolStub.register(responseFor: url, statusCode: 200, body: try JSONSerialization.data(withJSONObject: json))
+        let conflictingBody = try JSONSerialization.data(withJSONObject: json)
+        let conflictingFeed = try JSONDecoder().decode(OpportunityListResponse.self, from: conflictingBody)
+        XCTAssertTrue(conflictingFeed.hasReleaseReadyContentRights(now: clock), "The conflict must reach revision comparison, not fail rights validation")
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: conflictingBody)
         let store = OpportunityStore(api: APIClient(feedURL: url, session: makeURLSessionForStub(), now: { clock }), now: { clock })
         _ = await store.prepareInitialSnapshot(cache: context)
         let accepted = store.opportunities
@@ -4961,9 +4965,11 @@ final class OpportunityStoreTests: XCTestCase {
         XCTAssertEqual(store.huntPhase, .cached)
         XCTAssertNil(store.errorMessage)
         XCTAssertEqual(URLProtocolStub.requestCount, 0)
-        XCTAssertEqual(store.availableHomePathwayModes, [.volunteer])
-        let volunteerRows = LocalOpportunitySnapshot.filter(store.opportunities, query: "", mode: .volunteer, filters: OpportunityFilters(), now: now)
-        XCTAssertEqual(volunteerRows.map(\.id), ["tpl-rss-6ac92852295b3b0033cb1160"])
+        XCTAssertEqual(store.availableHomePathwayModes, HomePathwayInventory.availableModes(in: store.opportunities, now: now))
+        for mode in store.availableHomePathwayModes {
+            let rows = LocalOpportunitySnapshot.filter(store.opportunities, query: "", mode: mode, filters: OpportunityFilters(), now: now)
+            XCTAssertFalse(rows.isEmpty, "Every promoted pathway must have current bundled results")
+        }
     }
 
     @MainActor
