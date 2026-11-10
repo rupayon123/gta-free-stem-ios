@@ -719,6 +719,14 @@ struct HomeView: View {
                 .padding(.bottom, AppSpacing.standard)
             }
             .background(Brand.contentCanvas(for: colorScheme).ignoresSafeArea())
+            // Keep scrolled content behind an opaque status-bar backdrop even
+            // though Home deliberately has no visible navigation bar.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                Color.clear.frame(height: 0)
+                    .background(Brand.contentCanvas(for: colorScheme).ignoresSafeArea(edges: .top))
+                    .accessibilityHidden(true)
+                    .allowsHitTesting(false)
+            }
             .navigationTitle("")
             .toolbar(.hidden, for: .navigationBar)
             .confirmationDialog(session.text("deleteSavedSearch"), isPresented: Binding(

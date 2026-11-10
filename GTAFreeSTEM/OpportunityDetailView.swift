@@ -238,7 +238,7 @@ struct OpportunityDetailView: View {
         VStack(alignment: .leading, spacing: 14) {
             Divider()
             if !opportunity.virtual {
-                DetailFact(title: session.text("city"), value: "\(session.city(for: opportunity)), \(session.region(for: opportunity))", icon: "mappin.and.ellipse")
+                DetailFact(title: session.text("city"), value: Self.cityAndRegion(session.city(for: opportunity), session.region(for: opportunity)), icon: "mappin.and.ellipse")
             }
             if let deadline = opportunity.deadline, shouldShowDeadline {
                 DetailFact(title: session.text("deadline"), value: session.formattedLocalEventDateTime(deadline), icon: "alarm")
@@ -251,6 +251,10 @@ struct OpportunityDetailView: View {
             }
             DetailFact(title: session.text("source"), value: opportunity.sourceUrl, icon: "link")
         }
+    }
+
+    static func cityAndRegion(_ city: String, _ region: String) -> String {
+        city == region ? city : "\(city), \(region)"
     }
 
     private var scheduleDateValue: String? {
@@ -540,22 +544,7 @@ private struct OnDeviceListingDescription: View {
         phase = .checking
         availabilityTask = Task {
             do {
-                let availability: LanguageAvailability
-                if #available(iOS 26.4, macCatalyst 26.4, *) {
-                    availability = LanguageAvailability(preferredStrategy: .lowLatency)
-                } else {
-                    availability = LanguageAvailability()
-                }
-                // A matching fallback must not silently turn Cantonese into Mandarin.
-                if key.targetLocale == "yue-Hant" {
-                    let languages = await availability.supportedLanguages
-                    guard !Task.isCancelled, generation == requestGeneration else { return }
-                    guard languages.contains(where: { $0.languageCode?.identifier == "yue" }) else {
-                        phase = .unavailable
-                        return
-                    }
-                }
-                let status = try await availability.status(for: source, to: target)
+                let status = try await Self.checkAvailability(source: source, targetLocale: key.targetLocale)
                 guard !Task.isCancelled, generation == requestGeneration else { return }
                 switch status {
                 case .installed, .supported:
@@ -575,6 +564,25 @@ private struct OnDeviceListingDescription: View {
                 phase = .unavailable
             }
         }
+    }
+
+    // Keep Apple's non-Sendable availability object in one nonisolated async
+    // operation. Only its Sendable status returns to the view's main actor.
+    nonisolated private static func checkAvailability(source: String, targetLocale: String) async throws -> LanguageAvailability.Status {
+        let availability: LanguageAvailability
+        if #available(iOS 26.4, macCatalyst 26.4, *) {
+            availability = LanguageAvailability(preferredStrategy: .lowLatency)
+        } else {
+            availability = LanguageAvailability()
+        }
+        // A matching fallback must not silently turn Cantonese into Mandarin.
+        if targetLocale == "yue-Hant" {
+            let languages = await availability.supportedLanguages
+            guard languages.contains(where: { $0.languageCode?.identifier == "yue" }) else {
+                return .unsupported
+            }
+        }
+        return try await availability.status(for: source, to: Locale.Language(identifier: targetLocale))
     }
 
     private func cancel() {

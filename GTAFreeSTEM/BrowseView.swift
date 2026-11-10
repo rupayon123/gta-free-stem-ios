@@ -44,6 +44,7 @@ struct BrowseView: View {
     let surface: BrowseSurface
     let onReturnToHub: (() -> Void)?
     @StateObject private var locationManager = HuntLocationManager()
+    @State private var alertsPresented = false
     @State private var saveSearchPresented = false
     @State private var filtersPresented = false
     @State private var websiteUnavailable = false
@@ -119,6 +120,11 @@ struct BrowseView: View {
             }
             .navigationDestination(for: Opportunity.self) { opportunity in
                 OpportunityDetailView(opportunity: opportunity)
+            }
+            .sheet(isPresented: $alertsPresented) {
+                OpportunityAlertsSheet().environmentObject(session).environmentObject(store)
+                    .environment(\.layoutDirection, session.language.layoutDirection)
+                    .environment(\.locale, Locale(identifier: session.language.localeIdentifier))
             }
             .sheet(isPresented: $saveSearchPresented) {
                 SaveNamedSearchSheet().environmentObject(session).environmentObject(store)
@@ -415,7 +421,7 @@ struct BrowseView: View {
 
     private var alertsButton: some View {
         Button {
-            Task { await store.requestNotificationPermission() }
+            alertsPresented = true
         } label: {
             Label(session.text("alerts"), systemImage: "bell.badge.fill")
                 .fixedSize(horizontal: false, vertical: true)
@@ -423,6 +429,7 @@ struct BrowseView: View {
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(StoryButtonStyle(kind: .quiet))
+        .accessibilityIdentifier("browse-alerts")
     }
 
     private var opportunityList: some View {
@@ -1404,6 +1411,9 @@ private struct SaveNamedSearchSheet: View {
     @State private var name = ""
     @State private var saving = false
     @State private var failed = false
+    @State private var alertsEnabled = false
+    @State private var persistedSearchID: UUID?
+    @State private var savedButAlertsFailed = false
 
     var body: some View {
         NavigationStack {
@@ -1418,15 +1428,29 @@ private struct SaveNamedSearchSheet: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Section {
+                    Toggle(session.text("savedFilterAlertToggle"), isOn: $alertsEnabled)
+                        .accessibilityIdentifier("save-filter-alerts")
+                        .disabled(!storageAccess.allowsPersistentChanges || saving)
+                } footer: {
+                    Text(session.text("savedFilterAlertExplanation"))
+                }
+                Section {
                     Button(session.text(store.activeSavedSearchID == nil ? "saveSearch" : "updateSearch")) {
                         save(updating: store.activeSavedSearchID)
                     }
                     .accessibilityIdentifier("confirm-save-search")
                     if store.activeSavedSearchID != nil {
                         Button(session.text("saveAsNew")) { save(updating: nil) }
+                            .disabled(persistedSearchID != nil)
                     }
                     if saving { ProgressView() }
-                    if failed { Text(store.savedSearchError ?? session.text("savedSearchWriteError")).foregroundStyle(Brand.coral) }
+                    if savedButAlertsFailed {
+                        Text(session.text("filterSavedAlertsOff")).font(.headline)
+                        Text(store.notificationStatusMessage ?? session.text("notificationSaveError"))
+                            .foregroundStyle(Brand.coral).fixedSize(horizontal: false, vertical: true)
+                    } else if failed {
+                        Text(store.savedSearchError ?? session.text("savedSearchWriteError")).foregroundStyle(Brand.coral)
+                    }
                 }
                 .disabled(!storageAccess.allowsPersistentChanges || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || name.count > 80 || saving)
             }
@@ -1451,7 +1475,10 @@ private struct SaveNamedSearchSheet: View {
                 }
             }
             .onAppear {
-                if let id = store.activeSavedSearchID, let search = store.savedSearches.first(where: { $0.id == id }) { name = search.name }
+                if let id = store.activeSavedSearchID, let search = store.savedSearches.first(where: { $0.id == id }) {
+                    name = search.name
+                    alertsEnabled = store.savedFilterAlertsEnabled(id)
+                }
 #if DEBUG
                 if AppRuntime.isFrontendLayoutReview {
                     if store.activeSavedSearchID == nil { name = "Sample: Weekend science" }
@@ -1469,9 +1496,98 @@ private struct SaveNamedSearchSheet: View {
         guard storageAccess.allowsPersistentChanges, !saving else { return }
         saving = true
         Task {
-            let saved = await store.saveNamedSearch(name: name, updating: id)
-            saving = false
-            if saved { onSaved(); dismiss() } else { failed = true }
+            defer { saving = false }
+            let saved = await store.saveNamedSearch(name: name, updating: persistedSearchID ?? id)
+            if saved {
+                guard let savedID = store.activeSavedSearchID else { failed = true; return }
+                persistedSearchID = savedID
+                guard await store.setSavedFilterAlerts(savedID, enabled: alertsEnabled) else {
+                    savedButAlertsFailed = true
+                    return
+                }
+                savedButAlertsFailed = false
+                onSaved()
+                dismiss()
+            } else { failed = true }
+        }
+    }
+}
+
+
+/// System controls keep the same interaction, text scaling and accessibility
+/// treatment as the app's other native forms. Opening this screen never prompts.
+private struct OpportunityAlertsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.appStorageAccess) private var storageAccess
+    @EnvironmentObject private var session: SessionStore
+    @EnvironmentObject private var store: OpportunityStore
+
+    private var reminderTime: Date {
+        Calendar.current.date(from: DateComponents(year: 2001, month: 1, day: 1,
+            hour: store.notificationPreferences.hour, minute: store.notificationPreferences.minute)) ?? .now
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Toggle(session.text("dailyReminder"), isOn: Binding(
+                        get: { store.notificationPreferences.dailyEnabled },
+                        set: { enabled in
+                            Task { _ = await store.setDailyReminder(enabled: enabled,
+                                hour: store.notificationPreferences.hour, minute: store.notificationPreferences.minute) }
+                        }))
+                        .accessibilityIdentifier("daily-reminder-toggle")
+                    if store.notificationPreferences.dailyEnabled {
+                        DatePicker(session.text("reminderTime"), selection: Binding(
+                            get: { reminderTime },
+                            set: { date in
+                                let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+                                Task { _ = await store.setDailyReminder(enabled: true, hour: parts.hour ?? 9, minute: parts.minute ?? 0) }
+                            }), displayedComponents: .hourAndMinute)
+                    }
+                } footer: { Text(session.text("dailyReminderExplanation")) }
+                Section {
+                    if store.savedSearches.isEmpty {
+                        Text(session.text("saveFilterForAlerts"))
+                    }
+                    ForEach(store.savedSearches) { saved in
+                        Toggle(isOn: Binding(
+                            get: { store.savedFilterAlertsEnabled(saved.id) },
+                            set: { enabled in Task { _ = await store.setSavedFilterAlerts(saved.id, enabled: enabled) } })) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(saved.name).fixedSize(horizontal: false, vertical: true)
+                                Text(NamedSearchSummary.text(saved.criteria, session: session))
+                                    .font(.caption).foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .accessibilityIdentifier("saved-filter-alert-" + saved.id.uuidString)
+                    }
+                } header: { Text(session.text("mySavedSearches")) }
+                  footer: { Text(session.text("savedFilterAlertExplanation")) }
+                if let message = store.notificationStatusMessage {
+                    Section { Text(message).foregroundStyle(Brand.coral).fixedSize(horizontal: false, vertical: true) }
+                }
+                Section {
+                    Button(session.text("notificationSystemSettings")) {
+                        if let url = URL(string: UIApplication.openNotificationSettingsURLString) { openURL(url) }
+                    }
+                }
+            }
+            .disabled(!storageAccess.allowsPersistentChanges || store.isUpdatingNotificationPreferences)
+            .scrollContentBackground(.hidden)
+            .background(Brand.contentCanvas(for: colorScheme))
+            .navigationTitle(session.text("alerts"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(session.text("done")) { dismiss() }
+                        .frame(minWidth: 60, minHeight: 44)
+                }
+            }
         }
     }
 }

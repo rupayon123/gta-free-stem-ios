@@ -2,6 +2,7 @@ import XCTest
 import Combine
 import CoreLocation
 import MapKit
+import UserNotifications
 import SwiftUI
 @testable import GTAFreeSTEM
 import SwiftData
@@ -3199,6 +3200,8 @@ final class APIClientTests: XCTestCase {
         XCTAssertNil(OpportunityDetailView.directionsURL(for: online, language: .en))
         XCTAssertFalse(OpportunityDetailView.canShowPhysicalMap(for: addressOnly))
         XCTAssertNotNil(OpportunityDetailView.directionsURL(for: addressOnly, language: .en), "Real address fallback must remain available")
+        XCTAssertEqual(OpportunityDetailView.cityAndRegion("Toronto", "Toronto"), "Toronto")
+        XCTAssertEqual(OpportunityDetailView.cityAndRegion("Markham", "York Region"), "Markham, York Region")
         let source = try String(contentsOf: testRepositoryRoot.appendingPathComponent("GTAFreeSTEM/OpportunityDetailView.swift"))
         XCTAssertFalse(source.contains("opportunity.language.map"), "Producer language defaults are not evidence of provider delivery languages")
         XCTAssertTrue(source.contains("OnDeviceListingDescription(source: opportunity.description"), "The translation view must receive the original listing text")
@@ -3323,7 +3326,7 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(homeSource.contains("Brand.contentCanvas"))
         let browseSource = try String(contentsOf: repoRoot.appendingPathComponent("GTAFreeSTEM/BrowseView.swift"))
         XCTAssertTrue(browseSource.contains(".sheet(isPresented: $saveSearchPresented)"))
-        XCTAssertTrue(browseSource.contains("store.saveNamedSearch(name: name, updating: id)"))
+        XCTAssertTrue(browseSource.contains("store.saveNamedSearch(name: name, updating: persistedSearchID ?? id)"))
         XCTAssertTrue(browseSource.contains(".accessibilityIdentifier(\"confirm-save-search\")"))
         XCTAssertTrue(browseSource.contains(".accessibilityIdentifier(\"saved-search-name\")"))
         XCTAssertTrue(browseSource.contains(".dynamicTypeSize(dynamicTypeSize)"), "Save sheet must preserve the current accessibility text size")
@@ -3948,7 +3951,7 @@ final class OpportunityStoreTests: XCTestCase {
     }
 
     @MainActor
-    func testBackgroundOnlyLaunchStillNotifiesForItemNewerThanTrustedBaseline() async throws {
+    func testBackgroundOnlyLaunchDoesNotNotifyWithoutSavedFilterOptIn() async throws {
         let now = try bundledSnapshotTestNow()
         let suiteName = "GTAFreeSTEMTests.BackgroundOnlyNewMatch.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -3982,63 +3985,179 @@ final class OpportunityStoreTests: XCTestCase {
 
         let deliveryCount = await delivery.deliveryCount()
         XCTAssertEqual(store.newMatchesCount, 1)
-        XCTAssertEqual(deliveryCount, 1)
-        XCTAssertNotNil(defaults.object(forKey: "lastNewOpportunityNotificationAt"))
+        XCTAssertEqual(deliveryCount, 0)
+        XCTAssertNil(defaults.object(forKey: "lastNewOpportunityNotificationAt"))
     }
 
     @MainActor
-    func testNotificationThrottleIsRecordedOnlyAfterSuccessfulDelivery() async throws {
-        let suiteName = "GTAFreeSTEMTests.NotificationThrottle.\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        defaults.set(["known-baseline"], forKey: "knownOpportunityIDs")
-
-        let feedURL = URL(string: "https://gta-free-stem.vercel.app/opportunities.json")!
-        let session = makeURLSessionForStub()
+    func testSavedFilterAlertsMatchIndependentlyRetryAndDeduplicateAcrossRelaunch() async throws {
+        let suite = "SavedFilterAlerts.\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let now = Date()
+        let url = URL(string: "https://named.example/alerts.json")!
+        let client = APIClient(feedURL: url, session: makeURLSessionForStub(), now: { now })
         let delivery = NewMatchNotificationDeliveryStub(outcomes: [false, true, true])
-        let store = OpportunityStore(
-            api: APIClient(feedURL: feedURL, session: session),
-            defaults: defaults,
-            notificationDelivery: delivery
-        )
-
-        URLProtocolStub.register(
-            responseFor: feedURL,
-            statusCode: 200,
-            body: Data(makeOpportunitiesJSON([
-                opportunity(id: "first-new", title: "First New", organization: "STEM Club", category: "Coding & Robotics", city: "Toronto")
-            ]).utf8)
-        )
-        await store.refresh(cache: nil, notifyOnNewMatches: true)
-
-        var deliveryCount = await delivery.deliveryCount()
-        XCTAssertEqual(deliveryCount, 1)
+        let scheduler = OpportunityNotificationSchedulerStub()
+        let store = OpportunityStore(api: client, defaults: defaults, notificationDelivery: delivery,
+                                     notificationScheduler: scheduler, now: { now })
+        func row(_ id: String, age: Int) -> Opportunity {
+            opportunity(id: id, title: "Robotics", organization: "Library", category: "Coding & Robotics", city: "Toronto", ageMin: age, ageMax: age)
+        }
+        func register(_ rows: [Opportunity], _ revision: Int) {
+            URLProtocolStub.register(responseFor: url, statusCode: 200,
+                body: Data(makeOpportunitiesJSON(rows, lastUpdated: now.addingTimeInterval(Double(revision) - 60)).utf8))
+        }
+        register([row("A", age: 4), row("B", age: 10)], 0)
+        await store.refresh()
+        store.filters.age = "4"
+        let firstSaved = await store.saveNamedSearch(name: "Private family filter")
+        XCTAssertTrue(firstSaved)
+        let first = try XCTUnwrap(store.activeSavedSearchID)
+        let optedIn = await store.setSavedFilterAlerts(first, enabled: true)
+        XCTAssertTrue(optedIn)
+        store.filters.age = "10"
+        let secondSaved = await store.saveNamedSearch(name: "Other child")
+        XCTAssertTrue(secondSaved)
+        let second = try XCTUnwrap(store.activeSavedSearchID)
+        XCTAssertFalse(store.savedFilterAlertsEnabled(second))
+        // A different current hunt must not change the saved age-4 criteria.
+        register([row("A", age: 4), row("B", age: 10), row("C", age: 4), row("D", age: 10)], 1)
+        await store.refresh(notifyOnNewMatches: true, force: true)
+        let failedCount = await delivery.deliveryCount()
+        XCTAssertEqual(failedCount, 1)
         XCTAssertNil(defaults.object(forKey: "lastNewOpportunityNotificationAt"))
+        XCTAssertFalse(store.notificationPreferences.filters[first.uuidString]!.acknowledgedIDs.contains("C"))
+        // The exact unchanged feed retries a failed delivery, rather than losing C.
+        await store.refresh(notifyOnNewMatches: true, force: true)
+        let acceptedCount = await delivery.deliveryCount()
+        XCTAssertEqual(acceptedCount, 2)
+        XCTAssertNotNil(defaults.object(forKey: "lastNewOpportunityNotificationAt"))
+        XCTAssertTrue(store.notificationPreferences.filters[first.uuidString]!.acknowledgedIDs.contains("C"))
+        let bodies = await delivery.bodies()
+        XCTAssertTrue(bodies.allSatisfy { $0.contains("1") && !$0.contains("Private") && !$0.contains("Other child") })
+        let restored = OpportunityStore(api: client, defaults: defaults, notificationDelivery: delivery,
+                                        notificationScheduler: scheduler, now: { now })
+        XCTAssertTrue(restored.savedFilterAlertsEnabled(first))
+        XCTAssertFalse(restored.savedFilterAlertsEnabled(second))
+        await restored.refresh(notifyOnNewMatches: true, force: true)
+        let finalCount = await delivery.deliveryCount()
+        XCTAssertEqual(finalCount, 2)
+        let disabled = await restored.setSavedFilterAlerts(first, enabled: false)
+        XCTAssertTrue(disabled)
+        XCTAssertFalse(restored.savedFilterAlertsEnabled(first))
+        let deleted = await restored.deleteNamedSearch(second)
+        XCTAssertTrue(deleted)
+    }
 
-        URLProtocolStub.register(
-            responseFor: feedURL,
-            statusCode: 200,
-            body: Data(makeOpportunitiesJSON([
-                opportunity(id: "second-new", title: "Second New", organization: "STEM Club", category: "Coding & Robotics", city: "Toronto")
-            ]).utf8)
-        )
-        await store.refresh(cache: nil, notifyOnNewMatches: true, force: true)
+    func testDailyCalendarRequestUsesOneReplaceableLocalTimeSchedule() throws {
+        let request = try XCTUnwrap(SystemOpportunityNotificationScheduler.dailyRequest(
+            hour: 8, minute: 30, title: "GTA FREE STEM", body: "Explore free activities."))
+        let trigger = try XCTUnwrap(request.trigger as? UNCalendarNotificationTrigger)
+        XCTAssertEqual(request.identifier, SystemOpportunityNotificationScheduler.dailyIdentifier)
+        XCTAssertTrue(trigger.repeats)
+        XCTAssertEqual(trigger.dateComponents.hour, 8)
+        XCTAssertEqual(trigger.dateComponents.minute, 30)
+        XCTAssertNil(trigger.dateComponents.timeZone, "Follow the phone's local timezone")
+        XCTAssertNil(trigger.dateComponents.day)
+        XCTAssertNil(trigger.dateComponents.year)
+        XCTAssertEqual(request.content.body, "Explore free activities.")
+        XCTAssertNil(SystemOpportunityNotificationScheduler.dailyRequest(hour: -1, minute: 30, title: "", body: ""))
+        XCTAssertNil(SystemOpportunityNotificationScheduler.dailyRequest(hour: 9, minute: 60, title: "", body: ""))
+    }
 
-        deliveryCount = await delivery.deliveryCount()
-        XCTAssertEqual(deliveryCount, 2)
-        XCTAssertNotNil(defaults.object(forKey: "lastNewOpportunityNotificationAt") as? TimeInterval)
+    @MainActor
+    func testSavedFilterAlertsWaitForQuietHealthyBaselineAndDoNotNotifyOnFetchFailure() async throws {
+        let suite = "QuietFilterBaseline.\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let now = Date()
+        let url = URL(string: "https://named.example/quiet-alerts.json")!
+        let client = APIClient(feedURL: url, session: makeURLSessionForStub(), now: { now })
+        let delivery = NewMatchNotificationDeliveryStub(outcomes: [true])
+        let store = OpportunityStore(api: client, defaults: defaults, notificationDelivery: delivery,
+            notificationScheduler: OpportunityNotificationSchedulerStub(), now: { now })
+        let saved = await store.saveNamedSearch(name: "Before first download")
+        XCTAssertTrue(saved)
+        let id = try XCTUnwrap(store.activeSavedSearchID)
+        let enabled = await store.setSavedFilterAlerts(id, enabled: true)
+        XCTAssertTrue(enabled)
+        XCTAssertFalse(store.notificationPreferences.filters[id.uuidString]!.hasBaseline)
+        let a = opportunity(id: "A", title: "Robotics", organization: "Library", category: "Coding & Robotics", city: "Toronto")
+        let b = opportunity(id: "B", title: "Robotics", organization: "Library", category: "Coding & Robotics", city: "Toronto")
+        URLProtocolStub.register(responseFor: url, statusCode: 200,
+            body: Data(makeOpportunitiesJSON([a], lastUpdated: now.addingTimeInterval(-60)).utf8))
+        await store.refresh(notifyOnNewMatches: true, force: true)
+        let baselineCount = await delivery.deliveryCount()
+        XCTAssertEqual(baselineCount, 0)
+        XCTAssertTrue(store.notificationPreferences.filters[id.uuidString]!.hasBaseline)
+        URLProtocolStub.register(responseFor: url, errorCode: .notConnectedToInternet)
+        await store.refresh(notifyOnNewMatches: true, force: true)
+        let failedCount = await delivery.deliveryCount()
+        XCTAssertEqual(failedCount, 0)
+        URLProtocolStub.register(responseFor: url, statusCode: 200,
+            body: Data(makeOpportunitiesJSON([a, b], lastUpdated: now.addingTimeInterval(-59)).utf8))
+        await store.refresh(notifyOnNewMatches: true, force: true)
+        let newCount = await delivery.deliveryCount()
+        XCTAssertEqual(newCount, 1)
+    }
 
-        URLProtocolStub.register(
-            responseFor: feedURL,
-            statusCode: 200,
-            body: Data(makeOpportunitiesJSON([
-                opportunity(id: "third-new", title: "Third New", organization: "STEM Club", category: "Coding & Robotics", city: "Toronto")
-            ]).utf8)
-        )
-        await store.refresh(cache: nil, notifyOnNewMatches: true, force: true)
+    @MainActor
+    func testDailyReminderIsOptInAndOnlyPersistsAcceptedSchedules() async throws {
+        let suite = "DailyReminder.\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let scheduler = OpportunityNotificationSchedulerStub(permission: false)
+        let store = OpportunityStore(api: APIClient(), defaults: defaults, notificationScheduler: scheduler)
+        XCTAssertFalse(store.notificationPreferences.dailyEnabled)
+        let invalid = await store.setDailyReminder(enabled: true, hour: 24, minute: 0)
+        XCTAssertFalse(invalid)
+        let denied = await store.setDailyReminder(enabled: true, hour: 8, minute: 30)
+        XCTAssertFalse(denied)
+        XCTAssertFalse(store.notificationPreferences.dailyEnabled)
+        await scheduler.configure(permission: true, scheduleAccepted: false)
+        let rejected = await store.setDailyReminder(enabled: true, hour: 8, minute: 30)
+        XCTAssertFalse(rejected)
+        XCTAssertFalse(store.notificationPreferences.dailyEnabled)
+        await scheduler.configure(permission: true, scheduleAccepted: true)
+        let enabled = await store.setDailyReminder(enabled: true, hour: 8, minute: 30)
+        XCTAssertTrue(enabled)
+        let restored = OpportunityStore(api: APIClient(), defaults: defaults, notificationScheduler: scheduler)
+        XCTAssertTrue(restored.notificationPreferences.dailyEnabled)
+        XCTAssertEqual(restored.notificationPreferences.hour, 8)
+        XCTAssertEqual(restored.notificationPreferences.minute, 30)
+        let disabled = await restored.setDailyReminder(enabled: false, hour: 8, minute: 30)
+        XCTAssertTrue(disabled)
+        XCTAssertFalse(restored.notificationPreferences.dailyEnabled)
+        let cancellations = await scheduler.cancellations()
+        XCTAssertEqual(cancellations, 1)
+    }
 
-        deliveryCount = await delivery.deliveryCount()
-        XCTAssertEqual(deliveryCount, 2)
+    @MainActor
+    func testUnreadExistingFiltersDoNotBecomeAnInitialNotificationAndCorruptPreferencesSurvive() async throws {
+        let suite = "NotificationMigration.\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let existing = NamedSavedSearch(id: UUID(), name: "Existing saved filter",
+            criteria: NamedSearchCriteria(query: "", mode: .all, filters: OpportunityFilters()),
+            knownIDs: ["old"], unreadIDs: ["old"], hasBaseline: true)
+        let archive = try JSONEncoder().encode(NamedSearchArchive(searches: [existing]))
+        defaults.set(archive, forKey: OpportunityStore.namedSearchesKey)
+        let scheduler = OpportunityNotificationSchedulerStub()
+        let store = OpportunityStore(api: APIClient(), defaults: defaults, notificationScheduler: scheduler)
+        XCTAssertEqual(store.savedSearches, [existing])
+        XCTAssertFalse(store.savedFilterAlertsEnabled(existing.id))
+        let enabled = await store.setSavedFilterAlerts(existing.id, enabled: true)
+        XCTAssertTrue(enabled)
+        XCTAssertEqual(store.notificationPreferences.filters[existing.id.uuidString]?.acknowledgedIDs, ["old"])
+        XCTAssertEqual(defaults.data(forKey: OpportunityStore.namedSearchesKey), archive)
+        let corrupt = Data("unknown-future-or-corrupt-preferences".utf8)
+        defaults.set(corrupt, forKey: OpportunityStore.notificationPreferencesKey)
+        let blocked = OpportunityStore(api: APIClient(), defaults: defaults, notificationScheduler: scheduler)
+        let changed = await blocked.setDailyReminder(enabled: true, hour: 9, minute: 0)
+        XCTAssertFalse(changed)
+        XCTAssertEqual(defaults.data(forKey: OpportunityStore.notificationPreferencesKey), corrupt)
+        XCTAssertEqual(blocked.savedSearches, [existing])
     }
 
     func testKnownIDRetentionKeepsCurrentFeedStableBeyondHistoryCap() {
@@ -5249,13 +5368,21 @@ final class OpportunityStoreTests: XCTestCase {
         try context.save()
 
         let client = APIClient(feedURL: URL(string: "https://example.com/opportunities.json")!, session: makeURLSessionForStub())
-        let store = OpportunityStore(api: client, defaults: defaults)
+        let scheduler = OpportunityNotificationSchedulerStub()
+        let store = OpportunityStore(api: client, defaults: defaults, notificationScheduler: scheduler)
+        let reminderEnabled = await store.setDailyReminder(enabled: true, hour: 8, minute: 0)
+        XCTAssertTrue(reminderEnabled)
         store.query = "robotics"
         try await store.clearPersonalHistory(in: context)
 
         XCTAssertTrue(try context.fetch(FetchDescriptor<SavedHuntRecord>()).isEmpty)
         XCTAssertTrue(try context.fetch(FetchDescriptor<SeenOpportunityRecord>()).isEmpty)
         XCTAssertEqual(try context.fetch(FetchDescriptor<OpportunityCacheRecord>()).count, 1)
+        XCTAssertFalse(store.notificationPreferences.dailyEnabled)
+        XCTAssertTrue(store.notificationPreferences.filters.isEmpty)
+        XCTAssertNil(defaults.data(forKey: OpportunityStore.notificationPreferencesKey))
+        let cancelled = await scheduler.cancellations()
+        XCTAssertEqual(cancelled, 1)
         XCTAssertEqual(store.query, "")
         XCTAssertEqual(store.opportunities.map(\.id), [opportunity.id])
     }
@@ -5687,6 +5814,8 @@ final class OpportunityStoreTests: XCTestCase {
 private actor NewMatchNotificationDeliveryStub: NewMatchNotificationDelivering {
     private var outcomes: [Bool]
     private var deliveredCount = 0
+    private var deliveredBodies: [String] = []
+    func bodies() -> [String] { deliveredBodies }
 
     init(outcomes: [Bool]) {
         self.outcomes = outcomes
@@ -5694,6 +5823,7 @@ private actor NewMatchNotificationDeliveryStub: NewMatchNotificationDelivering {
 
     func deliverNewMatchNotification(title: String, body: String) async -> Bool {
         deliveredCount += 1
+        deliveredBodies.append(body)
         guard !outcomes.isEmpty else { return false }
         return outcomes.removeFirst()
     }
@@ -5701,6 +5831,18 @@ private actor NewMatchNotificationDeliveryStub: NewMatchNotificationDelivering {
     func deliveryCount() -> Int {
         deliveredCount
     }
+}
+
+private actor OpportunityNotificationSchedulerStub: OpportunityNotificationScheduling {
+    private var permission: Bool
+    private var accepted = true
+    private var cancelled = 0
+    init(permission: Bool = true) { self.permission = permission }
+    func configure(permission: Bool, scheduleAccepted: Bool) { self.permission = permission; accepted = scheduleAccepted }
+    func requestPermission() async -> Bool { permission }
+    func scheduleDaily(hour: Int, minute: Int, title: String, body: String) async -> Bool { accepted }
+    func cancelDaily() async { cancelled += 1 }
+    func cancellations() -> Int { cancelled }
 }
 
 final class URLProtocolStub: URLProtocol {

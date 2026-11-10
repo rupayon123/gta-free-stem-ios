@@ -174,6 +174,69 @@ struct SystemNewMatchNotificationDelivery: NewMatchNotificationDelivering {
     }
 }
 
+// Preferences live separately from saved criteria so v1 saved-filter archives
+// continue to decode unchanged. Nothing here is uploaded to a server.
+struct SavedFilterAlertState: Codable, Equatable, Sendable {
+    var acknowledgedIDs: Set<String>
+    var hasBaseline: Bool
+}
+
+struct OpportunityNotificationPreferences: Codable, Equatable, Sendable {
+    var version = 1
+    var dailyEnabled = false
+    var hour = 9
+    var minute = 0
+    var filters: [String: SavedFilterAlertState] = [:]
+
+    var isValid: Bool {
+        version == 1 && (0..<24).contains(hour) && (0..<60).contains(minute)
+            && filters.count <= 16 && filters.allSatisfy {
+                UUID(uuidString: $0.key) != nil && $0.value.acknowledgedIDs.count <= 20_000
+            }
+    }
+}
+
+protocol OpportunityNotificationScheduling: Sendable {
+    func requestPermission() async -> Bool
+    func scheduleDaily(hour: Int, minute: Int, title: String, body: String) async -> Bool
+    func cancelDaily() async
+}
+
+struct SystemOpportunityNotificationScheduler: OpportunityNotificationScheduling {
+    static let dailyIdentifier = "gta-daily-discovery-reminder"
+
+    func requestPermission() async -> Bool {
+        (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])) == true
+    }
+
+    func scheduleDaily(hour: Int, minute: Int, title: String, body: String) async -> Bool {
+        guard (0..<24).contains(hour), (0..<60).contains(minute) else { return false }
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return false }
+        guard let request = Self.dailyRequest(hour: hour, minute: minute, title: title, body: body) else { return false }
+        do { try await center.add(request); return true } catch { return false }
+    }
+
+    static func dailyRequest(hour: Int, minute: Int, title: String, body: String) -> UNNotificationRequest? {
+        guard (0..<24).contains(hour), (0..<60).contains(minute) else { return nil }
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        // A repeating calendar request follows the phone's local time, including
+        // daylight-saving changes. One stable ID replaces the previous schedule.
+        let trigger = UNCalendarNotificationTrigger(dateMatching: DateComponents(hour: hour, minute: minute), repeats: true)
+        return UNNotificationRequest(identifier: Self.dailyIdentifier, content: content, trigger: trigger)
+    }
+
+    func cancelDaily() async {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [Self.dailyIdentifier])
+        center.removeDeliveredNotifications(withIdentifiers: [Self.dailyIdentifier])
+    }
+}
+
 @MainActor
 final class OpportunityStore: ObservableObject {
     @Published var query = ""
@@ -202,6 +265,13 @@ final class OpportunityStore: ObservableObject {
     var namedSearchReconciliationGate: (() async -> Void)?
     var localPreviewCommitGate: (() async -> Void)?
 #endif
+    @Published private(set) var notificationPreferences = OpportunityNotificationPreferences()
+    @Published private(set) var isUpdatingNotificationPreferences = false
+    static let notificationPreferencesKey = "opportunityNotificationPreferences.v1"
+    private var notificationPreferencesReadable = true
+    private var notificationPreferenceGeneration = 0
+    private var isDeliveringSavedFilterAlert = false
+    private let notificationScheduler: any OpportunityNotificationScheduling
     @Published var notificationStatusMessage: String?
     @Published var didRestoreLastHunt = false
     @Published private(set) var availableHomePathwayModes: [SearchMode] = []
@@ -274,12 +344,23 @@ final class OpportunityStore: ObservableObject {
         api: APIClient,
         defaults: UserDefaults = .standard,
         notificationDelivery: any NewMatchNotificationDelivering = SystemNewMatchNotificationDelivery(),
+        notificationScheduler: any OpportunityNotificationScheduling = SystemOpportunityNotificationScheduler(),
         now: @escaping () -> Date = { .now }
     ) {
         self.api = api
         self.defaults = defaults
         self.now = now
         self.notificationDelivery = notificationDelivery
+        self.notificationScheduler = notificationScheduler
+        if let data = defaults.data(forKey: Self.notificationPreferencesKey) {
+            if data.count <= 4_000_000,
+               let value = try? JSONDecoder().decode(OpportunityNotificationPreferences.self, from: data), value.isValid {
+                notificationPreferences = value
+            } else {
+                notificationPreferencesReadable = false
+                notificationStatusMessage = Self.localized("notificationSaveError")
+            }
+        }
 
         if let payload = defaults.data(forKey: Self.namedSearchesKey) {
             if payload.count <= 4_000_000,
@@ -331,7 +412,7 @@ final class OpportunityStore: ObservableObject {
         // feed so an existing catalog is not announced as entirely new. If no
         // trusted baseline exists, this run still records the live IDs but does
         // not send a misleading first-run notification.
-        let notificationBaselineIsReady = await prepareNotificationBaselineIfNeeded(
+        _ = await prepareNotificationBaselineIfNeeded(
             cache: context,
             notifyOnNewMatches: notifyOnNewMatches
         )
@@ -353,6 +434,7 @@ final class OpportunityStore: ObservableObject {
                 huntPhase = retainedFeedSource == .publicLiveFeed ? .fresh : .cached
                 errorMessage = nil
                 await reconcileNamedSearches(with: fullFeed)
+                if notifyOnNewMatches { await deliverSavedFilterAlerts(from: fullFeed) }
                 return
             }
             if OpportunityFeedSelection.isOlder(fullFeed, than: inMemoryFeed, now: self.now()) {
@@ -399,13 +481,7 @@ final class OpportunityStore: ObservableObject {
             lastSuccessfulHuntAt = self.now()
             huntPhase = .fresh
             errorMessage = nil
-            if notificationBaselineIsReady,
-               shouldNotifyOnBackgroundMatch(count: newCount, notifyOnNewMatches: notifyOnNewMatches) {
-                let delivered = await sendNewMatchNotification(count: newCount)
-                if delivered {
-                    recordNotificationSent()
-                }
-            }
+            if notifyOnNewMatches { await deliverSavedFilterAlerts(from: fullFeed) }
         } catch {
             if let context {
                 _ = await applyCachedResultsIfAvailableOffMain(in: context)
@@ -615,6 +691,13 @@ final class OpportunityStore: ObservableObject {
         }
         try context.save()
 
+        // An explicit data reset also revokes all local reminder opt-ins.
+        // Invalidate suspended permission/scheduling requests before cancelling.
+        notificationPreferenceGeneration &+= 1
+        notificationPreferences = OpportunityNotificationPreferences()
+        notificationPreferencesReadable = true
+        defaults.removeObject(forKey: Self.notificationPreferencesKey)
+        await notificationScheduler.cancelDaily()
         defaults.removeObject(forKey: Self.namedSearchesKey)
         namedSearchStorageReadable = true
         savedSearches = []
@@ -666,13 +749,130 @@ final class OpportunityStore: ObservableObject {
         }
     }
 
-    func requestNotificationPermission() async {
-        do {
-            let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
-            notificationStatusMessage = granted ? Self.localized("alertsOn") : Self.localized("alertsOff")
-        } catch {
-            notificationStatusMessage = Self.localizedMessage(for: error)
+    func savedFilterAlertsEnabled(_ id: UUID) -> Bool {
+        notificationPreferences.filters[id.uuidString] != nil
+    }
+
+    @discardableResult
+    func setDailyReminder(enabled: Bool, hour: Int, minute: Int) async -> Bool {
+        guard notificationPreferencesReadable, !isUpdatingNotificationPreferences,
+              (0..<24).contains(hour), (0..<60).contains(minute) else { return false }
+        isUpdatingNotificationPreferences = true
+        let revision = notificationPreferenceGeneration
+        defer { isUpdatingNotificationPreferences = false }
+        if enabled {
+            guard await notificationScheduler.requestPermission(),
+                  await notificationScheduler.scheduleDaily(hour: hour, minute: minute,
+                    title: "GTA FREE STEM", body: Self.localized("dailyReminderBody")) else {
+                notificationStatusMessage = Self.localized("notificationPermissionHelp")
+                return false
+            }
+        } else { await notificationScheduler.cancelDaily() }
+        guard revision == notificationPreferenceGeneration else {
+            if !notificationPreferences.dailyEnabled { await notificationScheduler.cancelDaily() }
+            return false
         }
+        let previous = notificationPreferences
+        var next = previous
+        next.dailyEnabled = enabled
+        next.hour = hour
+        next.minute = minute
+        guard persistNotificationPreferences(next) else {
+            if previous.dailyEnabled {
+                _ = await notificationScheduler.scheduleDaily(hour: previous.hour, minute: previous.minute,
+                    title: "GTA FREE STEM", body: Self.localized("dailyReminderBody"))
+            } else { await notificationScheduler.cancelDaily() }
+            return false
+        }
+        return true
+    }
+
+    @discardableResult
+    func setSavedFilterAlerts(_ id: UUID, enabled: Bool) async -> Bool {
+        guard notificationPreferencesReadable, !isUpdatingNotificationPreferences,
+              savedSearches.contains(where: { $0.id == id }) else { return false }
+        isUpdatingNotificationPreferences = true
+        let revision = notificationPreferenceGeneration
+        defer { isUpdatingNotificationPreferences = false }
+        if enabled && !savedFilterAlertsEnabled(id) {
+            guard await notificationScheduler.requestPermission() else {
+                notificationStatusMessage = Self.localized("notificationPermissionHelp")
+                return false
+            }
+        }
+        guard revision == notificationPreferenceGeneration,
+              let saved = savedSearches.first(where: { $0.id == id }) else { return false }
+        var next = notificationPreferences
+        if enabled {
+            if next.filters[id.uuidString] == nil {
+                next.filters[id.uuidString] = SavedFilterAlertState(acknowledgedIDs: saved.unreadIDs, hasBaseline: saved.hasBaseline)
+            }
+        } else { next.filters.removeValue(forKey: id.uuidString) }
+        return persistNotificationPreferences(next)
+    }
+
+    private func persistNotificationPreferences(_ value: OpportunityNotificationPreferences) -> Bool {
+        guard notificationPreferencesReadable, value.isValid,
+              let data = try? JSONEncoder().encode(value), data.count <= 4_000_000 else {
+            notificationStatusMessage = Self.localized("notificationSaveError")
+            return false
+        }
+        defaults.set(data, forKey: Self.notificationPreferencesKey)
+        notificationPreferences = value
+        notificationStatusMessage = nil
+        return true
+    }
+
+    private func deliverSavedFilterAlerts(from feed: OpportunityListResponse) async {
+        guard !Task.isCancelled, !isDeliveringSavedFilterAlert,
+              notificationPreferencesReadable, !notificationPreferences.filters.isEmpty else { return }
+        isDeliveringSavedFilterAlert = true
+        defer { isDeliveringSavedFilterAlert = false }
+        let snapshotNow = now()
+        let generationAtValidation = catalogueGeneration
+        let valid = await Task.detached(priority: .utility) {
+            NamedSearchMatching.isCompleteCatalog(feed, now: snapshotNow)
+        }.value
+        guard valid, !Task.isCancelled, generationAtValidation == catalogueGeneration else { return }
+        var next = notificationPreferences
+        var pending: [String: Set<String>] = [:]
+        for search in savedSearches {
+            let key = search.id.uuidString
+            guard var state = next.filters[key], search.hasBaseline else { continue }
+            if !state.hasBaseline {
+                // The first healthy snapshot after enabling is a quiet baseline.
+                state.hasBaseline = true
+                state.acknowledgedIDs = search.unreadIDs
+                next.filters[key] = state
+            } else {
+                let ids = search.unreadIDs.subtracting(state.acknowledgedIDs)
+                if !ids.isEmpty { pending[key] = ids }
+            }
+        }
+        if next != notificationPreferences { guard persistNotificationPreferences(next) else { return } }
+        guard !pending.isEmpty,
+              lastNotificationSentAt.map({ now().timeIntervalSince($0) >= minimumNotificationInterval }) ?? true else { return }
+        let preferencesAtDelivery = notificationPreferences
+        let resetRevision = notificationPreferenceGeneration
+        let criteriaAtDelivery = Dictionary(uniqueKeysWithValues: savedSearches.map { ($0.id.uuidString, $0.criteria) })
+        let count = pending.values.reduce(into: Set<String>()) { $0.formUnion($1) }.count
+        // Generic lock-screen copy never exposes names, ages, community or access
+        // needs from a person's saved filters. Shared matches are counted once.
+        let delivered = await notificationDelivery.deliverNewMatchNotification(
+            title: Self.localized("newOpportunitiesNotificationTitle"),
+            body: Self.localized("savedFilterNotificationBody").replacingOccurrences(of: "{count}", with: "\(count)"))
+        guard delivered, resetRevision == notificationPreferenceGeneration else { return }
+        // Accepted delivery is a fact even if the task was cancelled immediately
+        // afterwards. Persist it so an unrelated edit cannot repeat an alert.
+        recordNotificationSent()
+        next = notificationPreferences
+        for (key, ids) in pending {
+            guard next.filters[key] == preferencesAtDelivery.filters[key],
+                  savedSearches.first(where: { $0.id.uuidString == key })?.criteria == criteriaAtDelivery[key]
+            else { continue }
+            next.filters[key]?.acknowledgedIDs.formUnion(ids)
+        }
+        _ = persistNotificationPreferences(next)
     }
 
     private func apply(_ response: OpportunityListResponse, source: DataSource) {
@@ -1008,6 +1208,11 @@ final class OpportunityStore: ObservableObject {
         } else { next.append(saved) }
         guard await persistNamedSearches(next, expectedGeneration: revision) else { return false }
         activeSavedSearchID = saved.id
+        if savedFilterAlertsEnabled(saved.id) {
+            var preferences = notificationPreferences
+            preferences.filters[saved.id.uuidString] = SavedFilterAlertState(acknowledgedIDs: saved.unreadIDs, hasBaseline: saved.hasBaseline)
+            _ = persistNotificationPreferences(preferences)
+        }
         return true
     }
 
@@ -1042,6 +1247,9 @@ final class OpportunityStore: ObservableObject {
         guard savedSearches.contains(where: { $0.id == id }) else { return false }
         guard await persistNamedSearches(savedSearches.filter { $0.id != id }, expectedGeneration: namedSearchGeneration) else { return false }
         if activeSavedSearchID == id { activeSavedSearchID = nil }
+        var preferences = notificationPreferences
+        preferences.filters.removeValue(forKey: id.uuidString)
+        _ = persistNotificationPreferences(preferences)
         return true
     }
 
@@ -1096,22 +1304,6 @@ final class OpportunityStore: ObservableObject {
         query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
             mode == .all &&
             filters == OpportunityFilters()
-    }
-
-    private func shouldNotifyOnBackgroundMatch(count: Int, notifyOnNewMatches: Bool) -> Bool {
-        guard notifyOnNewMatches else { return false }
-        guard count > 0 else { return false }
-        if let sentAt = lastNotificationSentAt, now().timeIntervalSince(sentAt) < minimumNotificationInterval {
-            return false
-        }
-        return true
-    }
-
-    private func sendNewMatchNotification(count: Int) async -> Bool {
-        let title = Self.localized("newOpportunitiesNotificationTitle")
-        let body = Self.localized("newOpportunitiesNotificationBody")
-            .replacingOccurrences(of: "{count}", with: "\(count)")
-        return await notificationDelivery.deliverNewMatchNotification(title: title, body: body)
     }
 
     private func recordNotificationSent(at date: Date? = nil) {

@@ -434,6 +434,34 @@ final class HighSchoolJourneys: XCTestCase {
         XCTAssertEqual(app.state, .runningForeground)
     }
 
+    func test12AlertPreferencesOpenWithoutPermissionPromptInLightAndDarkRTL() {
+        for (language, extra, name) in [
+            ("en", [String](), "alerts-light"),
+            ("ar", ["-review-dark", "-review-large-text"], "alerts-dark-large-rtl")
+        ] {
+            app.launchArguments = ["-frontend-layout-review", "-review-screen", "home-saved",
+                                   "-review-language", language] + extra
+            app.launch()
+            tap("tab-browse")
+            let alerts = element("browse-alerts")
+            XCTAssertTrue(alerts.waitForExistence(timeout: 15))
+            reveal(alerts)
+            alerts.tap()
+            let daily = app.switches["daily-reminder-toggle"]
+            XCTAssertTrue(daily.waitForExistence(timeout: 10))
+            XCTAssertTrue(daily.isHittable)
+            XCTAssertEqual(daily.value as? String, "0", "Reminders must be opt-in")
+            let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+            XCTAssertFalse(springboard.alerts.firstMatch.exists, "Opening settings must not request notification permission")
+            capture(name)
+            let savedToggle = app.switches.matching(NSPredicate(format: "identifier BEGINSWITH %@", "saved-filter-alert-")).firstMatch
+            reveal(savedToggle)
+            XCTAssertTrue(savedToggle.exists && savedToggle.isHittable)
+            XCTAssertEqual(savedToggle.value as? String, "0", "Existing saved filters must stay opted out")
+            app.terminate()
+        }
+    }
+
     func test11SampleAccessibilityNotesInLightAndDarkRTL() {
         let sample = "Sample: Step-free entrance; contact the provider for details."
         for (language, extra, heading, name) in [
