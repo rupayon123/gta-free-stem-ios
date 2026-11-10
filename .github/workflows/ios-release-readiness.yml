@@ -9,7 +9,7 @@ jobs:
   navigation:
     if: github.event.repository.visibility == 'public'
     runs-on: macos-26
-    timeout-minutes: 30
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -21,7 +21,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git rev-parse HEAD^)" = a095bf24903760d7b9ffa7b689d6100c49ed52e1
+          test "$(git rev-parse HEAD^)" = bddeeceb4c6cd588c0762e43c5efac5102095782
           test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = .github/workflows/ios-release-readiness.yml
           test -z "$(git status --porcelain)"
           shasum -a 256 -c .github/native-ci-source.sha256
@@ -43,6 +43,34 @@ jobs:
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
               output.write('value=platform=iOS Simulator,id=' + device + '\n')
           print('Selected iPhone 17 Pro', runtime, device)
+          PY
+      - name: Run iOS unit regressions
+        id: units
+        timeout-minutes: 20
+        shell: bash
+        env:
+          TEST_DESTINATION: ${{ steps.destination.outputs.value }}
+        run: |
+          set -euo pipefail
+          xcodebuild test -project GTAFreeSTEM.xcodeproj -scheme GTAFreeSTEM \
+            -configuration Debug -destination "$TEST_DESTINATION" -destination-timeout 90 \
+            -jobs 1 -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 \
+            -derivedDataPath "$RUNNER_TEMP/nav-derived" -resultBundlePath "$RUNNER_TEMP/units.xcresult" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/units.log"
+          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/units.xcresult" > "$RUNNER_TEMP/units-summary.json"
+          xcrun xcresulttool get test-results tests --path "$RUNNER_TEMP/units.xcresult" > "$RUNNER_TEMP/units-tests.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])
+          summary = json.loads((root / 'units-summary.json').read_text())
+          print(json.dumps(summary))
+          total = summary.get('totalTestCount', 0)
+          if summary.get('result') != 'Passed' or total < 200 or summary.get('passedTests') != total or summary.get('failedTests') != 0 or summary.get('skippedTests') != 0:
+              raise SystemExit('The complete unit suite did not pass')
+          tests = (root / 'units-tests.json').read_text()
+          for name in ('testSourceAccessibilityNotesSurviveFeedCacheArchiveAndTranslationMerge', 'testFullDescriptionBindingRequiresExactIdentityLocaleAndSourceBytes'):
+              if name not in tests: raise SystemExit('Missing required regression: ' + name)
           PY
       - name: Run bottom-content diagnostic
         id: ui
