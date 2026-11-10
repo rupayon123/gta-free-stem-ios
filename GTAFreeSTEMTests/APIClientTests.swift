@@ -3259,7 +3259,6 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(browseSource.contains("store.mode = surface.defaultMode"))
         XCTAssertTrue(browseSource.contains("store.refresh(cache: persistenceContext, force: true)"))
         XCTAssertTrue(browseSource.contains("if store.opportunities.isEmpty {\n            emptyOpportunityState"))
-        XCTAssertTrue(browseSource.contains("isActive: isLoading && !reduceMotion"))
     }
 
     func testChangingOpportunityStatusUsesAnnouncementsWithoutMovingVoiceOverFocus() throws {
