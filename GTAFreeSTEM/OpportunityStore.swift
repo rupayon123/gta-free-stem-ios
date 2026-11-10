@@ -457,19 +457,28 @@ final class OpportunityStore: ObservableObject {
                 }
                 return
             }
-            let generation = await retainFullFeed(fullFeed, source: .publicLiveFeed)
             // Encoding a large catalogue is CPU work; keep it off the UI actor.
-            // The exact generation is checked again before any cache or saved
-            // opportunity writes, since encoding can suspend while data changes.
+            // Do not replace the retained feed until encoding has completed and
+            // the refresh is still current; it may be cancelled while suspended.
+            let previousGeneration = catalogueGeneration
             let cachePayload: Data?
             if context != nil {
                 cachePayload = await Self.encodeCachePayload(fullFeed, limit: maximumCachePayloadBytes)
             } else {
                 cachePayload = nil
             }
+            guard !Task.isCancelled else { return }
 #if DEBUG
             if let gate = cacheEncodingCommitGate { await gate() }
 #endif
+            guard !Task.isCancelled else { return }
+            guard previousGeneration == catalogueGeneration else {
+                await applyAvailableLocalResults(cache: context)
+                persistCurrentHunt(in: context)
+                huntPhase = retainedFeedSource == .publicLiveFeed ? .fresh : .cached
+                return
+            }
+            let generation = await retainFullFeed(fullFeed, source: .publicLiveFeed)
             guard !Task.isCancelled else { return }
             let response = await responseForCurrentHunt(from: fullFeed)
             guard !Task.isCancelled else { return }

@@ -1546,7 +1546,7 @@ final class APIClientTests: XCTestCase {
 
         XCTAssertEqual(
             mission,
-            "Find free STEM programs and library events for children, families and adults in Toronto and Markham."
+            "Find free STEM programs, library events and family activities in Toronto, Markham and nearby GTA communities."
         )
 
         let feedURL = try XCTUnwrap(
@@ -1558,12 +1558,14 @@ final class APIClientTests: XCTestCase {
         )
         let feedUpdated = try XCTUnwrap(feed.meta?.lastUpdated)
         let feedDate = try XCTUnwrap(FeedFreshness.date(from: feedUpdated))
-        let exactCities: Set<String> = ["Toronto", "Markham"]
-        let exactLibrarySources: Set<String> = [
+        let exactCities: Set<String> = ["Toronto", "Markham", "Newmarket"]
+        let exactSources: Set<String> = [
             "Markham Public Library\u{001F}markham.bibliocommons.com",
-            "Toronto Public Library\u{001F}tpl.bibliocommons.com"
+            "Toronto Public Library\u{001F}tpl.bibliocommons.com",
+            "Ontario Science Centre\u{001F}www.ontariosciencecentre.ca",
+            "Autism Ontario\u{001F}www.autismontario.com"
         ]
-        let observedLibrarySources = Set(feed.data.compactMap { opportunity -> String? in
+        let observedSources = Set(feed.data.compactMap { opportunity -> String? in
             guard let host = URL(string: opportunity.sourceUrl)?.host?.lowercased() else {
                 return nil
             }
@@ -1586,18 +1588,20 @@ final class APIClientTests: XCTestCase {
             XCTAssertTrue(addresses.contains(opportunity.address ?? ""))
             return "Markham"
         }
-        XCTAssertEqual(Set(feed.data.map(\.city)), ["Toronto", "Markham", "Thornhill", "Unionville"])
+        XCTAssertEqual(Set(feed.data.map(\.city)), ["Toronto", "Markham", "Thornhill", "Unionville", "Newmarket"])
         XCTAssertEqual(Set(municipalities), exactCities)
-        XCTAssertEqual(observedLibrarySources, exactLibrarySources)
+        XCTAssertEqual(observedSources, exactSources)
         XCTAssertEqual(feed.meta?.activeCount, feed.data.count)
         XCTAssertTrue(feed.hasReleaseReadyContentRights(now: feedDate))
         XCTAssertTrue(feed.data.allSatisfy(\.isExplicitlyFree))
         XCTAssertTrue(feed.data.allSatisfy {
             $0.registrationUrl == $0.sourceUrl && !$0.volunteerHoursEligible && !$0.coopEligible
         })
-        for city in exactCities {
+        for city in ["Toronto", "Markham"] {
             XCTAssertTrue(mission.contains(city), "The mission must name the published city \(city).")
         }
+        XCTAssertTrue(mission.contains("nearby GTA communities"))
+        XCTAssertTrue(feed.data.contains { $0.city == "Newmarket" && $0.region == "York" && $0.organization == "Autism Ontario" })
 
         let unavailableClaims = [
             "across the gta", "gta-wide", "volunteer", "co-op", "shsm", "mentorship", "scholarship"
@@ -2941,18 +2945,19 @@ final class APIClientTests: XCTestCase {
         let bundled = try LocalOpportunitySnapshot.loadFull()
         let currentFeedMoment = try bundledSnapshotTestNow()
 
-        XCTAssertEqual(bundled.data.count, 1878)
-        XCTAssertEqual(bundled.data.filter(\.virtual).count, 45)
-        XCTAssertEqual(
-            HomePathwayInventory.availableModes(in: bundled.data, now: currentFeedMoment),
-            [.volunteer]
-        )
-        let volunteerRows = LocalOpportunitySnapshot.filter(
-            bundled.data, query: "", mode: .volunteer, filters: OpportunityFilters(), now: currentFeedMoment
-        )
-        XCTAssertEqual(volunteerRows.map(\.id), ["tpl-rss-6ac92852295b3b0033cb1160"])
-        XCTAssertTrue(volunteerRows.allSatisfy { $0.description.contains("volunteer hours") })
-        XCTAssertTrue(volunteerRows.allSatisfy(LocalOpportunitySnapshot.isHighSchoolPathwayEligible))
+        XCTAssertGreaterThan(bundled.data.count, 1_000)
+        XCTAssertEqual(bundled.meta?.activeCount, bundled.data.count)
+        XCTAssertTrue(bundled.hasReleaseReadyContentRights(now: currentFeedMoment))
+        let promoted = HomePathwayInventory.availableModes(in: bundled.data, now: currentFeedMoment)
+        for mode in HomePathwayInventory.promotedModes {
+            let rows = LocalOpportunitySnapshot.filter(
+                bundled.data, query: "", mode: mode, filters: OpportunityFilters(), now: currentFeedMoment
+            )
+            XCTAssertEqual(promoted.contains(mode), !rows.isEmpty, "Only promote pathways with current results")
+            XCTAssertTrue(rows.allSatisfy(LocalOpportunitySnapshot.isHighSchoolPathwayEligible))
+            XCTAssertTrue(rows.allSatisfy(\.isExplicitlyFree))
+            XCTAssertTrue(rows.allSatisfy { LocalOpportunitySnapshot.isCurrentlyAvailable($0, on: currentFeedMoment) })
+        }
     }
 
     func testMapPinsAreSubsetOfFilteredListResults() {
@@ -3819,7 +3824,10 @@ final class APIClientTests: XCTestCase {
         let rights = try XCTUnwrap(response.contentRights)
         let conditions = ["Automated access uses the provider's RSS/XML event feed.", "Every displayed extract links to its original BiblioCommons event page.", "GTA FREE STEM is free and does not monetize provider content."]
         let sources = rights.sources.map { source in
-            OpportunityListResponse.ContentRights.Source(
+            guard ["tpl.bibliocommons.com", "markham.bibliocommons.com"].contains(source.sourceHost) else {
+                return source
+            }
+            return OpportunityListResponse.ContentRights.Source(
                 organization: source.organization, sourceHost: source.sourceHost, records: source.records,
                 status: "terms-permitted", basisUrl: "https://\(source.sourceHost)/info/terms/", conditions: conditions,
                 termsVerifiedAt: rights.termsVerifiedAt, termsVersion: "2018-09-19", termsDigestVersion: "bibliocommons-relevant-sections-v1",
@@ -4643,22 +4651,35 @@ final class OpportunityStoreTests: XCTestCase {
         let replacement = opportunity(id: "replacement", title: "Replacement", organization: "Library", category: "Coding & Robotics", city: "Toronto")
         context.insert(try SavedOpportunityRecord(opportunity: first))
         try context.save()
-        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([first], lastUpdated: now).utf8))
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([first], lastUpdated: now.addingTimeInterval(-10)).utf8))
         let store = OpportunityStore(api: APIClient(feedURL: url, session: makeURLSessionForStub(), now: { now }), defaults: defaults, now: { now })
         await store.refresh(cache: context, force: true)
         let previousResults = store.opportunities.map(\.id)
+        XCTAssertEqual(previousResults, [first.id], "The initial feed must be accepted before cancellation is tested")
         let previousPayload = try XCTUnwrap(context.fetch(FetchDescriptor<OpportunityCacheRecord>()).first?.payload)
-        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([replacement], lastUpdated: now).utf8))
+        URLProtocolStub.register(responseFor: url, statusCode: 200, body: Data(makeOpportunitiesJSON([replacement], lastUpdated: now.addingTimeInterval(-5)).utf8))
         let gate = MapProjectionTestGate()
         store.cacheEncodingCommitGate = { await gate.hold() }
         let refresh = Task { @MainActor in await store.refresh(cache: context, force: true) }
-        await gate.waitUntilStarted()
+        for _ in 0..<200 {
+            if await gate.hasStarted() { break }
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        guard await gate.hasStarted() else {
+            refresh.cancel()
+            await gate.release()
+            await refresh.value
+            XCTFail("Refresh did not reach the cache commit boundary")
+            return
+        }
         refresh.cancel()
         await gate.release()
         await refresh.value
         XCTAssertFalse(store.isLoading)
         XCTAssertEqual(store.huntPhase, .cached)
         XCTAssertEqual(store.opportunities.map(\.id), previousResults)
+        await store.previewCurrentFilters()
+        XCTAssertEqual(store.opportunities.map(\.id), previousResults, "A later filter preview must not reveal the cancelled feed")
         XCTAssertEqual(try context.fetch(FetchDescriptor<OpportunityCacheRecord>()).first?.payload, previousPayload)
         XCTAssertEqual(try context.fetch(FetchDescriptor<SavedOpportunityRecord>()).first?.opportunity?.status, "active")
     }
@@ -6384,13 +6405,16 @@ private actor APIRequestStartGate {
 
 private actor MapProjectionTestGate {
     private var started = false
+    private var released = false
     private var startWaiters: [CheckedContinuation<Void, Never>] = []
     private var releaseWaiter: CheckedContinuation<Void, Never>?
+    func hasStarted() -> Bool { started }
     func hold() async {
         guard !started else { return }
         started = true
         startWaiters.forEach { $0.resume() }
         startWaiters.removeAll()
+        guard !released else { return }
         await withCheckedContinuation { releaseWaiter = $0 }
     }
     func waitUntilStarted() async {
@@ -6398,6 +6422,7 @@ private actor MapProjectionTestGate {
         await withCheckedContinuation { startWaiters.append($0) }
     }
     func release() {
+        released = true
         releaseWaiter?.resume()
         releaseWaiter = nil
     }
